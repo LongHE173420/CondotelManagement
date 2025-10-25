@@ -26,6 +26,9 @@ import PageAbout from "containers/PageAbout/PageAbout";
 import PageSignUp from "containers/PageSignUp/PageSignUp";
 import PageLogin from "containers/PageLogin/PageLogin";
 import PageForgotPassword from "containers/PageForgotPassword/PageForgotPassword";
+import PageAccountList from "containers/PageAccountList/PageAccountList";
+import PageAccountDetail from "containers/PageAccountDetail/PageAccountDetail";
+import PageAddAccount from "containers/PageAddAccount/PageAddAccount";
 import PageSubcription from "containers/PageSubcription/PageSubcription";
 import BlogPage from "containers/BlogPage/BlogPage";
 import BlogSingle from "containers/BlogPage/BlogSingle";
@@ -108,7 +111,10 @@ export const pages: Page[] = [
   { path: "/about", component: PageAbout },
   { path: "/signup", component: PageSignUp },
   { path: "/login", component: PageLogin },
-    { path: "/forgot-pass", component: PageForgotPassword },
+  { path: "/forgot-pass", component: PageForgotPassword },
+  { path: "/account-list", component: PageAccountList },
+  { path: "/account-detail/:id", component: PageAccountDetail },
+  { path: "/add-account", component: PageAddAccount },
   { path: "/subscription", component: PageSubcription },
   //
 ];

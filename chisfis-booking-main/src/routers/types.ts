@@ -54,6 +54,9 @@ export interface LocationStates {
   "/login"?: {};
   "/signup"?: {};
   "/forgot-pass"?: {};
+  "/account-list"?: {};
+  "/account-detail/:id"?: {};
+  "/add-account"?: {};
   "/page404"?: {};
   "/subscription"?: {};
 }
