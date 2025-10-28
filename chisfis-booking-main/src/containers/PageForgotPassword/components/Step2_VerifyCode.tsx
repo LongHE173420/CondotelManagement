@@ -1,9 +1,15 @@
 import React, { useState } from "react";
+import axiosClient from "api/axiosClient";
 
-// Props: Cần email (để gửi API) và hàm onSuccess
 interface Props {
   email: string;
   onSuccess: (token: string) => void;
+}
+
+// 👉 Định nghĩa kiểu dữ liệu trả về từ API
+interface VerifyOtpResponse {
+  token: string;
+  message?: string;
 }
 
 const Step2_VerifyCode: React.FC<Props> = ({ email, onSuccess }) => {
@@ -11,46 +17,48 @@ const Step2_VerifyCode: React.FC<Props> = ({ email, onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (code.length !== 6) {
-      setError("Mã code phải có 6 chữ số.");
+      setError("Mã OTP phải có 6 chữ số.");
       return;
     }
+
     setError("");
     setLoading(true);
 
-    // --- GIẢ LẬP GỌI API ---
-    // TODO: Thay thế bằng lệnh gọi API thật
-    // POST /api/auth/verify-code { email, code }
-    console.log(`Xác thực code ${code} cho email ${email}`);
-    setTimeout(() => {
-      setLoading(false);
-      
-      // Giả lập code sai
-      if (code === "000000") {
-        setError("Mã code không đúng hoặc đã hết hạn.");
+    try {
+      // ✅ chỉ định type cho response ở đây
+      const res = await axiosClient.post<VerifyOtpResponse>("/auth/verify-otp", {
+        email,
+        otp: code,
+      });
+
+      const token = res.data.token;
+      if (!token) {
+        setError("Không nhận được token xác thực từ máy chủ.");
         return;
       }
 
-      // Giả lập thành công, trả về 1 token tạm
-      const fakeVerificationToken = "jwt-token-tam-thoi-de-doi-mat-khau";
-      onSuccess(fakeVerificationToken);
-
-    }, 1500);
+      onSuccess(token);
+    } catch (err: any) {
+      console.error(err);
+      setError(
+        err.response?.data?.message ||
+          "Mã OTP không đúng hoặc đã hết hạn. Vui lòng thử lại."
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="w-full max-w-md p-8 space-y-6 border border-gray-200 rounded-lg shadow">
       <h2 className="text-2xl font-bold text-center">Verify Code</h2>
       <p className="text-sm text-center text-gray-600">
-        We've sent a 6-digit code to {email}.
+        We've sent a 6-digit code to <b>{email}</b>.
       </p>
-      
-      {/* Ghi chú: Giao diện 6 ô riêng lẻ phức tạp hơn.
-        Để đơn giản, tôi dùng 1 ô input cho phép nhập 6 số.
-        Bạn có thể thay thế bằng thư viện "react-otp-input" sau.
-      */}
+
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <input
@@ -62,7 +70,7 @@ const Step2_VerifyCode: React.FC<Props> = ({ email, onSuccess }) => {
             placeholder="123456"
           />
         </div>
-        
+
         {error && <p className="text-sm text-center text-red-500">{error}</p>}
 
         <button
