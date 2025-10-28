@@ -29,6 +29,7 @@ import PageForgotPassword from "containers/PageForgotPassword/PageForgotPassword
 import PageAccountList from "containers/PageAccountList/PageAccountList";
 import PageAccountDetail from "containers/PageAccountDetail/PageAccountDetail";
 import PageAddAccount from "containers/PageAddAccount/PageAddAccount";
+import PageTenantBookingList from "containers/PageTenantBookingList/PageTenantBookingList";
 import PageSubcription from "containers/PageSubcription/PageSubcription";
 import BlogPage from "containers/BlogPage/BlogPage";
 import BlogSingle from "containers/BlogPage/BlogSingle";
@@ -58,10 +59,6 @@ export const pages: Page[] = [
   { path: "/home-2", component: PageHome2 },
   { path: "/home-3", component: PageHome3 },
   //
-  { path: "/listing-stay", component: ListingStayPage },
-  { path: "/listing-stay-map", component: ListingStayMapPage },
-  { path: "/listing-stay-detail", component: ListingStayDetailPage },
-  //
   {
     path: "/listing-experiences",
     component: ListingExperiencesPage,
@@ -84,14 +81,7 @@ export const pages: Page[] = [
   //
   { path: "/listing-flights", component: ListingFlightsPage },
   //
-  { path: "/checkout", component: CheckOutPage },
-  { path: "/pay-done", component: PayPage },
-  //
   { path: "/author", component: AuthorPage },
-  { path: "/account", component: AccountPage },
-  { path: "/account-password", component: AccountPass },
-  { path: "/account-savelists", component: AccountSavelists },
-  { path: "/account-billing", component: AccountBilling },
   //
   { path: "/blog", component: BlogPage },
   { path: "/blog-single", component: BlogSingle },
@@ -112,9 +102,25 @@ export const pages: Page[] = [
   { path: "/signup", component: PageSignUp },
   { path: "/login", component: PageLogin },
   { path: "/forgot-pass", component: PageForgotPassword },
+  //
   { path: "/account-list", component: PageAccountList },
   { path: "/account-detail/:id", component: PageAccountDetail },
   { path: "/add-account", component: PageAddAccount },
+  //
+  { path: "/account", component: AccountPage },
+  { path: "/account-password", component: AccountPass },
+  { path: "/account-savelists", component: AccountSavelists },
+  { path: "/account-billing", component: AccountBilling },
+  //
+  { path: "/listing-stay", component: ListingStayPage },
+  { path: "/listing-stay-map", component: ListingStayMapPage },
+  { path: "/listing-stay-detail", component: ListingStayDetailPage },
+  //
+  { path: "/checkout", component: CheckOutPage },
+  { path: "/pay-done", component: PayPage },
+  //
+  { path: "/my-bookings", component: PageTenantBookingList },
+  //
   { path: "/subscription", component: PageSubcription },
   //
 ];

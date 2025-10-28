@@ -57,6 +57,7 @@ export interface LocationStates {
   "/account-list"?: {};
   "/account-detail/:id"?: {};
   "/add-account"?: {};
+  "/my-bookings"?: {};
   "/page404"?: {};
   "/subscription"?: {};
 }

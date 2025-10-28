@@ -127,13 +127,13 @@ const ListingStayDetailPage: FC<ListingStayDetailPageProps> = ({
       <div className="listingSection__wrap !space-y-6">
         {/* 1 */}
         <div className="flex justify-between items-center">
-          <Badge name="Wooden house" />
+          <Badge name="Nhà gỗ" />
           <LikeSaveBtns />
         </div>
 
         {/* 2 */}
         <h2 className="text-2xl sm:text-3xl lg:text-4xl font-semibold">
-          Beach House in Collingwood
+          Nhà Bãi biển ở Collingwood
         </h2>
 
         {/* 3 */}
@@ -142,7 +142,7 @@ const ListingStayDetailPage: FC<ListingStayDetailPageProps> = ({
           <span>·</span>
           <span>
             <i className="las la-map-marker-alt"></i>
-            <span className="ml-1"> Tokyo, Jappan</span>
+            <span className="ml-1"> Tokyo, Nhật Bản</span>
           </span>
         </div>
 
@@ -150,7 +150,7 @@ const ListingStayDetailPage: FC<ListingStayDetailPageProps> = ({
         <div className="flex items-center">
           <Avatar hasChecked sizeClass="h-10 w-10" radius="rounded-full" />
           <span className="ml-2.5 text-neutral-500 dark:text-neutral-400">
-            Hosted by{" "}
+            Chủ nhà{" "}
             <span className="text-neutral-900 dark:text-neutral-200 font-medium">
               Kevin Francis
             </span>
@@ -165,25 +165,25 @@ const ListingStayDetailPage: FC<ListingStayDetailPageProps> = ({
           <div className="flex items-center space-x-3 ">
             <i className=" las la-user text-2xl "></i>
             <span className="">
-              6 <span className="hidden sm:inline-block">guests</span>
+              6 <span className="hidden sm:inline-block">khách</span>
             </span>
           </div>
           <div className="flex items-center space-x-3">
             <i className=" las la-bed text-2xl"></i>
             <span className=" ">
-              6 <span className="hidden sm:inline-block">beds</span>
+              6 <span className="hidden sm:inline-block">giường</span>
             </span>
           </div>
           <div className="flex items-center space-x-3">
             <i className=" las la-bath text-2xl"></i>
             <span className=" ">
-              3 <span className="hidden sm:inline-block">baths</span>
+              3 <span className="hidden sm:inline-block">phòng tắm</span>
             </span>
           </div>
           <div className="flex items-center space-x-3">
             <i className=" las la-door-open text-2xl"></i>
             <span className=" ">
-              2 <span className="hidden sm:inline-block">bedrooms</span>
+              2 <span className="hidden sm:inline-block">phòng ngủ</span>
             </span>
           </div>
         </div>
@@ -194,25 +194,25 @@ const ListingStayDetailPage: FC<ListingStayDetailPageProps> = ({
   const renderSection2 = () => {
     return (
       <div className="listingSection__wrap">
-        <h2 className="text-2xl font-semibold">Stay information</h2>
+        <h2 className="text-2xl font-semibold">Thông tin chỗ ở</h2>
         <div className="w-14 border-b border-neutral-200 dark:border-neutral-700"></div>
         <div className="text-neutral-6000 dark:text-neutral-300">
           <span>
-            Providing lake views, The Symphony 9 Tam Coc in Ninh Binh provides
-            accommodation, an outdoor swimming pool, a bar, a shared lounge, a
-            garden and barbecue facilities. Complimentary WiFi is provided.
+            Với tầm nhìn ra hồ, The Symphony 9 Tam Cốc ở Ninh Bình cung cấp
+            chỗ nghỉ, hồ bơi ngoài trời, quầy bar, sảnh khách chung,
+            vườn và tiện nghi BBQ. WiFi được cung cấp miễn phí.
           </span>
           <br />
           <br />
           <span>
-            There is a private bathroom with bidet in all units, along with a
-            hairdryer and free toiletries.
+            Tất cả các căn đều có phòng tắm riêng với chậu rửa vệ sinh,
+            máy sấy tóc và đồ vệ sinh cá nhân miễn phí.
           </span>
           <br /> <br />
           <span>
-            The Symphony 9 Tam Coc offers a terrace. Both a bicycle rental
-            service and a car rental service are available at the accommodation,
-            while cycling can be enjoyed nearby.
+            The Symphony 9 Tam Cốc có sân hiên. Chỗ nghỉ cung cấp cả
+            dịch vụ cho thuê xe đạp và xe hơi, trong khi du khách có thể
+            đạp xe gần đó.
           </span>
         </div>
       </div>
@@ -223,9 +223,9 @@ const ListingStayDetailPage: FC<ListingStayDetailPageProps> = ({
     return (
       <div className="listingSection__wrap">
         <div>
-          <h2 className="text-2xl font-semibold">Amenities </h2>
+          <h2 className="text-2xl font-semibold">Tiện nghi </h2>
           <span className="block mt-2 text-neutral-500 dark:text-neutral-400">
-            About the property's amenities and services
+            Về các tiện nghi và dịch vụ của chỗ ở
           </span>
         </div>
         <div className="w-14 border-b border-neutral-200 dark:border-neutral-700"></div>
@@ -243,7 +243,7 @@ const ListingStayDetailPage: FC<ListingStayDetailPageProps> = ({
         <div className="w-14 border-b border-neutral-200"></div>
         <div>
           <ButtonSecondary onClick={openModalAmenities}>
-            View more 20 amenities
+            Xem thêm 20 tiện nghi
           </ButtonSecondary>
         </div>
         {renderMotalAmenities()}
@@ -295,7 +295,7 @@ const ListingStayDetailPage: FC<ListingStayDetailPageProps> = ({
                       className="text-lg font-medium leading-6 text-gray-900"
                       id="headlessui-dialog-title-70"
                     >
-                      Amenities
+                      Tiện nghi
                     </h3>
                     <span className="absolute left-3 top-3">
                       <ButtonClose onClick={closeModalAmenities} />
@@ -328,9 +328,9 @@ const ListingStayDetailPage: FC<ListingStayDetailPageProps> = ({
       <div className="listingSection__wrap">
         {/* HEADING */}
         <div>
-          <h2 className="text-2xl font-semibold">Room Rates </h2>
+          <h2 className="text-2xl font-semibold">Giá phòng </h2>
           <span className="block mt-2 text-neutral-500 dark:text-neutral-400">
-            Prices may increase on weekends or holidays
+            Giá có thể tăng vào cuối tuần hoặc ngày lễ
           </span>
         </div>
         <div className="w-14 border-b border-neutral-200 dark:border-neutral-700"></div>
@@ -338,28 +338,28 @@ const ListingStayDetailPage: FC<ListingStayDetailPageProps> = ({
         <div className="flow-root">
           <div className="text-sm sm:text-base text-neutral-6000 dark:text-neutral-300 -mb-4">
             <div className="p-4 bg-neutral-100 dark:bg-neutral-800 flex justify-between items-center space-x-4 rounded-lg">
-              <span>Monday - Thursday</span>
+              <span>Thứ Hai - Thứ Năm</span>
               <span>$199</span>
             </div>
-            <div className="p-4  flex justify-between items-center space-x-4 rounded-lg">
-              <span>Monday - Thursday</span>
+            <div className="p-4  flex justify-between items-center space-x-4 rounded-lg">
+              <span>Thứ Hai - Thứ Năm</span>
               <span>$199</span>
             </div>
             <div className="p-4 bg-neutral-100 dark:bg-neutral-800 flex justify-between items-center space-x-4 rounded-lg">
-              <span>Friday - Sunday</span>
+              <span>Thứ Sáu - Chủ Nhật</span>
               <span>$219</span>
             </div>
             <div className="p-4 flex justify-between items-center space-x-4 rounded-lg">
-              <span>Rent by month</span>
+              <span>Thuê theo tháng</span>
               <span>-8.34 %</span>
             </div>
             <div className="p-4 bg-neutral-100 dark:bg-neutral-800 flex justify-between items-center space-x-4 rounded-lg">
-              <span>Minimum number of nights</span>
-              <span>1 night</span>
+              <span>Số đêm tối thiểu</span>
+              <span>1 đêm</span>
             </div>
             <div className="p-4 flex justify-between items-center space-x-4 rounded-lg">
-              <span>Max number of nights</span>
-              <span>90 nights</span>
+              <span>Số đêm tối đa</span>
+              <span>90 đêm</span>
             </div>
           </div>
         </div>
@@ -372,9 +372,9 @@ const ListingStayDetailPage: FC<ListingStayDetailPageProps> = ({
       <div className="listingSection__wrap overflow-hidden">
         {/* HEADING */}
         <div>
-          <h2 className="text-2xl font-semibold">Availability</h2>
+          <h2 className="text-2xl font-semibold">Lịch có sẵn</h2>
           <span className="block mt-2 text-neutral-500 dark:text-neutral-400">
-            Prices may increase on weekends or holidays
+            Giá có thể tăng vào cuối tuần hoặc ngày lễ
           </span>
         </div>
         <div className="w-14 border-b border-neutral-200 dark:border-neutral-700"></div>
@@ -406,7 +406,7 @@ const ListingStayDetailPage: FC<ListingStayDetailPageProps> = ({
     return (
       <div className="listingSection__wrap">
         {/* HEADING */}
-        <h2 className="text-2xl font-semibold">Host Information</h2>
+        <h2 className="text-2xl font-semibold">Thông tin chủ nhà</h2>
         <div className="w-14 border-b border-neutral-200 dark:border-neutral-700"></div>
 
         {/* host */}
@@ -424,16 +424,16 @@ const ListingStayDetailPage: FC<ListingStayDetailPageProps> = ({
             <div className="mt-1.5 flex items-center text-sm text-neutral-500 dark:text-neutral-400">
               <StartRating />
               <span className="mx-2">·</span>
-              <span> 12 places</span>
+              <span> 12 chỗ ở</span>
             </div>
           </div>
         </div>
 
         {/* desc */}
         <span className="block text-neutral-6000 dark:text-neutral-300">
-          Providing lake views, The Symphony 9 Tam Coc in Ninh Binh provides
-          accommodation, an outdoor swimming pool, a bar, a shared lounge, a
-          garden and barbecue facilities...
+          Với tầm nhìn ra hồ, The Symphony 9 Tam Cốc ở Ninh Bình cung cấp
+          chỗ nghỉ, hồ bơi ngoài trời, quầy bar, sảnh khách chung,
+          vườn và tiện nghi BBQ...
         </span>
 
         {/* info */}
@@ -453,7 +453,7 @@ const ListingStayDetailPage: FC<ListingStayDetailPageProps> = ({
                 d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
               />
             </svg>
-            <span>Joined in March 2016</span>
+            <span>Tham gia vào tháng 3, 2016</span>
           </div>
           <div className="flex items-center space-x-3">
             <svg
@@ -470,7 +470,7 @@ const ListingStayDetailPage: FC<ListingStayDetailPageProps> = ({
                 d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"
               />
             </svg>
-            <span>Response rate - 100%</span>
+            <span>Tỷ lệ phản hồi - 100%</span>
           </div>
           <div className="flex items-center space-x-3">
             <svg
@@ -488,14 +488,14 @@ const ListingStayDetailPage: FC<ListingStayDetailPageProps> = ({
               />
             </svg>
 
-            <span>Fast response - within a few hours</span>
+            <span>Phản hồi nhanh - trong vài giờ</span>
           </div>
         </div>
 
         {/* == */}
         <div className="w-14 border-b border-neutral-200 dark:border-neutral-700"></div>
         <div>
-          <ButtonSecondary href="##">See host profile</ButtonSecondary>
+          <ButtonSecondary href="##">Xem hồ sơ chủ nhà</ButtonSecondary>
         </div>
       </div>
     );
@@ -505,7 +505,7 @@ const ListingStayDetailPage: FC<ListingStayDetailPageProps> = ({
     return (
       <div className="listingSection__wrap">
         {/* HEADING */}
-        <h2 className="text-2xl font-semibold">Reviews (23 reviews)</h2>
+        <h2 className="text-2xl font-semibold">Đánh giá (23 đánh giá)</h2>
         <div className="w-14 border-b border-neutral-200 dark:border-neutral-700"></div>
 
         {/* Content */}
@@ -516,7 +516,7 @@ const ListingStayDetailPage: FC<ListingStayDetailPageProps> = ({
               fontClass=""
               sizeClass="h-16 px-4 py-3"
               rounded="rounded-3xl"
-              placeholder="Share your thoughts ..."
+              placeholder="Chia sẻ suy nghĩ của bạn ..."
             />
             <ButtonCircle
               className="absolute right-2 top-1/2 transform -translate-y-1/2"
@@ -534,7 +534,7 @@ const ListingStayDetailPage: FC<ListingStayDetailPageProps> = ({
           <CommentListing className="py-8" />
           <CommentListing className="py-8" />
           <div className="pt-8">
-            <ButtonSecondary>View more 20 reviews</ButtonSecondary>
+            <ButtonSecondary>Xem thêm 20 đánh giá</ButtonSecondary>
           </div>
         </div>
       </div>
@@ -546,9 +546,9 @@ const ListingStayDetailPage: FC<ListingStayDetailPageProps> = ({
       <div className="listingSection__wrap">
         {/* HEADING */}
         <div>
-          <h2 className="text-2xl font-semibold">Location</h2>
+          <h2 className="text-2xl font-semibold">Vị trí</h2>
           <span className="block mt-2 text-neutral-500 dark:text-neutral-400">
-            San Diego, CA, United States of America (SAN-San Diego Intl.)
+            San Diego, CA, Hợp chủng quốc Hoa Kỳ (SAN-Sân bay quốc tế San Diego)
           </span>
         </div>
         <div className="w-14 border-b border-neutral-200 dark:border-neutral-700" />
@@ -579,32 +579,32 @@ const ListingStayDetailPage: FC<ListingStayDetailPageProps> = ({
     return (
       <div className="listingSection__wrap">
         {/* HEADING */}
-        <h2 className="text-2xl font-semibold">Things to know</h2>
+        <h2 className="text-2xl font-semibold">Những điều cần biết</h2>
         <div className="w-14 border-b border-neutral-200 dark:border-neutral-700" />
 
         {/* CONTENT */}
         <div>
-          <h4 className="text-lg font-semibold">Cancellation policy</h4>
+          <h4 className="text-lg font-semibold">Chính sách hủy phòng</h4>
           <span className="block mt-3 text-neutral-500 dark:text-neutral-400">
-            Refund 50% of the booking value when customers cancel the room
-            within 48 hours after successful booking and 14 days before the
-            check-in time. <br />
-            Then, cancel the room 14 days before the check-in time, get a 50%
-            refund of the total amount paid (minus the service fee).
+            Hoàn 50% giá trị đặt phòng khi khách hủy phòng
+            trong vòng 48 giờ sau khi đặt thành công và 14 ngày trước
+            thời gian nhận phòng. <br />
+            Sau đó, hủy phòng 14 ngày trước thời gian nhận phòng, được hoàn 50%
+            tổng số tiền đã thanh toán (trừ phí dịch vụ).
           </span>
         </div>
         <div className="w-14 border-b border-neutral-200 dark:border-neutral-700" />
 
         {/* CONTENT */}
         <div>
-          <h4 className="text-lg font-semibold">Check-in time</h4>
+          <h4 className="text-lg font-semibold">Thời gian nhận phòng</h4>
           <div className="mt-3 text-neutral-500 dark:text-neutral-400 max-w-md text-sm sm:text-base">
             <div className="flex space-x-10 justify-between p-3 bg-neutral-100 dark:bg-neutral-800 rounded-lg">
-              <span>Check-in</span>
+              <span>Nhận phòng</span>
               <span>08:00 am - 12:00 am</span>
             </div>
             <div className="flex space-x-10 justify-between p-3">
-              <span>Check-out</span>
+              <span>Trả phòng</span>
               <span>02:00 pm - 04:00 pm</span>
             </div>
           </div>
@@ -613,15 +613,15 @@ const ListingStayDetailPage: FC<ListingStayDetailPageProps> = ({
 
         {/* CONTENT */}
         <div>
-          <h4 className="text-lg font-semibold">Special Note</h4>
+          <h4 className="text-lg font-semibold">Lưu ý đặc biệt</h4>
           <div className="prose sm:prose">
             <ul className="mt-3 text-neutral-500 dark:text-neutral-400 space-y-2">
               <li>
-                Ban and I will work together to keep the landscape and
-                environment green and clean by not littering, not using
-                stimulants and respecting people around.
+                Bạn và tôi sẽ cùng nhau giữ gìn cảnh quan và
+                môi trường xanh sạch bằng cách không xả rác, không sử dụng
+                chất kích thích và tôn trọng người xung quanh.
               </li>
-              <li>Do not sing karaoke past 11:30</li>
+              <li>Không hát karaoke sau 23:30</li>
             </ul>
           </div>
         </div>
@@ -637,7 +637,7 @@ const ListingStayDetailPage: FC<ListingStayDetailPageProps> = ({
           <span className="text-3xl font-semibold">
             $119
             <span className="ml-1 text-base font-normal text-neutral-500 dark:text-neutral-400">
-              /night
+              /đêm
             </span>
           </span>
           <StartRating />
@@ -669,22 +669,22 @@ const ListingStayDetailPage: FC<ListingStayDetailPageProps> = ({
         {/* SUM */}
         <div className="flex flex-col space-y-4">
           <div className="flex justify-between text-neutral-6000 dark:text-neutral-300">
-            <span>$119 x 3 night</span>
+            <span>$119 x 3 đêm</span>
             <span>$357</span>
           </div>
           <div className="flex justify-between text-neutral-6000 dark:text-neutral-300">
-            <span>Service charge</span>
+            <span>Phí dịch vụ</span>
             <span>$0</span>
           </div>
           <div className="border-b border-neutral-200 dark:border-neutral-700"></div>
           <div className="flex justify-between font-semibold">
-            <span>Total</span>
+            <span>Tổng cộng</span>
             <span>$199</span>
           </div>
         </div>
 
         {/* SUBMIT */}
-        <ButtonPrimary href={"/checkout"}>Reserve</ButtonPrimary>
+        <ButtonPrimary href={"/checkout"}>Đặt phòng</ButtonPrimary>
       </div>
     );
   };
@@ -749,7 +749,7 @@ const ListingStayDetailPage: FC<ListingStayDetailPageProps> = ({
                 />
               </svg>
               <span className="ml-2 text-neutral-800 text-sm font-medium">
-                Show all photos
+                Hiển thị tất cả ảnh
               </span>
             </div>
           </div>
@@ -795,8 +795,8 @@ const ListingStayDetailPage: FC<ListingStayDetailPageProps> = ({
           <div className="relative py-16">
             <BackgroundSection />
             <SectionSliderNewCategories
-              heading="Explore by types of stays"
-              subHeading="Explore houses based on 10 types of stays"
+              heading="Khám phá theo loại hình lưu trú"
+              subHeading="Khám phá nhà dựa trên 10 loại hình lưu trú"
               categoryCardType="card5"
               itemPerRow={5}
               sliderStyle="style2"
