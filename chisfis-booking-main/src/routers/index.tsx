@@ -108,7 +108,7 @@ export const pages: Page[] = [
   { path: "/about", component: PageAbout },
   { path: "/signup", component: PageSignUp },
   { path: "/login", component: PageLogin },
-    { path: "/forgot-pass", component: PageForgotPassword },
+  { path: "/forgot-pass", component: PageForgotPassword },
   { path: "/subscription", component: PageSubcription },
   //
 ];
