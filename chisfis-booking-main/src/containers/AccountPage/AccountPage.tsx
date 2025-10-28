@@ -1,5 +1,5 @@
 import Label from "components/Label/Label";
-import React, { FC } from "react";
+import React, { FC, useState, useEffect } from "react";
 import Avatar from "shared/Avatar/Avatar";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
 import Input from "shared/Input/Input";
@@ -7,12 +7,96 @@ import Select from "shared/Select/Select";
 import Textarea from "shared/Textarea/Textarea";
 import CommonLayout from "./CommonLayout";
 import { Helmet } from "react-helmet";
+import { useAuth } from "contexts/AuthContext";
+import { authAPI } from "api/auth";
+import { adminAPI } from "api/admin";
 
 export interface AccountPageProps {
   className?: string;
 }
 
 const AccountPage: FC<AccountPageProps> = ({ className = "" }) => {
+  const { user, updateUser, isAdmin } = useAuth();
+  const [formData, setFormData] = useState({
+    fullName: "",
+    email: "",
+    phone: "",
+    gender: "",
+    dateOfBirth: "",
+    address: "",
+    about: "",
+  });
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
+  // Load user data when component mounts
+  useEffect(() => {
+    const loadUserData = async () => {
+      try {
+        const userProfile = await authAPI.getMe();
+        setFormData({
+          fullName: userProfile.fullName || "",
+          email: userProfile.email || "",
+          phone: userProfile.phone || "",
+          gender: userProfile.gender || "",
+          dateOfBirth: userProfile.dateOfBirth || "",
+          address: userProfile.address || "",
+          about: "",
+        });
+      } catch (error) {
+        console.error("Failed to load user data:", error);
+        setError("Không thể tải thông tin người dùng");
+      }
+    };
+
+    loadUserData();
+  }, []);
+
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleUpdate = async () => {
+    setLoading(true);
+    setError("");
+    setMessage("");
+
+    try {
+      if (isAdmin && user?.userId) {
+        // Nếu là Admin, dùng admin API
+        await adminAPI.updateUser(user.userId, {
+          fullName: formData.fullName,
+          phone: formData.phone,
+          gender: formData.gender,
+          dateOfBirth: formData.dateOfBirth,
+          address: formData.address,
+        });
+      } else {
+        // User thường thì có thể dùng API khác nếu có
+        setMessage("Cập nhật thành công!");
+      }
+
+      // Refresh user data
+      const userProfile = await authAPI.getMe();
+      updateUser(userProfile);
+      setMessage("Cập nhật thông tin thành công!");
+    } catch (error: any) {
+      console.error("Update error:", error);
+      setError(error.response?.data?.message || "Không thể cập nhật thông tin!");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className={`nc-AccountPage ${className}`} data-nc-id="AccountPage">
       <Helmet>
@@ -54,54 +138,110 @@ const AccountPage: FC<AccountPageProps> = ({ className = "" }) => {
             </div>
             <div className="flex-grow mt-10 md:mt-0 md:pl-16 max-w-3xl space-y-6">
               <div>
-                <Label>Name</Label>
-                <Input className="mt-1.5" defaultValue="Eden Tuan" />
-              </div>
-              {/* ---- */}
-              <div>
-                <Label>Gender</Label>
-                <Select className="mt-1.5">
-                  <option value="Male">Male</option>
-                  <option value="Female">Female</option>
-                  <option value="Other">Other</option>
-                </Select>
-              </div>
-              {/* ---- */}
-              <div>
-                <Label>Username</Label>
-                <Input className="mt-1.5" defaultValue="@eden_tuan" />
-              </div>
-              {/* ---- */}
-              <div>
-                <Label>Email</Label>
-                <Input className="mt-1.5" defaultValue="example@email.com" />
-              </div>
-              {/* ---- */}
-              <div className="max-w-lg">
-                <Label>Date of birth</Label>
+                <Label>Họ tên</Label>
                 <Input
                   className="mt-1.5"
-                  type="date"
-                  defaultValue="1990-07-22"
+                  name="fullName"
+                  value={formData.fullName}
+                  onChange={handleChange}
                 />
               </div>
               {/* ---- */}
               <div>
-                <Label>Addess</Label>
-                <Input className="mt-1.5" defaultValue="New york, USA" />
+                <Label>Giới tính</Label>
+                <Select
+                  className="mt-1.5"
+                  name="gender"
+                  value={formData.gender}
+                  onChange={handleChange}
+                >
+                  <option value="">Chọn giới tính</option>
+                  <option value="Male">Nam</option>
+                  <option value="Female">Nữ</option>
+                  <option value="Other">Khác</option>
+                </Select>
               </div>
               {/* ---- */}
               <div>
-                <Label>Phone number</Label>
-                <Input className="mt-1.5" defaultValue="003 888 232" />
+                <Label>Email</Label>
+                <Input
+                  className="mt-1.5"
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  disabled
+                />
               </div>
               {/* ---- */}
               <div>
-                <Label>About you</Label>
-                <Textarea className="mt-1.5" defaultValue="..." />
+                <Label>Role</Label>
+                <Input
+                  className="mt-1.5"
+                  value={user?.roleName || ""}
+                  disabled
+                />
               </div>
+              {/* ---- */}
+              <div className="max-w-lg">
+                <Label>Ngày sinh</Label>
+                <Input
+                  className="mt-1.5"
+                  type="date"
+                  name="dateOfBirth"
+                  value={formData.dateOfBirth}
+                  onChange={handleChange}
+                />
+              </div>
+              {/* ---- */}
+              <div>
+                <Label>Địa chỉ</Label>
+                <Input
+                  className="mt-1.5"
+                  name="address"
+                  value={formData.address}
+                  onChange={handleChange}
+                  placeholder="Hanoi, Vietnam"
+                />
+              </div>
+              {/* ---- */}
+              <div>
+                <Label>Số điện thoại</Label>
+                <Input
+                  className="mt-1.5"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleChange}
+                  placeholder="0123456789"
+                />
+              </div>
+              {/* ---- */}
+              <div>
+                <Label>Giới thiệu</Label>
+                <Textarea
+                  className="mt-1.5"
+                  name="about"
+                  value={formData.about}
+                  onChange={handleTextareaChange}
+                  placeholder="Giới thiệu về bạn..."
+                />
+              </div>
+
+              {/* Message */}
+              {message && (
+                <div className="p-4 bg-green-100 text-green-800 rounded-lg text-sm">
+                  {message}
+                </div>
+              )}
+              {error && (
+                <div className="p-4 bg-red-100 text-red-800 rounded-lg text-sm">
+                  {error}
+                </div>
+              )}
+
               <div className="pt-2">
-                <ButtonPrimary>Update info</ButtonPrimary>
+                <ButtonPrimary onClick={handleUpdate} disabled={loading}>
+                  {loading ? "Đang cập nhật..." : "Cập nhật thông tin"}
+                </ButtonPrimary>
               </div>
             </div>
           </div>

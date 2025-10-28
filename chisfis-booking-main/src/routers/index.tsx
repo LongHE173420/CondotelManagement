@@ -21,6 +21,8 @@ import AccountPage from "containers/AccountPage/AccountPage";
 import AccountPass from "containers/AccountPage/AccountPass";
 import AccountSavelists from "containers/AccountPage/AccountSavelists";
 import AccountBilling from "containers/AccountPage/AccountBilling";
+import AdminPage from "containers/AdminPage/AdminPage";
+import ProtectedRoute from "components/ProtectedRoute/ProtectedRoute";
 import PageContact from "containers/PageContact/PageContact";
 import PageAbout from "containers/PageAbout/PageAbout";
 import PageSignUp from "containers/PageSignUp/PageSignUp";
@@ -143,6 +145,17 @@ const MyRoutes = () => {
           const Component = component;
           return <Route key={path} element={<Component />} path={path} />;
         })}
+        
+        {/* Protected Admin Route */}
+        <Route
+          path="/admin/*"
+          element={
+            <ProtectedRoute requireAuth={true} requireAdmin={true}>
+              <AdminPage />
+            </ProtectedRoute>
+          }
+        />
+        
         <Route path="*" element={<Page404 />} /> {/* Đã sửa lại Route cho Page404 */}
       </Routes>
 
