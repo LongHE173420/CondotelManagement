@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 
-// --- Định nghĩa kiểu dữ liệu (Copy từ PageAccountList) ---
+
 type UserRole = "Chủ Condotel" | "Khách Hàng";
 type UserStatus = "Hoạt động" | "Không hoạt động";
 
@@ -16,19 +16,19 @@ interface UserAccount {
   updatedAt: string;
 }
 
-// --- Dữ liệu mẫu (Giả lập fetch từ API) ---
+
 const mockUserDetail: UserAccount = {
   id: "1",
   username: "an.nguyen",
   fullName: "Nguyễn Văn An",
   email: "An@gmail.com",
-  role: "Khách Hàng", // Dựa theo ảnh của bạn
-  status: "Hoạt động", // Dựa theo ảnh của bạn
+  role: "Khách Hàng",
+  status: "Hoạt động",
   createdAt: "10/10/2025",
   updatedAt: "12/10/2025",
 };
 
-// --- Component Form Input ---
+
 interface FormInputProps {
   label: string;
   value: string;
@@ -51,7 +51,7 @@ const FormInput: React.FC<FormInputProps> = ({ label, value, onChange, disabled 
   </div>
 );
 
-// --- Component Form Select ---
+
 interface FormSelectProps {
   label: string;
   value: string;
@@ -74,20 +74,19 @@ const FormSelect: React.FC<FormSelectProps> = ({ label, value, onChange, childre
 );
 
 
-// --- Component Trang Chi tiết Tài khoản ---
+
 const PageAccountDetail = () => {
-  // Giả lập lấy ID từ URL, ví dụ: /account-detail/an.nguyen
+
   const { id } = useParams();
   const navigate = useNavigate();
 
-  // State để lưu trữ dữ liệu form
+
   const [formData, setFormData] = useState<Partial<UserAccount>>({});
   const [loading, setLoading] = useState(true);
 
-  // Giả lập fetch data khi component mount
+
   useEffect(() => {
-    // TODO: Thay thế bằng API thật
-    // fetch(`/api/users/${id}`)
+
     console.log("Fetching data for user:", id);
     setLoading(true);
     setTimeout(() => {
@@ -96,7 +95,7 @@ const PageAccountDetail = () => {
     }, 500);
   }, [id]);
 
-  // Hàm cập nhật state khi gõ
+
   const handleChange = (field: keyof UserAccount, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
@@ -104,8 +103,7 @@ const PageAccountDetail = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    // TODO: Gọi API để lưu
-    // PUT /api/users/${id} { ...formData }
+
     console.log("Saving data:", formData);
     setTimeout(() => {
       setLoading(false);

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
+import { Link } from "react-router-dom";
 
-// --- Định nghĩa kiểu dữ liệu cho tài khoản ---
+
 type UserRole = "Chủ Condotel" | "Khách Hàng";
 type UserStatus = "Hoạt động" | "Không hoạt động";
 
@@ -15,7 +16,7 @@ interface UserAccount {
   updatedAt: string;
 }
 
-// --- Dữ liệu mẫu (Mock Data) dựa trên ảnh của bạn ---
+
 const mockUserData: UserAccount[] = [
   {
     id: "1",
@@ -49,7 +50,7 @@ const mockUserData: UserAccount[] = [
   },
 ];
 
-// --- Component Badge cho Trạng thái ---
+
 const StatusBadge: React.FC<{ status: UserStatus }> = ({ status }) => {
   const baseClasses = "px-3 py-1 rounded-full text-xs font-medium";
   if (status === "Hoạt động") {
@@ -66,7 +67,7 @@ const StatusBadge: React.FC<{ status: UserStatus }> = ({ status }) => {
   );
 };
 
-// --- Component Badge cho Vai trò ---
+
 const RoleBadge: React.FC<{ role: UserRole }> = ({ role }) => {
   const baseClasses = "px-3 py-1 rounded-full text-xs font-medium";
   if (role === "Chủ Condotel") {
@@ -83,25 +84,27 @@ const RoleBadge: React.FC<{ role: UserRole }> = ({ role }) => {
   );
 };
 
-// --- Component Trang Danh sách Tài khoản ---
 const PageAccountList = () => {
   const [users, setUsers] = useState<UserAccount[]>(mockUserData);
   const [currentPage, setCurrentPage] = useState(1);
 
-  // TODO: Thêm logic cho tìm kiếm, lọc, và phân trang
-  
+
+
   return (
     <div className="p-4 md:p-8 bg-gray-50 min-h-screen">
       <div className="max-w-7xl mx-auto bg-white p-6 rounded-lg shadow-md">
-        
+
         {/* --- Header: Tiêu đề và Nút Thêm --- */}
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl md:text-3xl font-bold text-gray-800">
             Danh sách tài khoản
           </h1>
-          <button className="px-4 py-2 bg-gray-800 text-white rounded-md hover:bg-gray-700">
+          <Link
+            to="/add-account"
+            className="px-4 py-2 bg-gray-800 text-white rounded-md hover:bg-gray-700"
+          >
             Thêm tài khoản
-          </button>
+          </Link>
         </div>
 
         {/* --- Thanh Filter và Tìm kiếm --- */}
