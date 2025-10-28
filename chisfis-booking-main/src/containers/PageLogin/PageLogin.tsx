@@ -6,22 +6,8 @@ import { Helmet } from "react-helmet";
 import Input from "shared/Input/Input";
 import { Link, useNavigate } from "react-router-dom";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
-import axios from "axios";
-
-// ✅ Định nghĩa thủ công type cho lỗi Axios (axios 1.5 không export trực tiếp)
-type AxiosErrorType = {
-  isAxiosError: boolean;
-  response?: {
-    status?: number;
-    data?: any;
-  };
-  message?: string;
-};
-
-// ✅ Hàm kiểm tra lỗi Axios
-function isAxiosError(error: unknown): error is AxiosErrorType {
-  return typeof error === "object" && error !== null && "isAxiosError" in error;
-}
+import { useAuth } from "contexts/AuthContext";
+import { authAPI } from "api/auth";
 
 export interface PageLoginProps {
   className?: string;
@@ -35,60 +21,51 @@ const loginSocials = [
 
 const PageLogin: FC<PageLoginProps> = ({ className = "" }) => {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-
-  // 🔹 URL API (ưu tiên .env)
-  const API_URL = process.env.REACT_APP_API_URL || "https://localhost:7216/api";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
 
-    // 🔹 Kiểu dữ liệu trả về từ backend
-    interface LoginResponse {
-      token: string;
-      user?: {
-        userId: number;
-        fullName: string;
-        email: string;
-        roleName?: string;
-      };
-    }
-
     try {
-      const res = await axios.post<LoginResponse>(`${API_URL}/Auth/login`, {
-        email,
-        password,
-      });
+      const response = await authAPI.login({ email, password });
 
-      if (res.status === 200 && res.data.token) {
-        localStorage.setItem("token", res.data.token);
-        if (res.data.user) {
-          localStorage.setItem("user", JSON.stringify(res.data.user));
+      console.log("✅ Response data:", response);
+
+      if (response.token && response.user) {
+        // Lưu token và user vào context (context sẽ lưu vào localStorage)
+        login(response.token, response.user);
+
+        // Navigate based on role
+        if (response.user.roleName === "Admin") {
+          navigate("/admin");
+        } else {
+          navigate("/");
         }
-        alert("Đăng nhập thành công!");
-        navigate("/");
       } else {
-        setError("Không nhận được token từ server.");
+        setError("Không nhận được dữ liệu từ server.");
       }
-    } catch (error: unknown) {
-      // ✅ Bắt lỗi an toàn
-      if (isAxiosError(error)) {
-        const status = error.response?.status;
+    } catch (error: any) {
+      console.error("Login error:", error);
+      
+      if (error.response) {
+        const status = error.response.status;
         if (status === 401) {
           setError("Email hoặc mật khẩu không đúng!");
         } else if (status === 400) {
           setError("Dữ liệu không hợp lệ!");
-        } else {
+        } else if (status === 500) {
           setError("Lỗi máy chủ. Vui lòng thử lại sau.");
+        } else {
+          setError(error.response.data?.message || "Đã xảy ra lỗi!");
         }
       } else {
-        console.error(error);
-        setError("Đã xảy ra lỗi không xác định!");
+        setError("Không thể kết nối đến server!");
       }
     } finally {
       setLoading(false);

@@ -4,23 +4,45 @@ import CommentListing from "components/CommentListing/CommentListing";
 import ExperiencesCard from "components/ExperiencesCard/ExperiencesCard";
 import StartRating from "components/StartRating/StartRating";
 import StayCard from "components/StayCard/StayCard";
+import CondotelCard from "components/CondotelCard/CondotelCard";
 import {
   DEMO_CAR_LISTINGS,
   DEMO_EXPERIENCES_LISTINGS,
   DEMO_STAY_LISTINGS,
 } from "data/listings";
-import React, { FC, Fragment, useState } from "react";
+import React, { FC, Fragment, useState, useEffect } from "react";
 import Avatar from "shared/Avatar/Avatar";
 import ButtonSecondary from "shared/Button/ButtonSecondary";
 import SocialsList from "shared/SocialsList/SocialsList";
 import { Helmet } from "react-helmet";
+import condotelAPI, { CondotelDTO } from "api/condotel";
 
 export interface AuthorPageProps {
   className?: string;
 }
 
 const AuthorPage: FC<AuthorPageProps> = ({ className = "" }) => {
-  let [categories] = useState(["Stays", "Experiences", "Car for rent"]);
+  let [categories] = useState(["Stays", "Experiences", "Car for rent", "Condotels"]);
+  const [condotels, setCondotels] = useState<CondotelDTO[]>([]);
+  const [isLoadingCondotels, setIsLoadingCondotels] = useState(false);
+
+  useEffect(() => {
+    const fetchCondotels = async () => {
+      try {
+        setIsLoadingCondotels(true);
+        const data = await condotelAPI.getAll();
+        setCondotels(data);
+      } catch (error) {
+        console.error("Error fetching condotels:", error);
+        // Set empty array on error so UI still renders
+        setCondotels([]);
+      } finally {
+        setIsLoadingCondotels(false);
+      }
+    };
+
+    fetchCondotels();
+  }, []);
 
   const renderSidebar = () => {
     return (
@@ -180,6 +202,32 @@ const AuthorPage: FC<AuthorPageProps> = ({ className = "" }) => {
                 <div className="flex mt-11 justify-center items-center">
                   <ButtonSecondary>Show me more</ButtonSecondary>
                 </div>
+              </Tab.Panel>
+              <Tab.Panel className="">
+                {isLoadingCondotels ? (
+                  <div className="mt-8 flex justify-center items-center py-12">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+                  </div>
+                ) : condotels.length > 0 ? (
+                  <>
+                    <div className="mt-8 grid grid-cols-1 gap-6 md:gap-7 sm:grid-cols-2">
+                      {condotels.slice(0, 4).map((condotel) => (
+                        <CondotelCard key={condotel.condotelId} data={condotel} />
+                      ))}
+                    </div>
+                    {condotels.length > 4 && (
+                      <div className="flex mt-11 justify-center items-center">
+                        <ButtonSecondary>Show me more</ButtonSecondary>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="mt-8 text-center py-12">
+                    <p className="text-neutral-500 dark:text-neutral-400">
+                      No condotels available yet.
+                    </p>
+                  </div>
+                )}
               </Tab.Panel>
             </Tab.Panels>
           </Tab.Group>

@@ -42,6 +42,8 @@ const PageSignUp: FC<PageSignUpProps> = ({ className = "" }) => {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [termsError, setTermsError] = useState("");
 
   const API_URL = process.env.REACT_APP_API_URL || "https://localhost:7216/api";
 
@@ -55,6 +57,14 @@ const PageSignUp: FC<PageSignUpProps> = ({ className = "" }) => {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setTermsError("");
+
+    // Validate terms acceptance
+    if (!acceptedTerms) {
+      setTermsError("Vui lòng chấp nhận điều khoản sử dụng!");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -191,9 +201,49 @@ const PageSignUp: FC<PageSignUpProps> = ({ className = "" }) => {
               placeholder="Hanoi, Vietnam"
             />
 
+            {/* Terms and Conditions Checkbox */}
+            <div className="space-y-2">
+              <label className="flex items-start space-x-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={acceptedTerms}
+                  onChange={(e) => {
+                    setAcceptedTerms(e.target.checked);
+                    setTermsError("");
+                  }}
+                  className="mt-1 h-4 w-4 text-primary-600 border-neutral-300 rounded focus:ring-primary-500 focus:ring-2 dark:bg-neutral-800 dark:border-neutral-600"
+                />
+                <span className="text-sm text-neutral-600 dark:text-neutral-400">
+                  Tôi đồng ý với{" "}
+                  <Link
+                    to="/terms"
+                    className="text-primary-600 hover:text-primary-700 underline"
+                    target="_blank"
+                  >
+                    Điều khoản sử dụng
+                  </Link>{" "}
+                  và{" "}
+                  <Link
+                    to="/privacy"
+                    className="text-primary-600 hover:text-primary-700 underline"
+                    target="_blank"
+                  >
+                    Chính sách bảo mật
+                  </Link>
+                </span>
+              </label>
+              {termsError && (
+                <p className="text-red-500 text-sm ml-7">{termsError}</p>
+              )}
+            </div>
+
             {error && <p className="text-red-500 text-center text-sm">{error}</p>}
 
-            <ButtonPrimary type="submit" disabled={loading}>
+            <ButtonPrimary
+              type="submit"
+              disabled={loading || !acceptedTerms}
+              className={!acceptedTerms ? "opacity-50 cursor-not-allowed" : ""}
+            >
               {loading ? "Đang đăng ký..." : "Đăng ký"}
             </ButtonPrimary>
           </form>
