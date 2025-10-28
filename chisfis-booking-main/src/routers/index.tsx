@@ -26,6 +26,14 @@ import PageAbout from "containers/PageAbout/PageAbout";
 import PageSignUp from "containers/PageSignUp/PageSignUp";
 import PageLogin from "containers/PageLogin/PageLogin";
 import PageForgotPassword from "containers/PageForgotPassword/PageForgotPassword";
+import PageAccountList from "containers/PageAccountList/PageAccountList";
+import PageAccountDetail from "containers/PageAccountDetail/PageAccountDetail";
+import PageAddAccount from "containers/PageAddAccount/PageAddAccount";
+// -----
+// Đảm bảo tên này khớp với tên file của bạn (PageTenantBookings hay PageTenantBookingList)
+// Tôi sẽ dùng tên PageTenantBookings như chúng ta đã thống nhất
+
+// -----
 import PageSubcription from "containers/PageSubcription/PageSubcription";
 import BlogPage from "containers/BlogPage/BlogPage";
 import BlogSingle from "containers/BlogPage/BlogSingle";
@@ -47,6 +55,7 @@ import ListingFlightsPage from "containers/ListingFlightsPage/ListingFlightsPage
 import FooterNav from "components/FooterNav";
 import useWindowSize from "hooks/useWindowResize";
 import PageHome3 from "containers/PageHome/PageHome3";
+import PageTenantBookings from "containers/PageTenantBookingList/PageTenantBookingList";
 
 export const pages: Page[] = [
   { path: "/", exact: true, component: PageHome },
@@ -54,10 +63,6 @@ export const pages: Page[] = [
   { path: "/home-1-header-2", exact: true, component: PageHome },
   { path: "/home-2", component: PageHome2 },
   { path: "/home-3", component: PageHome3 },
-  //
-  { path: "/listing-stay", component: ListingStayPage },
-  { path: "/listing-stay-map", component: ListingStayMapPage },
-  { path: "/listing-stay-detail", component: ListingStayDetailPage },
   //
   {
     path: "/listing-experiences",
@@ -81,14 +86,7 @@ export const pages: Page[] = [
   //
   { path: "/listing-flights", component: ListingFlightsPage },
   //
-  { path: "/checkout", component: CheckOutPage },
-  { path: "/pay-done", component: PayPage },
-  //
   { path: "/author", component: AuthorPage },
-  { path: "/account", component: AccountPage },
-  { path: "/account-password", component: AccountPass },
-  { path: "/account-savelists", component: AccountSavelists },
-  { path: "/account-billing", component: AccountBilling },
   //
   { path: "/blog", component: BlogPage },
   { path: "/blog-single", component: BlogSingle },
@@ -108,7 +106,27 @@ export const pages: Page[] = [
   { path: "/about", component: PageAbout },
   { path: "/signup", component: PageSignUp },
   { path: "/login", component: PageLogin },
-    { path: "/forgot-pass", component: PageForgotPassword },
+  { path: "/forgot-pass", component: PageForgotPassword }, 
+  //
+  { path: "/account-list", component: PageAccountList },
+  { path: "/account-detail/:id", component: PageAccountDetail },
+  { path: "/add-account", component: PageAddAccount },
+  //
+  { path: "/account", component: AccountPage },
+  { path: "/account-password", component: AccountPass },
+  { path: "/account-savelists", component: AccountSavelists },
+  { path: "/account-billing", component: AccountBilling },
+  //
+  { path: "/listing-stay", component: ListingStayPage },
+  { path: "/listing-stay-map", component: ListingStayMapPage },
+  // 
+  { path: "/listing-stay-detail", component: ListingStayDetailPage }, 
+  //
+  { path: "/checkout", component: CheckOutPage },
+  { path: "/pay-done", component: PayPage },
+  
+  { path: "/my-bookings", component: PageTenantBookings }, // <-- Đã dùng tên nhất quán
+  //
   { path: "/subscription", component: PageSubcription },
   //
 ];
@@ -125,7 +143,7 @@ const MyRoutes = () => {
           const Component = component;
           return <Route key={path} element={<Component />} path={path} />;
         })}
-        <Route element={<Page404 />} />
+        <Route path="*" element={<Page404 />} /> {/* Đã sửa lại Route cho Page404 */}
       </Routes>
 
       {WIN_WIDTH < 768 && <FooterNav />}

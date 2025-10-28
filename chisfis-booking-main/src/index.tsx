@@ -13,6 +13,12 @@ import "./fonts/line-awesome-1.3.0/css/line-awesome.css";
 import App from "./App";
 import reportWebVitals from "./reportWebVitals";
 
+// --- BẮT ĐẦU SỬA LỖI DỊCH LỊCH ---
+import moment from "moment"; // <-- THÊM DÒNG NÀY
+import "moment/locale/vi";  // <-- THÊM DÒNG NÀY
+moment.locale("vi");       // <-- THÊM DÒNG NÀY
+// --- KẾT THÚC SỬA LỖI DỊCH LỊCH ---
+
 const root = ReactDOM.createRoot(
   document.getElementById("root") as HTMLElement
 );
