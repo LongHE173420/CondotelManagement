@@ -38,6 +38,13 @@ const StatusBadge: React.FC<{ status: UserStatus }> = ({ status }) => {
 
 const RoleBadge: React.FC<{ role: UserRole }> = ({ role }) => {
   const baseClasses = "px-3 py-1 rounded-full text-xs font-medium";
+  if (role === "Admin") {
+    return (
+      <span className={`${baseClasses} bg-purple-100 text-purple-800`}>
+        Admin
+      </span>
+    );
+  }
   if (role === "Chủ Condotel") {
     return (
       <span className={`${baseClasses} bg-blue-100 text-blue-800`}>
@@ -58,6 +65,8 @@ const PageAccountList = () => {
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   useEffect(() => {
     loadUsers();
@@ -138,6 +147,24 @@ const PageAccountList = () => {
     return matchesSearch && matchesRole;
   });
 
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedUsers = filteredUsers.slice(startIndex, endIndex);
+
+  // Reset to page 1 when search or filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, roleFilter]);
+
+  // Handle page change
+  const handlePageChange = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  };
+
 
 
   return (
@@ -215,14 +242,14 @@ const PageAccountList = () => {
                     </div>
                   </td>
                 </tr>
-              ) : filteredUsers.length === 0 ? (
+              ) : paginatedUsers.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
                     Không tìm thấy tài khoản nào
                   </td>
                 </tr>
               ) : (
-                filteredUsers.map((user) => (
+                paginatedUsers.map((user) => (
                   <tr key={user.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {user.email.split("@")[0]}
@@ -249,25 +276,87 @@ const PageAccountList = () => {
         </div>
 
         {/* --- Phân trang (Pagination) --- */}
-        <div className="flex justify-center items-center mt-6">
-          <nav className="flex items-center space-x-2">
-            <button className="px-4 py-2 text-sm text-gray-600 rounded-md hover:bg-gray-100">
-              Trang đầu
-            </button>
-            <button className="px-4 py-2 text-sm text-white bg-gray-600 rounded-md">
-              1
-            </button>
-            <button className="px-4 py-2 text-sm text-gray-600 rounded-md hover:bg-gray-100">
-              2
-            </button>
-            <button className="px-4 py-2 text-sm text-gray-600 rounded-md hover:bg-gray-100">
-              3
-            </button>
-            <button className="px-4 py-2 text-sm text-gray-600 rounded-md hover:bg-gray-100">
-              Trang cuối
-            </button>
-          </nav>
-        </div>
+        {filteredUsers.length > 0 && (
+          <div className="flex flex-col sm:flex-row justify-between items-center mt-6 gap-4">
+            <div className="text-sm text-gray-600">
+              Hiển thị {startIndex + 1} - {Math.min(endIndex, filteredUsers.length)} trong tổng số {filteredUsers.length} tài khoản
+            </div>
+            <nav className="flex items-center space-x-2">
+              <button
+                onClick={() => handlePageChange(1)}
+                disabled={currentPage === 1}
+                className={`px-4 py-2 text-sm rounded-md ${
+                  currentPage === 1
+                    ? "text-gray-400 cursor-not-allowed"
+                    : "text-gray-600 hover:bg-gray-100"
+                }`}
+              >
+                Trang đầu
+              </button>
+              <button
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className={`px-4 py-2 text-sm rounded-md ${
+                  currentPage === 1
+                    ? "text-gray-400 cursor-not-allowed"
+                    : "text-gray-600 hover:bg-gray-100"
+                }`}
+              >
+                Trước
+              </button>
+              
+              {/* Page numbers */}
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                // Show first page, last page, current page, and pages around current
+                if (
+                  page === 1 ||
+                  page === totalPages ||
+                  (page >= currentPage - 1 && page <= currentPage + 1)
+                ) {
+                  return (
+                    <button
+                      key={page}
+                      onClick={() => handlePageChange(page)}
+                      className={`px-4 py-2 text-sm rounded-md ${
+                        currentPage === page
+                          ? "text-white bg-gray-600"
+                          : "text-gray-600 hover:bg-gray-100"
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  );
+                } else if (page === currentPage - 2 || page === currentPage + 2) {
+                  return <span key={page} className="px-2 text-gray-400">...</span>;
+                }
+                return null;
+              })}
+              
+              <button
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className={`px-4 py-2 text-sm rounded-md ${
+                  currentPage === totalPages
+                    ? "text-gray-400 cursor-not-allowed"
+                    : "text-gray-600 hover:bg-gray-100"
+                }`}
+              >
+                Sau
+              </button>
+              <button
+                onClick={() => handlePageChange(totalPages)}
+                disabled={currentPage === totalPages}
+                className={`px-4 py-2 text-sm rounded-md ${
+                  currentPage === totalPages
+                    ? "text-gray-400 cursor-not-allowed"
+                    : "text-gray-600 hover:bg-gray-100"
+                }`}
+              >
+                Trang cuối
+              </button>
+            </nav>
+          </div>
+        )}
       </div>
     </div>
   );

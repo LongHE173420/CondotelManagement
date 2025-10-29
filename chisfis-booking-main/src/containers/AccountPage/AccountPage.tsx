@@ -32,13 +32,36 @@ const AccountPage: FC<AccountPageProps> = ({ className = "", noLayout = false })
   const [uploadingImage, setUploadingImage] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Update imagePreview when user changes
+  useEffect(() => {
+    if (user?.imageUrl && user.imageUrl.trim() !== "") {
+      console.log("🖼️ Updating imagePreview from user context:", user.imageUrl);
+      setImagePreview(user.imageUrl);
+    }
+  }, [user?.imageUrl]);
 
   // Load user data when component mounts
   useEffect(() => {
+    // Kiểm tra token trước khi gọi API
+    const token = localStorage.getItem("token");
+    if (!token) {
+      console.error("❌ No token found, cannot load user data");
+      setError("Bạn cần đăng nhập để xem thông tin");
+      return;
+    }
+    
     const loadUserData = async () => {
       try {
+        console.log("🔑 Token exists, calling getMe API...");
         const userProfile = await authAPI.getMe();
+        console.log("📥 Full user profile from API:", userProfile);
+        console.log("📥 imageUrl value:", userProfile.imageUrl);
+        console.log("📥 imageUrl type:", typeof userProfile.imageUrl);
+        console.log("📥 imageUrl length:", userProfile.imageUrl?.length);
+        
         setFormData({
           fullName: userProfile.fullName || "",
           email: userProfile.email || "",
@@ -49,19 +72,38 @@ const AccountPage: FC<AccountPageProps> = ({ className = "", noLayout = false })
           about: "",
         });
         updateUser(userProfile);
+        
+        // Cập nhật preview nếu có imageUrl từ server
+        // Kiểm tra cả imageUrl và ImageUrl (case insensitive)
+        const imageUrl = userProfile.imageUrl || (userProfile as any).ImageUrl;
+        if (imageUrl && typeof imageUrl === "string" && imageUrl.trim() !== "") {
+          console.log("✅ Setting imagePreview from API:", imageUrl);
+          setImagePreview(imageUrl);
+        } else {
+          console.log("⚠️ No valid imageUrl in user profile. Available fields:", Object.keys(userProfile));
+          setImagePreview(null);
+        }
       } catch (error: any) {
         console.error("Failed to load user data:", error);
-        let errorMessage = "Không thể tải thông tin người dùng";
         
-        if (error.networkError || error.noResponse) {
-          errorMessage = "Không thể kết nối đến server. Vui lòng kiểm tra lại kết nối mạng.";
-        } else if (error.response?.data?.message) {
-          errorMessage = error.response.data.message;
-        } else if (error.message) {
-          errorMessage = error.message;
+        // Xử lý lỗi 401 - Unauthorized
+        if (error.response?.status === 401) {
+          console.error("❌ 401 Unauthorized - Token expired or invalid");
+          setError("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+          // Axios interceptor sẽ tự động redirect về login
+        } else {
+          let errorMessage = "Không thể tải thông tin người dùng";
+          
+          if (error.networkError || error.noResponse) {
+            errorMessage = "Không thể kết nối đến server. Vui lòng kiểm tra lại kết nối mạng.";
+          } else if (error.response?.data?.message) {
+            errorMessage = error.response.data.message;
+          } else if (error.message) {
+            errorMessage = error.message;
+          }
+          
+          setError(errorMessage);
         }
-        
-        setError(errorMessage);
       }
     };
 
@@ -96,6 +138,13 @@ const AccountPage: FC<AccountPageProps> = ({ className = "", noLayout = false })
       return;
     }
 
+    // Tạo preview ảnh ngay khi chọn file
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+
     setUploadingImage(true);
     setError("");
     setMessage("");
@@ -109,8 +158,14 @@ const AccountPage: FC<AccountPageProps> = ({ className = "", noLayout = false })
         throw new Error("Invalid response from server");
       }
       
+      // Cập nhật preview với URL mới từ server
+      setImagePreview(response.imageUrl);
+      
       // Refresh user data to get updated imageUrl
       const userProfile = await authAPI.getMe();
+      console.log("✅ User profile updated with imageUrl:", userProfile.imageUrl);
+      
+      // Cập nhật AuthContext để Header và các component khác hiển thị ảnh mới
       updateUser(userProfile);
       
       setMessage("Cập nhật ảnh đại diện thành công!");
@@ -151,6 +206,8 @@ const AccountPage: FC<AccountPageProps> = ({ className = "", noLayout = false })
       }
       
       setError(errorMessage);
+      // Xóa preview nếu upload thất bại
+      setImagePreview(null);
     } finally {
       setUploadingImage(false);
     }
@@ -161,16 +218,66 @@ const AccountPage: FC<AccountPageProps> = ({ className = "", noLayout = false })
     setError("");
     setMessage("");
 
+    // Validate required fields
+    if (!formData.fullName || formData.fullName.trim() === "") {
+      setError("Vui lòng nhập họ tên");
+      setLoading(false);
+      return;
+    }
+    
+    if (!formData.email || formData.email.trim() === "") {
+      setError("Vui lòng nhập email");
+      setLoading(false);
+      return;
+    }
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email.trim())) {
+      setError("Email không đúng định dạng");
+      setLoading(false);
+      return;
+    }
+
     try {
       if (isAdmin && user?.userId) {
+        // Đảm bảo email có giá trị (lấy từ formData hoặc user context)
+        const emailToSend = formData.email?.trim() || user?.email || "";
+        
+        if (!emailToSend) {
+          setError("Email không được để trống");
+          setLoading(false);
+          return;
+        }
+        
+        // Chuẩn bị data để gửi
+        // KHÔNG gửi roleName vì role không được thay đổi khi update profile
+        // Role chỉ để hiển thị, không cần validate trong update
+        const updateData: any = {
+          fullName: formData.fullName.trim(),
+          email: emailToSend, // Email là required field
+        };
+        
+        // Chỉ thêm các fields có giá trị (trừ empty strings)
+        if (formData.phone && formData.phone.trim()) {
+          updateData.phone = formData.phone.trim();
+        }
+        if (formData.gender && formData.gender.trim()) {
+          updateData.gender = formData.gender.trim();
+        }
+        if (formData.dateOfBirth && formData.dateOfBirth.trim()) {
+          // Format date để backend nhận được (YYYY-MM-DD)
+          updateData.dateOfBirth = formData.dateOfBirth.trim();
+        }
+        if (formData.address && formData.address.trim()) {
+          updateData.address = formData.address.trim();
+        }
+
+        console.log("📤 Updating user with data:", updateData);
+        console.log("📤 User ID:", user.userId);
+        
         // Nếu là Admin, dùng admin API
-        await adminAPI.updateUser(user.userId, {
-          fullName: formData.fullName,
-          phone: formData.phone,
-          gender: formData.gender,
-          dateOfBirth: formData.dateOfBirth,
-          address: formData.address,
-        });
+        await adminAPI.updateUser(user.userId, updateData);
       } else {
         // User thường thì có thể dùng API khác nếu có
         setMessage("Cập nhật thành công!");
@@ -181,8 +288,53 @@ const AccountPage: FC<AccountPageProps> = ({ className = "", noLayout = false })
       updateUser(userProfile);
       setMessage("Cập nhật thông tin thành công!");
     } catch (error: any) {
-      console.error("Update error:", error);
-      setError(error.response?.data?.message || "Không thể cập nhật thông tin!");
+      console.error("❌ Update error:", error);
+      console.error("❌ Error details:", {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message,
+      });
+      
+      let errorMessage = "Không thể cập nhật thông tin!";
+      
+      // Xử lý validation errors từ backend
+      if (error.response?.status === 400) {
+        const errorData = error.response?.data;
+        
+        // Backend có thể trả về:
+        // 1. String message trực tiếp: "Error message"
+        // 2. Object với message property: { message: "Error message" }
+        // 3. Object với errors property (ModelState): { errors: { field: ["error1", "error2"] } }
+        
+        if (typeof errorData === "string") {
+          // Backend trả về string message trực tiếp (BadRequest(result.Message))
+          errorMessage = errorData;
+        } else if (errorData?.errors) {
+          // Backend trả về ModelState errors (object với keys là field names)
+          const validationErrors = Object.entries(errorData.errors)
+            .map(([field, messages]: [string, any]) => {
+              const fieldName = field.charAt(0).toUpperCase() + field.slice(1);
+              const errorList = Array.isArray(messages) ? messages.join(", ") : messages;
+              return `${fieldName}: ${errorList}`;
+            })
+            .join("\n");
+          errorMessage = `Lỗi validation:\n${validationErrors}`;
+        } else if (errorData?.message) {
+          errorMessage = errorData.message;
+        } else {
+          errorMessage = "Dữ liệu không hợp lệ. Vui lòng kiểm tra lại các trường thông tin.";
+        }
+      } else if (error.response?.status === 401 || error.response?.status === 403) {
+        errorMessage = "Bạn không có quyền thực hiện thao tác này. Vui lòng đăng nhập lại.";
+      } else if (error.response?.status === 404) {
+        errorMessage = "Không tìm thấy người dùng.";
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -196,11 +348,22 @@ const AccountPage: FC<AccountPageProps> = ({ className = "", noLayout = false })
           <div className="flex flex-col md:flex-row">
             <div className="flex-shrink-0 flex items-start">
               <div className="relative rounded-full overflow-hidden flex">
-                <Avatar 
-                  sizeClass="w-32 h-32" 
-                  imgUrl={user?.imageUrl}
-                  userName={user?.fullName}
-                />
+                {(() => {
+                  const avatarUrl = imagePreview || user?.imageUrl;
+                  console.log("🖼️ Avatar rendering with:", {
+                    imagePreview,
+                    userImageUrl: user?.imageUrl,
+                    finalUrl: avatarUrl,
+                    userFullName: user?.fullName
+                  });
+                  return (
+                    <Avatar 
+                      sizeClass="w-32 h-32" 
+                      imgUrl={avatarUrl || undefined}
+                      userName={user?.fullName}
+                    />
+                  );
+                })()}
                 <div 
                   className={`absolute inset-0 bg-black bg-opacity-60 flex flex-col items-center justify-center text-neutral-50 cursor-pointer transition-opacity ${
                     uploadingImage ? "opacity-80" : "hover:bg-opacity-70"
@@ -339,7 +502,7 @@ const AccountPage: FC<AccountPageProps> = ({ className = "", noLayout = false })
                 </div>
               )}
               {error && (
-                <div className="p-4 bg-red-100 text-red-800 rounded-lg text-sm">
+                <div className="p-4 bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-200 rounded-lg text-sm whitespace-pre-line">
                   {error}
                 </div>
               )}

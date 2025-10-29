@@ -27,6 +27,7 @@ export interface AdminCreateUserDTO {
 
 export interface AdminUpdateUserDTO {
   fullName?: string;
+  email?: string;
   phone?: string;
   roleName?: string;
   gender?: string;
@@ -102,5 +103,6 @@ export const adminAPI = {
 };
 
 export default adminAPI;
+
 
 

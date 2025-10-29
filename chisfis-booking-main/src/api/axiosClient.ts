@@ -25,7 +25,27 @@ axiosClient.interceptors.request.use(
     const token = localStorage.getItem("token");
     if (token) {
       config.headers = config.headers || {};
-      (config.headers as any).Authorization = `Bearer ${token}`;
+      // Đảm bảo token luôn có Bearer prefix
+      // Strip "Bearer " nếu token đã có prefix này (để tránh duplicate)
+      const cleanToken = token.trim().startsWith("Bearer ") 
+        ? token.trim().substring(7).trim() 
+        : token.trim();
+      
+      // Luôn thêm Bearer prefix khi gửi request
+      (config.headers as any).Authorization = `Bearer ${cleanToken}`;
+      
+      // Log để debug (chỉ log cho admin và auth endpoints)
+      if (config.url?.includes("admin") || config.url?.includes("Auth") || config.url?.includes("Upload")) {
+        console.log("🔑 Authorization Header set:", `Bearer ${cleanToken.substring(0, 30)}...`);
+        console.log("🔑 Full Authorization:", (config.headers as any).Authorization);
+      }
+    } else {
+      // Log nếu không có token cho auth/admin endpoints
+      if (config.url?.includes("admin") || config.url?.includes("Auth")) {
+        console.warn("⚠️ No token found for authenticated request:", config.url);
+        const storedToken = localStorage.getItem("token");
+        console.warn("⚠️ Token in localStorage:", storedToken ? `${storedToken.substring(0, 30)}...` : "null");
+      }
     }
     
     // Don't set Content-Type for FormData, let browser set it with boundary
@@ -54,13 +74,34 @@ axiosClient.interceptors.response.use(
     // Enhanced error logging
     if (error.response) {
       // Server responded with error status
+      const status = error.response.status;
+      const url = error.config?.url;
+      
       console.error("❌ API Error Response:", {
-        status: error.response.status,
+        status: status,
         statusText: error.response.statusText,
-        url: error.config?.url,
+        url: url,
         data: error.response.data,
-        headers: error.response.headers,
+        errors: error.response.data?.errors, // Validation errors từ backend
       });
+      
+      // Handle 401 Unauthorized - token expired or invalid
+      if (status === 401) {
+        console.error("🔒 Unauthorized (401) - Token may be expired or invalid");
+        console.error("🔒 Request URL:", url);
+        console.error("🔒 Current token:", localStorage.getItem("token") ? "exists" : "missing");
+        
+        // Only logout if not already on login page to avoid redirect loops
+        if (!window.location.pathname.includes("/login") && !window.location.pathname.includes("/register")) {
+          console.warn("⚠️ Redirecting to login due to 401 error");
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+          // Use setTimeout to avoid navigation during render
+          setTimeout(() => {
+            window.location.href = "/login";
+          }, 100);
+        }
+      }
     } else if (error.request) {
       // Request made but no response received
       console.error("❌ API Network Error (No Response):", {

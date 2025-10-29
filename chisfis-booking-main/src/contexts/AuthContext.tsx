@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { UserProfile } from "api/auth";
+import { authAPI } from "api/auth";
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -48,16 +49,41 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
 
   const login = (token: string, userData: UserProfile) => {
-    localStorage.setItem("token", token);
+    // Đảm bảo token không có "Bearer" prefix khi lưu vào localStorage
+    // (Axios interceptor sẽ tự động thêm "Bearer" khi gửi request)
+    const cleanToken = token.startsWith("Bearer ") ? token.substring(7) : token;
+    localStorage.setItem("token", cleanToken);
     localStorage.setItem("user", JSON.stringify(userData));
     setUser(userData);
+    
+    console.log("✅ Token saved to localStorage (without Bearer prefix)");
   };
 
-  const logout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    setUser(null);
-    window.location.href = "/login"; // Force redirect to login page
+  const logout = async () => {
+    try {
+      // Gọi API logout để backend xử lý (optional - nếu API có)
+      const token = localStorage.getItem("token");
+      if (token) {
+        try {
+          await authAPI.logout();
+          console.log("✅ Logout API called successfully");
+        } catch (error) {
+          // Nếu API logout fail, vẫn tiếp tục logout ở frontend
+          console.warn("⚠️ Logout API failed, continuing with frontend logout:", error);
+        }
+      }
+    } catch (error) {
+      console.error("Error during logout:", error);
+    } finally {
+      // Luôn xóa token và user data, redirect về login
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      setUser(null);
+      console.log("✅ User logged out, redirecting to login...");
+      
+      // Force redirect to login page
+      window.location.href = "/login";
+    }
   };
 
   const updateUser = (userData: UserProfile) => {
@@ -77,5 +103,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
+
 
 
