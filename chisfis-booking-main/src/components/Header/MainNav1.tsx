@@ -1,4 +1,5 @@
 import React, { FC } from "react";
+import { useNavigate } from "react-router-dom";
 import Logo from "shared/Logo/Logo";
 import Navigation from "shared/Navigation/Navigation";
 import SearchDropdown from "./SearchDropdown";
@@ -6,12 +7,23 @@ import ButtonPrimary from "shared/Button/ButtonPrimary";
 import MenuBar from "shared/MenuBar/MenuBar";
 import SwitchDarkMode from "shared/SwitchDarkMode/SwitchDarkMode";
 import HeroSearchForm2MobileFactory from "components/HeroSearchForm2Mobile/HeroSearchForm2MobileFactory";
+import { useAuth } from "contexts/AuthContext";
+import Avatar from "shared/Avatar/Avatar";
 
 export interface MainNav1Props {
   className?: string;
 }
 
 const MainNav1: FC<MainNav1Props> = ({ className = "" }) => {
+  const { user, isAuthenticated, isAdmin } = useAuth();
+  const navigate = useNavigate();
+
+  const handleProfileClick = () => {
+    if (isAdmin) {
+      navigate("/admin?tab=profile");
+    }
+  };
+
   return (
     <div className={`nc-MainNav1 relative z-10 ${className}`}>
       <div className="px-4 lg:container py-4 lg:py-5 relative flex justify-between items-center">
@@ -29,7 +41,23 @@ const MainNav1: FC<MainNav1Props> = ({ className = "" }) => {
             <SwitchDarkMode />
             <SearchDropdown />
             <div className="px-1" />
-            <ButtonPrimary href="/login">Sign up</ButtonPrimary>
+            {isAuthenticated && isAdmin ? (
+              <div 
+                onClick={handleProfileClick}
+                className="flex items-center space-x-2 px-3 py-2 rounded-full bg-neutral-100 dark:bg-neutral-800 cursor-pointer hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"
+              >
+                <Avatar 
+                  sizeClass="w-8 h-8" 
+                  imgUrl={user?.imageUrl}
+                  userName={user?.fullName || "Admin"}
+                />
+                <span className="text-sm font-medium text-neutral-700 dark:text-neutral-100">
+                  {user?.fullName || "Admin"}
+                </span>
+              </div>
+            ) : (
+              <ButtonPrimary href="/login">Sign up</ButtonPrimary>
+            )}
           </div>
           <div className="flex xl:hidden items-center">
             <SwitchDarkMode />

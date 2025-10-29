@@ -38,6 +38,7 @@ export interface UserProfile {
   gender?: string;
   dateOfBirth?: string;
   address?: string;
+  imageUrl?: string;
   createdAt?: string;
 }
 

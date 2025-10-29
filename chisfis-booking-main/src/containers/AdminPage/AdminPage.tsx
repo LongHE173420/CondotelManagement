@@ -1,15 +1,34 @@
 import React, { FC, useState, useEffect } from "react";
 import { Helmet } from "react-helmet";
 import { useAuth } from "contexts/AuthContext";
-import { Navigate } from "react-router-dom";
+import { Navigate, useSearchParams } from "react-router-dom";
 import { adminDashboardAPI, DashboardOverview, TopCondotel, TenantAnalytics } from "api/adminDashboard";
+import PageAccountList from "containers/PageAccountList/PageAccountList";
+import AccountPage from "containers/AccountPage/AccountPage";
 
 export interface AdminPageProps {
   className?: string;
 }
 
+type AdminTab = "dashboard" | "accounts" | "profile";
+
 const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
   const { isAdmin, isLoading } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get("tab") as AdminTab;
+  const [activeTab, setActiveTab] = useState<AdminTab>(tabParam || "dashboard");
+
+  // Sync tab with URL
+  useEffect(() => {
+    if (tabParam && ["dashboard", "accounts", "profile"].includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+  }, [tabParam]);
+
+  const handleTabChange = (tab: AdminTab) => {
+    setActiveTab(tab);
+    setSearchParams({ tab });
+  };
   const [overview, setOverview] = useState<DashboardOverview | null>(null);
   const [topCondotels, setTopCondotels] = useState<TopCondotel[]>([]);
   const [tenantAnalytics, setTenantAnalytics] = useState<TenantAnalytics[]>([]);
@@ -17,30 +36,59 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const loadDashboard = async () => {
-      setLoading(true);
-      setError("");
+    if (activeTab === "dashboard") {
+      const loadDashboard = async () => {
+        setLoading(true);
+        setError("");
 
-      try {
-        const [overviewData, topData, analyticsData] = await Promise.all([
-          adminDashboardAPI.getOverview(),
-          adminDashboardAPI.getTopCondotels(),
-          adminDashboardAPI.getTenantAnalytics(),
-        ]);
+        try {
+          const [overviewData, topData, analyticsData] = await Promise.all([
+            adminDashboardAPI.getOverview(),
+            adminDashboardAPI.getTopCondotels(),
+            adminDashboardAPI.getTenantAnalytics(),
+          ]);
 
-        setOverview(overviewData);
-        setTopCondotels(topData);
-        setTenantAnalytics(analyticsData);
-      } catch (err: any) {
-        console.error("Failed to load dashboard:", err);
-        setError(err.response?.data?.message || "Không thể tải dashboard");
-      } finally {
-        setLoading(false);
-      }
-    };
+          setOverview(overviewData);
+          setTopCondotels(topData);
+          setTenantAnalytics(analyticsData);
+        } catch (err: any) {
+          console.error("Failed to load dashboard:", err);
+          let errorMessage = "Không thể tải dashboard. Vui lòng thử lại sau.";
+          
+          if (err.networkError || err.noResponse) {
+            errorMessage = "Không thể kết nối đến server. Vui lòng kiểm tra lại kết nối mạng hoặc đảm bảo backend đang chạy.";
+          } else if (err.response?.data?.message) {
+            errorMessage = err.response.data.message;
+          } else if (err.message) {
+            errorMessage = err.message;
+          } else if (err.code === "ECONNREFUSED") {
+            errorMessage = "Kết nối bị từ chối. Vui lòng kiểm tra xem backend server có đang chạy không.";
+          } else if (err.code === "ERR_NETWORK") {
+            errorMessage = "Lỗi mạng. Vui lòng kiểm tra kết nối internet.";
+          }
+          
+          setError(errorMessage);
+          
+          // Set empty data on error
+          setOverview({
+            totalCondotels: 0,
+            totalTenants: 0,
+            totalBookings: 0,
+            totalRevenue: 0,
+          });
+          setTopCondotels([]);
+          setTenantAnalytics([]);
+        } finally {
+          setLoading(false);
+        }
+      };
 
-    loadDashboard();
-  }, []);
+      loadDashboard();
+    } else {
+      // Reset loading for other tabs
+      setLoading(false);
+    }
+  }, [activeTab]);
 
   // Show loading while checking auth
   if (isLoading) {
@@ -89,14 +137,6 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
     </div>
   );
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-      </div>
-    );
-  }
-
   return (
     <div className={`nc-AdminPage ${className}`} data-nc-id="AdminPage">
       <Helmet>
@@ -113,15 +153,133 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
           </p>
         </div>
 
-        {error && (
-          <div className="mb-6 p-4 bg-red-100 text-red-800 rounded-lg">
-            {error}
+        {/* Tabs Navigation */}
+        <div className="mb-6 border-b border-neutral-200 dark:border-neutral-700">
+          <nav className="flex space-x-8" aria-label="Tabs">
+            <button
+              onClick={() => handleTabChange("dashboard")}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === "dashboard"
+                  ? "border-primary-500 text-primary-600"
+                  : "border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300"
+              }`}
+            >
+              Dashboard
+            </button>
+            <button
+              onClick={() => handleTabChange("accounts")}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === "accounts"
+                  ? "border-primary-500 text-primary-600"
+                  : "border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300"
+              }`}
+            >
+              Quản lý Tài khoản
+            </button>
+            <button
+              onClick={() => handleTabChange("profile")}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === "profile"
+                  ? "border-primary-500 text-primary-600"
+                  : "border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300"
+              }`}
+            >
+              Profile
+            </button>
+          </nav>
+        </div>
+
+        {error && activeTab === "dashboard" && (
+          <div className="mb-6 p-4 bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-200 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <svg
+                  className="w-5 h-5 mr-2"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                <span>{error}</span>
+              </div>
+              <button
+                onClick={() => {
+                  setError("");
+                  setActiveTab("dashboard");
+                  // Trigger reload by setting loading and calling useEffect
+                  const loadDashboard = async () => {
+                    setLoading(true);
+                    setError("");
+                    try {
+                      const [overviewData, topData, analyticsData] = await Promise.all([
+                        adminDashboardAPI.getOverview(),
+                        adminDashboardAPI.getTopCondotels(),
+                        adminDashboardAPI.getTenantAnalytics(),
+                      ]);
+                      setOverview(overviewData);
+                      setTopCondotels(topData);
+                      setTenantAnalytics(analyticsData);
+                    } catch (err: any) {
+                      console.error("Failed to load dashboard:", err);
+                      const errorMessage = 
+                        err.response?.data?.message || 
+                        err.message || 
+                        "Không thể tải dashboard. Vui lòng thử lại sau.";
+                      setError(errorMessage);
+                      setOverview({
+                        totalCondotels: 0,
+                        totalTenants: 0,
+                        totalBookings: 0,
+                        totalRevenue: 0,
+                      });
+                      setTopCondotels([]);
+                      setTenantAnalytics([]);
+                    } finally {
+                      setLoading(false);
+                    }
+                  };
+                  loadDashboard();
+                }}
+                className="ml-4 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 text-sm font-medium"
+              >
+                Thử lại
+              </button>
+            </div>
           </div>
         )}
 
-        {/* Overview Stats */}
-        {overview && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {/* Tab Content */}
+        {activeTab === "accounts" ? (
+          <PageAccountList />
+        ) : activeTab === "profile" ? (
+          <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg p-6 md:p-8">
+            <div className="mb-6">
+              <h2 className="text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
+                Thông tin cá nhân
+              </h2>
+              <p className="text-neutral-600 dark:text-neutral-400 mt-1">
+                Cập nhật ảnh đại diện và thông tin cá nhân
+              </p>
+            </div>
+            <AccountPage noLayout={true} />
+          </div>
+        ) : (
+          <>
+            {loading ? (
+              <div className="flex items-center justify-center py-20">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+              </div>
+            ) : (
+              <>
+                {/* Overview Stats */}
+                {overview && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <StatCard
               title="Tổng Condotels"
               value={overview.totalCondotels}
@@ -306,6 +464,10 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
             )}
           </div>
         </div>
+                </>
+              )}
+          </>
+        )}
       </div>
     </div>
   );

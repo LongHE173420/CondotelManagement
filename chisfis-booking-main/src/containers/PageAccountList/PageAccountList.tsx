@@ -1,54 +1,22 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { adminAPI, AdminUserDTO } from "api/admin";
 
-
-type UserRole = "Chủ Condotel" | "Khách Hàng";
-type UserStatus = "Hoạt động" | "Không hoạt động";
+type UserRole = "Chủ Condotel" | "Khách Hàng" | "Tenant" | "Owner" | "Admin";
+type UserStatus = "Hoạt động" | "Không hoạt động" | "Active" | "Inactive";
 
 interface UserAccount {
   id: string;
-  username: string;
+  userId: number;
+  username?: string;
   fullName: string;
   email: string;
   role: UserRole;
+  roleName: string;
   status: UserStatus;
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
-
-
-const mockUserData: UserAccount[] = [
-  {
-    id: "1",
-    username: "an.nguyen",
-    fullName: "Nguyễn Văn An",
-    email: "An@gmail.com",
-    role: "Chủ Condotel",
-    status: "Hoạt động",
-    createdAt: "10/10/2025",
-    updatedAt: "12/10/2025",
-  },
-  {
-    id: "2",
-    username: "binh.tran",
-    fullName: "Trần Thị Bình",
-    email: "Binh@gmail.com",
-    role: "Khách Hàng",
-    status: "Không hoạt động",
-    createdAt: "05/09/2025",
-    updatedAt: "05/09/2025",
-  },
-  {
-    id: "3",
-    username: "cuong.le",
-    fullName: "Lê Văn Cường",
-    email: "Cuong@gmail.com",
-    role: "Chủ Condotel",
-    status: "Hoạt động",
-    createdAt: "01/08/2025",
-    updatedAt: "09/10/2025",
-  },
-];
 
 
 const StatusBadge: React.FC<{ status: UserStatus }> = ({ status }) => {
@@ -85,8 +53,90 @@ const RoleBadge: React.FC<{ role: UserRole }> = ({ role }) => {
 };
 
 const PageAccountList = () => {
-  const [users, setUsers] = useState<UserAccount[]>(mockUserData);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [users, setUsers] = useState<UserAccount[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [roleFilter, setRoleFilter] = useState("");
+
+  useEffect(() => {
+    loadUsers();
+  }, []);
+
+  const loadUsers = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const data = await adminAPI.getAllUsers();
+      console.log("Users data from API:", data);
+      
+      // Map API data to component format
+      const mappedUsers: UserAccount[] = data.map((user) => ({
+        id: user.userId.toString(),
+        userId: user.userId,
+        fullName: user.fullName,
+        email: user.email,
+        role: mapRoleName(user.roleName),
+        roleName: user.roleName,
+        status: mapStatus(user.status),
+        createdAt: user.createdAt ? formatDate(user.createdAt) : "",
+        updatedAt: user.createdAt ? formatDate(user.createdAt) : "",
+      }));
+      
+      setUsers(mappedUsers);
+    } catch (err: any) {
+      console.error("Failed to load users:", err);
+      let errorMessage = "Không thể tải danh sách tài khoản";
+      
+      if (err.networkError || err.noResponse) {
+        errorMessage = "Không thể kết nối đến server. Vui lòng kiểm tra lại kết nối mạng hoặc đảm bảo backend đang chạy.";
+      } else if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      } else if (err.message) {
+        errorMessage = err.message;
+      } else if (err.code === "ECONNREFUSED") {
+        errorMessage = "Kết nối bị từ chối. Vui lòng kiểm tra xem backend server có đang chạy không.";
+      } else if (err.code === "ERR_NETWORK") {
+        errorMessage = "Lỗi mạng. Vui lòng kiểm tra kết nối internet.";
+      }
+      
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const mapRoleName = (roleName: string): UserRole => {
+    if (roleName === "Owner" || roleName === "Chủ Condotel") return "Chủ Condotel";
+    if (roleName === "Tenant" || roleName === "Khách Hàng") return "Khách Hàng";
+    if (roleName === "Admin") return "Admin";
+    return "Khách Hàng";
+  };
+
+  const mapStatus = (status: string): UserStatus => {
+    if (status === "Active" || status === "Hoạt động") return "Hoạt động";
+    return "Không hoạt động";
+  };
+
+  const formatDate = (dateString: string): string => {
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString("vi-VN");
+    } catch {
+      return dateString;
+    }
+  };
+
+  // Filter users
+  const filteredUsers = users.filter((user) => {
+    const matchesSearch = 
+      user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesRole = !roleFilter || user.roleName === roleFilter;
+    
+    return matchesSearch && matchesRole;
+  });
 
 
 
@@ -107,20 +157,37 @@ const PageAccountList = () => {
           </Link>
         </div>
 
+        {/* Error Message */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-100 text-red-800 rounded-lg">
+            {error}
+            <button
+              onClick={loadUsers}
+              className="ml-4 text-red-600 underline hover:text-red-800"
+            >
+              Thử lại
+            </button>
+          </div>
+        )}
+
         {/* --- Thanh Filter và Tìm kiếm --- */}
         <div className="flex flex-col md:flex-row gap-4 mb-6">
           <input
             type="text"
             placeholder="Tìm kiếm tài khoản"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
             className="flex-grow px-4 py-2 border border-gray-300 rounded-md"
           />
-          <button className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300">
-            Tìm kiếm
-          </button>
-          <select className="px-4 py-2 border border-gray-300 rounded-md bg-white">
-            <option value="">Lọc theo vai trò</option>
-            <option value="admin">Chủ Condotel</option>
-            <option value="user">Khách Hàng</option>
+          <select 
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value)}
+            className="px-4 py-2 border border-gray-300 rounded-md bg-white"
+          >
+            <option value="">Tất cả vai trò</option>
+            <option value="Admin">Admin</option>
+            <option value="Owner">Chủ Condotel</option>
+            <option value="Tenant">Khách Hàng</option>
           </select>
         </div>
 
@@ -139,21 +206,44 @@ const PageAccountList = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {users.map((user) => (
-                <tr key={user.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{user.username}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{user.fullName}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{user.email}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <RoleBadge role={user.role} />
+              {loading ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-8 text-center">
+                    <div className="flex justify-center items-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+                      <span className="ml-2 text-gray-600">Đang tải...</span>
+                    </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <StatusBadge status={user.status} />
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{user.createdAt}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{user.updatedAt}</td>
                 </tr>
-              ))}
+              ) : filteredUsers.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                    Không tìm thấy tài khoản nào
+                  </td>
+                </tr>
+              ) : (
+                filteredUsers.map((user) => (
+                  <tr key={user.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {user.email.split("@")[0]}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{user.fullName}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{user.email}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <RoleBadge role={user.role} />
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <StatusBadge status={user.status} />
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                      {user.createdAt || "N/A"}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                      {user.updatedAt || "N/A"}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

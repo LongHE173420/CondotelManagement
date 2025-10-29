@@ -3,7 +3,6 @@ import React, { useState } from "react";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
 import Input from "shared/Input/Input";
 import CommonLayout from "./CommonLayout";
-import { authAPI } from "api/auth";
 
 const AccountPass = () => {
   const [formData, setFormData] = useState({

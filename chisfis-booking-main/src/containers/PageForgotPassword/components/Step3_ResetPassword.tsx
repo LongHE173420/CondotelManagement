@@ -30,7 +30,7 @@ const Step3_ResetPassword: React.FC<Props> = ({ email, token, onSuccess }) => {
     setLoading(true);
 
     try {
-      const res = await axiosClient.post("/auth/reset-password-with-otp", {
+      await axiosClient.post("/auth/reset-password-with-otp", {
         email,
         otp,
         newPassword,

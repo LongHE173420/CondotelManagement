@@ -24,7 +24,6 @@ const CondotelCard: FC<CondotelCardProps> = ({
     status,
     thumbnailUrl,
     resortName,
-    hostName,
   } = data;
 
   const formatPrice = (price: number) => {
@@ -118,3 +117,4 @@ const CondotelCard: FC<CondotelCardProps> = ({
 };
 
 export default CondotelCard;
+

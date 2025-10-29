@@ -10,6 +10,7 @@ import {
 import { Fragment } from "react";
 import { Link } from "react-router-dom";
 import Avatar from "shared/Avatar/Avatar";
+import { useAuth } from "contexts/AuthContext";
 
 const solutions = [
   {
@@ -49,6 +50,19 @@ const solutionsFoot = [
 ];
 
 export default function AvatarDropdown() {
+  const { user, logout, isAdmin } = useAuth();
+  
+  const handleLogout = () => {
+    logout();
+  };
+
+  const getAccountLink = () => {
+    if (isAdmin) {
+      return "/admin?tab=profile";
+    }
+    return "/account";
+  };
+
   return (
     <div className="AvatarDropdown">
       <Popover className="relative">
@@ -57,7 +71,11 @@ export default function AvatarDropdown() {
             <Popover.Button
               className={`inline-flex items-center focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-opacity-75`}
             >
-              <Avatar sizeClass="w-8 h-8 sm:w-9 sm:h-9" />
+              <Avatar 
+                sizeClass="w-8 h-8 sm:w-9 sm:h-9" 
+                imgUrl={user?.imageUrl}
+                userName={user?.fullName}
+              />
             </Popover.Button>
             <Transition
               as={Fragment}
@@ -74,7 +92,7 @@ export default function AvatarDropdown() {
                     {solutions.map((item, index) => (
                       <Link
                         key={index}
-                        to={item.href}
+                        to={item.name === "Account" ? getAccountLink() : item.href}
                         className="flex items-center p-2 -m-3 transition duration-150 ease-in-out rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus-visible:ring focus-visible:ring-orange-500 focus-visible:ring-opacity-50"
                       >
                         <div className="flex items-center justify-center flex-shrink-0 text-neutral-500 dark:text-neutral-300">
@@ -89,18 +107,33 @@ export default function AvatarDropdown() {
                   <hr className="h-[1px] border-t border-neutral-300 dark:border-neutral-700" />
                   <div className="relative grid gap-6 bg-white dark:bg-neutral-800 p-7">
                     {solutionsFoot.map((item, index) => (
-                      <a
-                        key={index}
-                        href={item.href}
-                        className="flex items-center p-2 -m-3 transition duration-150 ease-in-out rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus-visible:ring focus-visible:ring-orange-500 focus-visible:ring-opacity-50"
-                      >
-                        <div className="flex items-center justify-center flex-shrink-0 text-neutral-500 dark:text-neutral-300">
-                          <item.icon aria-hidden="true" className="w-6 h-6" />
-                        </div>
-                        <div className="ml-4">
-                          <p className="text-sm font-medium ">{item.name}</p>
-                        </div>
-                      </a>
+                      item.name === "Logout" ? (
+                        <button
+                          key={index}
+                          onClick={handleLogout}
+                          className="flex items-center p-2 -m-3 transition duration-150 ease-in-out rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus-visible:ring focus-visible:ring-orange-500 focus-visible:ring-opacity-50 w-full text-left"
+                        >
+                          <div className="flex items-center justify-center flex-shrink-0 text-neutral-500 dark:text-neutral-300">
+                            <item.icon aria-hidden="true" className="w-6 h-6" />
+                          </div>
+                          <div className="ml-4">
+                            <p className="text-sm font-medium ">{item.name}</p>
+                          </div>
+                        </button>
+                      ) : (
+                        <a
+                          key={index}
+                          href={item.href}
+                          className="flex items-center p-2 -m-3 transition duration-150 ease-in-out rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus-visible:ring focus-visible:ring-orange-500 focus-visible:ring-opacity-50"
+                        >
+                          <div className="flex items-center justify-center flex-shrink-0 text-neutral-500 dark:text-neutral-300">
+                            <item.icon aria-hidden="true" className="w-6 h-6" />
+                          </div>
+                          <div className="ml-4">
+                            <p className="text-sm font-medium ">{item.name}</p>
+                          </div>
+                        </a>
+                      )
                     ))}
                   </div>
                 </div>
