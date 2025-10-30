@@ -85,19 +85,19 @@ export interface CreateCondotelDTO {
 export const condotelAPI = {
   // GET /api/condotel - Lấy tất cả condotels
   getAll: async (): Promise<CondotelDTO[]> => {
-    const response = await axiosClient.get<CondotelDTO[]>("/condotel");
+    const response = await axiosClient.get<CondotelDTO[]>("/host/condotel");
     return response.data;
   },
 
   // GET /api/condotel/{id} - Lấy condotel theo ID
   getById: async (id: number): Promise<CondotelDetailDTO> => {
-    const response = await axiosClient.get<CondotelDetailDTO>(`/condotel/${id}`);
+    const response = await axiosClient.get<CondotelDetailDTO>(`/host/condotel/${id}`);
     return response.data;
   },
 
   // POST /api/condotel - Tạo condotel mới
   create: async (condotel: CreateCondotelDTO): Promise<CondotelDetailDTO> => {
-    const response = await axiosClient.post<CondotelDetailDTO>("/condotel", condotel);
+    const response = await axiosClient.post<CondotelDetailDTO>("/host/condotel", condotel);
     return response.data;
   },
 
@@ -106,13 +106,13 @@ export const condotelAPI = {
     id: number,
     condotel: CondotelDetailDTO
   ): Promise<CondotelDetailDTO> => {
-    const response = await axiosClient.put<CondotelDetailDTO>(`/condotel/${id}`, condotel);
+    const response = await axiosClient.put<CondotelDetailDTO>(`/host/condotel/${id}`, condotel);
     return response.data;
   },
 
   // DELETE /api/condotel/{id} - Xóa condotel
   delete: async (id: number): Promise<void> => {
-    await axiosClient.delete(`/condotel/${id}`);
+    await axiosClient.delete(`/host/condotel/${id}`);
   },
 };
 

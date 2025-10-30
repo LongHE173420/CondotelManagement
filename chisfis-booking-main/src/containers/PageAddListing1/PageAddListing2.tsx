@@ -8,10 +8,30 @@ import Input from "shared/Input/Input";
 import Select from "shared/Select/Select";
 import CommonLayout from "./CommonLayout";
 import FormItem from "./FormItem";
+import locationAPI from "api/location";
+import { useAddCondotel } from "./_context"; // chúng ta sẽ tạo context này
 
 export interface PageAddListing2Props {}
 
 const PageAddListing2: FC<PageAddListing2Props> = () => {
+  const { formData, setFormData } = useAddCondotel();
+  const [localLocation, setLocalLocation] = React.useState({
+    locationName: "",
+    address: "",
+    city: "",
+    country: "Viet Nam",
+    postalCode: "",
+  });
+
+  const handleNext = async () => {
+    // Gọi sang API tạo location
+    const loc = await locationAPI.create(localLocation);
+    setFormData(prev => ({ ...prev, locationId: loc.locationId, location: loc }));
+    // Bạn cần điều hướng sang bước tiếp theo hoặc để CommonLayout xử lý (nextHref)
+  };
+
+  // Chuyển các field dưới thành controlled inputs sử dụng localLocation & onChange
+  // Và truyền handleNext vào CommonLayout
   return (
     <CommonLayout
       index="02"

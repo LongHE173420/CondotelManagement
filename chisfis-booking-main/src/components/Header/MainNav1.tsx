@@ -66,30 +66,29 @@ const MainNav1: FC<MainNav1Props> = ({ className = "" }) => {
             <SwitchDarkMode />
             <SearchDropdown />
             <div className="px-1" />
-            {isAuthenticated && isAdmin ? (
+            {isAuthenticated ? (
               <div className="relative" ref={dropdownRef}>
-                <div 
+                <div
                   onClick={handleProfileClick}
                   className="flex items-center space-x-2 px-3 py-2 rounded-full bg-neutral-100 dark:bg-neutral-800 cursor-pointer hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"
                 >
-                  <Avatar 
-                    sizeClass="w-8 h-8" 
+                  <Avatar
+                    sizeClass="w-8 h-8"
                     imgUrl={user?.imageUrl}
-                    userName={user?.fullName || "Admin"}
+                    userName={user?.fullName || "User"}
                   />
                   <span className="text-sm font-medium text-neutral-700 dark:text-neutral-100">
-                    {user?.fullName || "Admin"}
+                    {user?.fullName || "User"}
                   </span>
                 </div>
-                
-                {/* Dropdown Menu */}
+                {/* Dropdown giữ nguyên */}
                 {showDropdown && (
                   <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-neutral-800 rounded-lg shadow-lg ring-1 ring-black ring-opacity-5 z-50">
                     <div className="py-1">
                       <button
                         onClick={() => {
                           setShowDropdown(false);
-                          navigate("/admin?tab=profile");
+                          navigate(isAdmin ? "/admin?tab=profile" : "/account");
                         }}
                         className="flex items-center w-full px-4 py-2 text-sm text-neutral-700 dark:text-neutral-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                       >

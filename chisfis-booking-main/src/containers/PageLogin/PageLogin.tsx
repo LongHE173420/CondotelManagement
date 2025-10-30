@@ -44,6 +44,8 @@ const PageLogin: FC<PageLoginProps> = ({ className = "" }) => {
         // Navigate based on role
         if (response.user.roleName === "Admin") {
           navigate("/admin");
+        } else if (response.user.roleName === "Host") {
+          navigate("/host-dashboard");
         } else {
           navigate("/");
         }

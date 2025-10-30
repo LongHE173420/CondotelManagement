@@ -4,10 +4,62 @@ import React, { FC } from "react";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
 import ButtonSecondary from "shared/Button/ButtonSecondary";
 import CommonLayout from "./CommonLayout";
+import { useAddCondotel } from "./_context";
+import { useAuth } from "contexts/AuthContext";
+import condotelAPI, { CreateCondotelDTO } from "api/condotel";
 
 export interface PageAddListing10Props {}
 
 const PageAddListing10: FC<PageAddListing10Props> = () => {
+  const { formData, resetForm } = useAddCondotel();
+  const { user } = useAuth();
+  const [loading, setLoading] = React.useState(false);
+
+  const handlePublish = async () => {
+    if (!user || !formData) return;
+    setLoading(true);
+    try {
+      const { locationId, ...condotelPayload } = formData;
+      // Build payload đúng kiểu CreateCondotelDTO
+      const payload: CreateCondotelDTO = {
+        hostId: user.userId,
+        name: String(condotelPayload.name),
+        pricePerNight: Number(condotelPayload.pricePerNight),
+        beds: Number(condotelPayload.beds),
+        bathrooms: Number(condotelPayload.bathrooms),
+        status: String(condotelPayload.status),
+        ...(condotelPayload.description && { description: String(condotelPayload.description) }),
+        ...(condotelPayload.images && { images: condotelPayload.images }),
+        ...(condotelPayload.prices && { prices: condotelPayload.prices }),
+        ...(condotelPayload.details && { details: condotelPayload.details }),
+        ...(condotelPayload.amenityIds && { amenityIds: condotelPayload.amenityIds }),
+        ...(condotelPayload.utilityIds && { utilityIds: condotelPayload.utilityIds }),
+        ...(condotelPayload.resortId && { resortId: Number(condotelPayload.resortId) }),
+      };
+      // Validate required fields
+      const requiredFields: Array<keyof CreateCondotelDTO> = [
+        "name",
+        "pricePerNight",
+        "beds",
+        "bathrooms",
+        "status"
+      ];
+      for (const field of requiredFields) {
+        if (!payload[field]) {
+          alert(`Vui lòng nhập đầy đủ trường "${field}" trước khi đăng bài!`);
+          setLoading(false);
+          return;
+        }
+      }
+      console.log('CONDOTEL CREATE PAYLOAD:', payload);
+      await condotelAPI.create(payload);
+      resetForm();
+      window.location.href = "/host-dashboard";
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <CommonLayout
       nextBtnText="Publish listing"
@@ -24,7 +76,6 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
           </span>
         </div>
         <div className="w-14 border-b border-neutral-200 dark:border-neutral-700"></div>
-        {/* FORM */}
         <div>
           <h3 className="text-lg font-semibold">This is your listing</h3>
           <div className="max-w-xs">
@@ -51,8 +102,7 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
               </svg>
               <span className="ml-3">Edit</span>
             </ButtonSecondary>
-
-            <ButtonPrimary>
+            <ButtonPrimary onClick={handlePublish} disabled={loading}>
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 className="h-5 w-5"
@@ -73,11 +123,10 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
                   d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
                 />
               </svg>
-              <span className="ml-3">Preview</span>
+              <span className="ml-3">Publish listing</span>
             </ButtonPrimary>
           </div>
         </div>
-        {/*  */}
       </>
     </CommonLayout>
   );

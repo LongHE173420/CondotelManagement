@@ -3,19 +3,21 @@ import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "contexts/AuthContext";
 
 interface ProtectedRouteProps {
-  children: React.ReactElement;
   requireAuth?: boolean;
   requireAdmin?: boolean;
+  requireHost?: boolean;
   fallbackPath?: string;
+  children?: React.ReactNode;
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children,
   requireAuth = true,
   requireAdmin = false,
+  requireHost = false,
   fallbackPath,
 }) => {
-  const { isAuthenticated, isAdmin, isLoading } = useAuth();
+  const { isAuthenticated, isAdmin, isLoading, user } = useAuth();
   const location = useLocation();
 
   if (isLoading) {
@@ -29,15 +31,18 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   if (requireAuth && !isAuthenticated) {
     return <Navigate to={fallbackPath || "/login"} state={{ from: location }} replace />;
   }
-
   if (requireAdmin && !isAdmin) {
     return <Navigate to={fallbackPath || "/"} replace />;
   }
-
-  return children;
+  if (requireHost && user?.roleName !== 'Host') {
+    return <Navigate to={fallbackPath || "/"} replace />;
+  }
+  if (!children) return null;
+  return <>{children}</>;
 };
 
 export default ProtectedRoute;
+
 
 
 

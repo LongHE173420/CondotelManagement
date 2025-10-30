@@ -58,6 +58,7 @@ import FooterNav from "components/FooterNav";
 import useWindowSize from "hooks/useWindowResize";
 import PageHome3 from "containers/PageHome/PageHome3";
 import PageTenantBookings from "containers/PageTenantBookingList/PageTenantBookingList";
+import HostCondotelDashboard from "containers/HostCondotelDashboard";
 
 export const pages: Page[] = [
   { path: "/", exact: true, component: PageHome },
@@ -122,7 +123,7 @@ export const pages: Page[] = [
   { path: "/listing-stay", component: ListingStayPage },
   { path: "/listing-stay-map", component: ListingStayMapPage },
   // 
-  { path: "/listing-stay-detail", component: ListingStayDetailPage }, 
+  { path: "/listing-stay-detail/:id", component: ListingStayDetailPage }, 
   //
   { path: "/checkout", component: CheckOutPage },
   { path: "/pay-done", component: PayPage },
@@ -130,6 +131,7 @@ export const pages: Page[] = [
   { path: "/my-bookings", component: PageTenantBookings }, // <-- Đã dùng tên nhất quán
   //
   { path: "/subscription", component: PageSubcription },
+  { path: "/host-dashboard", component: HostCondotelDashboard },
   //
 ];
 
@@ -143,6 +145,16 @@ const MyRoutes = () => {
       <Routes>
         {pages.map(({ component, path }) => {
           const Component = component;
+          // Protect host dashboard
+          if(path === "/host-dashboard") {
+            return (
+              <Route key={path} path={path} element={
+                <ProtectedRoute requireAuth={true}>
+                  <HostCondotelDashboard />
+                </ProtectedRoute>
+              } />
+            );
+          }
           return <Route key={path} element={<Component />} path={path} />;
         })}
         
