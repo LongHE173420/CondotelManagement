@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { adminAPI, AdminCreateUserDTO } from "api/admin";
 
 // --- Định nghĩa kiểu dữ liệu (Copy từ các file trước) ---
-type UserRole = "Chủ Condotel" | "Khách Hàng" | "";
-type UserStatus = "Hoạt động" | "Không hoạt động";
+type UserRole = "Owner" | "Tenant" | "Admin" | "";
+type UserStatus = "Active" | "Inactive";
 
 // --- Dùng lại các component Form (Bạn có thể chuyển ra file shared) ---
 const FormInput: React.FC<{
@@ -50,26 +51,41 @@ const PageAddAccount = () => {
   const navigate = useNavigate();
 
   // State cho tất cả các trường
-  const [username, setUsername] = useState("");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [role, setRole] = useState<UserRole>(""); // Mặc định là rỗng
-  const [status, setStatus] = useState<UserStatus>("Hoạt động"); // Mặc định Hoạt động
+  const [roleName, setRoleName] = useState<UserRole>(""); // Mặc định là rỗng
+  const [phone, setPhone] = useState("");
+  const [gender, setGender] = useState("");
+  const [dateOfBirth, setDateOfBirth] = useState("");
+  const [address, setAddress] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(""); // Xóa lỗi cũ
 
     // --- Validation (Kiểm tra) cơ bản ---
-    if (!username || !fullName || !email || !password || !role) {
-      setError("Vui lòng điền đầy đủ các trường bắt buộc.");
+    if (!fullName || !email || !password || !roleName) {
+      setError("Vui lòng điền đầy đủ các trường bắt buộc (Tên, Email, Mật khẩu, Vai trò).");
       return;
     }
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError("Email không đúng định dạng.");
+      return;
+    }
+    
+    if (password.length < 6) {
+      setError("Mật khẩu phải có ít nhất 6 ký tự.");
+      return;
+    }
+    
     if (password !== confirmPassword) {
       setError("Mật khẩu và xác nhận mật khẩu không khớp.");
       return;
@@ -77,21 +93,64 @@ const PageAddAccount = () => {
     // --- Hết Validation ---
 
     setLoading(true);
-    const newAccountData = { username, fullName, email, password, role, status };
-    
-    // TODO: Thay thế bằng API thật
-    // POST /api/users/ { ...newAccountData }
-    console.log("Saving new account:", newAccountData);
-    
-    setTimeout(() => {
-      setLoading(false);
+    setError("");
+
+    try {
+      const newAccountData: AdminCreateUserDTO = {
+        email: email.trim(),
+        password: password,
+        fullName: fullName.trim(),
+        roleName: roleName,
+      };
+      
+      // Thêm các trường optional nếu có giá trị
+      if (phone && phone.trim()) {
+        newAccountData.phone = phone.trim();
+      }
+      if (gender && gender.trim()) {
+        newAccountData.gender = gender.trim();
+      }
+      if (dateOfBirth && dateOfBirth.trim()) {
+        newAccountData.dateOfBirth = dateOfBirth.trim();
+      }
+      if (address && address.trim()) {
+        newAccountData.address = address.trim();
+      }
+      
+      console.log("Saving new account:", newAccountData);
+      await adminAPI.createUser(newAccountData);
+      
       alert("Thêm tài khoản mới thành công!");
-      navigate("/account-list"); // Quay lại trang danh sách
-    }, 1000);
+      navigate("/admin?tab=accounts"); // Quay lại trang admin accounts
+    } catch (err: any) {
+      console.error("Failed to create user:", err);
+      let errorMessage = "Không thể tạo tài khoản";
+      
+      if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      } else if (err.response?.data?.errors) {
+        // Handle validation errors
+        const errors = err.response.data.errors;
+        const errorList = Object.entries(errors)
+          .map(([field, messages]: [string, any]) => {
+            const fieldName = field.charAt(0).toUpperCase() + field.slice(1);
+            const messageList = Array.isArray(messages) ? messages.join(", ") : messages;
+            return `${fieldName}: ${messageList}`;
+          })
+          .join("\n");
+        errorMessage = `Lỗi validation:\n${errorList}`;
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCancel = () => {
-    navigate("/account-list"); // Quay lại trang danh sách
+    navigate("/admin?tab=accounts"); // Quay lại trang admin accounts
   };
 
   return (
@@ -103,56 +162,75 @@ const PageAddAccount = () => {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <FormInput
-            label="Tên đăng nhập"
-            value={username}
-            onChange={setUsername}
-          />
-          <FormInput
-            label="Tên người dùng"
+            label="Tên người dùng *"
             value={fullName}
             onChange={setFullName}
           />
           <FormInput
-            label="Email"
+            label="Email *"
             value={email}
             onChange={setEmail}
             type="email"
           />
           <FormInput
-            label="Mật khẩu"
+            label="Mật khẩu *"
             value={password}
             onChange={setPassword}
             type="password"
           />
           <FormInput
-            label="Xác nhận mật khẩu"
+            label="Xác nhận mật khẩu *"
             value={confirmPassword}
             onChange={setConfirmPassword}
             type="password"
           />
 
           <FormSelect
-            label="Vai trò"
-            value={role}
-            onChange={setRole}
+            label="Vai trò *"
+            value={roleName}
+            onChange={setRoleName}
           >
             <option value="">-- Chọn vai trò --</option>
-            <option value="Khách Hàng">Khách Hàng</option>
-            <option value="Chủ Condotel">Chủ Condotel</option>
+            <option value="Tenant">Khách Hàng (Tenant)</option>
+            <option value="Owner">Chủ Condotel (Owner)</option>
+            <option value="Admin">Admin</option>
           </FormSelect>
 
+          <FormInput
+            label="Số điện thoại"
+            value={phone}
+            onChange={setPhone}
+          />
+          
           <FormSelect
-            label="Trạng thái"
-            value={status}
-            onChange={setStatus}
+            label="Giới tính"
+            value={gender}
+            onChange={setGender}
           >
-            <option value="Hoạt động">Hoạt động</option>
-            <option value="Không hoạt động">Không hoạt động</option>
+            <option value="">-- Chọn giới tính --</option>
+            <option value="Male">Nam</option>
+            <option value="Female">Nữ</option>
+            <option value="Other">Khác</option>
           </FormSelect>
+
+          <FormInput
+            label="Ngày sinh"
+            value={dateOfBirth}
+            onChange={setDateOfBirth}
+            type="date"
+          />
+
+          <FormInput
+            label="Địa chỉ"
+            value={address}
+            onChange={setAddress}
+          />
           
           {/* Hiển thị lỗi nếu có */}
           {error && (
-            <p className="text-sm text-red-600 text-center">{error}</p>
+            <div className="p-4 bg-red-100 text-red-800 rounded-lg text-sm whitespace-pre-line">
+              {error}
+            </div>
           )}
 
           {/* --- Nút Bấm --- */}

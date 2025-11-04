@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
 import Input from "shared/Input/Input";
 import CommonLayout from "./CommonLayout";
+import authAPI from "api/auth";
 
 const AccountPass = () => {
   const [formData, setFormData] = useState({
@@ -44,8 +45,10 @@ const AccountPass = () => {
 
     try {
       // Gọi API đổi mật khẩu
-      // Note: Backend cần có endpoint để đổi mật khẩu
-      // await authAPI.changePassword({ ...formData });
+      await authAPI.changePassword({
+        currentPassword: formData.currentPassword,
+        newPassword: formData.newPassword,
+      });
       
       setMessage("Đổi mật khẩu thành công!");
       setFormData({
@@ -55,7 +58,24 @@ const AccountPass = () => {
       });
     } catch (err: any) {
       console.error("Change password error:", err);
-      setError(err.response?.data?.message || "Không thể đổi mật khẩu!");
+      let errorMessage = "Không thể đổi mật khẩu!";
+      
+      if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      } else if (err.response?.data?.error) {
+        errorMessage = err.response.data.error;
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      // Handle specific error cases
+      if (err.response?.status === 400) {
+        errorMessage = "Mật khẩu hiện tại không đúng!";
+      } else if (err.response?.status === 401) {
+        errorMessage = "Bạn cần đăng nhập lại!";
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

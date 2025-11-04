@@ -114,6 +114,15 @@ export const authAPI = {
     const response = await axiosClient.get<{ message: string }>("/Auth/admin-check");
     return response.data;
   },
+
+  // POST /api/Auth/change-password - Đổi mật khẩu trong profile
+  changePassword: async (data: {
+    currentPassword: string;
+    newPassword: string;
+  }): Promise<{ message: string }> => {
+    const response = await axiosClient.post<{ message: string }>("/Auth/change-password", data);
+    return response.data;
+  },
 };
 
 export default authAPI;

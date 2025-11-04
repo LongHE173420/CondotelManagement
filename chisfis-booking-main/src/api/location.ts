@@ -36,3 +36,15 @@ const locationAPI = {
 };
 
 export default locationAPI;
+
+
+
+
+
+
+
+
+
+
+
+

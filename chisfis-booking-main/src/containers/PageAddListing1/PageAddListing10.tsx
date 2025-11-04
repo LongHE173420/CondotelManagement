@@ -16,45 +16,97 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
   const [loading, setLoading] = React.useState(false);
 
   const handlePublish = async () => {
-    if (!user || !formData) return;
+    if (!user) {
+      alert("Bạn cần đăng nhập để thêm condotel!");
+      return;
+    }
+
+    if (!formData || Object.keys(formData).length === 0) {
+      alert("Không có dữ liệu để đăng! Vui lòng điền đầy đủ thông tin.");
+      return;
+    }
+
     setLoading(true);
     try {
       const { locationId, ...condotelPayload } = formData;
+      
+      // Validate required fields trước khi build payload
+      if (!condotelPayload.name || !condotelPayload.name.toString().trim()) {
+        alert("Vui lòng nhập tên condotel!");
+        setLoading(false);
+        return;
+      }
+
+      if (!condotelPayload.pricePerNight || Number(condotelPayload.pricePerNight) <= 0) {
+        alert("Vui lòng nhập giá mỗi đêm hợp lệ (lớn hơn 0)!");
+        setLoading(false);
+        return;
+      }
+
+      if (!condotelPayload.beds || Number(condotelPayload.beds) <= 0) {
+        alert("Vui lòng nhập số giường (lớn hơn 0)!");
+        setLoading(false);
+        return;
+      }
+
+      if (!condotelPayload.bathrooms || Number(condotelPayload.bathrooms) <= 0) {
+        alert("Vui lòng nhập số phòng tắm (lớn hơn 0)!");
+        setLoading(false);
+        return;
+      }
+
       // Build payload đúng kiểu CreateCondotelDTO
       const payload: CreateCondotelDTO = {
         hostId: user.userId,
-        name: String(condotelPayload.name),
+        name: String(condotelPayload.name).trim(),
         pricePerNight: Number(condotelPayload.pricePerNight),
         beds: Number(condotelPayload.beds),
         bathrooms: Number(condotelPayload.bathrooms),
-        status: String(condotelPayload.status),
-        ...(condotelPayload.description && { description: String(condotelPayload.description) }),
-        ...(condotelPayload.images && { images: condotelPayload.images }),
-        ...(condotelPayload.prices && { prices: condotelPayload.prices }),
-        ...(condotelPayload.details && { details: condotelPayload.details }),
-        ...(condotelPayload.amenityIds && { amenityIds: condotelPayload.amenityIds }),
-        ...(condotelPayload.utilityIds && { utilityIds: condotelPayload.utilityIds }),
+        status: String(condotelPayload.status || "Pending"),
+        ...(condotelPayload.description && { description: String(condotelPayload.description).trim() }),
+        ...(condotelPayload.images && Array.isArray(condotelPayload.images) && condotelPayload.images.length > 0 && { images: condotelPayload.images }),
+        ...(condotelPayload.prices && Array.isArray(condotelPayload.prices) && condotelPayload.prices.length > 0 && { prices: condotelPayload.prices }),
+        ...(condotelPayload.details && Array.isArray(condotelPayload.details) && condotelPayload.details.length > 0 && { details: condotelPayload.details }),
+        ...(condotelPayload.amenityIds && Array.isArray(condotelPayload.amenityIds) && condotelPayload.amenityIds.length > 0 && { amenityIds: condotelPayload.amenityIds.map(id => Number(id)) }),
+        ...(condotelPayload.utilityIds && Array.isArray(condotelPayload.utilityIds) && condotelPayload.utilityIds.length > 0 && { utilityIds: condotelPayload.utilityIds.map(id => Number(id)) }),
         ...(condotelPayload.resortId && { resortId: Number(condotelPayload.resortId) }),
       };
-      // Validate required fields
-      const requiredFields: Array<keyof CreateCondotelDTO> = [
-        "name",
-        "pricePerNight",
-        "beds",
-        "bathrooms",
-        "status"
-      ];
-      for (const field of requiredFields) {
-        if (!payload[field]) {
-          alert(`Vui lòng nhập đầy đủ trường "${field}" trước khi đăng bài!`);
-          setLoading(false);
-          return;
-        }
-      }
-      console.log('CONDOTEL CREATE PAYLOAD:', payload);
-      await condotelAPI.create(payload);
+
+      console.log('📤 CONDOTEL CREATE PAYLOAD:', payload);
+      
+      const created = await condotelAPI.create(payload);
+      console.log('✅ Condotel created successfully:', created);
+      
+      alert("Tạo condotel thành công!");
       resetForm();
-      window.location.href = "/host-dashboard";
+      
+      // Use navigate thay vì window.location.href
+      setTimeout(() => {
+        window.location.href = "/host-dashboard";
+      }, 500);
+    } catch (err: any) {
+      console.error("❌ Failed to create condotel:", err);
+      
+      let errorMessage = "Không thể tạo condotel. Vui lòng thử lại!";
+      
+      if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      } else if (err.response?.data?.errors) {
+        // Handle validation errors
+        const errors = err.response.data.errors;
+        const errorList = Object.entries(errors)
+          .map(([field, messages]: [string, any]) => {
+            const fieldName = field.charAt(0).toUpperCase() + field.slice(1);
+            const messageList = Array.isArray(messages) ? messages.join(", ") : messages;
+            return `${fieldName}: ${messageList}`;
+          })
+          .join("\n");
+        errorMessage = `Lỗi validation:\n${errorList}`;
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      alert(errorMessage);
     } finally {
       setLoading(false);
     }

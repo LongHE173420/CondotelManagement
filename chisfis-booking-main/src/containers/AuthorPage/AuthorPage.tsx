@@ -26,6 +26,7 @@ const AuthorPage: FC<AuthorPageProps> = ({ className = "" }) => {
   let [categories] = useState(["Stays", "Experiences", "Car for rent", "Condotels"]);
   const [condotels, setCondotels] = useState<CondotelDTO[]>([]);
   const [isLoadingCondotels, setIsLoadingCondotels] = useState(false);
+  const [showAllCondotels, setShowAllCondotels] = useState(false);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -159,13 +160,15 @@ const AuthorPage: FC<AuthorPageProps> = ({ className = "" }) => {
                 ) : condotels.length > 0 ? (
                   <>
                     <div className="mt-8 grid grid-cols-1 gap-6 md:gap-7 sm:grid-cols-2">
-                      {condotels.slice(0, 4).map((condotel) => (
+                      {(showAllCondotels ? condotels : condotels.slice(0, 4)).map((condotel) => (
                         <CondotelCard key={condotel.condotelId} data={condotel} />
                       ))}
                     </div>
                     {condotels.length > 4 && (
                       <div className="flex mt-11 justify-center items-center">
-                        <ButtonSecondary>Show me more</ButtonSecondary>
+                        <ButtonSecondary onClick={() => setShowAllCondotels(!showAllCondotels)}>
+                          {showAllCondotels ? "Show less" : "Show me more"}
+                        </ButtonSecondary>
                       </div>
                     )}
                   </>

@@ -11,6 +11,7 @@ export interface AdminUserDTO {
   gender?: string;
   dateOfBirth?: string;
   address?: string;
+  imageUrl?: string;
   createdAt?: string;
 }
 

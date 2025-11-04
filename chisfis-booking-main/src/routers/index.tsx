@@ -39,16 +39,8 @@ import PageAddAccount from "containers/PageAddAccount/PageAddAccount";
 import PageSubcription from "containers/PageSubcription/PageSubcription";
 import BlogPage from "containers/BlogPage/BlogPage";
 import BlogSingle from "containers/BlogPage/BlogSingle";
-import PageAddListing1 from "containers/PageAddListing1/PageAddListing1";
-import PageAddListing2 from "containers/PageAddListing1/PageAddListing2";
-import PageAddListing3 from "containers/PageAddListing1/PageAddListing3";
-import PageAddListing4 from "containers/PageAddListing1/PageAddListing4";
-import PageAddListing5 from "containers/PageAddListing1/PageAddListing5";
-import PageAddListing6 from "containers/PageAddListing1/PageAddListing6";
-import PageAddListing7 from "containers/PageAddListing1/PageAddListing7";
-import PageAddListing8 from "containers/PageAddListing1/PageAddListing8";
-import PageAddListing9 from "containers/PageAddListing1/PageAddListing9";
-import PageAddListing10 from "containers/PageAddListing1/PageAddListing10";
+import PageAddListingSimple from "containers/PageAddListing1/PageAddListingSimple";
+import AddListingLayout from "containers/PageAddListing1/AddListingLayout";
 import PageHome2 from "containers/PageHome/PageHome2";
 import ListingRealEstateMapPage from "containers/ListingRealEstatePage/ListingRealEstateMapPage";
 import ListingRealEstatePage from "containers/ListingRealEstatePage/ListingRealEstatePage";
@@ -59,6 +51,7 @@ import useWindowSize from "hooks/useWindowResize";
 import PageHome3 from "containers/PageHome/PageHome3";
 import PageTenantBookings from "containers/PageTenantBookingList/PageTenantBookingList";
 import HostCondotelDashboard from "containers/HostCondotelDashboard";
+import PageEditCondotel from "containers/PageEditCondotel/PageEditCondotel";
 
 export const pages: Page[] = [
   { path: "/", exact: true, component: PageHome },
@@ -93,17 +86,6 @@ export const pages: Page[] = [
   //
   { path: "/blog", component: BlogPage },
   { path: "/blog-single", component: BlogSingle },
-  //
-  { path: "/add-listing-1", component: PageAddListing1 },
-  { path: "/add-listing-2", component: PageAddListing2 },
-  { path: "/add-listing-3", component: PageAddListing3 },
-  { path: "/add-listing-4", component: PageAddListing4 },
-  { path: "/add-listing-5", component: PageAddListing5 },
-  { path: "/add-listing-6", component: PageAddListing6 },
-  { path: "/add-listing-7", component: PageAddListing7 },
-  { path: "/add-listing-8", component: PageAddListing8 },
-  { path: "/add-listing-9", component: PageAddListing9 },
-  { path: "/add-listing-10", component: PageAddListing10 },
   //
   { path: "/contact", component: PageContact },
   { path: "/about", component: PageAbout },
@@ -143,18 +125,54 @@ const MyRoutes = () => {
       <SiteHeader />
 
       <Routes>
+        {/* Add Listing Route - Wrapped with AddCondotelProvider - Only Host can access */}
+        <Route element={<AddListingLayout />}>
+          <Route
+            path="/add-listing-1"
+            element={
+              <ProtectedRoute requireAuth={true} requireHost={true}>
+                <PageAddListingSimple />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/add-condotel"
+            element={
+              <ProtectedRoute requireAuth={true} requireHost={true}>
+                <PageAddListingSimple />
+              </ProtectedRoute>
+            }
+          />
+        </Route>
+
+        {/* Edit Condotel - Only Host */}
+        <Route
+          path="/edit-condotel/:id"
+          element={
+            <ProtectedRoute requireAuth={true} requireHost={true}>
+              <PageEditCondotel />
+            </ProtectedRoute>
+          }
+        />
+
         {pages.map(({ component, path }) => {
           const Component = component;
-          // Protect host dashboard
+          // Protect host dashboard - only Host role can access
           if(path === "/host-dashboard") {
             return (
               <Route key={path} path={path} element={
-                <ProtectedRoute requireAuth={true}>
+                <ProtectedRoute requireAuth={true} requireHost={true}>
                   <HostCondotelDashboard />
                 </ProtectedRoute>
               } />
             );
           }
+          
+          // Skip add-listing routes (đã được handle ở trên)
+          if(path && (path.startsWith("/add-listing") || path.startsWith("/add-condotel"))) {
+            return null;
+          }
+          
           return <Route key={path} element={<Component />} path={path} />;
         })}
         

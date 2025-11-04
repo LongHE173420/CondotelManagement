@@ -22,7 +22,8 @@ const MainNav1: FC<MainNav1Props> = ({ className = "" }) => {
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const handleProfileClick = () => {
-    if (isAdmin) {
+    // Show dropdown for all authenticated users (Admin, Host, Tenant)
+    if (isAuthenticated) {
       setShowDropdown(!showDropdown);
     }
   };

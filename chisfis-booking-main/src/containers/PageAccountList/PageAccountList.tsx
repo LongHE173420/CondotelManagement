@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { adminAPI, AdminUserDTO } from "api/admin";
 
 type UserRole = "Chủ Condotel" | "Khách Hàng" | "Tenant" | "Owner" | "Admin";
@@ -60,12 +60,15 @@ const RoleBadge: React.FC<{ role: UserRole }> = ({ role }) => {
 };
 
 const PageAccountList = () => {
+  const navigate = useNavigate();
   const [users, setUsers] = useState<UserAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [updatingStatusId, setUpdatingStatusId] = useState<number | null>(null);
   const itemsPerPage = 10;
 
   useEffect(() => {
@@ -165,6 +168,78 @@ const PageAccountList = () => {
     }
   };
 
+  // Handle edit user
+  const handleEdit = (userId: number) => {
+    navigate(`/account-detail/${userId}`);
+  };
+
+  // Handle toggle status
+  const handleToggleStatus = async (userId: number, currentStatus: UserStatus, fullName: string) => {
+    const newStatus = currentStatus === "Hoạt động" || currentStatus === "Active" 
+      ? "Inactive" 
+      : "Active";
+    
+    if (!window.confirm(
+      `Bạn có chắc chắn muốn ${newStatus === "Active" ? "kích hoạt" : "vô hiệu hóa"} tài khoản "${fullName}"?`
+    )) {
+      return;
+    }
+
+    setUpdatingStatusId(userId);
+    setError("");
+
+    try {
+      await adminAPI.updateUserStatus(userId, newStatus);
+      await loadUsers();
+      alert(`Cập nhật trạng thái thành công! Tài khoản đã được ${newStatus === "Active" ? "kích hoạt" : "vô hiệu hóa"}.`);
+    } catch (err: any) {
+      console.error("Failed to update status:", err);
+      let errorMessage = "Không thể cập nhật trạng thái";
+      
+      if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
+      alert(errorMessage);
+    } finally {
+      setUpdatingStatusId(null);
+    }
+  };
+
+  // Handle delete user
+  const handleDelete = async (userId: number, fullName: string) => {
+    if (!window.confirm(`Bạn có chắc chắn muốn xóa tài khoản "${fullName}"?`)) {
+      return;
+    }
+
+    setDeletingId(userId);
+    setError("");
+
+    try {
+      await adminAPI.deleteUser(userId);
+      // Reload users list
+      await loadUsers();
+      alert("Xóa tài khoản thành công!");
+    } catch (err: any) {
+      console.error("Failed to delete user:", err);
+      let errorMessage = "Không thể xóa tài khoản";
+      
+      if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
+      alert(errorMessage);
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
 
 
   return (
@@ -230,12 +305,13 @@ const PageAccountList = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trạng thái</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ngày tạo</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ngày cập nhật</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thao tác</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center">
+                  <td colSpan={8} className="px-6 py-8 text-center">
                     <div className="flex justify-center items-center">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
                       <span className="ml-2 text-gray-600">Đang tải...</span>
@@ -244,7 +320,7 @@ const PageAccountList = () => {
                 </tr>
               ) : paginatedUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan={8} className="px-6 py-8 text-center text-gray-500">
                     Không tìm thấy tài khoản nào
                   </td>
                 </tr>
@@ -260,13 +336,49 @@ const PageAccountList = () => {
                       <RoleBadge role={user.role} />
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <StatusBadge status={user.status} />
+                      <div className="flex items-center space-x-2">
+                        <StatusBadge status={user.status} />
+                        <button
+                          onClick={() => handleToggleStatus(user.userId, user.status, user.fullName)}
+                          disabled={updatingStatusId === user.userId}
+                          className={`px-2 py-1 text-xs rounded ${
+                            user.status === "Hoạt động" || user.status === "Active"
+                              ? "bg-yellow-100 text-yellow-800 hover:bg-yellow-200"
+                              : "bg-green-100 text-green-800 hover:bg-green-200"
+                          } disabled:opacity-50 disabled:cursor-not-allowed`}
+                          title={user.status === "Hoạt động" || user.status === "Active" ? "Vô hiệu hóa" : "Kích hoạt"}
+                        >
+                          {updatingStatusId === user.userId 
+                            ? "..." 
+                            : user.status === "Hoạt động" || user.status === "Active" 
+                              ? "Vô hiệu hóa" 
+                              : "Kích hoạt"}
+                        </button>
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                       {user.createdAt || "N/A"}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                       {user.updatedAt || "N/A"}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => handleEdit(user.userId)}
+                          className="text-blue-600 hover:text-blue-900 font-medium"
+                        >
+                          Sửa
+                        </button>
+                        <span className="text-gray-300">|</span>
+                        <button
+                          onClick={() => handleDelete(user.userId, user.fullName)}
+                          disabled={deletingId === user.userId}
+                          className="text-red-600 hover:text-red-900 font-medium disabled:text-gray-400 disabled:cursor-not-allowed"
+                        >
+                          {deletingId === user.userId ? "Đang xóa..." : "Xóa"}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))

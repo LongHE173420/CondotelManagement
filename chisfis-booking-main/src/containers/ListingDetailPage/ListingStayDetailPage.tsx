@@ -1,6 +1,7 @@
 import React, { FC, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import condotelAPI, { CondotelDetailDTO } from "api/condotel";
+import { useAuth } from "contexts/AuthContext";
 import NcImage from "shared/NcImage/NcImage";
 import LikeSaveBtns from "./LikeSaveBtns";
 import ModalPhotos from "./ModalPhotos";
@@ -17,16 +18,17 @@ import { ArrowRightIcon } from "@heroicons/react/24/outline";
 import Avatar from "shared/Avatar/Avatar";
 import MobileFooterSticky from "./MobileFooterSticky";
 
-const AMENITY_MAP: Record<number, string> = { 1: "Wifi", 2: "Swimming pool", 4: "Restaurant", 5: "Spa", 13: "Jacuzzi" };
-const UTILITY_MAP: Record<number, string> = { 10: "Parking", 11: "Gym" };
 
 const ListingStayDetailPage: FC = () => {
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
   const [data, setData] = useState<CondotelDetailDTO | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>("");
   const [isOpen, setIsOpen] = useState(false);
   const [openFocusIndex, setOpenFocusIndex] = useState(0);
+  const [hostName, setHostName] = useState<string>("");
+  const [hostImageUrl, setHostImageUrl] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     const load = async () => {
@@ -38,6 +40,24 @@ const ListingStayDetailPage: FC = () => {
         }
         const res = await condotelAPI.getById(Number(id));
         setData(res);
+        console.log("📦 CondotelDetailDTO response:", res);
+        console.log("👤 Current user:", user);
+        
+        // Ưu tiên: Backend trả về hostName và hostImageUrl
+        if (res.hostName) {
+          console.log("✅ Backend trả về hostName:", res.hostName);
+          setHostName(res.hostName);
+          setHostImageUrl(res.hostImageUrl);
+        } else if (user) {
+          // Nếu backend chưa trả về, dùng thông tin từ AuthContext (nếu có user đang login)
+          console.log("✅ Backend chưa trả về hostName, dùng thông tin từ AuthContext");
+          setHostName(user.fullName);
+          setHostImageUrl(user.imageUrl);
+        } else {
+          // Fallback: Hiển thị Host ID
+          console.warn("⚠️ Backend chưa trả về hostName và không có user đang login");
+          setHostName(`Host #${res.hostId}`);
+        }
       } catch (e) {
         setError("Không tìm thấy thông tin căn hộ");
       } finally {
@@ -100,8 +120,8 @@ const ListingStayDetailPage: FC = () => {
   );
 
   const renderSectionIntro = () => (
-    <div className="listingSection__wrap !space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="listingSection__wrap !space-y-6">
+        <div className="flex justify-between items-center">
         <div className="flex items-center space-x-4">
           <StartRating />
           <span>·</span>
@@ -111,84 +131,108 @@ const ListingStayDetailPage: FC = () => {
           </span>
         </div>
         <LikeSaveBtns />
-      </div>
+        </div>
       <h2 className="text-2xl sm:text-3xl lg:text-4xl font-semibold">{data.name}</h2>
       <div className="text-neutral-6000 dark:text-neutral-300">{data.description || "Mô tả đang cập nhật."}</div>
-      <div className="w-full border-b border-neutral-100 dark:border-neutral-700" />
-      <div className="flex items-center justify-between xl:justify-start space-x-8 xl:space-x-12 text-sm text-neutral-700 dark:text-neutral-300">
+        <div className="w-full border-b border-neutral-100 dark:border-neutral-700" />
+        <div className="flex items-center justify-between xl:justify-start space-x-8 xl:space-x-12 text-sm text-neutral-700 dark:text-neutral-300">
         <div className="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 text-center sm:text-left sm:space-x-3 "><i className="las la-bed text-2xl"></i><span>{data.beds} beds</span></div>
         <div className="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 text-center sm:text-left sm:space-x-3 "><i className="las la-bath text-2xl"></i><span>{data.bathrooms} bathrooms</span></div>
         <div className="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 text-center sm:text-left sm:space-x-3 "><i className="las la-tag text-2xl"></i><span>{data.pricePerNight?.toLocaleString()} đ / đêm</span></div>
+        </div>
       </div>
-    </div>
-  );
+    );
 
   const renderAmenities = () => (
-    <div className="listingSection__wrap">
+      <div className="listingSection__wrap">
       <h2 className="text-2xl font-semibold">Tiện ích & Tiện nghi</h2>
-      <div className="w-14 border-b border-neutral-200 dark:border-neutral-700"></div>
+        <div className="w-14 border-b border-neutral-200 dark:border-neutral-700"></div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 text-sm text-neutral-700 dark:text-neutral-300 ">
         <div>
           <h4 className="font-semibold mb-2">Tiện ích</h4>
-          <div>{data.amenityIds?.length ? data.amenityIds.map((id:number)=>AMENITY_MAP[id]||`#${id}`).join(", ") : "—"}</div>
-        </div>
+        <div>
+            {data.amenities?.length ? (
+              data.amenities.map((a) => a.name).join(", ")
+            ) : (
+              "—"
+            )}
+                  </div>
+                </div>
         <div>
           <h4 className="font-semibold mb-2">Tiện nghi</h4>
-          <div>{data.utilityIds?.length ? data.utilityIds.map((id:number)=>UTILITY_MAP[id]||`#${id}`).join(", ") : "—"}</div>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderHost = () => (
-    <div className="listingSection__wrap">
-      <h2 className="text-2xl font-semibold">Host Information</h2>
-      <div className="w-14 border-b border-neutral-200 dark:border-neutral-700"></div>
-      <div className="flex items-center space-x-4">
-        <Avatar hasChecked hasCheckedClass="w-4 h-4 -top-0.5 right-0.5" sizeClass="h-14 w-14" radius="rounded-full" />
         <div>
-          <div className="block text-xl font-medium">Host ID: {data.hostId}</div>
-          <div className="mt-1.5 flex items-center text-sm text-neutral-500 dark:text-neutral-400">
-            <StartRating /><span className="mx-2">·</span><span> Verified Host</span>
+            {data.utilities?.length ? (
+              data.utilities.map((u) => u.name).join(", ")
+            ) : (
+              "—"
+            )}
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  );
+    );
 
-  const renderReviews = () => (
-    <div className="listingSection__wrap">
-      <h2 className="text-2xl font-semibold">Reviews</h2>
-      <div className="w-14 border-b border-neutral-200 dark:border-neutral-700"></div>
-      <div className="space-y-5">
-        <FiveStartIconForRate iconClass="w-6 h-6" className="space-x-0.5" />
-        <div className="relative">
-          <Input fontClass="" sizeClass="h-16 px-4 py-3" rounded="rounded-3xl" placeholder="Share your thoughts ..." />
-          <ButtonCircle className="absolute right-2 top-1/2 transform -translate-y-1/2" size=" w-12 h-12 "><ArrowRightIcon className="w-5 h-5" /></ButtonCircle>
+  const renderHost = () => {
+    const finalHostName = hostName || data.hostName || `Host #${data.hostId}`;
+    const finalHostImageUrl = hostImageUrl || data.hostImageUrl || user?.imageUrl;
+    
+    return (
+      <div className="listingSection__wrap">
+        <h2 className="text-2xl font-semibold">Host Information</h2>
+        <div className="w-14 border-b border-neutral-200 dark:border-neutral-700"></div>
+        <div className="flex items-center space-x-4">
+          <Avatar
+            hasChecked
+            hasCheckedClass="w-4 h-4 -top-0.5 right-0.5"
+            sizeClass="h-14 w-14"
+            radius="rounded-full"
+            imgUrl={finalHostImageUrl || undefined}
+            userName={finalHostName}
+          />
+          <div>
+            <div className="block text-xl font-medium">{finalHostName}</div>
+            <div className="mt-1.5 flex items-center text-sm text-neutral-500 dark:text-neutral-400">
+              <StartRating /><span className="mx-2">·</span><span> Verified Host</span>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
+
+  const renderReviews = () => (
+      <div className="listingSection__wrap">
+      <h2 className="text-2xl font-semibold">Reviews</h2>
+        <div className="w-14 border-b border-neutral-200 dark:border-neutral-700"></div>
+        <div className="space-y-5">
+          <FiveStartIconForRate iconClass="w-6 h-6" className="space-x-0.5" />
+          <div className="relative">
+          <Input fontClass="" sizeClass="h-16 px-4 py-3" rounded="rounded-3xl" placeholder="Share your thoughts ..." />
+          <ButtonCircle className="absolute right-2 top-1/2 transform -translate-y-1/2" size=" w-12 h-12 "><ArrowRightIcon className="w-5 h-5" /></ButtonCircle>
+          </div>
+        </div>
+      </div>
+    );
 
   const renderSidebar = () => (
-    <div className="listingSectionSidebar__wrap shadow-xl">
-      <div className="flex justify-between">
-        <span className="text-3xl font-semibold">
+      <div className="listingSectionSidebar__wrap shadow-xl">
+        <div className="flex justify-between">
+          <span className="text-3xl font-semibold">
           {data.pricePerNight?.toLocaleString()} đ
           <span className="ml-1 text-base font-normal text-neutral-500 dark:text-neutral-400">/đêm</span>
-        </span>
-        <StartRating />
-      </div>
+          </span>
+          <StartRating />
+        </div>
       <div className="flex flex-col space-y-4 mt-4">
         <div className="flex justify-between text-neutral-6000 dark:text-neutral-300"><span>Giường</span><span>{data.beds}</span></div>
         <div className="flex justify-between text-neutral-6000 dark:text-neutral-300"><span>Phòng tắm</span><span>{data.bathrooms}</span></div>
-        <div className="border-b border-neutral-200 dark:border-neutral-700"></div>
+          <div className="border-b border-neutral-200 dark:border-neutral-700"></div>
         <div className="flex justify-between font-semibold"><span>Tổng</span><span>{data.pricePerNight?.toLocaleString()} đ</span></div>
-      </div>
+          </div>
       <ButtonPrimary className="mt-4">Đặt ngay</ButtonPrimary>
       <ButtonSecondary className="mt-2" href="/listing-stay">Xem thêm chỗ ở</ButtonSecondary>
-    </div>
-  );
+      </div>
+    );
 
   return (
     <div className={`ListingDetailPage nc-ListingStayDetailPage`} data-nc-id="ListingStayDetailPage">
@@ -208,10 +252,10 @@ const ListingStayDetailPage: FC = () => {
                     <div><b>Giường:</b> {d.beds} · <b>Phòng tắm:</b> {d.bathrooms}</div>
                     {d.safetyFeatures && <div><b>An toàn:</b> {d.safetyFeatures}</div>}
                     {d.hygieneStandards && <div><b>Vệ sinh:</b> {d.hygieneStandards}</div>}
-                  </div>
-                ))}
               </div>
+            ))}
             </div>
+          </div>
           ) : null}
           {renderHost()}
           {renderReviews()}
@@ -221,20 +265,20 @@ const ListingStayDetailPage: FC = () => {
         </div>
       </main>
       <MobileFooterSticky />
-      <div className="container py-24 lg:py-32">
-        <div className="relative py-16">
-          <BackgroundSection />
-          <SectionSliderNewCategories
+        <div className="container py-24 lg:py-32">
+          <div className="relative py-16">
+            <BackgroundSection />
+            <SectionSliderNewCategories
             heading="Explore by types of stays"
             subHeading="Explore houses based on 10 types of stays"
-            categoryCardType="card5"
-            itemPerRow={5}
-            sliderStyle="style2"
+              categoryCardType="card5"
+              itemPerRow={5}
+              sliderStyle="style2"
             uniqueClassName="ListingStayDetailPage"
-          />
+            />
+          </div>
+          <SectionSubscribe2 className="pt-24 lg:pt-32" />
         </div>
-        <SectionSubscribe2 className="pt-24 lg:pt-32" />
-      </div>
     </div>
   );
 };

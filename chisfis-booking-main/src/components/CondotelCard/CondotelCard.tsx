@@ -50,22 +50,15 @@ const CondotelCard: FC<CondotelCardProps> = ({
     return (
       <div className={size === "default" ? "p-4 space-y-4" : "p-3 space-y-2"}>
         <div className="space-y-2">
-          <span className="text-sm text-neutral-500 dark:text-neutral-400">
-            Condotel · {beds} beds · {bathrooms} bathrooms
-          </span>
-          <div className="flex items-center space-x-2">
-            {status === "Available" && (
-              <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                Available
-              </span>
-            )}
+          <div className="flex items-center justify-between">
             <h2
-              className={`font-medium capitalize ${
-                size === "default" ? "text-lg" : "text-base"
-              }`}
+              className={`font-semibold ${size === "default" ? "text-lg" : "text-base"}`}
             >
               <span className="line-clamp-1">{name}</span>
             </h2>
+            <span className="text-xs text-neutral-500 dark:text-neutral-400">
+              {beds} giường · {bathrooms} phòng tắm
+            </span>
           </div>
           {resortName && (
             <div className="flex items-center text-neutral-500 dark:text-neutral-400 text-sm space-x-2">
@@ -89,15 +82,30 @@ const CondotelCard: FC<CondotelCardProps> = ({
         </div>
         <div className="w-14 border-b border-neutral-100 dark:border-neutral-800"></div>
         <div className="flex justify-between items-center">
-          <span className="text-base font-semibold">
-            {formatPrice(pricePerNight)}
-            {size === "default" && (
-              <span className="text-sm text-neutral-500 dark:text-neutral-400 font-normal">
-                /night
+          <div className="flex items-center gap-2">
+            {status && (
+              <span
+                className={`px-2.5 py-1 rounded-full text-xs font-semibold shadow-sm ${
+                  status === "Available" || status === "Active"
+                    ? "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300"
+                    : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
+                }`}
+              >
+                {status === "Available" || status === "Active" ? "Còn phòng" : "Hết phòng"}
               </span>
             )}
-          </span>
-          <StartRating reviewCount={12} point={4.8} />
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-base font-semibold">
+              {formatPrice(pricePerNight)}
+              {size === "default" && (
+                <span className="text-sm text-neutral-500 dark:text-neutral-400 font-normal">
+                  /đêm
+                </span>
+              )}
+            </span>
+            <StartRating reviewCount={12} point={4.8} />
+          </div>
         </div>
       </div>
     );
@@ -105,12 +113,14 @@ const CondotelCard: FC<CondotelCardProps> = ({
 
   return (
     <div
-      className={`nc-CondotelCard group relative bg-white dark:bg-neutral-900 border border-neutral-100 dark:border-neutral-800 rounded-2xl overflow-hidden will-change-transform hover:shadow-xl transition-shadow ${className}`}
+      className={`nc-CondotelCard group relative bg-white dark:bg-neutral-900 border border-neutral-100 dark:border-neutral-800 rounded-2xl overflow-hidden will-change-transform hover:shadow-xl transition-shadow h-full flex flex-col ${className}`}
       data-nc-id="CondotelCard"
     >
       {renderSliderGallery()}
-      <Link to={`/listing-stay-detail/${condotelId}`}>
-        {renderContent()}
+      <Link to={`/listing-stay-detail/${condotelId}`} className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col justify-between">
+          {renderContent()}
+        </div>
       </Link>
     </div>
   );
