@@ -1,5 +1,4 @@
-import React from "react";
-import { FC } from "react";
+import React, { FC } from "react";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
 import ButtonSecondary from "shared/Button/ButtonSecondary";
 
@@ -9,6 +8,7 @@ export interface CommonLayoutProps {
   backtHref: string;
   nextBtnText?: string;
   children: React.ReactNode;
+  onNext?: () => void;
 }
 
 const CommonLayout: FC<CommonLayoutProps> = ({
@@ -17,6 +17,7 @@ const CommonLayout: FC<CommonLayoutProps> = ({
   nextHref,
   nextBtnText,
   backtHref,
+  onNext,
 }) => {
   return (
     <div
@@ -30,14 +31,12 @@ const CommonLayout: FC<CommonLayoutProps> = ({
             / 10
           </span>
         </div>
-
         {/* --------------------- */}
         <div className="listingSection__wrap ">{children}</div>
-
         {/* --------------------- */}
         <div className="flex justify-end space-x-5">
           <ButtonSecondary href={backtHref}>Go back</ButtonSecondary>
-          <ButtonPrimary href={nextHref}>
+          <ButtonPrimary href={nextHref} onClick={onNext}>
             {nextBtnText || "Continue"}
           </ButtonPrimary>
         </div>

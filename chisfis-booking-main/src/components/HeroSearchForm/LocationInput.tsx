@@ -70,18 +70,24 @@ const LocationInput: FC<LocationInputProps> = ({
   };
 
   const renderRecentSearches = () => {
+    const VN_LOCATIONS = [
+      "Hà Nội (HAN)",
+      "TP. Hồ Chí Minh (SGN)",
+      "Đà Nẵng (DAD)",
+      "Nha Trang (CXR)",
+      "Huế (HUI)",
+      "Cần Thơ (VCA)",
+      "Vinh (VII)",
+      "Phú Quốc (PQC)",
+      "Đà Lạt (DLI)",
+    ];
     return (
       <>
         <h3 className="block mt-2 sm:mt-0 px-4 sm:px-8 font-semibold text-base sm:text-lg text-neutral-800 dark:text-neutral-100">
-          Recent searches
+          Địa điểm phổ biến tại Việt Nam
         </h3>
         <div className="mt-2">
-          {[
-            "Hamptons, Suffolk County, NY",
-            "Las Vegas, NV, United States",
-            "Ueno, Taito, Tokyo",
-            "Ikebukuro, Toshima, Tokyo",
-          ].map((item) => (
+          {VN_LOCATIONS.map((item) => (
             <span
               onClick={() => handleSelectLocation(item)}
               key={item}
@@ -114,14 +120,23 @@ const LocationInput: FC<LocationInputProps> = ({
   };
 
   const renderSearchValue = () => {
+    const VN_LOCATIONS = [
+      "Hà Nội (HAN)",
+      "TP. Hồ Chí Minh (SGN)",
+      "Đà Nẵng (DAD)",
+      "Nha Trang (CXR)",
+      "Huế (HUI)",
+      "Cần Thơ (VCA)",
+      "Vinh (VII)",
+      "Phú Quốc (PQC)",
+      "Đà Lạt (DLI)",
+    ];
+    const filtered = VN_LOCATIONS.filter((item) =>
+      item.toLowerCase().includes(value.toLowerCase())
+    );
     return (
       <>
-        {[
-          "Ha Noi, Viet Nam",
-          "San Diego, CA",
-          "Humboldt Park, Chicago, IL",
-          "Bangor, Northern Ireland",
-        ].map((item) => (
+        {filtered.map((item) => (
           <span
             onClick={() => handleSelectLocation(item)}
             key={item}

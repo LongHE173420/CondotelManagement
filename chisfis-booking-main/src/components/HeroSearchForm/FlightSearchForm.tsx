@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import LocationInput from "./LocationInput";
+import { useNavigate } from "react-router-dom";
 import { FocusedInputShape } from "react-dates";
 import RentalCarDatesRangeInput from "./RentalCarDatesRangeInput";
 import { FC } from "react";
@@ -39,9 +40,10 @@ const flightClass = [
 ];
 
 const FlightSearchForm: FC<FlightSearchFormProps> = ({ haveDefaultValue }) => {
+  const navigate = useNavigate();
   // DEFAULT DATA FOR ARCHIVE PAGE
-  const defaultPickUpInputValue = "Tokyo, Jappan";
-  const defaultDropOffInputValue = "Paris, France";
+  const defaultPickUpInputValue = "Hà Nội (HAN)";
+  const defaultDropOffInputValue = "TP. Hồ Chí Minh (SGN)";
 
   // USE STATE
   const [dateRangeValue, setDateRangeValue] = useState<DateRage>({
@@ -242,17 +244,31 @@ const FlightSearchForm: FC<FlightSearchFormProps> = ({ haveDefaultValue }) => {
             <RentalCarDatesRangeInput
               defaultDateValue={dateRangeValue}
               defaultTimeValue={timeRangeValue}
-              defaultFocus={
-                fieldFocused === "dropOffInput" ? null : fieldFocused
-              }
+              defaultFocus={fieldFocused === "dropOffInput" ? null : fieldFocused}
               onFocusChange={(focus) => setFieldFocused(focus)}
               onChange={(data) => {
                 setDateRangeValue(data.stateDate);
                 setTimeRangeValue(data.stateTimeRage);
               }}
               className="flex-1"
-              buttonSubmitHref="/listing-flights"
+              hasButtonSubmit={false}
             />
+            <div className="pr-4 flex items-center">
+              <button
+                type="button"
+                onClick={() => {
+                  const params = new URLSearchParams();
+                  if (pickUpInputValue) params.set("from", pickUpInputValue);
+                  if (dropOffInputValue) params.set("to", dropOffInputValue);
+                  if (dateRangeValue.startDate) params.set("startDate", dateRangeValue.startDate.format("YYYY-MM-DD"));
+                  if (dateRangeValue.endDate) params.set("endDate", dateRangeValue.endDate.format("YYYY-MM-DD"));
+                  navigate(`/listing-flights?${params.toString()}`);
+                }}
+                className="px-4 py-2 mr-2 rounded-full bg-primary-6000 text-white text-sm font-medium"
+              >
+                Search
+              </button>
+            </div>
           </div>
         </form>
       </div>

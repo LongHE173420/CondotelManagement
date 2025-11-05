@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import Step1_RequestEmail from "./components/Step1_RequestEmail";
-import Step2_VerifyCode from "./components/Step2_VerifyCode";
-import Step3_ResetPassword from "./components/Step3_ResetPassword";
+import Step1RequestEmail from "./components/Step1_RequestEmail";
+import Step2VerifyCode from "./components/Step2_VerifyCode";
+import Step3ResetPassword from "./components/Step3_ResetPassword";
 
 // Định nghĩa các bước
 type Step = "request_email" | "verify_code" | "reset_password";
@@ -39,11 +39,11 @@ const PageForgotPassword = () => {
   const renderStep = () => {
     switch (step) {
       case "request_email":
-        return <Step1_RequestEmail onSuccess={handleEmailSuccess} />;
+        return <Step1RequestEmail onSuccess={handleEmailSuccess} />;
       
       case "verify_code":
         return (
-          <Step2_VerifyCode 
+          <Step2VerifyCode 
             email={email} 
             onSuccess={handleCodeSuccess} 
           />
@@ -51,7 +51,7 @@ const PageForgotPassword = () => {
       
       case "reset_password":
         return (
-          <Step3_ResetPassword
+          <Step3ResetPassword
             email={email}
             token={verificationToken}
             onSuccess={handleResetSuccess}

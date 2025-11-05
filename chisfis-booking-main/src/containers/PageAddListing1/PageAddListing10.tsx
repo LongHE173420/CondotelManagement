@@ -4,10 +4,114 @@ import React, { FC } from "react";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
 import ButtonSecondary from "shared/Button/ButtonSecondary";
 import CommonLayout from "./CommonLayout";
+import { useAddCondotel } from "./_context";
+import { useAuth } from "contexts/AuthContext";
+import condotelAPI, { CreateCondotelDTO } from "api/condotel";
 
 export interface PageAddListing10Props {}
 
 const PageAddListing10: FC<PageAddListing10Props> = () => {
+  const { formData, resetForm } = useAddCondotel();
+  const { user } = useAuth();
+  const [loading, setLoading] = React.useState(false);
+
+  const handlePublish = async () => {
+    if (!user) {
+      alert("Bạn cần đăng nhập để thêm condotel!");
+      return;
+    }
+
+    if (!formData || Object.keys(formData).length === 0) {
+      alert("Không có dữ liệu để đăng! Vui lòng điền đầy đủ thông tin.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { locationId, ...condotelPayload } = formData;
+      
+      // Validate required fields trước khi build payload
+      if (!condotelPayload.name || !condotelPayload.name.toString().trim()) {
+        alert("Vui lòng nhập tên condotel!");
+        setLoading(false);
+        return;
+      }
+
+      if (!condotelPayload.pricePerNight || Number(condotelPayload.pricePerNight) <= 0) {
+        alert("Vui lòng nhập giá mỗi đêm hợp lệ (lớn hơn 0)!");
+        setLoading(false);
+        return;
+      }
+
+      if (!condotelPayload.beds || Number(condotelPayload.beds) <= 0) {
+        alert("Vui lòng nhập số giường (lớn hơn 0)!");
+        setLoading(false);
+        return;
+      }
+
+      if (!condotelPayload.bathrooms || Number(condotelPayload.bathrooms) <= 0) {
+        alert("Vui lòng nhập số phòng tắm (lớn hơn 0)!");
+        setLoading(false);
+        return;
+      }
+
+      // Build payload đúng kiểu CreateCondotelDTO
+      const payload: CreateCondotelDTO = {
+        hostId: user.userId,
+        name: String(condotelPayload.name).trim(),
+        pricePerNight: Number(condotelPayload.pricePerNight),
+        beds: Number(condotelPayload.beds),
+        bathrooms: Number(condotelPayload.bathrooms),
+        status: String(condotelPayload.status || "Pending"),
+        ...(condotelPayload.description && { description: String(condotelPayload.description).trim() }),
+        ...(condotelPayload.images && Array.isArray(condotelPayload.images) && condotelPayload.images.length > 0 && { images: condotelPayload.images }),
+        ...(condotelPayload.prices && Array.isArray(condotelPayload.prices) && condotelPayload.prices.length > 0 && { prices: condotelPayload.prices }),
+        ...(condotelPayload.details && Array.isArray(condotelPayload.details) && condotelPayload.details.length > 0 && { details: condotelPayload.details }),
+        ...(condotelPayload.amenityIds && Array.isArray(condotelPayload.amenityIds) && condotelPayload.amenityIds.length > 0 && { amenityIds: condotelPayload.amenityIds.map(id => Number(id)) }),
+        ...(condotelPayload.utilityIds && Array.isArray(condotelPayload.utilityIds) && condotelPayload.utilityIds.length > 0 && { utilityIds: condotelPayload.utilityIds.map(id => Number(id)) }),
+        ...(condotelPayload.resortId && { resortId: Number(condotelPayload.resortId) }),
+      };
+
+      console.log('📤 CONDOTEL CREATE PAYLOAD:', payload);
+      
+      const created = await condotelAPI.create(payload);
+      console.log('✅ Condotel created successfully:', created);
+      
+      alert("Tạo condotel thành công!");
+      resetForm();
+      
+      // Use navigate thay vì window.location.href
+      setTimeout(() => {
+        window.location.href = "/host-dashboard";
+      }, 500);
+    } catch (err: any) {
+      console.error("❌ Failed to create condotel:", err);
+      
+      let errorMessage = "Không thể tạo condotel. Vui lòng thử lại!";
+      
+      if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      } else if (err.response?.data?.errors) {
+        // Handle validation errors
+        const errors = err.response.data.errors;
+        const errorList = Object.entries(errors)
+          .map(([field, messages]: [string, any]) => {
+            const fieldName = field.charAt(0).toUpperCase() + field.slice(1);
+            const messageList = Array.isArray(messages) ? messages.join(", ") : messages;
+            return `${fieldName}: ${messageList}`;
+          })
+          .join("\n");
+        errorMessage = `Lỗi validation:\n${errorList}`;
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      alert(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <CommonLayout
       nextBtnText="Publish listing"
@@ -24,7 +128,6 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
           </span>
         </div>
         <div className="w-14 border-b border-neutral-200 dark:border-neutral-700"></div>
-        {/* FORM */}
         <div>
           <h3 className="text-lg font-semibold">This is your listing</h3>
           <div className="max-w-xs">
@@ -51,8 +154,7 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
               </svg>
               <span className="ml-3">Edit</span>
             </ButtonSecondary>
-
-            <ButtonPrimary>
+            <ButtonPrimary onClick={handlePublish} disabled={loading}>
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 className="h-5 w-5"
@@ -73,11 +175,10 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
                   d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
                 />
               </svg>
-              <span className="ml-3">Preview</span>
+              <span className="ml-3">Publish listing</span>
             </ButtonPrimary>
           </div>
         </div>
-        {/*  */}
       </>
     </CommonLayout>
   );

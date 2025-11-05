@@ -12,6 +12,7 @@ export interface LocationStates {
   "/listing-stay"?: {};
   "/listing-stay-map"?: {};
   "/listing-stay-detail"?: {};
+  "/listing-stay-detail/:id"?: {};
   //
   "/listing-experiences"?: {};
   "/listing-experiences-map"?: {};
@@ -66,6 +67,7 @@ export interface LocationStates {
   "/manage-blog/edit/:id"?: {};
   "/page404"?: {};
   "/subscription"?: {};
+  "/host-dashboard"?: {};
 }
 
 export type PathName = keyof LocationStates;
