@@ -50,17 +50,14 @@ import FooterNav from "components/FooterNav";
 import useWindowSize from "hooks/useWindowResize";
 import PageHome3 from "containers/PageHome/PageHome3";
 import PageTenantBookings from "containers/PageTenantBookingList/PageTenantBookingList";
-<<<<<<< HEAD
+import HostCondotelDashboard from "containers/HostCondotelDashboard";
+import PageEditCondotel from "containers/PageEditCondotel/PageEditCondotel";
 import PageBookingHistory from "containers/PageBookingHistory/PageBookingHistory";
 import PageBookingHistoryDetail from "containers/PageBookingHistory/PageBookingHistoryDetail";
 import PageWriteReview from "containers/PageWriteReview/PageWriteReview";
 import PageBlogList from "containers/PageManageBlog/PageBlogList";
 import PageBlogAdd from "containers/PageManageBlog/PageBlogAdd";
 import PageBlogEdit from "containers/PageManageBlog/PageBlogEdit";
-=======
-import HostCondotelDashboard from "containers/HostCondotelDashboard";
-import PageEditCondotel from "containers/PageEditCondotel/PageEditCondotel";
->>>>>>> main
 
 export const pages: Page[] = [
   { path: "/", exact: true, component: PageHome },
