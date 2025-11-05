@@ -1,32 +1,34 @@
-import React, { FC } from "react";
-import Textarea from "shared/Textarea/Textarea";
+import React, { useState } from "react";
+import { useAddCondotel } from "./_context";
 import CommonLayout from "./CommonLayout";
+import FormItem from "./FormItem";
 
-export interface PageAddListing6Props {}
+const demoUtilities = [
+  { utilityId: 10, name: "Parking" },
+  { utilityId: 11, name: "Gym" }
+];
 
-const PageAddListing6: FC<PageAddListing6Props> = () => {
+const PageAddListing6 = () => {
+  const { formData, setFormData } = useAddCondotel();
+  const [utilityIds, setUtilityIds] = useState<number[]>(formData.utilityIds || []);
+  const handleCheck = (id: number) => {
+    setUtilityIds((ids: number[]) => ids.includes(id) ? ids.filter((i:number)=>i!==id) : [...ids, id]);
+  };
+  const handleNext = () => {
+    setFormData((prev: Record<string, any>) => ({ ...prev, utilityIds }));
+  };
   return (
-    <CommonLayout
-      index="06"
-      backtHref="/add-listing-5"
-      nextHref="/add-listing-7"
-    >
-      <>
-        <div>
-          <h2 className="text-2xl font-semibold">
-            Your place description for client
-          </h2>
-          <span className="block mt-2 text-neutral-500 dark:text-neutral-400">
-            Mention the best features of your accommodation, any special
-            amenities like fast Wi-Fi or parking, as well as things you like
-            about the neighborhood.
-          </span>
-        </div>
-
-        <Textarea placeholder="..." rows={14} />
-      </>
+    <CommonLayout index="06" backtHref="/add-listing-5" nextHref="/add-listing-7" onNext={handleNext}>
+      <FormItem label="Chọn tiện nghi:">
+        {demoUtilities.map((u) => (
+          <label key={u.utilityId}>
+            <input type="checkbox" checked={utilityIds.includes(u.utilityId)}
+              onChange={()=>handleCheck(u.utilityId)} />
+            {u.name}
+          </label>
+        ))}
+      </FormItem>
     </CommonLayout>
   );
 };
-
 export default PageAddListing6;

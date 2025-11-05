@@ -16,12 +16,14 @@ const Avatar: FC<AvatarProps> = ({
   containerClassName = "ring-1 ring-white dark:ring-neutral-900",
   sizeClass = "h-6 w-6 text-sm",
   radius = "rounded-full",
-  imgUrl = avatar1,
+  imgUrl,
   userName,
   hasChecked,
   hasCheckedClass = "w-4 h-4 -top-0.5 -right-0.5",
 }) => {
-  const url = imgUrl || "";
+  // Chỉ dùng imgUrl nếu có giá trị (không dùng default avatar1)
+  // Nếu không có imgUrl, sẽ hiển thị chữ cái đầu với background màu
+  const url = imgUrl && imgUrl.trim() !== "" ? imgUrl : "";
   const name = userName || "John Doe";
   const _setBgColor = (name: string) => {
     const backgroundIndex = Math.floor(
@@ -37,12 +39,20 @@ const Avatar: FC<AvatarProps> = ({
     >
       {url && (
         <img
-          className={`absolute inset-0 w-full h-full object-cover ${radius}`}
+          className={`absolute inset-0 w-full h-full object-cover ${radius} z-10`}
           src={url}
           alt={name}
+          onError={(e) => {
+            console.error("❌ Image load error:", url);
+            // Nếu ảnh lỗi, ẩn ảnh để hiển thị chữ cái đầu
+            e.currentTarget.style.display = "none";
+          }}
+          onLoad={() => {
+            console.log("✅ Image loaded successfully:", url);
+          }}
         />
       )}
-      <span className="wil-avatar__name">{name[0]}</span>
+      <span className={`wil-avatar__name ${url ? "opacity-0" : ""}`}>{name[0]}</span>
 
       {hasChecked && (
         <span

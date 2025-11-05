@@ -8,15 +8,59 @@ import Input from "shared/Input/Input";
 import Select from "shared/Select/Select";
 import CommonLayout from "./CommonLayout";
 import FormItem from "./FormItem";
+import locationAPI from "api/location";
+import { useAddCondotel } from "./_context"; // chúng ta sẽ tạo context này
 
 export interface PageAddListing2Props {}
 
 const PageAddListing2: FC<PageAddListing2Props> = () => {
+  const { formData, setFormData } = useAddCondotel();
+  const [locationData, setLocationData] = React.useState({
+    locationName: formData.locationName || "",
+    address: formData.address || "",
+    city: formData.city || "",
+    country: formData.country || "Viet Nam",
+    postalCode: formData.postalCode || "",
+  });
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState("");
+
+  const handleNext = async () => {
+    setError("");
+    
+    // Validate location data
+    if (!locationData.address || !locationData.city) {
+      setError("Vui lòng nhập địa chỉ và thành phố!");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Gọi sang API tạo location
+      const loc = await locationAPI.create(locationData);
+      setFormData(prev => ({ 
+        ...prev, 
+        locationId: loc.locationId, 
+        location: loc,
+        ...locationData 
+      }));
+      // Navigation sẽ được xử lý bởi CommonLayout với nextHref
+    } catch (err: any) {
+      console.error("Failed to create location:", err);
+      setError(err.response?.data?.message || "Không thể tạo location. Vui lòng thử lại!");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Chuyển các field dưới thành controlled inputs sử dụng localLocation & onChange
+  // Và truyền handleNext vào CommonLayout
   return (
     <CommonLayout
       index="02"
       nextHref="/add-listing-3"
       backtHref="/add-listing-1"
+      onNext={handleNext}
     >
       <>
         <h2 className="text-2xl font-semibold">Your place location</h2>
@@ -27,33 +71,57 @@ const PageAddListing2: FC<PageAddListing2Props> = () => {
             <MapPinIcon className="w-5 h-5 text-neutral-500 dark:text-neutral-400" />
             <span className="ml-3">Use current location</span>
           </ButtonSecondary>
+          
+          {error && (
+            <div className="p-4 bg-red-100 text-red-800 rounded-lg text-sm">
+              {error}
+            </div>
+          )}
+
           {/* ITEM */}
           <FormItem label="Country/Region">
-            <Select>
+            <Select
+              value={locationData.country}
+              onChange={(e) => setLocationData(prev => ({ ...prev, country: e.target.value }))}
+            >
               <option value="Viet Nam">Viet Nam</option>
               <option value="Thailand">Thailand</option>
               <option value="France">France</option>
               <option value="Singapore">Singapore</option>
               <option value="Jappan">Jappan</option>
               <option value="Korea">Korea</option>
-              <option value="...">...</option>
             </Select>
           </FormItem>
-          <FormItem label="Street">
-            <Input placeholder="..." />
+          <FormItem label="Street *">
+            <Input
+              placeholder="Địa chỉ đường/phố"
+              value={locationData.address}
+              onChange={(e) => setLocationData(prev => ({ ...prev, address: e.target.value }))}
+              required
+            />
           </FormItem>
           <FormItem label="Room number (optional)">
-            <Input />
+            <Input
+              value={locationData.locationName}
+              onChange={(e) => setLocationData(prev => ({ ...prev, locationName: e.target.value }))}
+            />
           </FormItem>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-5">
-            <FormItem label="City">
-              <Input />
+            <FormItem label="City *">
+              <Input
+                value={locationData.city}
+                onChange={(e) => setLocationData(prev => ({ ...prev, city: e.target.value }))}
+                required
+              />
             </FormItem>
             <FormItem label="State">
               <Input />
             </FormItem>
             <FormItem label="Postal code">
-              <Input />
+              <Input
+                value={locationData.postalCode}
+                onChange={(e) => setLocationData(prev => ({ ...prev, postalCode: e.target.value }))}
+              />
             </FormItem>
           </div>
           <div>

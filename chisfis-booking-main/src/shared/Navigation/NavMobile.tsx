@@ -2,14 +2,17 @@ import React from "react";
 import ButtonClose from "shared/ButtonClose/ButtonClose";
 import Logo from "shared/Logo/Logo";
 import { Disclosure } from "@headlessui/react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import { NavItemType } from "./NavigationItem";
 import { NAVIGATION_DEMO } from "data/navigation";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
 import SocialsList from "shared/SocialsList/SocialsList";
 import { ChevronDownIcon } from "@heroicons/react/24/solid";
+import { ArrowRightOnRectangleIcon, UserCircleIcon } from "@heroicons/react/24/outline";
 import SwitchDarkMode from "shared/SwitchDarkMode/SwitchDarkMode";
 import LangDropdown from "components/Header/LangDropdown";
+import { useAuth } from "contexts/AuthContext";
+import Avatar from "shared/Avatar/Avatar";
 
 export interface NavMobileProps {
   data?: NavItemType[];
@@ -20,6 +23,22 @@ const NavMobile: React.FC<NavMobileProps> = ({
   data = NAVIGATION_DEMO,
   onClickClose,
 }) => {
+  const { user, isAuthenticated, isAdmin, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    if (onClickClose) {
+      onClickClose();
+    }
+    await logout();
+  };
+
+  const handleAccountClick = () => {
+    if (onClickClose) {
+      onClickClose();
+    }
+    navigate(isAdmin ? "/admin?tab=profile" : "/account");
+  };
   const _renderMenuChild = (item: NavItemType) => {
     return (
       <ul className="nav-mobile-sub-menu pl-6 pb-1 text-base">
@@ -135,6 +154,44 @@ const NavMobile: React.FC<NavMobileProps> = ({
       <ul className="flex flex-col py-6 px-2 space-y-1">
         {data.map(_renderItem)}
       </ul>
+
+      {/* User Account Section for Authenticated Users */}
+      {isAuthenticated && user && (
+        <div className="border-t border-neutral-200 dark:border-neutral-700 py-4 px-5">
+          <div className="flex items-center space-x-3 mb-3">
+            <Avatar
+              sizeClass="w-10 h-10"
+              imgUrl={user.imageUrl}
+              userName={user.fullName}
+            />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100 truncate">
+                {user.fullName || "User"}
+              </p>
+              <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                {user.roleName || "User"}
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-col space-y-2">
+            <button
+              onClick={handleAccountClick}
+              className="flex items-center w-full px-4 py-2 text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"
+            >
+              <UserCircleIcon className="w-5 h-5 mr-3" />
+              <span>Profile</span>
+            </button>
+            <button
+              onClick={handleLogout}
+              className="flex items-center w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+            >
+              <ArrowRightOnRectangleIcon className="w-5 h-5 mr-3" />
+              <span>Đăng xuất</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between py-6 px-5">
         <a
           className="inline-block"

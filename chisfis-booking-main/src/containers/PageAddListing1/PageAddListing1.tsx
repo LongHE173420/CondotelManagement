@@ -1,17 +1,32 @@
-import React, { FC } from "react";
+import React, { FC, useState } from "react";
 import Input from "shared/Input/Input";
 import Select from "shared/Select/Select";
 import CommonLayout from "./CommonLayout";
 import FormItem from "./FormItem";
+import { AddCondotelProvider, useAddCondotel } from "./_context";
 
-export interface PageAddListing1Props {}
+const PageAddListing1Content: FC = () => {
+  const { formData, setFormData } = useAddCondotel();
+  const [name, setName] = useState(formData.name || "");
+  const [propertyType, setPropertyType] = useState(formData.propertyType || "Hotel");
+  const [rentalForm, setRentalForm] = useState(formData.rentalForm || "Entire place");
 
-const PageAddListing1: FC<PageAddListing1Props> = () => {
+  const handleNext = () => {
+    setFormData((prev: Record<string, any>) => ({
+      ...prev,
+      name,
+      propertyType,
+      rentalForm,
+      status: "Pending", // Default status
+    }));
+  };
+
   return (
     <CommonLayout
       index="01"
       backtHref="/add-listing-1"
       nextHref="/add-listing-2"
+      onNext={handleNext}
     >
       <>
         <h2 className="text-2xl font-semibold">Choosing listing categories</h2>
@@ -23,7 +38,10 @@ const PageAddListing1: FC<PageAddListing1Props> = () => {
             label="Choose a property type"
             desc="Hotel: Professional hospitality businesses that usually have a unique style or theme defining their brand and decor"
           >
-            <Select>
+            <Select
+              value={propertyType}
+              onChange={(e) => setPropertyType(e.target.value)}
+            >
               <option value="Hotel">Hotel</option>
               <option value="Cottage">Cottage</option>
               <option value="Villa">Villa</option>
@@ -34,17 +52,25 @@ const PageAddListing1: FC<PageAddListing1Props> = () => {
             </Select>
           </FormItem>
           <FormItem
-            label="Place name"
+            label="Place name *"
             desc="A catchy name usually includes: House name + Room name + Featured property + Tourist destination"
           >
-            <Input placeholder="Places name" />
+            <Input
+              placeholder="Places name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+            />
           </FormItem>
           <FormItem
             label="Rental form"
             desc="Entire place: Guests have the whole place to themselves—there's a private entrance and no shared spaces. A bedroom, bathroom, and kitchen are usually included."
           >
-            <Select>
-              <option value="Hotel">Entire place</option>
+            <Select
+              value={rentalForm}
+              onChange={(e) => setRentalForm(e.target.value)}
+            >
+              <option value="Entire place">Entire place</option>
               <option value="Private room">Private room</option>
               <option value="Share room">Share room</option>
             </Select>
@@ -53,6 +79,13 @@ const PageAddListing1: FC<PageAddListing1Props> = () => {
       </>
     </CommonLayout>
   );
+};
+
+export interface PageAddListing1Props {}
+
+const PageAddListing1: FC<PageAddListing1Props> = () => {
+  // Provider đã được wrap ở router level, không cần wrap lại ở đây
+  return <PageAddListing1Content />;
 };
 
 export default PageAddListing1;

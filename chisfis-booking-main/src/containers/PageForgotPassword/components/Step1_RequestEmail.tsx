@@ -20,7 +20,8 @@ const Step1_RequestEmail: React.FC<Props> = ({ onSuccess }) => {
     setLoading(true);
 
     try {
-      const res = await axiosClient.post("/auth/send-otp", { email });
+      // Sử dụng authAPI để gửi OTP
+      const res = await axiosClient.post("/Auth/send-otp", { email });
       console.log("Send OTP response:", res.data);
 
       // luôn trả về 200 → chỉ cần chuyển bước

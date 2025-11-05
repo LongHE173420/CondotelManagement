@@ -28,25 +28,54 @@ const Step2_VerifyCode: React.FC<Props> = ({ email, onSuccess }) => {
     setLoading(true);
 
     try {
-      // ✅ chỉ định type cho response ở đây
-      const res = await axiosClient.post<VerifyOtpResponse>("/auth/verify-otp", {
-        email,
-        otp: code,
-      });
+      // ✅ Backend có thể không có endpoint verify-otp riêng
+      // Có 2 trường hợp:
+      // 1. Backend có endpoint verify-otp → gọi để verify trước
+      // 2. Backend chỉ verify trong reset-password-with-otp → chuyển thẳng sang bước reset
+      
+      // Thử gọi verify-otp nếu có
+      try {
+        const res = await axiosClient.post<VerifyOtpResponse>("/Auth/verify-otp", {
+          email,
+          otp: code,
+        });
 
-      const token = res.data.token;
-      if (!token) {
-        setError("Không nhận được token xác thực từ máy chủ.");
-        return;
+        console.log("✅ Verify OTP response:", res.data);
+        
+        // Nếu backend trả về token, dùng token đó
+        // Nếu không, dùng code (OTP) làm "token" để bước 3 sử dụng
+        const token = res.data.token || code;
+        
+        // Chuyển sang bước reset password
+        onSuccess(token || code);
+      } catch (verifyErr: any) {
+        // Nếu endpoint verify-otp không tồn tại (404 hoặc 405), 
+        // hoặc backend không có endpoint này, chuyển thẳng sang bước reset
+        // OTP sẽ được verify ở bước 3 khi reset password
+        if (verifyErr.response?.status === 404 || verifyErr.response?.status === 405) {
+          console.log("ℹ️ Verify OTP endpoint not found, will verify in reset step");
+          console.log("ℹ️ Proceeding to reset password step with OTP:", code);
+          // Chuyển sang bước reset password, OTP sẽ được verify ở bước 3
+          onSuccess(code);
+        } else {
+          // Nếu là lỗi khác (như OTP sai, 400), throw lỗi để hiển thị thông báo
+          console.error("❌ Verify OTP error:", verifyErr.response?.status, verifyErr.response?.data);
+          throw verifyErr;
+        }
       }
-
-      onSuccess(token);
     } catch (err: any) {
-      console.error(err);
-      setError(
-        err.response?.data?.message ||
-          "Mã OTP không đúng hoặc đã hết hạn. Vui lòng thử lại."
-      );
+      console.error("Verify OTP error:", err);
+      let errorMessage = "Mã OTP không đúng hoặc đã hết hạn. Vui lòng thử lại.";
+      
+      if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      } else if (err.response?.data?.error) {
+        errorMessage = err.response.data.error;
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

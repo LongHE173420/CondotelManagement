@@ -84,8 +84,8 @@ const ActionButtons: React.FC<{ status: BookingStatus }> = ({ status }) => (
 
 // --- Component Trang Quản lý Booking (Tenant) ---
 const PageTenantBookings = () => {
-    const [bookings, setBookings] = useState<Booking[]>(mockBookingData);
-    const [currentPage, setCurrentPage] = useState(1);
+    const [bookings] = useState<Booking[]>(mockBookingData);
+    const [currentPage] = useState(1);
 
     return (
         // Nền xám cho cả trang để làm nổi bật Card

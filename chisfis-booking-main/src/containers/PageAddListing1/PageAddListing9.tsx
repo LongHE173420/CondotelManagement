@@ -1,79 +1,27 @@
-import NcInputNumber from "components/NcInputNumber/NcInputNumber";
-import useWindowSize from "hooks/useWindowResize";
-import moment from "moment";
-import React, { FC, useState } from "react";
-import { DayPickerSingleDateController } from "react-dates";
+import React, { useState } from "react";
+import { useAddCondotel } from "./_context";
 import CommonLayout from "./CommonLayout";
+import FormItem from "./FormItem";
 
-export interface PageAddListing9Props {}
-
-const PageAddListing9: FC<PageAddListing9Props> = () => {
-  const [dates, setDates] = useState<moment.Moment[]>([]);
-
-  function handleDateChange(date: moment.Moment) {
-    const wasPreviouslyPicked = dates.some((d) => d.isSame(date));
-    if (wasPreviouslyPicked) {
-      setDates((previousDates) => previousDates.filter((d) => !d.isSame(date)));
-    } else {
-      setDates((previousDates) => [...previousDates, date]);
-    }
-  }
-
-  const windowSize = useWindowSize();
-
-  const getDaySize = () => {
-    if (windowSize.width <= 600) {
-      return undefined;
-    }
-    return 56;
+const PageAddListing9 = () => {
+  const { formData, setFormData } = useAddCondotel();
+  const [status, setStatus] = useState<string>(formData.status || "Available");
+  const [description, setDescription] = useState<string>(formData.description || "");
+  const handleNext = () => {
+    setFormData((prev: Record<string, any>) => ({ ...prev, status, description }));
   };
-
   return (
-    <CommonLayout
-      index="09"
-      backtHref="/add-listing-8"
-      nextHref="/add-listing-10"
-    >
-      <>
-        <div>
-          <h2 className="text-2xl font-semibold">How long can guests stay?</h2>
-          <span className="block mt-2 text-neutral-500 dark:text-neutral-400">
-            Shorter trips can mean more reservations, but you'll turn over your
-            space more often.
-          </span>
-        </div>
-        <div className="w-14 border-b border-neutral-200 dark:border-neutral-700"></div>
-        {/* FORM */}
-        <div className="space-y-7">
-          {/* ITEM */}
-          <NcInputNumber label="Nights min" defaultValue={1} />
-          <NcInputNumber label="Nights max" defaultValue={99} />
-        </div>
-
-        {/*  */}
-        <div>
-          <h2 className="text-2xl font-semibold">Set your availability</h2>
-          <span className="block mt-2 text-neutral-500 dark:text-neutral-400">
-            Editing your calendar is easy—just select a date to block or unblock
-            it. You can always make changes after you publish.
-          </span>
-        </div>
-
-        <div className="nc-SetYourAvailabilityData">
-          <DayPickerSingleDateController
-            onDateChange={(e) => e && handleDateChange(e)}
-            focused={false}
-            onFocusChange={console.log}
-            date={null}
-            isDayHighlighted={(day) => dates.some((d) => d.isSame(day, "day"))}
-            keepOpenOnDateSelect
-            daySize={getDaySize()}
-            initialVisibleMonth={null}
-          />
-        </div>
-      </>
+    <CommonLayout index="09" backtHref="/add-listing-8" nextHref="/add-listing-10" onNext={handleNext}>
+      <FormItem label="Trạng thái căn hộ">
+        <select value={status} onChange={e=>setStatus(e.target.value)}>
+          <option value="Available">Available</option>
+          <option value="Unavailable">Unavailable</option>
+        </select>
+      </FormItem>
+      <FormItem label="Mô tả">
+        <textarea value={description} onChange={e=>setDescription(e.target.value)} />
+      </FormItem>
     </CommonLayout>
   );
 };
-
 export default PageAddListing9;
