@@ -274,17 +274,31 @@ const PageAddListingSimple: FC = () => {
         locationId = location.locationId;
       }
 
-      // Build payload
+      // Build payload - đảm bảo format đúng với backend
       const payload: CreateCondotelDTO = {
         hostId: user.userId,
         name: name.trim(),
         pricePerNight: Number(pricePerNight),
         beds: Number(beds),
         bathrooms: Number(bathrooms),
-        status: status,
+        status: status, // "Pending", "Active", "Inactive", "Available", "Unavailable"
         ...(description.trim() && { description: description.trim() }),
-        ...(images.length > 0 && { images }),
-        ...(details.length > 0 && { details }),
+        // Images - chỉ cần imageUrl và caption (không cần imageId)
+        ...(images.length > 0 && { 
+          images: images.map(img => ({
+            imageUrl: img.imageUrl,
+            caption: img.caption,
+          }))
+        }),
+        // Details - có thể có beds, bathrooms hoặc không (sẽ dùng từ condotel level)
+        ...(details.length > 0 && { 
+          details: details.map(d => ({
+            ...(d.buildingName && { buildingName: d.buildingName }),
+            ...(d.roomNumber && { roomNumber: d.roomNumber }),
+            // Beds và bathrooms optional - có thể dùng từ condotel level nếu không có
+          }))
+        }),
+        // AmenityIds và UtilityIds - chỉ cần mảng số
         ...(amenityIds.length > 0 && { amenityIds: amenityIds.map((id) => Number(id)) }),
         ...(utilityIds.length > 0 && { utilityIds: utilityIds.map((id) => Number(id)) }),
       };

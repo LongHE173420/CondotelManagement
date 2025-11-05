@@ -2,7 +2,7 @@ import axiosClient from "./axiosClient";
 
 // Sub DTOs for CondotelDetailDTO
 export interface ImageDTO {
-  imageId: number;
+  imageId?: number; // Optional - không cần khi create
   imageUrl: string;
   caption?: string;
 }
@@ -19,8 +19,8 @@ export interface PriceDTO {
 export interface DetailDTO {
   buildingName?: string;
   roomNumber?: string;
-  beds: number;
-  bathrooms: number;
+  beds?: number; // Optional - có thể lấy từ condotel level
+  bathrooms?: number; // Optional - có thể lấy từ condotel level
   safetyFeatures?: string;
   hygieneStandards?: string;
 }
@@ -115,23 +115,23 @@ export interface CondotelDetailDTO {
   utilities?: UtilityDTO[];
 }
 
-// CreateCondotelDTO - For creating new condotel (without condotelId)
+// CreateCondotelDTO - For creating new condotel (matches CondotelCreateDTO from backend)
 export interface CreateCondotelDTO {
   hostId: number;
-  resortId?: number;
+  resortId?: number; // Optional
   name: string;
   description?: string;
   pricePerNight: number;
   beds: number;
   bathrooms: number;
-  status: string;
+  status: string; // "Pending", "Active", "Inactive", "Available", "Unavailable"
 
   // Liên kết 1-n
-  images?: ImageDTO[];
-  prices?: PriceDTO[];
-  details?: DetailDTO[];
+  images?: Array<{ imageUrl: string; caption?: string }>; // Không cần imageId khi create
+  prices?: Array<{ startDate: string; endDate: string; basePrice: number; priceType: string; description?: string }>; // Không cần priceId khi create
+  details?: Array<{ buildingName?: string; roomNumber?: string; beds?: number; bathrooms?: number; safetyFeatures?: string; hygieneStandards?: string }>; // Beds, bathrooms optional (có thể dùng từ condotel level)
 
-  // Liên kết n-n
+  // Liên kết n-n - chỉ cần IDs
   amenityIds?: number[];
   utilityIds?: number[];
 }
@@ -152,7 +152,69 @@ export const condotelAPI = {
 
   // POST /api/condotel - Tạo condotel mới
   create: async (condotel: CreateCondotelDTO): Promise<CondotelDetailDTO> => {
-    const response = await axiosClient.post<CondotelDetailDTO>("/host/condotel", condotel);
+    // Map camelCase sang PascalCase để khớp với backend C# DTO
+    const requestData: any = {
+      HostId: condotel.hostId,
+      Name: condotel.name,
+      PricePerNight: condotel.pricePerNight,
+      Beds: condotel.beds,
+      Bathrooms: condotel.bathrooms,
+      Status: condotel.status,
+    };
+    
+    // Optional fields
+    if (condotel.resortId) {
+      requestData.ResortId = condotel.resortId;
+    }
+    if (condotel.description) {
+      requestData.Description = condotel.description;
+    }
+    
+    // Images - map sang PascalCase
+    if (condotel.images && condotel.images.length > 0) {
+      requestData.Images = condotel.images.map(img => ({
+        ImageUrl: img.imageUrl,
+        Caption: img.caption,
+      }));
+    }
+    
+    // Prices - map sang PascalCase
+    if (condotel.prices && condotel.prices.length > 0) {
+      requestData.Prices = condotel.prices.map(p => ({
+        StartDate: p.startDate,
+        EndDate: p.endDate,
+        BasePrice: p.basePrice,
+        PriceType: p.priceType,
+        Description: p.description,
+      }));
+    }
+    
+    // Details - map sang PascalCase
+    if (condotel.details && condotel.details.length > 0) {
+      requestData.Details = condotel.details.map(d => ({
+        BuildingName: d.buildingName,
+        RoomNumber: d.roomNumber,
+        Beds: d.beds,
+        Bathrooms: d.bathrooms,
+        SafetyFeatures: d.safetyFeatures,
+        HygieneStandards: d.hygieneStandards,
+      }));
+    }
+    
+    // AmenityIds và UtilityIds
+    if (condotel.amenityIds && condotel.amenityIds.length > 0) {
+      requestData.AmenityIds = condotel.amenityIds;
+    }
+    if (condotel.utilityIds && condotel.utilityIds.length > 0) {
+      requestData.UtilityIds = condotel.utilityIds;
+    }
+    
+    console.log("📤 Creating condotel with data:", JSON.stringify(requestData, null, 2));
+    
+    const response = await axiosClient.post<CondotelDetailDTO>("/host/condotel", requestData);
+    
+    console.log("✅ Condotel created successfully:", response.data);
+    
     return response.data;
   },
 
