@@ -200,78 +200,6 @@ const ListingStayDetailPage: FC = () => {
     );
   };
 
-<<<<<<< HEAD
-  // ✨ BƯỚC 2: VIẾT LẠI HOÀN TOÀN `renderSection6`
-  const renderSection6 = () => {
-    // Hàm này để xử lý việc thay đổi class cho nút filter
-    const getBtnClass = (rating: number) => {
-      return filterRating === rating
-        ? "bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900" // Class khi active
-        : "bg-white dark:bg-neutral-900"; // Class khi inactive
-    };
-
-    return (
-      <div className="listingSection__wrap">
-        {/* HEADING */}
-        <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-semibold">Đánh giá (23 đánh giá)</h2>
-          {/* Đưa đánh giá 5 sao tổng lên đây */}
-          <FiveStartIconForRate iconClass="w-6 h-6" className="space-x-0.5" />
-        </div>
-        <div className="w-14 border-b border-neutral-200 dark:border-neutral-700 mt-4"></div>
-
-        {/* BỘ LỌC ĐÁNH GIÁ */}
-        <div className="flex flex-wrap gap-x-2 gap-y-3 my-6">
-          <ButtonSecondary
-            className={getBtnClass(0)}
-            onClick={() => setFilterRating(0)}
-          >
-            Tất cả
-          </ButtonSecondary>
-          <ButtonSecondary
-            className={getBtnClass(5)}
-            onClick={() => setFilterRating(5)}
-          >
-            5 sao
-          </ButtonSecondary>
-          <ButtonSecondary
-            className={getBtnClass(4)}
-            onClick={() => setFilterRating(4)}
-          >
-            4 sao
-          </ButtonSecondary>
-          <ButtonSecondary
-            className={getBtnClass(3)}
-            onClick={() => setFilterRating(3)}
-          >
-            3 sao
-          </ButtonSecondary>
-          <ButtonSecondary
-            className={getBtnClass(2)}
-            onClick={() => setFilterRating(2)}
-          >
-            2 sao
-          </ButtonSecondary>
-          <ButtonSecondary
-            className={getBtnClass(1)}
-            onClick={() => setFilterRating(1)}
-          >
-            1 sao
-          </ButtonSecondary>
-        </div>
-
-        {/* comment */}
-        {/* TODO: Bạn sẽ cần lọc danh sách comment thực tế dựa trên state `filterRating` 
-          Ví dụ: <CommentListing ... /> chỉ render nếu rating của nó khớp
-        */}
-        <div className="divide-y divide-neutral-100 dark:divide-neutral-800">
-          <CommentListing className="py-8" />
-          <CommentListing className="py-8" />
-          <CommentListing className="py-8" />
-          <CommentListing className="py-8" />
-          <div className="pt-8">
-            <ButtonSecondary>Xem thêm 20 đánh giá</ButtonSecondary>
-=======
   const renderReviews = () => (
       <div className="listingSection__wrap">
       <h2 className="text-2xl font-semibold">Reviews</h2>
@@ -281,16 +209,10 @@ const ListingStayDetailPage: FC = () => {
           <div className="relative">
           <Input fontClass="" sizeClass="h-16 px-4 py-3" rounded="rounded-3xl" placeholder="Share your thoughts ..." />
           <ButtonCircle className="absolute right-2 top-1/2 transform -translate-y-1/2" size=" w-12 h-12 "><ArrowRightIcon className="w-5 h-5" /></ButtonCircle>
->>>>>>> main
           </div>
         </div>
       </div>
     );
-<<<<<<< HEAD
-  };
-  // ✨ HẾT BƯỚC 2
-=======
->>>>>>> main
 
   const renderSidebar = () => (
       <div className="listingSectionSidebar__wrap shadow-xl">
@@ -334,36 +256,9 @@ const ListingStayDetailPage: FC = () => {
             ))}
             </div>
           </div>
-<<<<<<< HEAD
-        </header>
-        {/* MODAL PHOTOS */}
-        <ModalPhotos
-          imgs={PHOTOS}
-          isOpen={isOpen}
-          onClose={handleCloseModal}
-          initFocus={openFocusIndex}
-          uniqueClassName="nc-ListingStayDetailPage-modalPhotos"
-        />
-      </>
-
-      {/* MAIn */}
-      <main className="container relative z-10 mt-11 flex flex-col lg:flex-row ">
-        {/* CONTENT */}
-        <div className="w-full lg:w-3/5 xl:w-2/3 space-y-8 lg:space-y-10 lg:pr-10">
-          {renderSection1()}
-          {renderSection2()}
-          {renderSection3()}
-          {renderSection4()}
-          {renderSectionCheckIndate()}
-          {renderSection5()}
-          {renderSection6()} {/* ✨ HÀM NÀY ĐÃ ĐƯỢC VIẾT LẠI */}
-          {renderSection7()}
-          {renderSection8()}
-=======
           ) : null}
           {renderHost()}
           {renderReviews()}
->>>>>>> main
         </div>
         <div className="hidden lg:block flex-grow mt-14 lg:mt-0">
           <div className="sticky top-28">{renderSidebar()}</div>
