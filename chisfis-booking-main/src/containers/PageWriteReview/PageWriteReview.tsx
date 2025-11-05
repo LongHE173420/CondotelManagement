@@ -1,5 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import reviewAPI from "api/review";
+import bookingAPI, { BookingDTO } from "api/booking";
 
 // Component Star (để chọn 1-5 sao)
 const StarRating: React.FC<{ rating: number; setRating: (rating: number) => void }> = ({ rating, setRating }) => {
@@ -28,32 +30,104 @@ const PageWriteReview = () => {
   const { id } = useParams(); // ID này là ID của ĐƠN ĐẶT PHÒNG (bookingId)
   const navigate = useNavigate();
   
+  const [booking, setBooking] = useState<BookingDTO | null>(null);
   const [rating, setRating] = useState(0);
+  const [title, setTitle] = useState("");
   const [reviewText, setReviewText] = useState("");
   const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(true);
+  const [error, setError] = useState("");
+  const [canReview, setCanReview] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Check if can review và fetch booking info
+  useEffect(() => {
+    const checkCanReview = async () => {
+      if (!id) {
+        setError("Booking ID không hợp lệ");
+        setChecking(false);
+        return;
+      }
+
+      try {
+        setChecking(true);
+        // Fetch booking để hiển thị thông tin
+        const bookingData = await bookingAPI.getBookingById(parseInt(id));
+        setBooking(bookingData);
+
+        // Check if can review
+        const canReviewRes = await reviewAPI.canReviewBooking(parseInt(id));
+        setCanReview(canReviewRes.canReview);
+        
+        if (!canReviewRes.canReview) {
+          setError(canReviewRes.message || "Bạn không thể đánh giá đơn đặt phòng này.");
+        }
+      } catch (err: any) {
+        console.error("Error checking can review:", err);
+        setError("Không thể kiểm tra quyền đánh giá. Vui lòng thử lại sau.");
+      } finally {
+        setChecking(false);
+      }
+    };
+
+    checkCanReview();
+  }, [id]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     if (rating === 0) {
-      alert("Vui lòng chọn số sao đánh giá.");
+      alert("Vui lòng chọn số sao đánh giá (từ 1-5 sao).");
       return;
     }
-    setLoading(true);
 
-    // TODO: Gọi API để gửi đánh giá
-    console.log({
-      bookingId: id,
-      rating: rating,
-      comment: reviewText,
-    });
-    
-    // Giả lập gọi API
-    setTimeout(() => {
+    if (!id) {
+      alert("Booking ID không hợp lệ.");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
+    try {
+      await reviewAPI.createReview({
+        bookingId: parseInt(id),
+        rating: rating,
+        title: title || undefined,
+        comment: reviewText || undefined,
+      });
+
+      alert("🎉 Cảm ơn bạn đã đánh giá!");
+      navigate(`/my-bookings`);
+    } catch (err: any) {
+      console.error("Error creating review:", err);
+      const message = err.response?.data?.message || err.response?.data?.error;
+      setError(message || "Không thể gửi đánh giá. Vui lòng thử lại sau.");
+    } finally {
       setLoading(false);
-      alert("Cảm ơn bạn đã đánh giá!");
-      navigate("/booking-history"); // Quay lại trang lịch sử
-    }, 1000);
+    }
   };
+
+  if (checking) {
+    return (
+      <div className="p-8 text-center">
+        <p className="text-gray-500">Đang kiểm tra...</p>
+      </div>
+    );
+  }
+
+  if (!canReview || error) {
+    return (
+      <div className="p-8 text-center">
+        <p className="text-red-500 mb-4">{error || "Bạn không thể đánh giá đơn đặt phòng này."}</p>
+        <button
+          onClick={() => navigate(-1)}
+          className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+        >
+          Quay lại
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 md:p-8 bg-gray-100 min-h-screen flex items-center justify-center">
@@ -63,7 +137,11 @@ const PageWriteReview = () => {
             Đánh giá của bạn
           </h1>
           <p className="text-gray-500 text-center mt-2 mb-6">
-            Bạn đang đánh giá cho đơn đặt phòng #{id}
+            {booking ? (
+              <>Bạn đang đánh giá cho đơn đặt phòng #{booking.bookingId}</>
+            ) : (
+              <>Bạn đang đánh giá cho đơn đặt phòng #{id}</>
+            )}
           </p>
 
           <div className="mb-6">
@@ -74,8 +152,23 @@ const PageWriteReview = () => {
           </div>
           
           <div className="mb-6">
+            <label htmlFor="title" className="block text-lg font-semibold text-gray-700 mb-3">
+              2. Tiêu đề đánh giá (tùy chọn)
+            </label>
+            <input
+              id="title"
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="VD: Căn hộ tuyệt vời!"
+              maxLength={100}
+            />
+          </div>
+
+          <div className="mb-6">
             <label htmlFor="reviewText" className="block text-lg font-semibold text-gray-700 mb-3">
-              2. Viết nhận xét của bạn
+              3. Viết nhận xét của bạn
             </label>
             <textarea
               id="reviewText"
@@ -83,9 +176,15 @@ const PageWriteReview = () => {
               value={reviewText}
               onChange={(e) => setReviewText(e.target.value)}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Căn hộ này thế nào? Dịch vụ ra sao?..."
+              placeholder="Căn hộ này thế nào? Dịch vụ ra sao? Hãy chia sẻ trải nghiệm của bạn..."
             ></textarea>
           </div>
+
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm text-red-600">{error}</p>
+            </div>
+          )}
 
           <div className="flex justify-end items-center gap-4">
             <button

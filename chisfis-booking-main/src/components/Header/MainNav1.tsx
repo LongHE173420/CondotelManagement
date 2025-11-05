@@ -9,7 +9,7 @@ import SwitchDarkMode from "shared/SwitchDarkMode/SwitchDarkMode";
 import HeroSearchForm2MobileFactory from "components/HeroSearchForm2Mobile/HeroSearchForm2MobileFactory";
 import { useAuth } from "contexts/AuthContext";
 import Avatar from "shared/Avatar/Avatar";
-import { ArrowRightOnRectangleIcon, UserCircleIcon } from "@heroicons/react/24/outline";
+import { ArrowRightOnRectangleIcon, UserCircleIcon, DocumentTextIcon } from "@heroicons/react/24/outline";
 
 export interface MainNav1Props {
   className?: string;
@@ -82,9 +82,9 @@ const MainNav1: FC<MainNav1Props> = ({ className = "" }) => {
                     {user?.fullName || "User"}
                   </span>
                 </div>
-                {/* Dropdown giữ nguyên */}
+                {/* Dropdown menu */}
                 {showDropdown && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-neutral-800 rounded-lg shadow-lg ring-1 ring-black ring-opacity-5 z-50">
+                  <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-neutral-800 rounded-lg shadow-lg ring-1 ring-black ring-opacity-5 z-50">
                     <div className="py-1">
                       <button
                         onClick={() => {
@@ -96,6 +96,17 @@ const MainNav1: FC<MainNav1Props> = ({ className = "" }) => {
                         <UserCircleIcon className="w-5 h-5 mr-3" />
                         Profile
                       </button>
+                      <button
+                        onClick={() => {
+                          setShowDropdown(false);
+                          navigate("/my-bookings");
+                        }}
+                        className="flex items-center w-full px-4 py-2 text-sm text-neutral-700 dark:text-neutral-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                      >
+                        <DocumentTextIcon className="w-5 h-5 mr-3" />
+                        History Booking
+                      </button>
+                      <hr className="my-1 border-neutral-200 dark:border-neutral-700" />
                       <button
                         onClick={handleLogout}
                         className="flex items-center w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
