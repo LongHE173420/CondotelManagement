@@ -109,8 +109,15 @@ export const pages: Page[] = [
   //
   { path: "/checkout", component: CheckOutPage },
   { path: "/pay-done", component: PayPage },
-  
-  { path: "/my-bookings", component: PageTenantBookings }, // <-- Đã dùng tên nhất quán
+  //
+  { path: "/my-bookings", component: PageTenantBookings },
+  { path: "/booking-history", component: PageBookingHistory },
+  { path: "/booking-history/:id", component: PageBookingHistoryDetail },
+  { path: "/write-review/:id", component: PageWriteReview },
+  //
+  { path: "/manage-blog", component: PageBlogList },
+  { path: "/manage-blog/add", component: PageBlogAdd },
+  { path: "/manage-blog/edit/:id", component: PageBlogEdit },
   //
   { path: "/subscription", component: PageSubcription },
   { path: "/host-dashboard", component: HostCondotelDashboard },
