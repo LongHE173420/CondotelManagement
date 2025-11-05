@@ -92,6 +92,9 @@ const ListingStayDetailPage: FC<ListingStayDetailPageProps> = ({
     useState<FocusedInputShape>("startDate");
   let [isOpenModalAmenities, setIsOpenModalAmenities] = useState(false);
 
+  // ✨ BƯỚC 1: THÊM STATE ĐỂ QUẢN LÝ BỘ LỌC (0 = TẤT CẢ)
+  const [filterRating, setFilterRating] = useState(0);
+
   const windowSize = useWindowSize();
 
   const getDaySize = () => {
@@ -501,33 +504,69 @@ const ListingStayDetailPage: FC<ListingStayDetailPageProps> = ({
     );
   };
 
+  // ✨ BƯỚC 2: VIẾT LẠI HOÀN TOÀN `renderSection6`
   const renderSection6 = () => {
+    // Hàm này để xử lý việc thay đổi class cho nút filter
+    const getBtnClass = (rating: number) => {
+      return filterRating === rating
+        ? "bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900" // Class khi active
+        : "bg-white dark:bg-neutral-900"; // Class khi inactive
+    };
+
     return (
       <div className="listingSection__wrap">
         {/* HEADING */}
-        <h2 className="text-2xl font-semibold">Đánh giá (23 đánh giá)</h2>
-        <div className="w-14 border-b border-neutral-200 dark:border-neutral-700"></div>
-
-        {/* Content */}
-        <div className="space-y-5">
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-semibold">Đánh giá (23 đánh giá)</h2>
+          {/* Đưa đánh giá 5 sao tổng lên đây */}
           <FiveStartIconForRate iconClass="w-6 h-6" className="space-x-0.5" />
-          <div className="relative">
-            <Input
-              fontClass=""
-              sizeClass="h-16 px-4 py-3"
-              rounded="rounded-3xl"
-              placeholder="Chia sẻ suy nghĩ của bạn ..."
-            />
-            <ButtonCircle
-              className="absolute right-2 top-1/2 transform -translate-y-1/2"
-              size=" w-12 h-12 "
-            >
-              <ArrowRightIcon className="w-5 h-5" />
-            </ButtonCircle>
-          </div>
+        </div>
+        <div className="w-14 border-b border-neutral-200 dark:border-neutral-700 mt-4"></div>
+
+        {/* BỘ LỌC ĐÁNH GIÁ */}
+        <div className="flex flex-wrap gap-x-2 gap-y-3 my-6">
+          <ButtonSecondary
+            className={getBtnClass(0)}
+            onClick={() => setFilterRating(0)}
+          >
+            Tất cả
+          </ButtonSecondary>
+          <ButtonSecondary
+            className={getBtnClass(5)}
+            onClick={() => setFilterRating(5)}
+          >
+            5 sao
+          </ButtonSecondary>
+          <ButtonSecondary
+            className={getBtnClass(4)}
+            onClick={() => setFilterRating(4)}
+          >
+            4 sao
+          </ButtonSecondary>
+          <ButtonSecondary
+            className={getBtnClass(3)}
+            onClick={() => setFilterRating(3)}
+          >
+            3 sao
+          </ButtonSecondary>
+          <ButtonSecondary
+            className={getBtnClass(2)}
+            onClick={() => setFilterRating(2)}
+          >
+            2 sao
+          </ButtonSecondary>
+          <ButtonSecondary
+            className={getBtnClass(1)}
+            onClick={() => setFilterRating(1)}
+          >
+            1 sao
+          </ButtonSecondary>
         </div>
 
         {/* comment */}
+        {/* TODO: Bạn sẽ cần lọc danh sách comment thực tế dựa trên state `filterRating` 
+          Ví dụ: <CommentListing ... /> chỉ render nếu rating của nó khớp
+        */}
         <div className="divide-y divide-neutral-100 dark:divide-neutral-800">
           <CommentListing className="py-8" />
           <CommentListing className="py-8" />
@@ -540,6 +579,7 @@ const ListingStayDetailPage: FC<ListingStayDetailPageProps> = ({
       </div>
     );
   };
+  // ✨ HẾT BƯỚC 2
 
   const renderSection7 = () => {
     return (
@@ -774,7 +814,7 @@ const ListingStayDetailPage: FC<ListingStayDetailPageProps> = ({
           {renderSection4()}
           {renderSectionCheckIndate()}
           {renderSection5()}
-          {renderSection6()}
+          {renderSection6()} {/* ✨ HÀM NÀY ĐÃ ĐƯỢC VIẾT LẠI */}
           {renderSection7()}
           {renderSection8()}
         </div>

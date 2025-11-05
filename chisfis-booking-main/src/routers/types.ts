@@ -58,6 +58,12 @@ export interface LocationStates {
   "/account-detail/:id"?: {};
   "/add-account"?: {};
   "/my-bookings"?: {};
+  "/booking-history"?: {};
+  "/booking-history/:id"?: {};
+  "/write-review/:id"?: {};
+  "/manage-blog"?: {};
+  "/manage-blog/add"?: {};
+  "/manage-blog/edit/:id"?: {};
   "/page404"?: {};
   "/subscription"?: {};
 }

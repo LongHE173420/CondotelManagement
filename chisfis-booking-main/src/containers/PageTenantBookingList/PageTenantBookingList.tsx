@@ -101,13 +101,14 @@ const PageTenantBookings = () => {
             {/* --- [NÂNG CẤP UI] Main Content Card --- */}
             <div className="max-w-7xl mx-auto bg-white p-6 md:p-8 rounded-2xl shadow-xl">
                 {/* --- Tiêu đề (Đã sửa) --- */}
-                <h2 className="text-2xl font-bold text-gray-800 mb-4">
-                    Danh sách đặt phòng của bạn
-                </h2>
+                <div className="flex flex-col md:flex-row justify-between items-center mb-6 pb-4 border-b border-gray-200">
+                    <h2 className="text-2xl font-bold text-gray-800 mb-4 md:mb-0 whitespace-nowrap">
+                        Danh sách đặt phòng của bạn
+                    </h2>
 
-                {/* --- Hộp Sắp xếp (Đã sửa) --- */}
-                <div className="mb-6 pb-4 border-b border-gray-200">
-                    <select className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-700 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    {/* --- Hộp Sắp xếp (Đã sửa) --- */}
+
+                    <select className="w-full md:w-64 px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-700 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500">
                         <option>Sắp xếp theo: Mới nhất</option>
                         <option>Ngày cũ nhất</option>
                         <option>Trạng thái</option>
