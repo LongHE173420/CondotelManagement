@@ -56,17 +56,39 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
       }
 
       // Build payload đúng kiểu CreateCondotelDTO
+      // Lưu ý: hostId không cần gửi (backend sẽ tự lấy từ JWT token)
       const payload: CreateCondotelDTO = {
-        hostId: user.userId,
         name: String(condotelPayload.name).trim(),
         pricePerNight: Number(condotelPayload.pricePerNight),
         beds: Number(condotelPayload.beds),
         bathrooms: Number(condotelPayload.bathrooms),
         status: String(condotelPayload.status || "Pending"),
         ...(condotelPayload.description && { description: String(condotelPayload.description).trim() }),
-        ...(condotelPayload.images && Array.isArray(condotelPayload.images) && condotelPayload.images.length > 0 && { images: condotelPayload.images }),
-        ...(condotelPayload.prices && Array.isArray(condotelPayload.prices) && condotelPayload.prices.length > 0 && { prices: condotelPayload.prices }),
-        ...(condotelPayload.details && Array.isArray(condotelPayload.details) && condotelPayload.details.length > 0 && { details: condotelPayload.details }),
+        ...(condotelPayload.images && Array.isArray(condotelPayload.images) && condotelPayload.images.length > 0 && { 
+          images: condotelPayload.images.map((img: any) => ({
+            imageUrl: img.imageUrl || img.ImageUrl,
+            caption: img.caption || img.Caption,
+          }))
+        }),
+        ...(condotelPayload.prices && Array.isArray(condotelPayload.prices) && condotelPayload.prices.length > 0 && { 
+          prices: condotelPayload.prices.map((p: any) => ({
+            startDate: p.startDate || p.StartDate,
+            endDate: p.endDate || p.EndDate,
+            basePrice: p.basePrice || p.BasePrice,
+            priceType: p.priceType || p.PriceType,
+            description: p.description || p.Description || "", // Required trong backend
+          }))
+        }),
+        ...(condotelPayload.details && Array.isArray(condotelPayload.details) && condotelPayload.details.length > 0 && { 
+          details: condotelPayload.details.map((d: any) => ({
+            buildingName: d.buildingName || d.BuildingName,
+            roomNumber: d.roomNumber || d.RoomNumber,
+            beds: d.beds !== undefined ? d.beds : d.Beds,
+            bathrooms: d.bathrooms !== undefined ? d.bathrooms : d.Bathrooms,
+            safetyFeatures: d.safetyFeatures || d.SafetyFeatures,
+            hygieneStandards: d.hygieneStandards || d.HygieneStandards,
+          }))
+        }),
         ...(condotelPayload.amenityIds && Array.isArray(condotelPayload.amenityIds) && condotelPayload.amenityIds.length > 0 && { amenityIds: condotelPayload.amenityIds.map(id => Number(id)) }),
         ...(condotelPayload.utilityIds && Array.isArray(condotelPayload.utilityIds) && condotelPayload.utilityIds.length > 0 && { utilityIds: condotelPayload.utilityIds.map(id => Number(id)) }),
         ...(condotelPayload.resortId && { resortId: Number(condotelPayload.resortId) }),

@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import bookingAPI, { BookingDTO } from "api/booking";
 
 // --- Định nghĩa kiểu dữ liệu ---
-type BookingStatus = "Confirmed" | "Pending" | "Cancelled" | "Completed";
 type BookingStatusVN = "Đã xác nhận" | "Đang xử lý" | "Đã hủy" | "Hoàn thành";
 
 // Map status từ backend sang tiếng Việt
@@ -103,7 +102,6 @@ const PageTenantBookings = () => {
     const [bookings, setBookings] = useState<BookingDTO[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
-    const [currentPage, setCurrentPage] = useState(1);
     const [sortBy, setSortBy] = useState("newest");
 
     // Fetch bookings từ API
@@ -263,7 +261,7 @@ const PageTenantBookings = () => {
                                 {bookings.map((booking, index) => (
                                     <tr key={booking.bookingId} className="hover:bg-gray-50 transition-colors">
                                         <td className="px-5 py-4 whitespace-nowrap text-sm font-medium text-gray-900 align-middle">
-                                            {(currentPage - 1) * 10 + index + 1}
+                                            {index + 1}
                                         </td>
                                         <td className="px-5 py-4 whitespace-nowrap align-middle">
                                             <img 

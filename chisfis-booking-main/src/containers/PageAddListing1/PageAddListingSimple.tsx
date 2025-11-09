@@ -21,6 +21,10 @@ interface ImageDTO {
 interface DetailDTO {
   buildingName?: string;
   roomNumber?: string;
+  beds?: number;
+  bathrooms?: number;
+  safetyFeatures?: string;
+  hygieneStandards?: string;
 }
 
 const PageAddListingSimple: FC = () => {
@@ -30,17 +34,13 @@ const PageAddListingSimple: FC = () => {
 
   // Basic Info
   const [name, setName] = useState(formData.name || "");
-  const [propertyType, setPropertyType] = useState(formData.propertyType || "Hotel");
-  const [rentalForm, setRentalForm] = useState(formData.rentalForm || "Entire place");
   const [description, setDescription] = useState(formData.description || "");
   const [status, setStatus] = useState(formData.status || "Pending");
 
-  // Location
-  const [address, setAddress] = useState(formData.address || "");
-  const [city, setCity] = useState(formData.city || "");
-  const [country, setCountry] = useState(formData.country || "Viet Nam");
-  const [postalCode, setPostalCode] = useState(formData.postalCode || "");
-  const [locationName, setLocationName] = useState(formData.locationName || "");
+  // Location - chọn từ API
+  const [locations, setLocations] = useState<Array<{ locationId: number; locationName: string; address: string; city?: string; country?: string }>>([]);
+  const [selectedLocationId, setSelectedLocationId] = useState<number | undefined>(formData.locationId as number | undefined);
+  const [loadingLocations, setLoadingLocations] = useState(false);
 
   // Details
   const [beds, setBeds] = useState<number>(formData.beds ? Number(formData.beds) : 1);
@@ -70,9 +70,44 @@ const PageAddListingSimple: FC = () => {
   const [details, setDetails] = useState<DetailDTO[]>(formData.details || []);
   const [buildingName, setBuildingName] = useState("");
   const [roomNumber, setRoomNumber] = useState("");
+  const [safetyFeatures, setSafetyFeatures] = useState("");
+  const [hygieneStandards, setHygieneStandards] = useState("");
+
+  // Prices
+  const [prices, setPrices] = useState<Array<{
+    startDate: string;
+    endDate: string;
+    basePrice: number;
+    priceType: string;
+    description: string;
+  }>>(formData.prices || []);
+  const [priceStartDate, setPriceStartDate] = useState("");
+  const [priceEndDate, setPriceEndDate] = useState("");
+  const [basePrice, setBasePrice] = useState<number>(0);
+  const [priceType, setPriceType] = useState("Regular");
+  const [priceDescription, setPriceDescription] = useState("");
+
+  // ResortId
+  const [resortId, setResortId] = useState<number | undefined>(formData.resortId as number | undefined);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // Load locations từ API
+  useEffect(() => {
+    const fetchLocations = async () => {
+      setLoadingLocations(true);
+      try {
+        const locationsData = await locationAPI.getAll();
+        setLocations(locationsData);
+      } catch (err) {
+        console.error("Error loading locations:", err);
+      } finally {
+        setLoadingLocations(false);
+      }
+    };
+    fetchLocations();
+  }, []);
 
   // Sync formData
   // Check if user is Host
@@ -86,18 +121,14 @@ const PageAddListingSimple: FC = () => {
     setFormData((prev: Record<string, any>) => ({
       ...prev,
       name,
-      propertyType,
-      rentalForm,
       description,
       status,
-      address,
-      city,
-      country,
-      postalCode,
-      locationName,
+      locationId: selectedLocationId,
       beds,
       bathrooms,
       pricePerNight,
+      prices,
+      resortId,
       amenityIds,
       utilityIds,
       images,
@@ -105,18 +136,14 @@ const PageAddListingSimple: FC = () => {
     }));
   }, [
     name,
-    propertyType,
-    rentalForm,
     description,
     status,
-    address,
-    city,
-    country,
-    postalCode,
-    locationName,
+    selectedLocationId,
     beds,
     bathrooms,
     pricePerNight,
+    prices,
+    resortId,
     amenityIds,
     utilityIds,
     images,
@@ -197,14 +224,45 @@ const PageAddListingSimple: FC = () => {
   };
 
   const handleAddDetail = () => {
-    if (buildingName.trim() || roomNumber.trim()) {
+    if (buildingName.trim() || roomNumber.trim() || safetyFeatures.trim() || hygieneStandards.trim()) {
       setDetails((arr: DetailDTO[]) => [
         ...arr,
-        { buildingName: buildingName.trim(), roomNumber: roomNumber.trim() },
+        { 
+          buildingName: buildingName.trim() || undefined, 
+          roomNumber: roomNumber.trim() || undefined,
+          safetyFeatures: safetyFeatures.trim() || undefined,
+          hygieneStandards: hygieneStandards.trim() || undefined,
+        },
       ]);
       setBuildingName("");
       setRoomNumber("");
+      setSafetyFeatures("");
+      setHygieneStandards("");
     }
+  };
+
+  const handleAddPrice = () => {
+    if (priceStartDate && priceEndDate && basePrice > 0) {
+      setPrices((arr) => [
+        ...arr,
+        {
+          startDate: priceStartDate,
+          endDate: priceEndDate,
+          basePrice: basePrice,
+          priceType: priceType,
+          description: priceDescription.trim() || "Giá cơ bản",
+        },
+      ]);
+      setPriceStartDate("");
+      setPriceEndDate("");
+      setBasePrice(0);
+      setPriceType("Regular");
+      setPriceDescription("");
+    }
+  };
+
+  const handleRemovePrice = (index: number) => {
+    setPrices((arr) => arr.filter((_, i) => i !== index));
   };
 
   const handleRemoveDetail = (index: number) => {
@@ -223,6 +281,22 @@ const PageAddListingSimple: FC = () => {
     );
   };
 
+  // Format ngày tháng
+  const formatDate = (dateString: string | undefined): string => {
+    if (!dateString) return "";
+    const date = new Date(dateString + (dateString.includes("T") ? "" : "T00:00:00"));
+    return date.toLocaleDateString("vi-VN");
+  };
+
+  // Format số tiền
+  const formatPrice = (price: number | undefined): string => {
+    if (!price) return "0 đ";
+    return new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND",
+    }).format(price);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -235,11 +309,6 @@ const PageAddListingSimple: FC = () => {
     // Validation
     if (!name.trim()) {
       setError("Vui lòng nhập tên condotel!");
-      return;
-    }
-
-    if (!address.trim() || !city.trim()) {
-      setError("Vui lòng nhập địa chỉ đầy đủ!");
       return;
     }
 
@@ -260,44 +329,52 @@ const PageAddListingSimple: FC = () => {
 
     setLoading(true);
     try {
-      // Create location first
-      let locationId: number | undefined = formData.locationId as number | undefined;
-      
-      if (!locationId) {
-        const location = await locationAPI.create({
-          locationName: locationName || name,
-          address,
-          city,
-          country,
-          postalCode,
-        });
-        locationId = location.locationId;
+      // Validate location
+      if (!selectedLocationId) {
+        setError("Vui lòng chọn địa điểm!");
+        setLoading(false);
+        return;
       }
 
-      // Build payload - đảm bảo format đúng với backend
+      // Build payload - đảm bảo format đúng với backend CondotelCreateDTO
+      // Lưu ý: hostId không cần gửi (backend sẽ tự lấy từ JWT token)
       const payload: CreateCondotelDTO = {
-        hostId: user.userId,
         name: name.trim(),
         pricePerNight: Number(pricePerNight),
         beds: Number(beds),
         bathrooms: Number(bathrooms),
         status: status, // "Pending", "Active", "Inactive", "Available", "Unavailable"
         ...(description.trim() && { description: description.trim() }),
-        // Images - chỉ cần imageUrl và caption (không cần imageId)
+        // Images - chỉ cần imageUrl và caption (không cần imageId khi create)
         ...(images.length > 0 && { 
           images: images.map(img => ({
             imageUrl: img.imageUrl,
             caption: img.caption,
           }))
         }),
-        // Details - có thể có beds, bathrooms hoặc không (sẽ dùng từ condotel level)
+        // Details - có thể có buildingName, roomNumber, beds, bathrooms, safetyFeatures, hygieneStandards
         ...(details.length > 0 && { 
           details: details.map(d => ({
             ...(d.buildingName && { buildingName: d.buildingName }),
             ...(d.roomNumber && { roomNumber: d.roomNumber }),
-            // Beds và bathrooms optional - có thể dùng từ condotel level nếu không có
+            ...(d.beds !== undefined && { beds: d.beds }),
+            ...(d.bathrooms !== undefined && { bathrooms: d.bathrooms }),
+            ...(d.safetyFeatures && { safetyFeatures: d.safetyFeatures }),
+            ...(d.hygieneStandards && { hygieneStandards: d.hygieneStandards }),
           }))
         }),
+        // Prices
+        ...(prices.length > 0 && { 
+          prices: prices.map(p => ({
+            startDate: p.startDate,
+            endDate: p.endDate,
+            basePrice: p.basePrice,
+            priceType: p.priceType,
+            description: p.description,
+          }))
+        }),
+        // ResortId
+        ...(resortId && { resortId: resortId }),
         // AmenityIds và UtilityIds - chỉ cần mảng số
         ...(amenityIds.length > 0 && { amenityIds: amenityIds.map((id) => Number(id)) }),
         ...(utilityIds.length > 0 && { utilityIds: utilityIds.map((id) => Number(id)) }),
@@ -370,27 +447,6 @@ const PageAddListingSimple: FC = () => {
                 />
               </FormItem>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormItem label="Loại property">
-                  <Select value={propertyType} onChange={(e) => setPropertyType(e.target.value)}>
-                    <option value="Hotel">Hotel</option>
-                    <option value="Cottage">Cottage</option>
-                    <option value="Villa">Villa</option>
-                    <option value="Cabin">Cabin</option>
-                    <option value="Farm stay">Farm stay</option>
-                    <option value="Houseboat">Houseboat</option>
-                    <option value="Lighthouse">Lighthouse</option>
-                  </Select>
-                </FormItem>
-
-                <FormItem label="Hình thức cho thuê">
-                  <Select value={rentalForm} onChange={(e) => setRentalForm(e.target.value)}>
-                    <option value="Entire place">Entire place</option>
-                    <option value="Private room">Private room</option>
-                    <option value="Share room">Share room</option>
-                  </Select>
-                </FormItem>
-              </div>
 
               <FormItem label="Mô tả">
                 <textarea
@@ -413,51 +469,47 @@ const PageAddListingSimple: FC = () => {
 
             {/* Location */}
             <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg p-6 space-y-6">
-              <h2 className="text-xl font-semibold mb-4">Địa chỉ</h2>
+              <h2 className="text-xl font-semibold mb-4">Địa điểm</h2>
 
-              <FormItem label="Quốc gia">
-                <Select value={country} onChange={(e) => setCountry(e.target.value)}>
-                  <option value="Viet Nam">Viet Nam</option>
-                  <option value="Thailand">Thailand</option>
-                  <option value="Singapore">Singapore</option>
-                </Select>
-              </FormItem>
-
-              <FormItem label="Địa chỉ đường/phố *">
-                <Input
-                  placeholder="Nhập địa chỉ"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  required
-                />
-              </FormItem>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormItem label="Thành phố *">
-                  <Input
-                    placeholder="Nhập thành phố"
-                    value={city}
-                    onChange={(e) => setCity(e.target.value)}
+              <FormItem label="Chọn địa điểm *">
+                {loadingLocations ? (
+                  <div className="flex items-center space-x-2">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary-600"></div>
+                    <span className="text-sm text-neutral-500">Đang tải danh sách địa điểm...</span>
+                  </div>
+                ) : (
+                  <Select
+                    value={selectedLocationId || ""}
+                    onChange={(e) => setSelectedLocationId(e.target.value ? Number(e.target.value) : undefined)}
                     required
-                  />
-                </FormItem>
-
-                <FormItem label="Mã bưu điện">
-                  <Input
-                    placeholder="Nhập mã bưu điện"
-                    value={postalCode}
-                    onChange={(e) => setPostalCode(e.target.value)}
-                  />
-                </FormItem>
-              </div>
-
-              <FormItem label="Tên địa điểm (optional)">
-                <Input
-                  placeholder="Tên địa điểm"
-                  value={locationName}
-                  onChange={(e) => setLocationName(e.target.value)}
-                />
+                  >
+                    <option value="">-- Chọn địa điểm --</option>
+                    {locations.map((location) => (
+                      <option key={location.locationId} value={location.locationId}>
+                        {location.locationName} - {location.address}
+                        {location.city && `, ${location.city}`}
+                        {location.country && `, ${location.country}`}
+                      </option>
+                    ))}
+                  </Select>
+                )}
+                <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                  Chọn địa điểm từ danh sách có sẵn
+                </p>
               </FormItem>
+
+              {selectedLocationId && (() => {
+                const selectedLocation = locations.find(l => l.locationId === selectedLocationId);
+                return selectedLocation ? (
+                  <div className="p-4 bg-neutral-100 dark:bg-neutral-700 rounded-lg">
+                    <h3 className="font-semibold mb-2">Thông tin địa điểm đã chọn:</h3>
+                    <p className="text-sm"><strong>Tên:</strong> {selectedLocation.locationName}</p>
+                    <p className="text-sm"><strong>Địa chỉ:</strong> {selectedLocation.address}</p>
+                    {selectedLocation.city && <p className="text-sm"><strong>Thành phố:</strong> {selectedLocation.city}</p>}
+                    {selectedLocation.country && <p className="text-sm"><strong>Quốc gia:</strong> {selectedLocation.country}</p>}
+                  </div>
+                ) : null;
+              })()}
             </div>
 
             {/* Details */}
@@ -602,7 +654,7 @@ const PageAddListingSimple: FC = () => {
                       <div key={index} className="relative group">
                         <img
                           src={img.imageUrl}
-                          alt={`Image ${index + 1}`}
+                          alt={`${index + 1}`}
                           className="w-full h-32 object-cover rounded-lg border-2 border-neutral-200 dark:border-neutral-700"
                           onError={(e) => {
                             (e.target as HTMLImageElement).src = "https://via.placeholder.com/300x200?text=Image+Error";
@@ -649,11 +701,98 @@ const PageAddListingSimple: FC = () => {
               )}
             </div>
 
+            {/* Prices */}
+            <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg p-6 space-y-6">
+              <h2 className="text-xl font-semibold mb-4">Giá theo khoảng thời gian</h2>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormItem label="Ngày bắt đầu *">
+                  <Input
+                    type="date"
+                    value={priceStartDate}
+                    onChange={(e) => setPriceStartDate(e.target.value)}
+                    required={prices.length === 0}
+                  />
+                </FormItem>
+
+                <FormItem label="Ngày kết thúc *">
+                  <Input
+                    type="date"
+                    value={priceEndDate}
+                    onChange={(e) => setPriceEndDate(e.target.value)}
+                    required={prices.length === 0}
+                  />
+                </FormItem>
+
+                <FormItem label="Giá cơ bản (VNĐ) *">
+                  <Input
+                    type="number"
+                    placeholder="0"
+                    value={basePrice || ""}
+                    onChange={(e) => setBasePrice(Number(e.target.value))}
+                    min={0}
+                    required={prices.length === 0}
+                  />
+                </FormItem>
+
+                <FormItem label="Loại giá">
+                  <Select value={priceType} onChange={(e) => setPriceType(e.target.value)}>
+                    <option value="Regular">Thường</option>
+                    <option value="Weekend">Cuối tuần</option>
+                    <option value="Holiday">Ngày lễ</option>
+                    <option value="Peak">Cao điểm</option>
+                  </Select>
+                </FormItem>
+
+                <FormItem label="Mô tả *">
+                  <Input
+                    placeholder="VD: Giá cơ bản, Giá cuối tuần..."
+                    value={priceDescription}
+                    onChange={(e) => setPriceDescription(e.target.value)}
+                    required={prices.length === 0}
+                  />
+                </FormItem>
+              </div>
+
+              <ButtonSecondary type="button" onClick={handleAddPrice}>
+                + Thêm giá
+              </ButtonSecondary>
+
+              {prices.length > 0 && (
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium">Danh sách giá đã thêm ({prices.length})</label>
+                  <ul className="space-y-2">
+                    {prices.map((price, index) => (
+                      <li
+                        key={index}
+                        className="flex items-center justify-between p-3 bg-neutral-100 dark:bg-neutral-700 rounded"
+                      >
+                        <div className="text-sm">
+                          <span className="font-medium">{formatDate(price.startDate)} - {formatDate(price.endDate)}</span>
+                          <span className="ml-2 text-neutral-600 dark:text-neutral-400">
+                            {formatPrice(price.basePrice)} ({price.priceType})
+                          </span>
+                          <p className="text-xs text-neutral-500 mt-1">{price.description}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRemovePrice(index)}
+                          className="text-red-500 hover:text-red-700 text-sm"
+                        >
+                          Xóa
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+
             {/* Details */}
             <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg p-6 space-y-6">
               <h2 className="text-xl font-semibold mb-4">Chi tiết phòng</h2>
 
-              <div className="flex gap-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Input
                   placeholder="Tên tòa nhà"
                   value={buildingName}
@@ -664,32 +803,70 @@ const PageAddListingSimple: FC = () => {
                   value={roomNumber}
                   onChange={(e) => setRoomNumber(e.target.value)}
                 />
-                <ButtonSecondary type="button" onClick={handleAddDetail}>
-                  Thêm
-                </ButtonSecondary>
+                <textarea
+                  placeholder="Tính năng an toàn (VD: Báo cháy, Camera, ...)"
+                  value={safetyFeatures}
+                  onChange={(e) => setSafetyFeatures(e.target.value)}
+                  rows={2}
+                  className="w-full px-4 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-neutral-700 dark:text-neutral-100"
+                />
+                <textarea
+                  placeholder="Tiêu chuẩn vệ sinh (VD: Tiêu chuẩn 5 sao, ...)"
+                  value={hygieneStandards}
+                  onChange={(e) => setHygieneStandards(e.target.value)}
+                  rows={2}
+                  className="w-full px-4 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-neutral-700 dark:text-neutral-100"
+                />
               </div>
 
+              <ButtonSecondary type="button" onClick={handleAddDetail}>
+                + Thêm chi tiết
+              </ButtonSecondary>
+
               {details.length > 0 && (
-                <ul className="space-y-2">
-                  {details.map((detail, index) => (
-                    <li
-                      key={index}
-                      className="flex items-center justify-between p-2 bg-neutral-100 dark:bg-neutral-700 rounded"
-                    >
-                      <span>
-                        {detail.buildingName} - {detail.roomNumber}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveDetail(index)}
-                        className="text-red-500 hover:text-red-700"
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium">Danh sách chi tiết đã thêm ({details.length})</label>
+                  <ul className="space-y-2">
+                    {details.map((detail, index) => (
+                      <li
+                        key={index}
+                        className="flex items-start justify-between p-3 bg-neutral-100 dark:bg-neutral-700 rounded"
                       >
-                        Xóa
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+                        <div className="text-sm flex-1">
+                          {detail.buildingName && <p><strong>Tòa nhà:</strong> {detail.buildingName}</p>}
+                          {detail.roomNumber && <p><strong>Số phòng:</strong> {detail.roomNumber}</p>}
+                          {detail.safetyFeatures && <p><strong>An toàn:</strong> {detail.safetyFeatures}</p>}
+                          {detail.hygieneStandards && <p><strong>Vệ sinh:</strong> {detail.hygieneStandards}</p>}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveDetail(index)}
+                          className="text-red-500 hover:text-red-700 text-sm ml-4"
+                        >
+                          Xóa
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               )}
+            </div>
+
+            {/* ResortId */}
+            <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg p-6 space-y-6">
+              <h2 className="text-xl font-semibold mb-4">Resort (Tùy chọn)</h2>
+              <FormItem label="Resort ID">
+                <Input
+                  type="number"
+                  placeholder="Nhập Resort ID (để trống nếu không có)"
+                  value={resortId || ""}
+                  onChange={(e) => setResortId(e.target.value ? Number(e.target.value) : undefined)}
+                  min={1}
+                />
+                <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                  Nếu condotel thuộc một resort, nhập ID của resort
+                </p>
+              </FormItem>
             </div>
 
             {/* Submit Buttons */}

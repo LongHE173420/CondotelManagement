@@ -17,6 +17,10 @@ export interface BookingDTO {
   condotelName?: string;
   condotelImageUrl?: string;
   condotelPricePerNight?: number;
+  
+  // Thông tin customer (nếu backend trả về khi join - cho host)
+  customerName?: string;
+  customerEmail?: string;
 }
 
 export interface CreateBookingDTO {
@@ -33,6 +37,7 @@ export interface UpdateBookingDTO {
   endDate?: string;
   promotionId?: number;
   isUsingRewardPoints?: boolean;
+  status?: string; // "Pending", "Confirmed", "Cancelled", "Completed"
 }
 
 export interface CheckAvailabilityResponse {
@@ -188,6 +193,83 @@ export const bookingAPI = {
   // DELETE /api/booking/{id} - Hủy booking
   cancelBooking: async (id: number): Promise<void> => {
     await axiosClient.delete(`/booking/${id}`);
+  },
+
+  // ========== HOST BOOKING APIs ==========
+  // GET /api/host/booking - Lấy tất cả bookings của host hiện tại
+  getHostBookings: async (): Promise<BookingDTO[]> => {
+    const response = await axiosClient.get<any[]>("/host/booking");
+    // Normalize response từ backend (PascalCase -> camelCase)
+    return response.data.map((item: any) => ({
+      bookingId: item.BookingId || item.bookingId,
+      condotelId: item.CondotelId || item.condotelId,
+      customerId: item.CustomerId || item.customerId,
+      startDate: item.StartDate || item.startDate,
+      endDate: item.EndDate || item.endDate,
+      totalPrice: item.TotalPrice !== undefined ? item.TotalPrice : item.totalPrice,
+      status: item.Status || item.status,
+      promotionId: item.PromotionId !== undefined ? item.PromotionId : item.promotionId,
+      isUsingRewardPoints: item.IsUsingRewardPoints !== undefined ? item.IsUsingRewardPoints : item.isUsingRewardPoints,
+      createdAt: item.CreatedAt || item.createdAt,
+      // Thông tin condotel và customer nếu có
+      condotelName: item.CondotelName || item.condotelName,
+      condotelImageUrl: item.CondotelImageUrl || item.condotelImageUrl,
+      condotelPricePerNight: item.CondotelPricePerNight !== undefined ? item.CondotelPricePerNight : item.condotelPricePerNight,
+      customerName: item.CustomerName || item.customerName,
+      customerEmail: item.CustomerEmail || item.customerEmail,
+    }));
+  },
+
+  // GET /api/host/booking/customer/{customerId} - Lấy bookings theo customer
+  getHostBookingsByCustomer: async (customerId: number): Promise<BookingDTO[]> => {
+    const response = await axiosClient.get<any[]>(`/host/booking/customer/${customerId}`);
+    // Normalize response từ backend (PascalCase -> camelCase)
+    return response.data.map((item: any) => ({
+      bookingId: item.BookingId || item.bookingId,
+      condotelId: item.CondotelId || item.condotelId,
+      customerId: item.CustomerId || item.customerId,
+      startDate: item.StartDate || item.startDate,
+      endDate: item.EndDate || item.endDate,
+      totalPrice: item.TotalPrice !== undefined ? item.TotalPrice : item.totalPrice,
+      status: item.Status || item.status,
+      promotionId: item.PromotionId !== undefined ? item.PromotionId : item.promotionId,
+      isUsingRewardPoints: item.IsUsingRewardPoints !== undefined ? item.IsUsingRewardPoints : item.isUsingRewardPoints,
+      createdAt: item.CreatedAt || item.createdAt,
+      condotelName: item.CondotelName || item.condotelName,
+      condotelImageUrl: item.CondotelImageUrl || item.condotelImageUrl,
+      condotelPricePerNight: item.CondotelPricePerNight !== undefined ? item.CondotelPricePerNight : item.condotelPricePerNight,
+      customerName: item.CustomerName || item.customerName,
+      customerEmail: item.CustomerEmail || item.customerEmail,
+    }));
+  },
+
+  // PUT /api/host/booking/{id} - Host cập nhật booking status
+  updateHostBookingStatus: async (id: number, status: string): Promise<BookingDTO> => {
+    const requestData: any = {
+      BookingId: id,
+      Status: status,
+    };
+
+    const response = await axiosClient.put<any>(`/host/booking/${id}`, requestData);
+    const data: any = response.data;
+    // Normalize response từ backend (PascalCase -> camelCase)
+    return {
+      bookingId: data.BookingId || data.bookingId,
+      condotelId: data.CondotelId || data.condotelId,
+      customerId: data.CustomerId || data.customerId,
+      startDate: data.StartDate || data.startDate,
+      endDate: data.EndDate || data.endDate,
+      totalPrice: data.TotalPrice !== undefined ? data.TotalPrice : data.totalPrice,
+      status: data.Status || data.status,
+      promotionId: data.PromotionId !== undefined ? data.PromotionId : data.promotionId,
+      isUsingRewardPoints: data.IsUsingRewardPoints !== undefined ? data.IsUsingRewardPoints : data.isUsingRewardPoints,
+      createdAt: data.CreatedAt || data.createdAt,
+      condotelName: data.CondotelName || data.condotelName,
+      condotelImageUrl: data.CondotelImageUrl || data.condotelImageUrl,
+      condotelPricePerNight: data.CondotelPricePerNight !== undefined ? data.CondotelPricePerNight : data.condotelPricePerNight,
+      customerName: data.CustomerName || data.customerName,
+      customerEmail: data.CustomerEmail || data.customerEmail,
+    };
   },
 };
 

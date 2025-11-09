@@ -8,7 +8,7 @@ import { NAVIGATION_DEMO } from "data/navigation";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
 import SocialsList from "shared/SocialsList/SocialsList";
 import { ChevronDownIcon } from "@heroicons/react/24/solid";
-import { ArrowRightOnRectangleIcon, UserCircleIcon } from "@heroicons/react/24/outline";
+import { ArrowRightOnRectangleIcon, UserCircleIcon, DocumentTextIcon, HomeIcon } from "@heroicons/react/24/outline";
 import SwitchDarkMode from "shared/SwitchDarkMode/SwitchDarkMode";
 import LangDropdown from "components/Header/LangDropdown";
 import { useAuth } from "contexts/AuthContext";
@@ -37,7 +37,13 @@ const NavMobile: React.FC<NavMobileProps> = ({
     if (onClickClose) {
       onClickClose();
     }
-    navigate(isAdmin ? "/admin?tab=profile" : "/account");
+    if (isAdmin) {
+      navigate("/admin?tab=profile");
+    } else if (user?.roleName === "Host") {
+      navigate("/host-dashboard");
+    } else {
+      navigate("/account");
+    }
   };
   const _renderMenuChild = (item: NavItemType) => {
     return (
@@ -181,6 +187,30 @@ const NavMobile: React.FC<NavMobileProps> = ({
               <UserCircleIcon className="w-5 h-5 mr-3" />
               <span>Profile</span>
             </button>
+            {user?.roleName === "Host" && (
+              <button
+                onClick={() => {
+                  if (onClickClose) onClickClose();
+                  navigate("/host-dashboard");
+                }}
+                className="flex items-center w-full px-4 py-2 text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"
+              >
+                <HomeIcon className="w-5 h-5 mr-3" />
+                <span>Host Dashboard</span>
+              </button>
+            )}
+            {user?.roleName !== "Host" && user?.roleName !== "Admin" && (
+              <button
+                onClick={() => {
+                  if (onClickClose) onClickClose();
+                  navigate("/my-bookings");
+                }}
+                className="flex items-center w-full px-4 py-2 text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"
+              >
+                <DocumentTextIcon className="w-5 h-5 mr-3" />
+                <span>History Booking</span>
+              </button>
+            )}
             <button
               onClick={handleLogout}
               className="flex items-center w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"

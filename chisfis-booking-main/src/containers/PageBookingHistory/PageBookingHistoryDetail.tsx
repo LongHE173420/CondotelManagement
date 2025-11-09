@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import bookingAPI, { BookingDTO } from "api/booking";
 import condotelAPI, { CondotelDetailDTO } from "api/condotel";
 import reviewAPI from "api/review";
@@ -66,7 +66,6 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
 // Component Trang Chi tiết Lịch sử Booking
 const PageBookingHistoryDetail = () => {
   const { id } = useParams();
-  const navigate = useNavigate();
   const [booking, setBooking] = useState<BookingDTO | null>(null);
   const [condotel, setCondotel] = useState<CondotelDetailDTO | null>(null);
   const [loading, setLoading] = useState(true);
