@@ -30,22 +30,48 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Initialize from localStorage
+  // Initialize from localStorage and fetch full user profile
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    const userStr = localStorage.getItem("user");
+    const initializeAuth = async () => {
+      const token = localStorage.getItem("token");
+      const userStr = localStorage.getItem("user");
 
-    if (token && userStr) {
-      try {
-        const parsedUser = JSON.parse(userStr);
-        setUser(parsedUser);
-      } catch (error) {
-        console.error("Failed to parse user from localStorage", error);
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
+      if (token && userStr) {
+        try {
+          const parsedUser = JSON.parse(userStr);
+          setUser(parsedUser);
+          
+          // Gọi /Auth/me để lấy đầy đủ thông tin user (bao gồm imageUrl) từ database
+          try {
+            const fullUserProfile = await authAPI.getMe();
+            console.log("✅ Loaded full user profile with avatar:", fullUserProfile);
+            console.log("🖼️ Avatar URL from API:", fullUserProfile.imageUrl);
+            
+            // Cập nhật user state và localStorage
+            setUser(fullUserProfile);
+            localStorage.setItem("user", JSON.stringify(fullUserProfile));
+            
+            // Log để debug
+            if (fullUserProfile.imageUrl) {
+              console.log("✅ Avatar URL is set:", fullUserProfile.imageUrl);
+            } else {
+              console.warn("⚠️ No avatar URL in user profile");
+            }
+          } catch (meError: any) {
+            console.warn("⚠️ Failed to refresh user profile, using cached data:", meError);
+            // Nếu /Auth/me fail (token expired, etc.), vẫn dùng user từ localStorage
+            // Nhưng có thể token đã hết hạn, nên sẽ được xử lý bởi axios interceptor
+          }
+        } catch (error) {
+          console.error("Failed to parse user from localStorage", error);
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+        }
       }
-    }
-    setIsLoading(false);
+      setIsLoading(false);
+    };
+
+    initializeAuth();
   }, []);
 
   const login = (token: string, userData: UserProfile) => {

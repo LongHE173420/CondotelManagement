@@ -2,7 +2,7 @@ import axiosClient from "./axiosClient";
 
 // Sub DTOs for CondotelDetailDTO
 export interface ImageDTO {
-  imageId: number;
+  imageId?: number; // Optional - không cần khi create
   imageUrl: string;
   caption?: string;
 }
@@ -19,8 +19,8 @@ export interface PriceDTO {
 export interface DetailDTO {
   buildingName?: string;
   roomNumber?: string;
-  beds: number;
-  bathrooms: number;
+  beds?: number; // Optional - có thể lấy từ condotel level
+  bathrooms?: number; // Optional - có thể lấy từ condotel level
   safetyFeatures?: string;
   hygieneStandards?: string;
 }
@@ -115,23 +115,43 @@ export interface CondotelDetailDTO {
   utilities?: UtilityDTO[];
 }
 
-// CreateCondotelDTO - For creating new condotel (without condotelId)
+// CreateCondotelDTO - For creating new condotel (matches CondotelCreateDTO from backend)
+// Lưu ý: HostId sẽ được backend tự động lấy từ JWT token, không cần gửi từ frontend
 export interface CreateCondotelDTO {
-  hostId: number;
-  resortId?: number;
+  resortId?: number; // Optional
   name: string;
   description?: string;
   pricePerNight: number;
   beds: number;
   bathrooms: number;
-  status: string;
+  status: string; // "Pending", "Active", "Inactive", "Available", "Unavailable"
 
   // Liên kết 1-n
-  images?: ImageDTO[];
-  prices?: PriceDTO[];
-  details?: DetailDTO[];
+  images?: Array<{ 
+    imageUrl: string; 
+    caption?: string;
+    // ImageId không cần khi create (sẽ được backend tự tạo)
+  }>;
+  
+  prices?: Array<{ 
+    startDate: string; // DateOnly format: YYYY-MM-DD
+    endDate: string; // DateOnly format: YYYY-MM-DD
+    basePrice: number;
+    priceType: string;
+    description: string; // Required trong backend PriceDTO
+    // PriceId không cần khi create (sẽ được backend tự tạo)
+  }>;
+  
+  details?: Array<{ 
+    buildingName?: string;
+    roomNumber?: string;
+    beds?: number; // byte in C# - optional
+    bathrooms?: number; // byte in C# - optional
+    safetyFeatures?: string;
+    hygieneStandards?: string;
+  }>;
 
-  // Liên kết n-n
+  // Liên kết n-n - chỉ cần IDs
   amenityIds?: number[];
   utilityIds?: number[];
 }
@@ -150,9 +170,73 @@ export const condotelAPI = {
     return response.data;
   },
 
-  // POST /api/condotel - Tạo condotel mới
+  // POST /api/host/condotel - Tạo condotel mới
+  // Lưu ý: HostId sẽ được backend tự động lấy từ JWT token (JsonIgnore trong DTO)
   create: async (condotel: CreateCondotelDTO): Promise<CondotelDetailDTO> => {
-    const response = await axiosClient.post<CondotelDetailDTO>("/host/condotel", condotel);
+    // Map camelCase sang PascalCase để khớp với backend C# DTO
+    const requestData: any = {
+      Name: condotel.name,
+      PricePerNight: condotel.pricePerNight,
+      Beds: condotel.beds,
+      Bathrooms: condotel.bathrooms,
+      Status: condotel.status,
+    };
+    
+    // Optional fields
+    if (condotel.resortId !== undefined && condotel.resortId !== null) {
+      requestData.ResortId = condotel.resortId;
+    }
+    if (condotel.description) {
+      requestData.Description = condotel.description;
+    }
+    
+    // Images - map sang PascalCase (không gửi ImageId khi create)
+    if (condotel.images && condotel.images.length > 0) {
+      requestData.Images = condotel.images.map(img => ({
+        ImageUrl: img.imageUrl,
+        Caption: img.caption || null,
+      }));
+    }
+    
+    // Prices - map sang PascalCase (không gửi PriceId khi create, nhưng Description là required)
+    if (condotel.prices && condotel.prices.length > 0) {
+      requestData.Prices = condotel.prices.map(p => ({
+        StartDate: p.startDate,
+        EndDate: p.endDate,
+        BasePrice: p.basePrice,
+        PriceType: p.priceType,
+        Description: p.description || "", // Required trong backend
+      }));
+    }
+    
+    // Details - map sang PascalCase
+    if (condotel.details && condotel.details.length > 0) {
+      requestData.Details = condotel.details.map(d => {
+        const detail: any = {};
+        if (d.buildingName) detail.BuildingName = d.buildingName;
+        if (d.roomNumber) detail.RoomNumber = d.roomNumber;
+        if (d.beds !== undefined) detail.Beds = d.beds;
+        if (d.bathrooms !== undefined) detail.Bathrooms = d.bathrooms;
+        if (d.safetyFeatures) detail.SafetyFeatures = d.safetyFeatures;
+        if (d.hygieneStandards) detail.HygieneStandards = d.hygieneStandards;
+        return detail;
+      });
+    }
+    
+    // AmenityIds và UtilityIds
+    if (condotel.amenityIds && condotel.amenityIds.length > 0) {
+      requestData.AmenityIds = condotel.amenityIds;
+    }
+    if (condotel.utilityIds && condotel.utilityIds.length > 0) {
+      requestData.UtilityIds = condotel.utilityIds;
+    }
+    
+    console.log("📤 Creating condotel with data:", JSON.stringify(requestData, null, 2));
+    
+    const response = await axiosClient.post<CondotelDetailDTO>("/host/condotel", requestData);
+    
+    console.log("✅ Condotel created successfully:", response.data);
+    
     return response.data;
   },
 
@@ -165,9 +249,20 @@ export const condotelAPI = {
     return response.data;
   },
 
-  // DELETE /api/condotel/{id} - Xóa condotel
-  delete: async (id: number): Promise<void> => {
-    await axiosClient.delete(`/host/condotel/${id}`);
+  // DELETE /api/condotel/{id} - "Xóa" condotel bằng cách chuyển status sang "Inactive"
+  delete: async (id: number): Promise<CondotelDetailDTO> => {
+    // Lấy thông tin condotel hiện tại
+    const currentCondotel = await axiosClient.get<CondotelDetailDTO>(`/host/condotel/${id}`).then(res => res.data);
+    
+    // Cập nhật status thành "Inactive" thay vì xóa thật sự
+    const updatedCondotel: CondotelDetailDTO = {
+      ...currentCondotel,
+      status: "Inactive",
+    };
+    
+    // Gọi API update để thay đổi status
+    const response = await axiosClient.put<CondotelDetailDTO>(`/host/condotel/${id}`, updatedCondotel);
+    return response.data;
   },
 
   // Promotion APIs - Sử dụng endpoints từ PromotionController

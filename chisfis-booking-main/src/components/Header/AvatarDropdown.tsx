@@ -1,39 +1,16 @@
 import { Popover, Transition } from "@headlessui/react";
 import {
-  UserCircleIcon,
   ChatBubbleBottomCenterTextIcon,
   HeartIcon,
-  HomeIcon,
   ArrowRightOnRectangleIcon,
   LifebuoyIcon,
+  DocumentTextIcon,
+  UserIcon,
 } from "@heroicons/react/24/outline";
 import { Fragment } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import Avatar from "shared/Avatar/Avatar";
 import { useAuth } from "contexts/AuthContext";
-
-const solutions = [
-  {
-    name: "Account",
-    href: "/author",
-    icon: UserCircleIcon,
-  },
-  {
-    name: "Messages",
-    href: "##",
-    icon: ChatBubbleBottomCenterTextIcon,
-  },
-  {
-    name: "Wishlists",
-    href: "/account-savelists",
-    icon: HeartIcon,
-  },
-  {
-    name: "Booking",
-    href: "##",
-    icon: HomeIcon,
-  },
-];
 
 const solutionsFoot = [
   {
@@ -50,18 +27,83 @@ const solutionsFoot = [
 ];
 
 export default function AvatarDropdown() {
-  const { user, logout, isAdmin } = useAuth();
+  const { user, logout, isAdmin, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
   
   const handleLogout = () => {
     logout();
+    navigate("/");
   };
 
   const getAccountLink = () => {
     if (isAdmin) {
       return "/admin?tab=profile";
     }
+    // Check if user is Host
+    if (user?.roleName === "Host") {
+      return "/host-dashboard";
+    }
     return "/account";
   };
+
+  // If not authenticated, show login button
+  if (!isAuthenticated || !user) {
+    return (
+      <Link
+        to="/login"
+        className="px-4 py-2 bg-primary-600 text-white rounded-full text-sm font-medium hover:bg-primary-700 transition-colors"
+      >
+        Đăng nhập
+      </Link>
+    );
+  }
+
+  // Get menu items based on user role (only called when authenticated)
+  const getMenuItems = () => {
+    const items = [
+      {
+        name: "Profile",
+        href: getAccountLink(),
+        icon: UserIcon,
+      },
+    ];
+
+    // Add role-specific items
+    if (user?.roleName === "Host") {
+      items.push({
+        name: "Host Dashboard",
+        href: "/host-dashboard",
+        icon: DocumentTextIcon,
+      });
+    } else if (user?.roleName !== "Admin") {
+      // Tenant or other roles
+      items.push({
+        name: "History Booking",
+        href: "/my-bookings",
+        icon: DocumentTextIcon,
+      });
+    }
+
+    // Add common items for non-admin users
+    if (!isAdmin) {
+      items.push(
+        {
+          name: "Messages",
+          href: "##",
+          icon: ChatBubbleBottomCenterTextIcon,
+        },
+        {
+          name: "Wishlists",
+          href: "/account-savelists",
+          icon: HeartIcon,
+        }
+      );
+    }
+
+    return items;
+  };
+
+  const solutions = getMenuItems();
 
   return (
     <div className="AvatarDropdown">
@@ -69,13 +111,16 @@ export default function AvatarDropdown() {
         {({ open }) => (
           <>
             <Popover.Button
-              className={`inline-flex items-center focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-opacity-75`}
+              className={`inline-flex items-center space-x-2 px-3 py-2 rounded-full bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-opacity-75`}
             >
               <Avatar 
                 sizeClass="w-8 h-8 sm:w-9 sm:h-9" 
                 imgUrl={user?.imageUrl}
-                userName={user?.fullName}
+                userName={user?.fullName || "User"}
               />
+              <span className="hidden sm:block text-sm font-medium text-neutral-700 dark:text-neutral-100">
+                {user?.fullName || "User"}
+              </span>
             </Popover.Button>
             <Transition
               as={Fragment}
@@ -92,7 +137,7 @@ export default function AvatarDropdown() {
                     {solutions.map((item, index) => (
                       <Link
                         key={index}
-                        to={item.name === "Account" ? getAccountLink() : item.href}
+                        to={item.href}
                         className="flex items-center p-2 -m-3 transition duration-150 ease-in-out rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus-visible:ring focus-visible:ring-orange-500 focus-visible:ring-opacity-50"
                       >
                         <div className="flex items-center justify-center flex-shrink-0 text-neutral-500 dark:text-neutral-300">

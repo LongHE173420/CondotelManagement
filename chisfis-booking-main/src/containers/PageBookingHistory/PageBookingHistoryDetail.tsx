@@ -1,89 +1,155 @@
 import React, { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
+import bookingAPI, { BookingDTO } from "api/booking";
+import condotelAPI, { CondotelDetailDTO } from "api/condotel";
+import reviewAPI from "api/review";
 
-// --- Định nghĩa kiểu dữ liệu ---
-type BookingStatus = "Thành công" | "Đang xử lý" | "Thất bại";
-
-interface BookingDetail {
-  id: string;
-  bookingId: string; // Mã đặt phòng
-  status: BookingStatus;
-  bookingDate: string; // Ngày đặt
-  checkInDate: string;
-  checkOutDate: string;
-  apartmentName: string;
-  apartmentAddress: string;
-  apartmentImageUrl: string;
-  apartmentId: string; // Để link về trang chi tiết căn hộ
-  guests: {
-    adults: number;
-    children: number;
-  };
-  pricePerNight: number;
-  serviceFee: number;
-  totalNights: number;
-  totalPrice: number;
-}
-
-// --- Dữ liệu mẫu (Mock Data) ---
-const mockBookingDetail: BookingDetail = {
-  id: "1",
-  bookingId: "BOOK-A1B2C3",
-  status: "Thành công",
-  bookingDate: "01/10/2025",
-  checkInDate: "15/10/2025",
-  checkOutDate: "18/10/2025",
-  apartmentName: "Mường Thanh Sea View",
-  apartmentAddress: "Quận 1, TP. Hồ Chí Minh",
-  apartmentImageUrl: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=600&q=80",
-  apartmentId: "123", // ID của căn hộ
-  guests: {
-    adults: 2,
-    children: 1,
-  },
-  pricePerNight: 2300000,
-  serviceFee: 150000,
-  totalNights: 3,
-  totalPrice: 7050000, // (2.3m * 3) + 150k
+// Format số tiền
+const formatPrice = (price: number | undefined): string => {
+  if (!price) return "0 đ";
+  return new Intl.NumberFormat("vi-VN", {
+    style: "currency",
+    currency: "VND",
+  }).format(price);
 };
 
-// --- [TÁI SỬ DỤNG] Component Badge cho Trạng thái ---
-const StatusBadge: React.FC<{ status: BookingStatus }> = ({ status }) => {
+// Format ngày tháng
+const formatDate = (dateString: string | undefined): string => {
+  if (!dateString) return "";
+  const date = new Date(dateString + (dateString.includes("T") ? "" : "T00:00:00"));
+  return date.toLocaleDateString("vi-VN");
+};
+
+// Map status từ backend sang tiếng Việt
+const mapStatusToVN = (status: string): string => {
+  switch (status?.toLowerCase()) {
+    case "confirmed":
+      return "Đã xác nhận";
+    case "pending":
+      return "Đang xử lý";
+    case "cancelled":
+      return "Đã hủy";
+    case "completed":
+      return "Hoàn thành";
+    default:
+      return status || "Đang xử lý";
+  }
+};
+
+// Component Badge cho Trạng thái
+const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
+  const statusVN = mapStatusToVN(status);
   let colorClasses = "";
-  switch (status) {
-    case "Thành công":
+  switch (status?.toLowerCase()) {
+    case "confirmed":
+    case "completed":
       colorClasses = "bg-green-100 text-green-700";
       break;
-    case "Đang xử lý":
+    case "pending":
       colorClasses = "bg-blue-100 text-blue-700";
       break;
-    case "Thất bại":
+    case "cancelled":
       colorClasses = "bg-red-100 text-red-700";
       break;
+    default:
+      colorClasses = "bg-blue-100 text-blue-700";
   }
   return (
     <span
       className={`px-3 py-1 rounded-full text-xs font-semibold ${colorClasses}`}
     >
-      {status}
+      {statusVN}
     </span>
   );
 };
 
-// --- Component Trang Chi tiết Lịch sử Booking ---
+// Component Trang Chi tiết Lịch sử Booking
 const PageBookingHistoryDetail = () => {
-  const { id } = useParams(); // Lấy ID từ URL
-  const [booking, setBooking] = useState<BookingDetail | null>(null);
+  const { id } = useParams();
+  const [booking, setBooking] = useState<BookingDTO | null>(null);
+  const [condotel, setCondotel] = useState<CondotelDetailDTO | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [canReview, setCanReview] = useState(false);
 
-  // Giả lập fetch dữ liệu
+  // Fetch booking và condotel details
   useEffect(() => {
-    // TODO: Dùng `id` để gọi API fetch chi tiết booking
-    console.log("Fetching booking detail for ID:", id);
-    setBooking(mockBookingDetail);
+    const fetchData = async () => {
+      if (!id) {
+        setError("Booking ID không hợp lệ");
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        setError("");
+
+        // Fetch booking detail
+        const bookingData = await bookingAPI.getBookingById(parseInt(id));
+        setBooking(bookingData);
+
+        // Fetch condotel detail
+        if (bookingData.condotelId) {
+          try {
+            const condotelData = await condotelAPI.getById(bookingData.condotelId);
+            setCondotel(condotelData);
+          } catch (err: any) {
+            console.error("Error fetching condotel:", err);
+            // Không set error nếu không fetch được condotel, chỉ log
+          }
+        }
+
+        // Check if can review
+        if (bookingData.status?.toLowerCase() === "completed") {
+          try {
+            const canReviewRes = await reviewAPI.canReviewBooking(bookingData.bookingId);
+            setCanReview(canReviewRes.canReview);
+          } catch (err: any) {
+            console.error("Error checking can review:", err);
+          }
+        }
+      } catch (err: any) {
+        console.error("Error fetching booking detail:", err);
+        setError("Không thể tải chi tiết đặt phòng. Vui lòng thử lại sau.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
   }, [id]);
 
-  if (!booking) {
-    return <div className="p-8">Đang tải chi tiết...</div>;
+  // Tính số đêm
+  const calculateNights = (): number => {
+    if (!booking?.startDate || !booking?.endDate) return 0;
+    const start = new Date(booking.startDate + "T00:00:00");
+    const end = new Date(booking.endDate + "T00:00:00");
+    const diffTime = Math.abs(end.getTime() - start.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  };
+
+  if (loading) {
+    return (
+      <div className="p-8 text-center">
+        <p className="text-gray-500">Đang tải chi tiết...</p>
+      </div>
+    );
+  }
+
+  if (error || !booking) {
+    return (
+      <div className="p-8 text-center">
+        <p className="text-red-500 mb-4">{error || "Không tìm thấy đặt phòng"}</p>
+        <Link
+          to="/my-bookings"
+          className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+        >
+          Quay lại danh sách
+        </Link>
+      </div>
+    );
   }
 
   return (
@@ -100,7 +166,7 @@ const PageBookingHistoryDetail = () => {
             </p>
           </div>
           <Link
-            to="/booking-history" // Nút quay lại trang danh sách
+            to="/my-bookings"
             className="px-4 py-2 text-sm text-gray-700 rounded-md hover:bg-gray-200"
           >
             &larr; Quay lại danh sách
@@ -125,22 +191,15 @@ const PageBookingHistoryDetail = () => {
                 </div>
                 <div className="flex justify-between">
                   <dt className="text-sm font-medium text-gray-500">Ngày đặt</dt>
-                  <dd className="text-sm text-gray-700">{booking.bookingDate}</dd>
+                  <dd className="text-sm text-gray-700">{formatDate(booking.createdAt)}</dd>
                 </div>
                 <div className="flex justify-between">
                   <dt className="text-sm font-medium text-gray-500">Nhận phòng</dt>
-                  <dd className="text-sm text-gray-700">{booking.checkInDate}</dd>
+                  <dd className="text-sm text-gray-700">{formatDate(booking.startDate)}</dd>
                 </div>
                 <div className="flex justify-between">
                   <dt className="text-sm font-medium text-gray-500">Trả phòng</dt>
-                  <dd className="text-sm text-gray-700">{booking.checkOutDate}</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-sm font-medium text-gray-500">Số lượng khách</dt>
-                  <dd className="text-sm text-gray-700">
-                    {booking.guests.adults} Người lớn
-                    {booking.guests.children > 0 && `, ${booking.guests.children} Trẻ em`}
-                  </dd>
+                  <dd className="text-sm text-gray-700">{formatDate(booking.endDate)}</dd>
                 </div>
               </dl>
 
@@ -150,23 +209,19 @@ const PageBookingHistoryDetail = () => {
                   Chi tiết thanh toán
                 </h3>
                 <dl className="space-y-3">
-                  <div className="flex justify-between">
-                    <dt className="text-sm text-gray-500">
-                      {booking.pricePerNight.toLocaleString("vi-VN")} VNĐ x {booking.totalNights} đêm
-                    </dt>
-                    <dd className="text-sm text-gray-700">
-                      {(booking.pricePerNight * booking.totalNights).toLocaleString("vi-VN")} VNĐ
-                    </dd>
-                  </div>
-                  <div className="flex justify-between">
-                    <dt className="text-sm text-gray-500">Phí dịch vụ</dt>
-                    <dd className="text-sm text-gray-700">
-                      {booking.serviceFee.toLocaleString("vi-VN")} VNĐ
-                    </dd>
-                  </div>
+                  {condotel && (
+                    <div className="flex justify-between">
+                      <dt className="text-sm text-gray-500">
+                        {formatPrice(condotel.pricePerNight)} x {calculateNights()} đêm
+                      </dt>
+                      <dd className="text-sm text-gray-700">
+                        {formatPrice((condotel.pricePerNight || 0) * calculateNights())}
+                      </dd>
+                    </div>
+                  )}
                   <div className="flex justify-between font-bold text-gray-900 text-base pt-3 border-t border-gray-200">
                     <dt>Tổng cộng</dt>
-                    <dd>{booking.totalPrice.toLocaleString("vi-VN")} VNĐ</dd>
+                    <dd>{formatPrice(booking.totalPrice)}</dd>
                   </div>
                 </dl>
               </div>
@@ -177,32 +232,53 @@ const PageBookingHistoryDetail = () => {
               <h2 className="text-xl font-semibold text-gray-800 mb-4">
                 Thông tin căn hộ
               </h2>
-              <img 
-                src={booking.apartmentImageUrl} 
-                alt={booking.apartmentName}
-                className="w-full h-40 object-cover rounded-lg shadow-md mb-4" 
-              />
-              <h3 className="font-semibold text-gray-900">{booking.apartmentName}</h3>
-              <p className="text-sm text-gray-600 mb-4">{booking.apartmentAddress}</p>
-              
-              <Link
-                to={`/listing-stay-detail/${booking.apartmentId}`} // Link về trang chi tiết căn hộ
-                className="w-full text-center block px-4 py-2 border border-gray-800 text-gray-800 font-semibold rounded-lg hover:bg-gray-200 text-sm transition-colors"
-              >
-                Xem căn hộ
-              </Link>
+              {condotel ? (
+                <>
+                  <img 
+                    src={condotel.images?.[0]?.imageUrl || booking.condotelImageUrl || "https://via.placeholder.com/400?text=No+Image"} 
+                    alt={condotel.name}
+                    className="w-full h-40 object-cover rounded-lg shadow-md mb-4" 
+                  />
+                  <h3 className="font-semibold text-gray-900 mb-2">{condotel.name}</h3>
+                  {condotel.description && (
+                    <p className="text-sm text-gray-600 mb-2 line-clamp-3">{condotel.description}</p>
+                  )}
+                  <div className="text-sm text-gray-600 mb-4">
+                    <p>Phòng ngủ: {condotel.beds}</p>
+                    <p>Phòng tắm: {condotel.bathrooms}</p>
+                    <p>Giá/đêm: {formatPrice(condotel.pricePerNight)}</p>
+                  </div>
+                  
+                  <Link
+                    to={`/listing-stay-detail/${condotel.condotelId}`}
+                    className="w-full text-center block px-4 py-2 border border-gray-800 text-gray-800 font-semibold rounded-lg hover:bg-gray-200 text-sm transition-colors mb-3"
+                  >
+                    Xem chi tiết căn hộ
+                  </Link>
 
-              {/* ✨ BẮT ĐẦU THÊM MỚI ✨ */}
-              {/* Chỉ hiển thị nút khi booking đã thành công */}
-              {booking.status === "Thành công" && (
-                <Link
-                  to={`/write-review/${booking.id}`}
-                  className="w-full text-center block px-4 py-2 mt-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 text-sm transition-colors"
-                >
-                  Viết đánh giá
-                </Link>
+                  {/* Nút viết đánh giá - chỉ hiển thị khi booking completed và có thể review */}
+                  {booking.status?.toLowerCase() === "completed" && canReview && (
+                    <Link
+                      to={`/write-review/${booking.bookingId}`}
+                      className="w-full text-center block px-4 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 text-sm transition-colors"
+                    >
+                      Viết đánh giá
+                    </Link>
+                  )}
+                </>
+              ) : (
+                <div className="text-center text-gray-500">
+                  <p>Đang tải thông tin căn hộ...</p>
+                  {booking.condotelId && (
+                    <Link
+                      to={`/listing-stay-detail/${booking.condotelId}`}
+                      className="mt-4 inline-block px-4 py-2 border border-gray-800 text-gray-800 font-semibold rounded-lg hover:bg-gray-200 text-sm transition-colors"
+                    >
+                      Xem chi tiết căn hộ
+                    </Link>
+                  )}
+                </div>
               )}
-              {/* ✨ KẾT THÚC THÊM MỚI ✨ */}
             </div>
             
           </div>

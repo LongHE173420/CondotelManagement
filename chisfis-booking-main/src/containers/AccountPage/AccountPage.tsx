@@ -154,21 +154,83 @@ const AccountPage: FC<AccountPageProps> = ({ className = "", noLayout = false })
       const response = await uploadAPI.uploadUserImage(file);
       console.log("✅ Upload response:", response);
       
-      if (!response || !response.imageUrl) {
-        throw new Error("Invalid response from server");
+      // Kiểm tra response structure - có thể là { imageUrl } hoặc { message, imageUrl }
+      const imageUrl = response.imageUrl || (response as any).ImageUrl;
+      
+      if (!imageUrl || typeof imageUrl !== "string" || imageUrl.trim() === "") {
+        console.error("❌ Invalid imageUrl in response:", response);
+        throw new Error("Không nhận được URL ảnh từ server");
       }
       
+      console.log("✅ Image URL received:", imageUrl);
+      
       // Cập nhật preview với URL mới từ server
-      setImagePreview(response.imageUrl);
+      setImagePreview(imageUrl);
+      
+      // Cập nhật imageUrl vào profile qua API updateProfile
+      // Đảm bảo ảnh được lưu vào database và hiển thị ngay
+      let updateSuccess = false;
+      try {
+        const currentUser = await authAPI.getMe();
+        console.log("📤 Preparing to update profile with imageUrl:", imageUrl);
+        console.log("📤 Current user fullName:", currentUser.fullName);
+        
+        // Đảm bảo imageUrl là string hợp lệ
+        const imageUrlToSend = imageUrl && typeof imageUrl === "string" ? imageUrl.trim() : "";
+        
+        if (!imageUrlToSend) {
+          throw new Error("ImageUrl is empty or invalid");
+        }
+        
+        console.log("📤 Sending updateProfile request with:", {
+          fullName: currentUser.fullName,
+          imageUrl: imageUrlToSend,
+        });
+        
+        const updateResult = await authAPI.updateProfile({
+          fullName: currentUser.fullName,
+          imageUrl: imageUrlToSend, // Đảm bảo gửi string hợp lệ
+        });
+        
+        console.log("✅ ImageUrl updated in profile successfully:", updateResult);
+        updateSuccess = true;
+      } catch (updateError: any) {
+        console.error("❌ Failed to update imageUrl in profile:", updateError);
+        console.error("❌ Error details:", {
+          status: updateError.response?.status,
+          statusText: updateError.response?.statusText,
+          data: updateError.response?.data,
+          message: updateError.message,
+          stack: updateError.stack,
+        });
+        
+        // Vẫn hiển thị message thành công vì upload đã thành công
+        // Nhưng cảnh báo user rằng cần cập nhật profile để lưu ảnh
+        const errorMsg = updateError.response?.data?.message || updateError.message || "Unknown error";
+        setMessage("Upload ảnh thành công! Nhưng cần cập nhật profile để lưu ảnh đại diện.");
+        setError(`Không thể cập nhật ảnh vào profile: ${errorMsg}`);
+      }
       
       // Refresh user data to get updated imageUrl
-      const userProfile = await authAPI.getMe();
-      console.log("✅ User profile updated with imageUrl:", userProfile.imageUrl);
-      
-      // Cập nhật AuthContext để Header và các component khác hiển thị ảnh mới
-      updateUser(userProfile);
-      
-      setMessage("Cập nhật ảnh đại diện thành công!");
+      try {
+        const userProfile = await authAPI.getMe();
+        console.log("✅ User profile refreshed. ImageUrl:", userProfile.imageUrl);
+        
+        // Cập nhật AuthContext để Header và các component khác hiển thị ảnh mới
+        updateUser(userProfile);
+        
+        // Nếu không có lỗi update, hiển thị message thành công
+        if (updateSuccess) {
+          setMessage("Cập nhật ảnh đại diện thành công!");
+          setError(""); // Clear any previous errors
+        }
+      } catch (refreshError: any) {
+        console.error("❌ Failed to refresh user profile:", refreshError);
+        // Vẫn hiển thị message thành công vì upload đã thành công
+        if (updateSuccess) {
+          setMessage("Upload ảnh thành công! Vui lòng reload trang để xem ảnh.");
+        }
+      }
       
       // Reset file input
       if (fileInputRef.current) {
@@ -240,51 +302,54 @@ const AccountPage: FC<AccountPageProps> = ({ className = "", noLayout = false })
     }
 
     try {
-      if (isAdmin && user?.userId) {
-        // Đảm bảo email có giá trị (lấy từ formData hoặc user context)
-        const emailToSend = formData.email?.trim() || user?.email || "";
-        
-        if (!emailToSend) {
-          setError("Email không được để trống");
-          setLoading(false);
-          return;
-        }
-        
-        // Chuẩn bị data để gửi
-        // KHÔNG gửi roleName vì role không được thay đổi khi update profile
-        // Role chỉ để hiển thị, không cần validate trong update
-        const updateData: any = {
-          fullName: formData.fullName.trim(),
-          email: emailToSend, // Email là required field
-        };
-        
-        // Chỉ thêm các fields có giá trị (trừ empty strings)
-        if (formData.phone && formData.phone.trim()) {
-          updateData.phone = formData.phone.trim();
-        }
-        if (formData.gender && formData.gender.trim()) {
-          updateData.gender = formData.gender.trim();
-        }
-        if (formData.dateOfBirth && formData.dateOfBirth.trim()) {
-          // Format date để backend nhận được (YYYY-MM-DD)
-          updateData.dateOfBirth = formData.dateOfBirth.trim();
-        }
-        if (formData.address && formData.address.trim()) {
-          updateData.address = formData.address.trim();
-        }
-
-        console.log("📤 Updating user with data:", updateData);
-        console.log("📤 User ID:", user.userId);
-        
-        // Nếu là Admin, dùng admin API
-        await adminAPI.updateUser(user.userId, updateData);
-      } else {
-        // User thường thì có thể dùng API khác nếu có
-        setMessage("Cập nhật thành công!");
+      // Chuẩn bị data để gửi theo UpdateProfileRequest DTO
+      // Backend nhận: FullName (required), Email, Phone, Gender, DateOfBirth, Address, ImageUrl
+      const updateData: {
+        fullName: string;
+        email?: string;
+        phone?: string;
+        gender?: string;
+        dateOfBirth?: string;
+        address?: string;
+        imageUrl?: string;
+      } = {
+        fullName: formData.fullName.trim(),
+      };
+      
+      // Thêm email nếu có
+      if (formData.email && formData.email.trim()) {
+        updateData.email = formData.email.trim();
+      }
+      
+      // Chỉ thêm các fields có giá trị (trừ empty strings)
+      if (formData.phone && formData.phone.trim()) {
+        updateData.phone = formData.phone.trim();
+      }
+      if (formData.gender && formData.gender.trim()) {
+        updateData.gender = formData.gender.trim();
+      }
+      if (formData.dateOfBirth && formData.dateOfBirth.trim()) {
+        // Format date để backend nhận được (YYYY-MM-DD) - backend sẽ parse sang DateOnly
+        updateData.dateOfBirth = formData.dateOfBirth.trim();
+      }
+      if (formData.address && formData.address.trim()) {
+        updateData.address = formData.address.trim();
+      }
+      
+      // Nếu có imagePreview (ảnh đã upload), cập nhật imageUrl
+      // Chỉ gửi nếu là URL (không phải data URL từ FileReader)
+      if (imagePreview && imagePreview.trim() && !imagePreview.startsWith("data:")) {
+        updateData.imageUrl = imagePreview.trim();
       }
 
-      // Refresh user data
+      console.log("📤 Updating profile with data:", updateData);
+      
+      // Dùng Profile/me API cho tất cả user (Admin, Host, Tenant, Owner)
+      await authAPI.updateProfile(updateData);
+
+      // Refresh user data để lấy thông tin mới nhất (bao gồm imageUrl)
       const userProfile = await authAPI.getMe();
+      console.log("✅ Updated user profile with avatar:", userProfile.imageUrl);
       updateUser(userProfile);
       setMessage("Cập nhật thông tin thành công!");
     } catch (error: any) {
