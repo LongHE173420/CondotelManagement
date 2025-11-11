@@ -65,6 +65,13 @@ export interface LocationStates {
   "/manage-blog"?: {};
   "/manage-blog/add"?: {};
   "/manage-blog/edit/:id"?: {};
+  "/manage-vouchers"?: {};         
+  "/manage-vouchers/add"?: {};   
+  "/manage-vouchers/edit/:id"?: {};
+  "/manage-locations"?: {};         // <-- ✨ THÊM DÒNG NÀY
+  "/manage-locations/add"?: {};
+  "/manage-locations/edit/:id"?: {};
+  "/my-vouchers"?: {};
   "/page404"?: {};
   "/subscription"?: {};
   "/host-dashboard"?: {};

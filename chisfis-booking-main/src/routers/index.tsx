@@ -58,6 +58,13 @@ import PageWriteReview from "containers/PageWriteReview/PageWriteReview";
 import PageBlogList from "containers/PageManageBlog/PageBlogList";
 import PageBlogAdd from "containers/PageManageBlog/PageBlogAdd";
 import PageBlogEdit from "containers/PageManageBlog/PageBlogEdit";
+import PageVoucherList from "containers/PageManageVouchers/PageVoucherList";
+import PageVoucherAdd from "containers/PageManageVouchers/PageVoucherAdd";
+import PageVoucherEdit from "containers/PageManageVouchers/PageVoucherEdit";
+import PageMyVouchers from "containers/PageMyVouchers/PageMyVouchers";
+import PageLocationList from "containers/PageManageLocations/PageLocationList";
+import PageLocationAdd from "containers/PageManageLocations/PageLocationAdd";
+import PageLocationEdit from "containers/PageManageLocations/PageLocationEdit";
 
 export const pages: Page[] = [
   { path: "/", exact: true, component: PageHome },
@@ -128,6 +135,14 @@ export const pages: Page[] = [
   { path: "/subscription", component: PageSubcription },
   { path: "/host-dashboard", component: HostCondotelDashboard },
   //
+  { path: "/manage-vouchers", component: PageVoucherList },
+  { path: "/manage-vouchers/add", component: PageVoucherAdd },
+  { path: "/manage-vouchers/edit/:id", component: PageVoucherEdit },
+  { path: "/my-vouchers", component: PageMyVouchers },
+  //
+  { path: "/manage-locations", component: PageLocationList },
+  { path: "/manage-locations/add", component: PageLocationAdd },
+  { path: "/manage-locations/edit/:id", component: PageLocationEdit },
 ];
 
 const MyRoutes = () => {
