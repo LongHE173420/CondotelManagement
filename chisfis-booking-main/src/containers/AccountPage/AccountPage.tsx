@@ -9,7 +9,6 @@ import CommonLayout from "./CommonLayout";
 import { Helmet } from "react-helmet";
 import { useAuth } from "contexts/AuthContext";
 import { authAPI } from "api/auth";
-import { adminAPI } from "api/admin";
 import { uploadAPI } from "api/upload";
 
 export interface AccountPageProps {
@@ -18,7 +17,7 @@ export interface AccountPageProps {
 }
 
 const AccountPage: FC<AccountPageProps> = ({ className = "", noLayout = false }) => {
-  const { user, updateUser, isAdmin } = useAuth();
+  const { user, updateUser } = useAuth();
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -154,8 +153,8 @@ const AccountPage: FC<AccountPageProps> = ({ className = "", noLayout = false })
       const response = await uploadAPI.uploadUserImage(file);
       console.log("✅ Upload response:", response);
       
-      // Kiểm tra response structure - có thể là { imageUrl } hoặc { message, imageUrl }
-      const imageUrl = response.imageUrl || (response as any).ImageUrl;
+      // API trả về: { message: string, imageUrl: string }
+      const imageUrl = response.imageUrl;
       
       if (!imageUrl || typeof imageUrl !== "string" || imageUrl.trim() === "") {
         console.error("❌ Invalid imageUrl in response:", response);
@@ -167,51 +166,8 @@ const AccountPage: FC<AccountPageProps> = ({ className = "", noLayout = false })
       // Cập nhật preview với URL mới từ server
       setImagePreview(imageUrl);
       
-      // Cập nhật imageUrl vào profile qua API updateProfile
-      // Đảm bảo ảnh được lưu vào database và hiển thị ngay
-      let updateSuccess = false;
-      try {
-        const currentUser = await authAPI.getMe();
-        console.log("📤 Preparing to update profile with imageUrl:", imageUrl);
-        console.log("📤 Current user fullName:", currentUser.fullName);
-        
-        // Đảm bảo imageUrl là string hợp lệ
-        const imageUrlToSend = imageUrl && typeof imageUrl === "string" ? imageUrl.trim() : "";
-        
-        if (!imageUrlToSend) {
-          throw new Error("ImageUrl is empty or invalid");
-        }
-        
-        console.log("📤 Sending updateProfile request with:", {
-          fullName: currentUser.fullName,
-          imageUrl: imageUrlToSend,
-        });
-        
-        const updateResult = await authAPI.updateProfile({
-          fullName: currentUser.fullName,
-          imageUrl: imageUrlToSend, // Đảm bảo gửi string hợp lệ
-        });
-        
-        console.log("✅ ImageUrl updated in profile successfully:", updateResult);
-        updateSuccess = true;
-      } catch (updateError: any) {
-        console.error("❌ Failed to update imageUrl in profile:", updateError);
-        console.error("❌ Error details:", {
-          status: updateError.response?.status,
-          statusText: updateError.response?.statusText,
-          data: updateError.response?.data,
-          message: updateError.message,
-          stack: updateError.stack,
-        });
-        
-        // Vẫn hiển thị message thành công vì upload đã thành công
-        // Nhưng cảnh báo user rằng cần cập nhật profile để lưu ảnh
-        const errorMsg = updateError.response?.data?.message || updateError.message || "Unknown error";
-        setMessage("Upload ảnh thành công! Nhưng cần cập nhật profile để lưu ảnh đại diện.");
-        setError(`Không thể cập nhật ảnh vào profile: ${errorMsg}`);
-      }
-      
-      // Refresh user data to get updated imageUrl
+      // API /Upload/user-image đã tự động cập nhật imageUrl vào profile của user
+      // Chỉ cần refresh user data để lấy thông tin mới nhất
       try {
         const userProfile = await authAPI.getMe();
         console.log("✅ User profile refreshed. ImageUrl:", userProfile.imageUrl);
@@ -219,17 +175,13 @@ const AccountPage: FC<AccountPageProps> = ({ className = "", noLayout = false })
         // Cập nhật AuthContext để Header và các component khác hiển thị ảnh mới
         updateUser(userProfile);
         
-        // Nếu không có lỗi update, hiển thị message thành công
-        if (updateSuccess) {
-          setMessage("Cập nhật ảnh đại diện thành công!");
-          setError(""); // Clear any previous errors
-        }
+        // Hiển thị message thành công
+        setMessage(response.message || "Cập nhật ảnh đại diện thành công!");
+        setError(""); // Clear any previous errors
       } catch (refreshError: any) {
         console.error("❌ Failed to refresh user profile:", refreshError);
         // Vẫn hiển thị message thành công vì upload đã thành công
-        if (updateSuccess) {
-          setMessage("Upload ảnh thành công! Vui lòng reload trang để xem ảnh.");
-        }
+        setMessage(response.message || "Upload ảnh thành công! Vui lòng reload trang để xem ảnh.");
       }
       
       // Reset file input

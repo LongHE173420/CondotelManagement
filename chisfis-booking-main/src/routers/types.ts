@@ -33,9 +33,13 @@ export interface LocationStates {
   "/account-savelists"?: {};
   "/account-password"?: {};
   "/account-billing"?: {};
+  "/account-rewards"?: {};
+  "/account-vouchers"?: {};
   //
   "/blog"?: {};
   "/blog-single"?: {};
+  "/blog-single/:slug"?: {};
+  "/create-blog-experience"?: {};
   //
   "/add-listing-1"?: {};
   "/add-listing-2"?: {};
@@ -62,9 +66,11 @@ export interface LocationStates {
   "/booking-history"?: {};
   "/booking-history/:id"?: {};
   "/write-review/:id"?: {};
+  "/my-reviews"?: {};
   "/manage-blog"?: {};
   "/manage-blog/add"?: {};
   "/manage-blog/edit/:id"?: {};
+  "/manage-blog/categories"?: {};
   "/page404"?: {};
   "/subscription"?: {};
   "/host-dashboard"?: {};

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "contexts/AuthContext";
-import { condotelAPI, CondotelDTO, PromotionDTO, CreatePromotionDTO, UpdatePromotionDTO } from "api/condotel";
+import { condotelAPI, CondotelDTO, PromotionDTO } from "api/condotel";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
 import ButtonSecondary from "shared/Button/ButtonSecondary";
 
@@ -30,7 +30,7 @@ const HostPromotionContent: React.FC = () => {
     setError("");
     try {
       // Load condotels first
-      const condotelsData = await condotelAPI.getAll();
+      const condotelsData = await condotelAPI.getAllForHost();
       setCondotels(condotelsData);
       
       // Load all promotions (từ tất cả condotels của host)
@@ -320,7 +320,7 @@ const PromotionModal: React.FC<PromotionModalProps> = ({
     const ensureCondotels = async () => {
       if (!localCondotels || localCondotels.length === 0) {
         try {
-          const data = await condotelAPI.getAll();
+          const data = await condotelAPI.getAllForHost();
           setLocalCondotels(data);
         } catch (e) {
           // ignore, dropdown will show empty state

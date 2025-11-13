@@ -1,9 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { adminAPI, AdminUserDTO } from "api/admin";
-
-type UserRole = "Chủ Condotel" | "Khách Hàng" | "Tenant" | "Owner" | "Admin";
-type UserStatus = "Hoạt động" | "Không hoạt động" | "Active" | "Inactive";
+import { adminAPI } from "api/admin";
 
 interface UserAccount {
   id: string;
@@ -11,20 +8,29 @@ interface UserAccount {
   username?: string;
   fullName: string;
   email: string;
-  role: UserRole;
+  role: string; // Changed to string to match API response
   roleName: string;
-  status: UserStatus;
+  status: string; // Changed to string to match API response
   createdAt?: string;
   updatedAt?: string;
 }
 
 
-const StatusBadge: React.FC<{ status: UserStatus }> = ({ status }) => {
+const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
   const baseClasses = "px-3 py-1 rounded-full text-xs font-medium";
-  if (status === "Hoạt động") {
+  
+  const statusLower = status.toLowerCase();
+  if (statusLower === "active" || statusLower === "hoạt động") {
     return (
       <span className={`${baseClasses} bg-green-100 text-green-800`}>
         Hoạt động
+      </span>
+    );
+  }
+  if (statusLower === "pending") {
+    return (
+      <span className={`${baseClasses} bg-yellow-100 text-yellow-800`}>
+        Chờ xử lý
       </span>
     );
   }
@@ -36,25 +42,26 @@ const StatusBadge: React.FC<{ status: UserStatus }> = ({ status }) => {
 };
 
 
-const RoleBadge: React.FC<{ role: UserRole }> = ({ role }) => {
+const RoleBadge: React.FC<{ role: string }> = ({ role }) => {
   const baseClasses = "px-3 py-1 rounded-full text-xs font-medium";
-  if (role === "Admin") {
-    return (
-      <span className={`${baseClasses} bg-purple-100 text-purple-800`}>
-        Admin
-      </span>
-    );
-  }
-  if (role === "Chủ Condotel") {
-    return (
-      <span className={`${baseClasses} bg-blue-100 text-blue-800`}>
-        Chủ Condotel
-      </span>
-    );
-  }
+  
+  // Map role names to display names and colors
+  const roleConfig: Record<string, { name: string; bg: string; text: string }> = {
+    "Admin": { name: "Admin", bg: "bg-purple-100", text: "text-purple-800" },
+    "Marketer": { name: "Marketer", bg: "bg-pink-100", text: "text-pink-800" },
+    "Host": { name: "Host", bg: "bg-blue-100", text: "text-blue-800" },
+    "Tenant": { name: "Tenant", bg: "bg-green-100", text: "text-green-800" },
+    "ContentManager": { name: "Content Manager", bg: "bg-orange-100", text: "text-orange-800" },
+    "Owner": { name: "Chủ Condotel", bg: "bg-blue-100", text: "text-blue-800" },
+    "Chủ Condotel": { name: "Chủ Condotel", bg: "bg-blue-100", text: "text-blue-800" },
+    "Khách Hàng": { name: "Khách Hàng", bg: "bg-gray-100", text: "text-gray-800" },
+  };
+
+  const config = roleConfig[role] || { name: role, bg: "bg-gray-100", text: "text-gray-800" };
+  
   return (
-    <span className={`${baseClasses} bg-gray-100 text-gray-800`}>
-      Khách Hàng
+    <span className={`${baseClasses} ${config.bg} ${config.text}`}>
+      {config.name}
     </span>
   );
 };
@@ -118,16 +125,14 @@ const PageAccountList = () => {
     }
   };
 
-  const mapRoleName = (roleName: string): UserRole => {
-    if (roleName === "Owner" || roleName === "Chủ Condotel") return "Chủ Condotel";
-    if (roleName === "Tenant" || roleName === "Khách Hàng") return "Khách Hàng";
-    if (roleName === "Admin") return "Admin";
-    return "Khách Hàng";
+  const mapRoleName = (roleName: string): string => {
+    // Giữ nguyên roleName từ API để hiển thị đúng
+    return roleName;
   };
 
-  const mapStatus = (status: string): UserStatus => {
-    if (status === "Active" || status === "Hoạt động") return "Hoạt động";
-    return "Không hoạt động";
+  const mapStatus = (status: string): string => {
+    // Giữ nguyên status từ API để hiển thị đúng
+    return status;
   };
 
   const formatDate = (dateString: string): string => {
@@ -138,6 +143,9 @@ const PageAccountList = () => {
       return dateString;
     }
   };
+
+  // Get unique roles from users for dynamic filter
+  const uniqueRoles = Array.from(new Set(users.map(user => user.roleName))).sort();
 
   // Filter users
   const filteredUsers = users.filter((user) => {
@@ -174,7 +182,7 @@ const PageAccountList = () => {
   };
 
   // Handle toggle status
-  const handleToggleStatus = async (userId: number, currentStatus: UserStatus, fullName: string) => {
+  const handleToggleStatus = async (userId: number, currentStatus: string, fullName: string) => {
     const newStatus = currentStatus === "Hoạt động" || currentStatus === "Active" 
       ? "Inactive" 
       : "Active";
@@ -286,10 +294,15 @@ const PageAccountList = () => {
             onChange={(e) => setRoleFilter(e.target.value)}
             className="px-4 py-2 border border-gray-300 rounded-md bg-white"
           >
-            <option value="">Tất cả vai trò</option>
-            <option value="Admin">Admin</option>
-            <option value="Owner">Chủ Condotel</option>
-            <option value="Tenant">Khách Hàng</option>
+            <option value="">Tất cả vai trò ({users.length})</option>
+            {uniqueRoles.map((role) => {
+              const count = users.filter(u => u.roleName === role).length;
+              return (
+                <option key={role} value={role}>
+                  {role} ({count})
+                </option>
+              );
+            })}
           </select>
         </div>
 
@@ -333,24 +346,34 @@ const PageAccountList = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{user.fullName}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{user.email}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <RoleBadge role={user.role} />
+                      <RoleBadge role={user.roleName} />
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center space-x-2">
                         <StatusBadge status={user.status} />
                         <button
                           onClick={() => handleToggleStatus(user.userId, user.status, user.fullName)}
-                          disabled={updatingStatusId === user.userId}
+                          disabled={updatingStatusId === user.userId || user.status.toLowerCase() === "pending"}
                           className={`px-2 py-1 text-xs rounded ${
-                            user.status === "Hoạt động" || user.status === "Active"
+                            user.status.toLowerCase() === "active" || user.status === "Hoạt động"
                               ? "bg-yellow-100 text-yellow-800 hover:bg-yellow-200"
+                              : user.status.toLowerCase() === "pending"
+                              ? "bg-gray-100 text-gray-500 cursor-not-allowed"
                               : "bg-green-100 text-green-800 hover:bg-green-200"
                           } disabled:opacity-50 disabled:cursor-not-allowed`}
-                          title={user.status === "Hoạt động" || user.status === "Active" ? "Vô hiệu hóa" : "Kích hoạt"}
+                          title={
+                            user.status.toLowerCase() === "pending" 
+                              ? "Không thể thay đổi trạng thái Pending" 
+                              : user.status.toLowerCase() === "active" || user.status === "Hoạt động" 
+                                ? "Vô hiệu hóa" 
+                                : "Kích hoạt"
+                          }
                         >
                           {updatingStatusId === user.userId 
                             ? "..." 
-                            : user.status === "Hoạt động" || user.status === "Active" 
+                            : user.status.toLowerCase() === "pending"
+                            ? "Pending"
+                            : user.status.toLowerCase() === "active" || user.status === "Hoạt động" 
                               ? "Vô hiệu hóa" 
                               : "Kích hoạt"}
                         </button>

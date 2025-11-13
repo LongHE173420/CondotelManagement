@@ -1,4 +1,5 @@
-import React, { FC } from "react";
+import React, { FC, useMemo, useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import BackgroundSection from "components/BackgroundSection/BackgroundSection";
 import BgGlassmorphism from "components/BgGlassmorphism/BgGlassmorphism";
 import SectionGridAuthorBox from "components/SectionGridAuthorBox/SectionGridAuthorBox";
@@ -7,6 +8,8 @@ import SectionSliderNewCategories from "components/SectionSliderNewCategories/Se
 import SectionSubscribe2 from "components/SectionSubscribe2/SectionSubscribe2";
 import SectionGridHasMap from "./SectionGridHasMap";
 import { Helmet } from "react-helmet";
+import imagePng from "images/hero-right.png";
+import condotelAPI from "api/condotel";
 
 export interface ListingStayMapPageProps {
   className?: string;
@@ -15,6 +18,29 @@ export interface ListingStayMapPageProps {
 const ListingStayMapPage: FC<ListingStayMapPageProps> = ({
   className = "",
 }) => {
+  const location = useLocation();
+  const params = useMemo(() => new URLSearchParams(location.search), [location.search]);
+  const searchLocation = params.get("location") || "Việt Nam";
+  const [propertyCount, setPropertyCount] = useState<number>(0);
+
+  useEffect(() => {
+    const fetchCount = async () => {
+      try {
+        if (searchLocation && searchLocation !== "Việt Nam") {
+          const condotels = await condotelAPI.getCondotelsByLocationPublic(searchLocation);
+          setPropertyCount(condotels.length);
+        } else {
+          const condotels = await condotelAPI.getAll();
+          setPropertyCount(condotels.length);
+        }
+      } catch (err) {
+        console.error("Error fetching condotel count:", err);
+        setPropertyCount(0);
+      }
+    };
+    fetchCount();
+  }, [searchLocation]);
+
   return (
     <div
       className={`nc-ListingStayMapPage relative ${className}`}
@@ -27,7 +53,13 @@ const ListingStayMapPage: FC<ListingStayMapPageProps> = ({
 
       {/* SECTION HERO */}
       <div className="container pt-10 pb-24 lg:pt-16 lg:pb-28">
-        <SectionHeroArchivePage currentPage="Stays" currentTab="Stays" />
+        <SectionHeroArchivePage 
+          currentPage="Stays" 
+          currentTab="Stays"
+          locationName={searchLocation}
+          propertyCount={propertyCount}
+          rightImage={imagePng}
+        />
       </div>
 
       {/* SECTION */}

@@ -4,7 +4,7 @@ import Logo from "shared/Logo/Logo";
 import { Disclosure } from "@headlessui/react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { NavItemType } from "./NavigationItem";
-import { NAVIGATION_DEMO } from "data/navigation";
+import { getNavigationItems } from "data/navigation";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
 import SocialsList from "shared/SocialsList/SocialsList";
 import { ChevronDownIcon } from "@heroicons/react/24/solid";
@@ -13,6 +13,7 @@ import SwitchDarkMode from "shared/SwitchDarkMode/SwitchDarkMode";
 import LangDropdown from "components/Header/LangDropdown";
 import { useAuth } from "contexts/AuthContext";
 import Avatar from "shared/Avatar/Avatar";
+import { useTranslation } from "i18n/LanguageContext";
 
 export interface NavMobileProps {
   data?: NavItemType[];
@@ -20,11 +21,15 @@ export interface NavMobileProps {
 }
 
 const NavMobile: React.FC<NavMobileProps> = ({
-  data = NAVIGATION_DEMO,
+  data,
   onClickClose,
 }) => {
   const { user, isAuthenticated, isAdmin, logout } = useAuth();
+  const { t } = useTranslation();
   const navigate = useNavigate();
+  
+  // Use translations if data not provided
+  const navigationData = data || getNavigationItems(t);
 
   const handleLogout = async () => {
     if (onClickClose) {
@@ -158,7 +163,7 @@ const NavMobile: React.FC<NavMobileProps> = ({
         </span>
       </div>
       <ul className="flex flex-col py-6 px-2 space-y-1">
-        {data.map(_renderItem)}
+        {navigationData.map(_renderItem)}
       </ul>
 
       {/* User Account Section for Authenticated Users */}
@@ -185,7 +190,7 @@ const NavMobile: React.FC<NavMobileProps> = ({
               className="flex items-center w-full px-4 py-2 text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"
             >
               <UserCircleIcon className="w-5 h-5 mr-3" />
-              <span>Profile</span>
+              <span>{t.account.profile}</span>
             </button>
             {user?.roleName === "Host" && (
               <button
@@ -196,7 +201,7 @@ const NavMobile: React.FC<NavMobileProps> = ({
                 className="flex items-center w-full px-4 py-2 text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"
               >
                 <HomeIcon className="w-5 h-5 mr-3" />
-                <span>Host Dashboard</span>
+                <span>{t.header.dashboard}</span>
               </button>
             )}
             {user?.roleName !== "Host" && user?.roleName !== "Admin" && (
@@ -208,7 +213,7 @@ const NavMobile: React.FC<NavMobileProps> = ({
                 className="flex items-center w-full px-4 py-2 text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"
               >
                 <DocumentTextIcon className="w-5 h-5 mr-3" />
-                <span>History Booking</span>
+                <span>{t.header.myBookings}</span>
               </button>
             )}
             <button
@@ -216,7 +221,7 @@ const NavMobile: React.FC<NavMobileProps> = ({
               className="flex items-center w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
             >
               <ArrowRightOnRectangleIcon className="w-5 h-5 mr-3" />
-              <span>Đăng xuất</span>
+              <span>{t.header.logout}</span>
             </button>
           </div>
         </div>

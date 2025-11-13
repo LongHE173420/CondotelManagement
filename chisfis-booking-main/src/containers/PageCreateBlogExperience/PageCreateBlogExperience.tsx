@@ -5,6 +5,8 @@ import ImageResize from "quill-image-resize-module-react";
 import "react-quill/dist/quill.snow.css";
 import blogAPI, { BlogCategoryDTO } from "api/blog";
 import { uploadAPI } from "api/upload";
+import { useAuth } from "contexts/AuthContext";
+import { useTranslation } from "i18n/LanguageContext";
 
 // Đăng ký module resize với Quill
 Quill.register("modules/imageResize", ImageResize);
@@ -17,8 +19,10 @@ const SidebarCard: React.FC<{ title: string; children: React.ReactNode }> = ({ t
     </div>
 );
 
-// Component Trang Thêm Bài viết
-const PageBlogAdd = () => {
+// Component Trang Tạo Blog Trải nghiệm cho User
+const PageCreateBlogExperience = () => {
+    const { isAuthenticated } = useAuth();
+    const { t } = useTranslation();
     const [title, setTitle] = useState("");
     const [content, setContent] = useState("");
     const [categoryId, setCategoryId] = useState<number | undefined>(undefined);
@@ -31,10 +35,17 @@ const PageBlogAdd = () => {
     const quillRef = useRef<ReactQuill>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
+    // Redirect if not authenticated
+    useEffect(() => {
+        if (!isAuthenticated) {
+            navigate("/login");
+        }
+    }, [isAuthenticated, navigate]);
+
     useEffect(() => {
         const loadCategories = async () => {
             try {
-                const cats = await blogAPI.adminGetCategories();
+                const cats = await blogAPI.getCategories();
                 setCategories(cats);
             } catch (err) {
                 console.error("Failed to load categories:", err);
@@ -43,7 +54,7 @@ const PageBlogAdd = () => {
         loadCategories();
     }, []);
 
-    // Image upload handler - ĐÃ SỬA
+    // Image upload handler
     const imageHandler = useCallback(() => {
         const input = document.createElement('input');
         input.setAttribute('type', 'file');
@@ -61,10 +72,7 @@ const PageBlogAdd = () => {
                     const range = editor?.getSelection();
 
                     if (range && editor) {
-                        // Chèn ảnh
                         editor.insertEmbed(range.index, 'image', imageUrl);
-
-                        // QUAN TRỌNG: Di chuyển cursor xuống sau ảnh
                         setTimeout(() => {
                             editor.setSelection(range.index + 1, 0);
                         }, 100);
@@ -75,70 +83,63 @@ const PageBlogAdd = () => {
         };
     }, []);
 
-    // Video handler - ĐÃ SỬA HOÀN TOÀN
-    // Video handler - THAY THẾ HOÀN TOÀN PHẦN NÀY
-const videoHandler = useCallback(() => {
-  const url = prompt('Nhập URL video (YouTube, Vimeo...):');
-  
-  if (!url) return;
+    // Video handler
+    const videoHandler = useCallback(() => {
+        const url = prompt('Nhập URL video (YouTube, Vimeo...):');
+        
+        if (!url) return;
 
-  const editor = quillRef.current?.getEditor();
-  const range = editor?.getSelection();
-  
-  if (range && editor) {
-    let embedUrl = '';
-    let videoTitle = 'Video nhúng';
+        const editor = quillRef.current?.getEditor();
+        const range = editor?.getSelection();
+        
+        if (range && editor) {
+            let embedUrl = '';
+            let videoTitle = 'Video nhúng';
 
-    // Xử lý YouTube URL - SỬA LỖI Ở ĐÂY
-    if (url.includes('youtube.com') || url.includes('youtu.be')) {
-      const videoId = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^#&?]{11})/)?.[1];
-      if (videoId) {
-        embedUrl = `https://www.youtube.com/embed/${videoId}`;
-        videoTitle = 'YouTube Video';
-      }
-    }
-    // Xử lý Vimeo URL
-    else if (url.includes('vimeo.com')) {
-      const videoId = url.match(/vimeo\.com\/(\d+)/)?.[1];
-      if (videoId) {
-        embedUrl = `https://player.vimeo.com/video/${videoId}`;
-        videoTitle = 'Vimeo Video';
-      }
-    }
+            if (url.includes('youtube.com') || url.includes('youtu.be')) {
+                const videoId = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^#&?]{11})/)?.[1];
+                if (videoId) {
+                    embedUrl = `https://www.youtube.com/embed/${videoId}`;
+                    videoTitle = 'YouTube Video';
+                }
+            } else if (url.includes('vimeo.com')) {
+                const videoId = url.match(/vimeo\.com\/(\d+)/)?.[1];
+                if (videoId) {
+                    embedUrl = `https://player.vimeo.com/video/${videoId}`;
+                    videoTitle = 'Vimeo Video';
+                }
+            }
 
-    if (!embedUrl) {
-      alert('Không thể xử lý URL video này. Vui lòng kiểm tra lại.');
-      return;
-    }
+            if (!embedUrl) {
+                alert('Không thể xử lý URL video này. Vui lòng kiểm tra lại.');
+                return;
+            }
 
-    // Tạo HTML cho video embed
-    const videoHtml = `
-      <div class="video-embed-wrapper">
-        <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; border-radius: 8px; background: #000;">
-          <iframe 
-            src="${embedUrl}"
-            style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;"
-            allowfullscreen
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            title="${videoTitle}"
-          ></iframe>
-        </div>
-        <div style="text-align: center; margin-top: 8px; font-size: 14px; color: #666;">
-          📺 ${videoTitle}
-        </div>
-      </div>
-      <p><br></p>
-    `;
+            const videoHtml = `
+                <div class="video-embed-wrapper">
+                    <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; border-radius: 8px; background: #000;">
+                        <iframe 
+                            src="${embedUrl}"
+                            style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;"
+                            allowfullscreen
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            title="${videoTitle}"
+                        ></iframe>
+                    </div>
+                    <div style="text-align: center; margin-top: 8px; font-size: 14px; color: #666;">
+                        📺 ${videoTitle}
+                    </div>
+                </div>
+                <p><br></p>
+            `;
 
-    // Chèn video vào editor
-    editor.clipboard.dangerouslyPasteHTML(range.index, videoHtml);
-    
-    // Di chuyển cursor xuống sau video
-    setTimeout(() => {
-      editor.setSelection(range.index + 2, 0);
-    }, 100);
-  }
-}, []);
+            editor.clipboard.dangerouslyPasteHTML(range.index, videoHtml);
+            
+            setTimeout(() => {
+                editor.setSelection(range.index + 2, 0);
+            }, 100);
+        }
+    }, []);
 
     // Link handler
     const linkHandler = useCallback(() => {
@@ -163,7 +164,7 @@ const videoHandler = useCallback(() => {
         }
     }, []);
 
-    // Cấu hình modules - ĐÃ SỬA
+    // Cấu hình modules
     const modules = {
         toolbar: {
             container: [
@@ -219,6 +220,7 @@ const videoHandler = useCallback(() => {
             URL.revokeObjectURL(featuredImage);
         }
         setFeaturedImage(null);
+        setFeaturedImageFile(null);
         if (fileInputRef.current) {
             fileInputRef.current.value = '';
         }
@@ -248,8 +250,8 @@ const videoHandler = useCallback(() => {
                 }
             }
 
-            // Create post
-            await blogAPI.adminCreatePost({
+            // Create post using user endpoint
+            await blogAPI.createPost({
                 title,
                 content,
                 featuredImageUrl,
@@ -257,8 +259,8 @@ const videoHandler = useCallback(() => {
                 categoryId,
             });
 
-            alert("Đã thêm bài viết thành công!");
-            navigate("/manage-blog");
+            alert("Đã tạo bài viết thành công!");
+            navigate("/blog");
         } catch (err: any) {
             console.error("Failed to create post:", err);
             alert(err.response?.data?.message || "Không thể tạo bài viết. Vui lòng thử lại.");
@@ -267,7 +269,7 @@ const videoHandler = useCallback(() => {
         }
     };
 
-    // CSS đã sửa
+    // CSS styles
     const resizeStyles = `
     .ql-toolbar.ql-snow {
       position: sticky;
@@ -300,25 +302,26 @@ const videoHandler = useCallback(() => {
       border-radius: 8px;
       cursor: pointer;
     }
-    /* CSS CHO VIDEO RESPONSIVE */
     .ql-editor .ql-video {
       display: block;
-      max-width: 100%;     /* Chiếm 100% chiều rộng */
+      max-width: 100%;
       width: 100%;
       height: auto;
-      aspect-ratio: 16 / 9; /* Giữ tỷ lệ 16:9 */
+      aspect-ratio: 16 / 9;
       margin: 20px 0;
       border-radius: 8px;
     }
-    /* Đảm bảo có thể gõ text sau ảnh/video */
     .ql-editor p {
       margin-bottom: 1em;
     }
-    /* Style cho image resize */
     .ql-image-resize {
       cursor: move;
     }
   `;
+
+    if (!isAuthenticated) {
+        return null;
+    }
 
     return (
         <div className="p-4 md:p-8 bg-gray-50 min-h-screen">
@@ -326,15 +329,18 @@ const videoHandler = useCallback(() => {
 
             <form onSubmit={handleSubmit}>
                 <div className="mb-4">
-                    <Link to="/manage-blog" className="text-sm text-blue-600 hover:underline">
-                        &larr; Quay lại danh sách
+                    <Link to="/blog" className="text-sm text-blue-600 hover:underline">
+                        &larr; Quay lại blog
                     </Link>
                 </div>
 
+                <div className="mb-6">
+                    <h1 className="text-3xl font-bold text-gray-900">Chia sẻ trải nghiệm của bạn</h1>
+                    <p className="text-gray-600 mt-2">Viết về những trải nghiệm du lịch, nghỉ dưỡng tuyệt vời của bạn</p>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-
                     <div className="md:col-span-8 lg:col-span-9 space-y-6">
-
                         <div className="bg-white p-6 rounded-lg shadow-md">
                             <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
                                 Tiêu đề bài viết
@@ -344,7 +350,7 @@ const videoHandler = useCallback(() => {
                                 id="title"
                                 value={title}
                                 onChange={(e) => setTitle(e.target.value)}
-                                placeholder="Nhập tiêu đề tại đây..."
+                                placeholder="Ví dụ: Trải nghiệm tuyệt vời tại Đà Lạt..."
                                 className="w-full px-4 py-2 border border-gray-300 rounded-md"
                                 required
                             />
@@ -362,7 +368,7 @@ const videoHandler = useCallback(() => {
                                     onChange={setContent}
                                     modules={modules}
                                     formats={formats}
-                                    placeholder="Viết nội dung bài viết của bạn tại đây..."
+                                    placeholder="Chia sẻ trải nghiệm của bạn tại đây..."
                                 />
                             </div>
                             <div className="px-6 pb-4 text-sm text-gray-500">
@@ -375,7 +381,6 @@ const videoHandler = useCallback(() => {
                     </div>
 
                     <div className="md:col-span-4 lg:col-span-3 space-y-6">
-
                         <SidebarCard title="Xuất bản">
                             <div className="space-y-3">
                                 <label htmlFor="status" className="block text-sm font-medium text-gray-700">
@@ -393,7 +398,7 @@ const videoHandler = useCallback(() => {
                                 <button
                                     type="submit"
                                     disabled={isLoading}
-                                    className="w-full px-4 py-2 bg-gray-800 text-white rounded-md hover:bg-gray-700 disabled:bg-gray-400"
+                                    className="w-full px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:bg-gray-400"
                                 >
                                     {isLoading ? "Đang lưu..." : status === "Published" ? "Xuất bản" : "Lưu bản nháp"}
                                 </button>
@@ -463,7 +468,6 @@ const videoHandler = useCallback(() => {
                                 </button>
                             )}
                         </SidebarCard>
-
                     </div>
                 </div>
             </form>
@@ -471,4 +475,5 @@ const videoHandler = useCallback(() => {
     );
 };
 
-export default PageBlogAdd;
+export default PageCreateBlogExperience;
+

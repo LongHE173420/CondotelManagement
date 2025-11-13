@@ -52,6 +52,26 @@ const CommonLayout: FC<CommonLayoutProps> = ({ children }) => {
             >
               Change Billing
             </NavLink>
+            <NavLink
+              to="/account-rewards"
+              className={({ isActive }) =>
+                `block py-5 md:py-8 border-b-2 flex-shrink-0 ${
+                  isActive ? "border-transparent" : "border-primary-500"
+                }`
+              }
+            >
+              Điểm thưởng
+            </NavLink>
+            <NavLink
+              to="/account-vouchers"
+              className={({ isActive }) =>
+                `block py-5 md:py-8 border-b-2 flex-shrink-0 ${
+                  isActive ? "border-transparent" : "border-primary-500"
+                }`
+              }
+            >
+              Mã giảm giá
+            </NavLink>
           </div>
         </div>
       </div>

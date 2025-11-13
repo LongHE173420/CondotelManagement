@@ -30,7 +30,7 @@ const HostPromotionPage: React.FC<HostPromotionPageProps> = ({ className = "" })
     setLoading(true);
     setError("");
     try {
-      const condotelsData = await condotelAPI.getAll();
+      const condotelsData = await condotelAPI.getAllForHost();
       // Load promotions từ condotel API
       let promotionsData: PromotionDTO[] = [];
       try {

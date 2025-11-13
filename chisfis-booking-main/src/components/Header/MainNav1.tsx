@@ -6,6 +6,7 @@ import MenuBar from "shared/MenuBar/MenuBar";
 import SwitchDarkMode from "shared/SwitchDarkMode/SwitchDarkMode";
 import HeroSearchForm2MobileFactory from "components/HeroSearchForm2Mobile/HeroSearchForm2MobileFactory";
 import AvatarDropdown from "./AvatarDropdown";
+import LangDropdown from "./LangDropdown";
 
 export interface MainNav1Props {
   className?: string;
@@ -27,12 +28,14 @@ const MainNav1: FC<MainNav1Props> = ({ className = "" }) => {
         <div className="hidden md:flex flex-shrink-0 items-center justify-end flex-1 lg:flex-none text-neutral-700 dark:text-neutral-100">
           <div className="hidden xl:flex items-center space-x-0.5">
             <SwitchDarkMode />
+            <LangDropdown />
             <SearchDropdown />
             <div className="px-1" />
             <AvatarDropdown />
           </div>
           <div className="flex xl:hidden items-center space-x-2">
             <SwitchDarkMode />
+            <LangDropdown />
             <AvatarDropdown />
             <div className="px-0.5" />
             <MenuBar />

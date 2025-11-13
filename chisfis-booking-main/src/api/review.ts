@@ -9,6 +9,9 @@ export interface ReviewDTO {
   comment?: string;
   createdAt?: string;
   updatedAt?: string;
+  // Thông tin customer nếu backend trả về
+  customerName?: string;
+  customerImageUrl?: string;
 }
 
 export interface CreateReviewDTO {
@@ -181,6 +184,45 @@ export const reviewAPI = {
       `/tenant/reviews/can-review/${bookingId}`
     );
     return response.data;
+  },
+
+  // GET /api/tenant/reviews/condotel/{condotelId} - Lấy tất cả reviews của một condotel (public)
+  getReviewsByCondotel: async (
+    condotelId: number,
+    query?: ReviewQueryDTO
+  ): Promise<ReviewListResponse> => {
+    const params: any = {};
+    if (query?.page) params.page = query.page;
+    if (query?.pageSize) params.pageSize = query.pageSize;
+    if (query?.rating) params.rating = query.rating;
+    if (query?.sortBy) params.sortBy = query.sortBy;
+
+    const response = await axiosClient.get<any>(`/tenant/reviews/condotel/${condotelId}`, { params });
+    const data = response.data;
+
+    // Normalize response
+    const reviews = (data.data || data || []).map((item: any) => ({
+      reviewId: item.ReviewId || item.reviewId,
+      bookingId: item.BookingId || item.bookingId,
+      rating: item.Rating || item.rating,
+      title: item.Title || item.title,
+      comment: item.Comment || item.comment,
+      createdAt: item.CreatedAt || item.createdAt,
+      updatedAt: item.UpdatedAt || item.updatedAt,
+      customerName: item.CustomerName || item.customerName,
+      customerImageUrl: item.CustomerImageUrl || item.customerImageUrl,
+    }));
+
+    return {
+      success: data.success !== undefined ? data.success : true,
+      data: reviews,
+      pagination: data.pagination || {
+        page: query?.page || 1,
+        pageSize: query?.pageSize || 10,
+        totalCount: reviews.length,
+        totalPages: 1,
+      },
+    };
   },
 };
 

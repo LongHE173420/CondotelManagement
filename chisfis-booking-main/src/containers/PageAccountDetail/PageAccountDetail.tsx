@@ -2,9 +2,6 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { adminAPI, AdminUserDTO, AdminUpdateUserDTO } from "api/admin";
 
-type UserRole = "Owner" | "Tenant" | "Admin";
-type UserStatus = "Active" | "Inactive";
-
 
 interface FormInputProps {
   label: string;

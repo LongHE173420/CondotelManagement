@@ -135,7 +135,12 @@ const SiteHeader = () => {
     );
   };
 
+  // Ẩn control panel trong production
   const renderControlSelections = () => {
+    // Chỉ hiển thị trong development mode
+    if (process.env.NODE_ENV === "production") {
+      return null;
+    }
     return (
       <div className="relative z-40 hidden lg:block">
         <div className="fixed right-3 top-1/4 z-40 flex items-center">

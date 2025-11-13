@@ -1,6 +1,7 @@
 import { Tab } from "@headlessui/react";
 import { PencilSquareIcon } from "@heroicons/react/24/outline";
-import React, { FC, Fragment, useState } from "react";
+import React, { FC, Fragment, useState, useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import visaPng from "images/vis.png";
 import mastercardPng from "images/mastercard.svg";
 import Input from "shared/Input/Input";
@@ -21,59 +22,112 @@ export interface CheckOutPageProps {
   className?: string;
 }
 
+interface CheckoutState {
+  condotelId?: number;
+  condotelName?: string;
+  condotelImageUrl?: string;
+  pricePerNight?: number;
+  startDate?: string;
+  endDate?: string;
+  guests?: GuestsObject;
+  nights?: number;
+}
+
 const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
-  const [rangeDates, setRangeDates] = useState<DateRage>({
-    startDate: moment().add(1, "day"),
-    endDate: moment().add(5, "days"),
+  const location = useLocation();
+  const navigate = useNavigate();
+  const state = location.state as CheckoutState | null;
+
+  // Initialize dates from state or default
+  const [rangeDates, setRangeDates] = useState<DateRage>(() => {
+    if (state?.startDate && state?.endDate) {
+      return {
+        startDate: moment(state.startDate),
+        endDate: moment(state.endDate),
+      };
+    }
+    return {
+      startDate: moment().add(1, "day"),
+      endDate: moment().add(5, "days"),
+    };
   });
-  const [guests, setGuests] = useState<GuestsObject>({
-    guestAdults: 2,
-    guestChildren: 1,
-    guestInfants: 1,
+
+  // Initialize guests from state or default
+  const [guests, setGuests] = useState<GuestsObject>(() => {
+    return state?.guests || {
+      guestAdults: 2,
+      guestChildren: 1,
+      guestInfants: 1,
+    };
   });
+
+  // Redirect if no state (user came directly to checkout without selecting condotel)
+  useEffect(() => {
+    if (!state || !state.condotelId) {
+      // Optionally redirect to listing page
+      // navigate("/listing-stay");
+    }
+  }, [state, navigate]);
 
   const renderSidebar = () => {
+    // Calculate nights and total price
+    const nights = state?.nights || (rangeDates.startDate && rangeDates.endDate
+      ? rangeDates.endDate.diff(rangeDates.startDate, "days")
+      : 0);
+    const pricePerNight = state?.pricePerNight || 0;
+    const totalPrice = nights * pricePerNight;
+
     return (
       <div className="w-full flex flex-col sm:rounded-2xl lg:border border-neutral-200 dark:border-neutral-700 space-y-6 sm:space-y-8 px-0 sm:p-6 xl:p-8">
-        <div className="flex flex-col sm:flex-row sm:items-center">
-          <div className="flex-shrink-0 w-full sm:w-40">
-            <div className=" aspect-w-4 aspect-h-3 sm:aspect-h-4 rounded-2xl overflow-hidden">
-              <NcImage src="https://images.pexels.com/photos/6373478/pexels-photo-6373478.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940" />
+        {state?.condotelId ? (
+          <>
+            <div className="flex flex-col sm:flex-row sm:items-center">
+              <div className="flex-shrink-0 w-full sm:w-40">
+                <div className=" aspect-w-4 aspect-h-3 sm:aspect-h-4 rounded-2xl overflow-hidden">
+                  <NcImage 
+                    src={state.condotelImageUrl || "https://images.pexels.com/photos/6373478/pexels-photo-6373478.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940"} 
+                    alt={state.condotelName}
+                  />
+                </div>
+              </div>
+              <div className="py-5 sm:px-5 space-y-3">
+                <div>
+                  <span className="text-sm text-neutral-500 dark:text-neutral-400 line-clamp-1">
+                    Condotel
+                  </span>
+                  <span className="text-base font-medium mt-1 block">
+                    {state.condotelName || "Căn hộ"}
+                  </span>
+                </div>
+                <div className="w-10 border-b border-neutral-200  dark:border-neutral-700"></div>
+                <StartRating />
+              </div>
             </div>
-          </div>
-          <div className="py-5 sm:px-5 space-y-3">
-            <div>
-              <span className="text-sm text-neutral-500 dark:text-neutral-400 line-clamp-1">
-                Hotel room in Tokyo, Jappan
-              </span>
-              <span className="text-base font-medium mt-1 block">
-                The Lounge & Bar
-              </span>
-            </div>
-            <span className="block  text-sm text-neutral-500 dark:text-neutral-400">
-              2 beds · 2 baths
-            </span>
-            <div className="w-10 border-b border-neutral-200  dark:border-neutral-700"></div>
-            <StartRating />
-          </div>
-        </div>
-        <div className="flex flex-col space-y-4">
-          <h3 className="text-2xl font-semibold">Price detail</h3>
-          <div className="flex justify-between text-neutral-6000 dark:text-neutral-300">
-            <span>$19 x 3 day</span>
-            <span>$57</span>
-          </div>
-          <div className="flex justify-between text-neutral-6000 dark:text-neutral-300">
-            <span>Service charge</span>
-            <span>$0</span>
-          </div>
+            <div className="flex flex-col space-y-4">
+              <h3 className="text-2xl font-semibold">Chi tiết giá</h3>
+              {nights > 0 && pricePerNight > 0 && (
+                <div className="flex justify-between text-neutral-6000 dark:text-neutral-300">
+                  <span>{pricePerNight.toLocaleString()} đ x {nights} đêm</span>
+                  <span>{(pricePerNight * nights).toLocaleString()} đ</span>
+                </div>
+              )}
+              <div className="flex justify-between text-neutral-6000 dark:text-neutral-300">
+                <span>Phí dịch vụ</span>
+                <span>0 đ</span>
+              </div>
 
-          <div className="border-b border-neutral-200 dark:border-neutral-700"></div>
-          <div className="flex justify-between font-semibold">
-            <span>Total</span>
-            <span>$57</span>
+              <div className="border-b border-neutral-200 dark:border-neutral-700"></div>
+              <div className="flex justify-between font-semibold">
+                <span>Tổng cộng</span>
+                <span>{totalPrice > 0 ? totalPrice.toLocaleString() : "0"} đ</span>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="text-center py-8 text-neutral-500">
+            <p>Vui lòng chọn căn hộ để đặt phòng</p>
           </div>
-        </div>
+        )}
       </div>
     );
   };

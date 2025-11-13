@@ -3,14 +3,17 @@ import { Helmet } from "react-helmet";
 import { useAuth } from "contexts/AuthContext";
 import { Navigate, useSearchParams } from "react-router-dom";
 import { adminDashboardAPI, DashboardOverview, TopCondotel, TenantAnalytics } from "api/adminDashboard";
+import { adminAPI } from "api/admin";
 import PageAccountList from "containers/PageAccountList/PageAccountList";
 import AccountPage from "containers/AccountPage/AccountPage";
+import PageBlogList from "containers/PageManageBlog/PageBlogList";
+import { Link } from "react-router-dom";
 
 export interface AdminPageProps {
   className?: string;
 }
 
-type AdminTab = "dashboard" | "accounts" | "profile";
+type AdminTab = "dashboard" | "accounts" | "profile" | "blog";
 
 const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
   const { isAdmin, isLoading } = useAuth();
@@ -20,7 +23,7 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
 
   // Sync tab with URL
   useEffect(() => {
-    if (tabParam && ["dashboard", "accounts", "profile"].includes(tabParam)) {
+    if (tabParam && ["dashboard", "accounts", "profile", "blog"].includes(tabParam)) {
       setActiveTab(tabParam);
     }
   }, [tabParam]);
@@ -42,13 +45,29 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
         setError("");
 
         try {
-          const [overviewData, topData, analyticsData] = await Promise.all([
+          const [overviewData, topData, analyticsData, allUsers] = await Promise.all([
             adminDashboardAPI.getOverview(),
             adminDashboardAPI.getTopCondotels(),
             adminDashboardAPI.getTenantAnalytics(),
+            adminAPI.getAllUsers().catch(() => []), // Fallback: get users to count tenants
           ]);
 
-          setOverview(overviewData);
+          // Nếu totalTenants = 0, tính lại từ danh sách users
+          let finalOverview = overviewData;
+          if (overviewData.totalTenants === 0 && allUsers.length > 0) {
+            const tenantCount = allUsers.filter(
+              (user) => user.roleName === "Tenant" && (user.status === "Active" || user.status === "Hoạt động")
+            ).length;
+            
+            if (tenantCount > 0) {
+              finalOverview = {
+                ...overviewData,
+                totalTenants: tenantCount,
+              };
+            }
+          }
+
+          setOverview(finalOverview);
           setTopCondotels(topData);
           setTenantAnalytics(analyticsData);
         } catch (err: any) {
@@ -177,6 +196,16 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
               Quản lý Tài khoản
             </button>
             <button
+              onClick={() => handleTabChange("blog")}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === "blog"
+                  ? "border-primary-500 text-primary-600"
+                  : "border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300"
+              }`}
+            >
+              Quản lý Blog
+            </button>
+            <button
               onClick={() => handleTabChange("profile")}
               className={`py-4 px-1 border-b-2 font-medium text-sm ${
                 activeTab === "profile"
@@ -217,12 +246,29 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
                     setLoading(true);
                     setError("");
                     try {
-                      const [overviewData, topData, analyticsData] = await Promise.all([
+                      const [overviewData, topData, analyticsData, allUsers] = await Promise.all([
                         adminDashboardAPI.getOverview(),
                         adminDashboardAPI.getTopCondotels(),
                         adminDashboardAPI.getTenantAnalytics(),
+                        adminAPI.getAllUsers().catch(() => []), // Fallback
                       ]);
-                      setOverview(overviewData);
+
+                      // Nếu totalTenants = 0, tính lại từ danh sách users
+                      let finalOverview = overviewData;
+                      if (overviewData.totalTenants === 0 && allUsers.length > 0) {
+                        const tenantCount = allUsers.filter(
+                          (user) => user.roleName === "Tenant" && (user.status === "Active" || user.status === "Hoạt động")
+                        ).length;
+                        
+                        if (tenantCount > 0) {
+                          finalOverview = {
+                            ...overviewData,
+                            totalTenants: tenantCount,
+                          };
+                        }
+                      }
+
+                      setOverview(finalOverview);
                       setTopCondotels(topData);
                       setTenantAnalytics(analyticsData);
                     } catch (err: any) {
@@ -257,6 +303,36 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
         {/* Tab Content */}
         {activeTab === "accounts" ? (
           <PageAccountList />
+        ) : activeTab === "blog" ? (
+          <div className="space-y-6">
+            <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg p-6">
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h2 className="text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
+                    Quản lý Blog
+                  </h2>
+                  <p className="text-neutral-600 dark:text-neutral-400 mt-1">
+                    Quản lý bài viết và danh mục blog
+                  </p>
+                </div>
+                <div className="flex gap-3">
+                  <Link
+                    to="/manage-blog/categories"
+                    className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
+                  >
+                    Quản lý Danh mục
+                  </Link>
+                  <Link
+                    to="/manage-blog/add"
+                    className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors"
+                  >
+                    + Thêm bài viết
+                  </Link>
+                </div>
+              </div>
+              <PageBlogList />
+            </div>
+          </div>
         ) : activeTab === "profile" ? (
           <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg p-6 md:p-8">
             <div className="mb-6">

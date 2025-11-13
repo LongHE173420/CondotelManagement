@@ -6,7 +6,6 @@ import { Helmet } from "react-helmet";
 import Input from "shared/Input/Input";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
 import { Link, useNavigate } from "react-router-dom";
-import axiosClient from "api/axiosClient";
 import { authAPI } from "api/auth";
 
 // Kiểu lỗi Axios
@@ -41,11 +40,12 @@ const PageSignUp: FC<PageSignUpProps> = ({ className = "" }) => {
     address: "",
   });
 
-  const [step, setStep] = useState<"form" | "otp">("form");
+  const [step, setStep] = useState<"form" | "verify">("form");
   const [otp, setOtp] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [sendingOtp, setSendingOtp] = useState(false);
+  const [registering, setRegistering] = useState(false);
+  const [verifying, setVerifying] = useState(false);
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [termsError, setTermsError] = useState("");
 
@@ -56,10 +56,11 @@ const PageSignUp: FC<PageSignUpProps> = ({ className = "" }) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // Bước 1: Gửi OTP khi submit form
-  const handleSendOTP = async (e: React.FormEvent) => {
+  // Bước 1: Đăng ký tài khoản
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setSuccessMessage("");
     setTermsError("");
 
     // Validate terms acceptance
@@ -74,94 +75,114 @@ const PageSignUp: FC<PageSignUpProps> = ({ className = "" }) => {
       return;
     }
 
-    setSendingOtp(true);
+    // Validate password
+    if (formData.password.length < 6) {
+      setError("Mật khẩu phải có ít nhất 6 ký tự!");
+      return;
+    }
+
+    setRegistering(true);
 
     try {
-      // Gửi OTP đến email
-      await authAPI.sendOTP({ email: formData.email });
-      setStep("otp");
+      // Đăng ký tài khoản - backend sẽ gửi OTP đến email
+      const response = await authAPI.register({
+        email: formData.email,
+        password: formData.password,
+        fullName: formData.fullName,
+        phone: formData.phone || undefined,
+        gender: formData.gender || undefined,
+        dateOfBirth: formData.dateOfBirth || undefined,
+        address: formData.address || undefined,
+      });
+      
+      // Backend trả về message yêu cầu verify email
+      setSuccessMessage(response.message || "Đăng ký thành công! Vui lòng kiểm tra email để lấy mã OTP.");
+      setStep("verify");
       setError("");
     } catch (error: unknown) {
       if (isAxiosError(error)) {
         const status = error.response?.status;
         const message = error.response?.data?.message || error.response?.data?.error;
         if (status === 400) {
-          setError(message || "Email không hợp lệ hoặc đã tồn tại!");
+          setError(message || "Email đã tồn tại hoặc dữ liệu không hợp lệ!");
         } else {
-          setError(message || "Không thể gửi OTP. Vui lòng thử lại sau.");
+          setError(message || "Không thể đăng ký. Vui lòng thử lại sau.");
         }
       } else {
         console.error(error);
         setError("Đã xảy ra lỗi không xác định!");
       }
     } finally {
-      setSendingOtp(false);
+      setRegistering(false);
     }
   };
 
-  // Bước 2: Xác thực OTP và đăng ký
-  const handleVerifyOTPAndRegister = async (e: React.FormEvent) => {
+  // Bước 2: Xác thực email với OTP
+  const handleVerifyEmail = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setSuccessMessage("");
 
     if (otp.length !== 6) {
       setError("Mã OTP phải có 6 chữ số.");
       return;
     }
 
-    setLoading(true);
+    setVerifying(true);
 
     try {
-      // Thử verify OTP trước
-      try {
-        await axiosClient.post("/Auth/verify-otp", {
-          email: formData.email,
-          otp: otp,
-        });
-        console.log("✅ OTP verified successfully");
-      } catch (verifyErr: any) {
-        // Nếu endpoint verify-otp không tồn tại, tiếp tục với đăng ký
-        if (verifyErr.response?.status === 404 || verifyErr.response?.status === 405) {
-          console.log("ℹ️ Verify OTP endpoint not found, proceeding with register");
-        } else {
-          // OTP sai hoặc đã hết hạn
-          const message = verifyErr.response?.data?.message || verifyErr.response?.data?.error;
-          setError(message || "Mã OTP không đúng hoặc đã hết hạn!");
-          setLoading(false);
-          return;
-        }
-      }
-
-      // Đăng ký với OTP đã xác thực
-      const registerData = {
+      // Xác thực email với OTP
+      const response = await authAPI.verifyEmail({
         email: formData.email,
-        password: formData.password,
-        fullName: formData.fullName,
-        phone: formData.phone || undefined,
-        otp: otp, // Gửi OTP cùng với dữ liệu đăng ký
-        gender: formData.gender || undefined,
-        dateOfBirth: formData.dateOfBirth || undefined,
-        address: formData.address || undefined,
-      };
-
-      await authAPI.register(registerData);
-      alert("🎉 Đăng ký thành công! Vui lòng đăng nhập.");
+        otp: otp,
+      });
+      
+      // Verify thành công
+      alert("✅ " + (response.message || "Email đã được xác thực thành công! Bạn có thể đăng nhập ngay bây giờ."));
       navigate("/login");
     } catch (error: unknown) {
       if (isAxiosError(error)) {
         const status = error.response?.status;
         const message = error.response?.data?.message || error.response?.data?.error;
         if (status === 400) {
-          setError(message || "Email đã tồn tại, OTP không đúng hoặc dữ liệu không hợp lệ!");
+          setError(message || "Mã OTP không đúng hoặc đã hết hạn. Vui lòng thử lại!");
         } else {
-          setError(message || "Lỗi máy chủ. Vui lòng thử lại sau.");
+          setError(message || "Không thể xác thực email. Vui lòng thử lại sau.");
         }
       } else {
         console.error(error);
         setError("Đã xảy ra lỗi không xác định!");
       }
     } finally {
-      setLoading(false);
+      setVerifying(false);
+    }
+  };
+
+  // Gửi lại OTP
+  const handleResendOTP = async () => {
+    setError("");
+    setSuccessMessage("");
+    
+    try {
+      // Gọi lại register để gửi OTP mới
+      await authAPI.register({
+        email: formData.email,
+        password: formData.password,
+        fullName: formData.fullName,
+        phone: formData.phone || undefined,
+        gender: formData.gender || undefined,
+        dateOfBirth: formData.dateOfBirth || undefined,
+        address: formData.address || undefined,
+      });
+      
+      setSuccessMessage("Đã gửi lại mã OTP. Vui lòng kiểm tra email!");
+    } catch (error: unknown) {
+      if (isAxiosError(error)) {
+        const message = error.response?.data?.message || error.response?.data?.error;
+        setError(message || "Không thể gửi lại OTP. Vui lòng thử lại sau.");
+      } else {
+        setError("Đã xảy ra lỗi không xác định!");
+      }
     }
   };
 
@@ -212,7 +233,7 @@ const PageSignUp: FC<PageSignUpProps> = ({ className = "" }) => {
           {step === "form" ? (
           <form
             className="grid grid-cols-1 gap-5"
-            onSubmit={handleSendOTP}
+            onSubmit={handleRegister}
             style={{ opacity: 1, visibility: "visible", display: "block" }}
           >
             <Input
@@ -325,24 +346,27 @@ const PageSignUp: FC<PageSignUpProps> = ({ className = "" }) => {
 
             <ButtonPrimary
               type="submit"
-              disabled={sendingOtp || !acceptedTerms}
+              disabled={registering || !acceptedTerms}
               className={!acceptedTerms ? "opacity-50 cursor-not-allowed" : ""}
             >
-              {sendingOtp ? "Đang gửi OTP..." : "Gửi mã OTP"}
+              {registering ? "Đang đăng ký..." : "Đăng ký"}
             </ButtonPrimary>
           </form>
           ) : (
           <form
             className="grid grid-cols-1 gap-5"
-            onSubmit={handleVerifyOTPAndRegister}
+            onSubmit={handleVerifyEmail}
             style={{ opacity: 1, visibility: "visible", display: "block" }}
           >
             <div>
               <label className="text-neutral-800 dark:text-neutral-200 font-medium">
-                Mã OTP
+                Xác thực Email
               </label>
               <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-2">
                 Chúng tôi đã gửi mã OTP đến email <strong>{formData.email}</strong>
+              </p>
+              <p className="text-sm text-green-600 dark:text-green-400 mb-3">
+                {successMessage || "Vui lòng nhập mã OTP để xác thực email của bạn."}
               </p>
               <Input
                 label="Nhập mã OTP"
@@ -353,9 +377,19 @@ const PageSignUp: FC<PageSignUpProps> = ({ className = "" }) => {
                 maxLength={6}
                 required
               />
+              <button
+                type="button"
+                onClick={handleResendOTP}
+                className="mt-2 text-sm text-primary-600 hover:text-primary-700 underline"
+              >
+                Gửi lại mã OTP
+              </button>
             </div>
 
             {error && <p className="text-red-500 text-center text-sm">{error}</p>}
+            {successMessage && !error && (
+              <p className="text-green-600 text-center text-sm">{successMessage}</p>
+            )}
 
             <div className="flex gap-3">
               <ButtonPrimary
@@ -367,10 +401,10 @@ const PageSignUp: FC<PageSignUpProps> = ({ className = "" }) => {
               </ButtonPrimary>
               <ButtonPrimary
                 type="submit"
-                disabled={loading || otp.length !== 6}
+                disabled={verifying || otp.length !== 6}
                 className="flex-1"
               >
-                {loading ? "Đang đăng ký..." : "Xác nhận và đăng ký"}
+                {verifying ? "Đang xác thực..." : "Xác thực Email"}
               </ButtonPrimary>
             </div>
           </form>

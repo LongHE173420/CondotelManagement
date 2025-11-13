@@ -1,7 +1,9 @@
 import React, { FC, useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import condotelAPI, { CondotelDetailDTO } from "api/condotel";
 import { useAuth } from "contexts/AuthContext";
+import reviewAPI, { ReviewDTO } from "api/review";
+import bookingAPI from "api/booking";
 import NcImage from "shared/NcImage/NcImage";
 import LikeSaveBtns from "./LikeSaveBtns";
 import ModalPhotos from "./ModalPhotos";
@@ -12,16 +14,21 @@ import StartRating from "components/StartRating/StartRating";
 import FiveStartIconForRate from "components/FiveStartIconForRate/FiveStartIconForRate";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
 import ButtonSecondary from "shared/Button/ButtonSecondary";
-import Input from "shared/Input/Input";
-import ButtonCircle from "shared/Button/ButtonCircle";
-import { ArrowRightIcon } from "@heroicons/react/24/outline";
 import Avatar from "shared/Avatar/Avatar";
 import MobileFooterSticky from "./MobileFooterSticky";
+import moment from "moment";
+import ModalSelectDate from "components/ModalSelectDate";
+import ModalSelectGuests from "components/ModalSelectGuests";
+import { DateRage } from "components/HeroSearchForm/StaySearchForm";
+import { GuestsObject } from "components/HeroSearchForm2Mobile/GuestsInput";
+import converSelectedDateToString from "utils/converSelectedDateToString";
+import { PencilSquareIcon } from "@heroicons/react/24/outline";
 
 
 const ListingStayDetailPage: FC = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [data, setData] = useState<CondotelDetailDTO | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>("");
@@ -29,6 +36,24 @@ const ListingStayDetailPage: FC = () => {
   const [openFocusIndex, setOpenFocusIndex] = useState(0);
   const [hostName, setHostName] = useState<string>("");
   const [hostImageUrl, setHostImageUrl] = useState<string | undefined>(undefined);
+  const [reviews, setReviews] = useState<ReviewDTO[]>([]);
+  const [reviewsLoading, setReviewsLoading] = useState<boolean>(false);
+  const [canWriteReview, setCanWriteReview] = useState<boolean>(false);
+  const [reviewableBookingId, setReviewableBookingId] = useState<number | null>(null);
+  const [averageRating, setAverageRating] = useState<number>(0);
+  const [reviewsPage, setReviewsPage] = useState<number>(1);
+  const [reviewsTotalPages, setReviewsTotalPages] = useState<number>(1);
+  const [reviewsTotalCount, setReviewsTotalCount] = useState<number>(0);
+  const [sortBy, setSortBy] = useState<string>("newest");
+  const [rangeDates, setRangeDates] = useState<DateRage>({
+    startDate: moment().add(1, "day"),
+    endDate: moment().add(5, "days"),
+  });
+  const [guests, setGuests] = useState<GuestsObject>({
+    guestAdults: 2,
+    guestChildren: 0,
+    guestInfants: 0,
+  });
 
   useEffect(() => {
     const load = async () => {
@@ -38,7 +63,8 @@ const ListingStayDetailPage: FC = () => {
           setError("Không tìm thấy ID căn hộ");
           return;
         }
-        const res = await condotelAPI.getById(Number(id));
+        const condotelId = Number(id);
+        const res = await condotelAPI.getById(condotelId);
         setData(res);
         console.log("📦 CondotelDetailDTO response:", res);
         console.log("👤 Current user:", user);
@@ -58,6 +84,14 @@ const ListingStayDetailPage: FC = () => {
           console.warn("⚠️ Backend chưa trả về hostName và không có user đang login");
           setHostName(`Host #${res.hostId}`);
         }
+
+        // Load reviews cho condotel này
+        await loadReviews(condotelId, reviewsPage, sortBy);
+
+        // Kiểm tra nếu user đã đăng nhập và có booking completed cho condotel này
+        if (user) {
+          await checkCanWriteReview(condotelId);
+        }
       } catch (e) {
         setError("Không tìm thấy thông tin căn hộ");
       } finally {
@@ -65,7 +99,83 @@ const ListingStayDetailPage: FC = () => {
       }
     };
     load();
-  }, [id]);
+  }, [id, user]);
+
+  // Reload reviews when page or sort changes
+  useEffect(() => {
+    if (id) {
+      loadReviews(Number(id), reviewsPage, sortBy);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reviewsPage, sortBy]);
+
+  const loadReviews = async (condotelId: number, page: number = 1, sort: string = "newest") => {
+    try {
+      setReviewsLoading(true);
+      const response = await reviewAPI.getReviewsByCondotel(condotelId, {
+        page,
+        pageSize: 5, // Hiển thị 5 reviews mỗi trang
+        sortBy: sort,
+      });
+      setReviews(response.data || []);
+      setReviewsTotalPages(response.pagination?.totalPages || 1);
+      setReviewsTotalCount(response.pagination?.totalCount || response.data?.length || 0);
+      
+      // Tính average rating từ tất cả reviews (cần load tất cả để tính chính xác)
+      // Hoặc dùng từ response nếu backend trả về
+      if (response.data && response.data.length > 0) {
+        const totalRating = response.data.reduce((sum, r) => sum + r.rating, 0);
+        setAverageRating(totalRating / response.data.length);
+      }
+    } catch (err: any) {
+      console.error("Error loading reviews:", err);
+      // Không set error, chỉ log - reviews có thể không có
+      setReviews([]);
+      setReviewsTotalPages(1);
+      setReviewsTotalCount(0);
+    } finally {
+      setReviewsLoading(false);
+    }
+  };
+
+  const checkCanWriteReview = async (condotelId: number) => {
+    try {
+      // Lấy tất cả bookings của user
+      const myBookings = await bookingAPI.getMyBookings();
+      
+      // Tìm booking có status "Completed" cho condotel này
+      // Chỉ cho phép review khi booking status là "Completed"
+      const completedBooking = myBookings.find(
+        (b) => {
+          const status = b.status?.toLowerCase();
+          return b.condotelId === condotelId && status === "completed";
+        }
+      );
+
+      if (completedBooking) {
+        // Kiểm tra xem booking này đã có review chưa
+        // Backend sẽ kiểm tra: user là customer của booking, booking completed, chưa review
+        const canReviewRes = await reviewAPI.canReviewBooking(completedBooking.bookingId);
+        if (canReviewRes.canReview) {
+          setCanWriteReview(true);
+          setReviewableBookingId(completedBooking.bookingId);
+        } else {
+          // Nếu không thể review (đã review rồi hoặc lý do khác), không hiển thị nút
+          setCanWriteReview(false);
+          setReviewableBookingId(null);
+        }
+      } else {
+        // Không có booking completed cho condotel này
+        setCanWriteReview(false);
+        setReviewableBookingId(null);
+      }
+    } catch (err: any) {
+      console.error("Error checking can write review:", err);
+      // Nếu lỗi, không cho phép review
+      setCanWriteReview(false);
+      setReviewableBookingId(null);
+    }
+  };
 
   const PHOTOS = (data?.images ?? []).map((i) => i.imageUrl).filter(Boolean);
 
@@ -143,34 +253,117 @@ const ListingStayDetailPage: FC = () => {
       </div>
     );
 
+  // Helper function để lấy icon cho amenity/utility
+  const getAmenityIcon = (name: string) => {
+    const nameLower = name.toLowerCase();
+    if (nameLower.includes("wifi") || nameLower.includes("internet")) {
+      return "las la-wifi";
+    } else if (nameLower.includes("parking") || nameLower.includes("đỗ xe")) {
+      return "las la-parking";
+    } else if (nameLower.includes("pool") || nameLower.includes("bể bơi")) {
+      return "las la-swimming-pool";
+    } else if (nameLower.includes("gym") || nameLower.includes("phòng gym")) {
+      return "las la-dumbbell";
+    } else if (nameLower.includes("kitchen") || nameLower.includes("bếp")) {
+      return "las la-utensils";
+    } else if (nameLower.includes("tv") || nameLower.includes("tivi")) {
+      return "las la-tv";
+    } else if (nameLower.includes("air") || nameLower.includes("điều hòa")) {
+      return "las la-wind";
+    } else if (nameLower.includes("elevator") || nameLower.includes("thang máy")) {
+      return "las la-arrow-up";
+    } else if (nameLower.includes("security") || nameLower.includes("an ninh")) {
+      return "las la-shield-alt";
+    } else if (nameLower.includes("laundry") || nameLower.includes("giặt")) {
+      return "las la-tshirt";
+    } else if (nameLower.includes("balcony") || nameLower.includes("ban công")) {
+      return "las la-home";
+    } else if (nameLower.includes("beach") || nameLower.includes("biển")) {
+      return "las la-umbrella-beach";
+    } else {
+      return "las la-check-circle";
+    }
+  };
+
+  const getUtilityIcon = (name: string) => {
+    const nameLower = name.toLowerCase();
+    if (nameLower.includes("bed") || nameLower.includes("giường")) {
+      return "las la-bed";
+    } else if (nameLower.includes("bath") || nameLower.includes("phòng tắm")) {
+      return "las la-bath";
+    } else if (nameLower.includes("sofa") || nameLower.includes("ghế")) {
+      return "las la-couch";
+    } else if (nameLower.includes("table") || nameLower.includes("bàn")) {
+      return "las la-table";
+    } else if (nameLower.includes("wardrobe") || nameLower.includes("tủ")) {
+      return "las la-archive";
+    } else if (nameLower.includes("refrigerator") || nameLower.includes("tủ lạnh")) {
+      return "las la-snowflake";
+    } else if (nameLower.includes("microwave") || nameLower.includes("lò vi sóng")) {
+      return "las la-fire";
+    } else if (nameLower.includes("washing") || nameLower.includes("máy giặt")) {
+      return "las la-tshirt";
+    } else {
+      return "las la-check";
+    }
+  };
+
   const renderAmenities = () => (
-      <div className="listingSection__wrap">
+    <div className="listingSection__wrap">
       <h2 className="text-2xl font-semibold">Tiện ích & Tiện nghi</h2>
-        <div className="w-14 border-b border-neutral-200 dark:border-neutral-700"></div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 text-sm text-neutral-700 dark:text-neutral-300 ">
+      <div className="w-14 border-b border-neutral-200 dark:border-neutral-700"></div>
+      
+      <div className="space-y-8 mt-6">
+        {/* Tiện ích */}
         <div>
-          <h4 className="font-semibold mb-2">Tiện ích</h4>
-        <div>
-            {data.amenities?.length ? (
-              data.amenities.map((a) => a.name).join(", ")
-            ) : (
-              "—"
-            )}
-                  </div>
+          <h4 className="text-lg font-semibold mb-4 text-neutral-800 dark:text-neutral-200">
+            Tiện ích
+          </h4>
+          {data.amenities && data.amenities.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {data.amenities.map((amenity) => (
+                <div
+                  key={amenity.amenityId}
+                  className="flex items-center space-x-3 p-3 rounded-lg bg-neutral-50 dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
+                >
+                  <i className={`${getAmenityIcon(amenity.name)} text-2xl text-primary-600 dark:text-primary-400`}></i>
+                  <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                    {amenity.name}
+                  </span>
                 </div>
-        <div>
-          <h4 className="font-semibold mb-2">Tiện nghi</h4>
-        <div>
-            {data.utilities?.length ? (
-              data.utilities.map((u) => u.name).join(", ")
-            ) : (
-              "—"
-            )}
+              ))}
             </div>
-          </div>
+          ) : (
+            <p className="text-neutral-500 dark:text-neutral-400">Chưa có thông tin tiện ích</p>
+          )}
+        </div>
+
+        {/* Tiện nghi */}
+        <div>
+          <h4 className="text-lg font-semibold mb-4 text-neutral-800 dark:text-neutral-200">
+            Tiện nghi
+          </h4>
+          {data.utilities && data.utilities.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {data.utilities.map((utility) => (
+                <div
+                  key={utility.utilityId}
+                  className="flex items-center space-x-3 p-3 rounded-lg bg-neutral-50 dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
+                >
+                  <i className={`${getUtilityIcon(utility.name)} text-2xl text-primary-600 dark:text-primary-400`}></i>
+                  <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                    {utility.name}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-neutral-500 dark:text-neutral-400">Chưa có thông tin tiện nghi</p>
+          )}
         </div>
       </div>
-    );
+    </div>
+  );
 
   const renderHost = () => {
     const finalHostName = hostName || data.hostName || `Host #${data.hostId}`;
@@ -200,39 +393,339 @@ const ListingStayDetailPage: FC = () => {
     );
   };
 
-  const renderReviews = () => (
+  const renderReviews = () => {
+    const reviewCount = reviewsTotalCount || reviews.length;
+    const displayRating = averageRating > 0 ? averageRating.toFixed(1) : "0.0";
+
+    return (
       <div className="listingSection__wrap">
-      <h2 className="text-2xl font-semibold">Reviews</h2>
-        <div className="w-14 border-b border-neutral-200 dark:border-neutral-700"></div>
-        <div className="space-y-5">
-          <FiveStartIconForRate iconClass="w-6 h-6" className="space-x-0.5" />
-          <div className="relative">
-          <Input fontClass="" sizeClass="h-16 px-4 py-3" rounded="rounded-3xl" placeholder="Share your thoughts ..." />
-          <ButtonCircle className="absolute right-2 top-1/2 transform -translate-y-1/2" size=" w-12 h-12 "><ArrowRightIcon className="w-5 h-5" /></ButtonCircle>
-          </div>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-2xl font-semibold">
+            Đánh giá {reviewCount > 0 && `(${reviewCount} ${reviewCount === 1 ? "đánh giá" : "đánh giá"})`}
+          </h2>
+          {reviewCount > 0 && (
+            <select
+              value={sortBy}
+              onChange={(e) => {
+                setSortBy(e.target.value);
+                setReviewsPage(1); // Reset về trang 1 khi đổi sort
+              }}
+              className="px-3 py-1.5 text-sm border border-neutral-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-800 focus:outline-none focus:ring-2 focus:ring-primary-500"
+            >
+              <option value="newest">Mới nhất</option>
+              <option value="oldest">Cũ nhất</option>
+              <option value="highest">Đánh giá cao nhất</option>
+              <option value="lowest">Đánh giá thấp nhất</option>
+            </select>
+          )}
         </div>
+        <div className="w-14 border-b border-neutral-200 dark:border-neutral-700 mb-6"></div>
+        
+        {reviewsLoading ? (
+          <div className="py-12 text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto mb-4"></div>
+            <p className="text-gray-500">Đang tải đánh giá...</p>
+          </div>
+        ) : (
+          <>
+            {reviewCount > 0 && (
+              <div className="mb-6 flex items-center space-x-4 p-4 bg-neutral-50 dark:bg-neutral-800 rounded-xl">
+                <div className="flex items-center">
+                  <span className="text-3xl font-bold text-neutral-900 dark:text-neutral-100">{displayRating}</span>
+                  <FiveStartIconForRate iconClass="w-6 h-6" className="space-x-0.5 ml-2" />
+                </div>
+                <div className="h-8 w-px bg-neutral-300 dark:bg-neutral-600"></div>
+                <div className="flex flex-col">
+                  <span className="text-sm text-neutral-600 dark:text-neutral-400">
+                    {reviewCount} {reviewCount === 1 ? "đánh giá" : "đánh giá"}
+                  </span>
+                  <span className="text-xs text-neutral-500 dark:text-neutral-500">
+                    Dựa trên {reviewCount} đánh giá
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Nút viết review cho tenant đã đặt phòng thành công */}
+            {canWriteReview && reviewableBookingId && (
+              <div className="mb-6">
+                <ButtonPrimary
+                  onClick={() => navigate(`/write-review/${reviewableBookingId}`)}
+                  className="w-full sm:w-auto"
+                >
+                  ✍️ Viết đánh giá
+                </ButtonPrimary>
+              </div>
+            )}
+
+            {/* Hiển thị danh sách reviews */}
+            {reviewCount > 0 ? (
+              <>
+                <div className="divide-y divide-neutral-100 dark:divide-neutral-800">
+                  {reviews.map((review) => (
+                    <div key={review.reviewId} className="py-6 first:pt-0">
+                      <div className="flex space-x-4">
+                        <div className="pt-0.5 flex-shrink-0">
+                          <Avatar
+                            sizeClass="h-12 w-12 text-lg"
+                            radius="rounded-full"
+                            userName={review.customerName || "Anonymous"}
+                            imgUrl={review.customerImageUrl}
+                          />
+                        </div>
+                        <div className="flex-grow min-w-0">
+                          <div className="flex justify-between items-start space-x-3 mb-2">
+                            <div className="flex flex-col min-w-0">
+                              <div className="text-base font-semibold text-neutral-900 dark:text-neutral-100">
+                                {review.customerName || "Anonymous"}
+                              </div>
+                              <span className="text-sm text-neutral-500 dark:text-neutral-400 mt-0.5">
+                                {review.createdAt
+                                  ? moment(review.createdAt).format("DD [tháng] MM, YYYY")
+                                  : "—"}
+                              </span>
+                            </div>
+                            <div className="flex text-yellow-500 flex-shrink-0">
+                              {[1, 2, 3, 4, 5].map((star) => (
+                                <svg
+                                  key={star}
+                                  className={`w-5 h-5 ${
+                                    star <= review.rating ? "fill-current" : "fill-none stroke-current stroke-1"
+                                  }`}
+                                  viewBox="0 0 20 20"
+                                  xmlns="http://www.w3.org/2000/svg"
+                                >
+                                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                </svg>
+                              ))}
+                            </div>
+                          </div>
+                          {review.title && (
+                            <h4 className="mt-2 mb-2 font-semibold text-lg text-neutral-900 dark:text-neutral-100">
+                              {review.title}
+                            </h4>
+                          )}
+                          {review.comment && (
+                            <p className="mt-2 text-neutral-700 dark:text-neutral-300 leading-relaxed whitespace-pre-wrap">
+                              {review.comment}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Pagination */}
+                {reviewsTotalPages > 1 && (
+                  <div className="mt-6 flex justify-center items-center gap-2 pt-6 border-t border-neutral-200 dark:border-neutral-700">
+                    <button
+                      onClick={() => setReviewsPage((p) => Math.max(1, p - 1))}
+                      disabled={reviewsPage === 1 || reviewsLoading}
+                      className="px-4 py-2 text-sm border border-neutral-300 dark:border-neutral-600 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+                    >
+                      Trước
+                    </button>
+                    <span className="px-4 py-2 text-sm text-neutral-600 dark:text-neutral-400">
+                      Trang {reviewsPage} / {reviewsTotalPages}
+                    </span>
+                    <button
+                      onClick={() => setReviewsPage((p) => Math.min(reviewsTotalPages, p + 1))}
+                      disabled={reviewsPage === reviewsTotalPages || reviewsLoading}
+                      className="px-4 py-2 text-sm border border-neutral-300 dark:border-neutral-600 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+                    >
+                      Sau
+                    </button>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="py-12 text-center">
+                <svg
+                  className="w-16 h-16 text-neutral-400 mx-auto mb-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"
+                  />
+                </svg>
+                <p className="text-neutral-500 dark:text-neutral-400 text-lg mb-2">
+                  {user && canWriteReview
+                    ? "Chưa có đánh giá nào. Hãy là người đầu tiên đánh giá!"
+                    : "Chưa có đánh giá nào cho căn hộ này."}
+                </p>
+                {user && canWriteReview && reviewableBookingId && (
+                  <ButtonPrimary
+                    onClick={() => navigate(`/write-review/${reviewableBookingId}`)}
+                    className="mt-4"
+                  >
+                    Viết đánh giá đầu tiên
+                  </ButtonPrimary>
+                )}
+              </div>
+            )}
+          </>
+        )}
       </div>
     );
+  };
 
-  const renderSidebar = () => (
+  const handleBooking = () => {
+    // Kiểm tra user đã đăng nhập chưa
+    if (!user) {
+      alert("Vui lòng đăng nhập để đặt phòng");
+      navigate("/login");
+      return;
+    }
+
+    // Kiểm tra đã chọn ngày chưa
+    if (!rangeDates.startDate || !rangeDates.endDate) {
+      alert("Vui lòng chọn ngày check-in và check-out");
+      return;
+    }
+
+    // Tính số đêm
+    const nights = rangeDates.endDate.diff(rangeDates.startDate, "days");
+    if (nights <= 0) {
+      alert("Ngày check-out phải sau ngày check-in");
+      return;
+    }
+
+    // Navigate đến checkout page với state
+    navigate("/checkout", {
+      state: {
+        condotelId: data.condotelId,
+        condotelName: data.name,
+        condotelImageUrl: data.images?.[0]?.imageUrl,
+        pricePerNight: data.pricePerNight,
+        startDate: rangeDates.startDate.format("YYYY-MM-DD"),
+        endDate: rangeDates.endDate.format("YYYY-MM-DD"),
+        guests: guests,
+        nights: nights,
+      },
+    });
+  };
+
+  const renderSidebar = () => {
+    // Tính số đêm
+    const nights = rangeDates.startDate && rangeDates.endDate
+      ? rangeDates.endDate.diff(rangeDates.startDate, "days")
+      : 0;
+    
+    // Tính tổng tiền
+    const totalPrice = nights > 0 && data.pricePerNight
+      ? nights * data.pricePerNight
+      : 0;
+
+    return (
       <div className="listingSectionSidebar__wrap shadow-xl">
         <div className="flex justify-between">
           <span className="text-3xl font-semibold">
-          {data.pricePerNight?.toLocaleString()} đ
-          <span className="ml-1 text-base font-normal text-neutral-500 dark:text-neutral-400">/đêm</span>
+            {data.pricePerNight?.toLocaleString()} đ
+            <span className="ml-1 text-base font-normal text-neutral-500 dark:text-neutral-400">/đêm</span>
           </span>
           <StartRating />
         </div>
-      <div className="flex flex-col space-y-4 mt-4">
-        <div className="flex justify-between text-neutral-6000 dark:text-neutral-300"><span>Giường</span><span>{data.beds}</span></div>
-        <div className="flex justify-between text-neutral-6000 dark:text-neutral-300"><span>Phòng tắm</span><span>{data.bathrooms}</span></div>
-          <div className="border-b border-neutral-200 dark:border-neutral-700"></div>
-        <div className="flex justify-between font-semibold"><span>Tổng</span><span>{data.pricePerNight?.toLocaleString()} đ</span></div>
+
+        {/* Form chọn ngày và số khách */}
+        <div className="mt-4 space-y-4">
+          {/* Chọn ngày */}
+          <div className="border border-neutral-200 dark:border-neutral-700 rounded-2xl overflow-hidden">
+            <ModalSelectDate
+              defaultValue={rangeDates}
+              onSelectDate={setRangeDates}
+              renderChildren={({ openModal }) => (
+                <button
+                  onClick={openModal}
+                  className="text-left w-full p-4 flex justify-between items-center hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+                  type="button"
+                >
+                  <div className="flex flex-col">
+                    <span className="text-sm text-neutral-400">Ngày</span>
+                    <span className="mt-1.5 text-base font-semibold">
+                      {rangeDates.startDate && rangeDates.endDate
+                        ? converSelectedDateToString(rangeDates)
+                        : "Chọn ngày check-in / check-out"}
+                    </span>
+                  </div>
+                  <PencilSquareIcon className="w-5 h-5 text-neutral-6000 dark:text-neutral-400" />
+                </button>
+              )}
+            />
           </div>
-      <ButtonPrimary className="mt-4">Đặt ngay</ButtonPrimary>
-      <ButtonSecondary className="mt-2" href="/listing-stay">Xem thêm chỗ ở</ButtonSecondary>
+
+          {/* Chọn số khách */}
+          <div className="border border-neutral-200 dark:border-neutral-700 rounded-2xl overflow-hidden">
+            <ModalSelectGuests
+              defaultValue={guests}
+              onChangeGuests={setGuests}
+              renderChildren={({ openModal }) => (
+                <button
+                  onClick={openModal}
+                  className="text-left w-full p-4 flex justify-between items-center hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+                  type="button"
+                >
+                  <div className="flex flex-col">
+                    <span className="text-sm text-neutral-400">Khách</span>
+                    <span className="mt-1.5 text-base font-semibold">
+                      {(guests.guestAdults || 0) + (guests.guestChildren || 0) + (guests.guestInfants || 0)} khách
+                      {(guests.guestAdults || 0) > 0 && ` (${guests.guestAdults} người lớn`}
+                      {(guests.guestChildren || 0) > 0 && `, ${guests.guestChildren} trẻ em`}
+                      {(guests.guestInfants || 0) > 0 && `, ${guests.guestInfants} em bé`}
+                      {(guests.guestAdults || 0) > 0 && ")"}
+                    </span>
+                  </div>
+                  <PencilSquareIcon className="w-5 h-5 text-neutral-6000 dark:text-neutral-400" />
+                </button>
+              )}
+            />
+          </div>
+        </div>
+
+        {/* Chi tiết giá */}
+        <div className="flex flex-col space-y-4 mt-4">
+          <div className="flex justify-between text-neutral-6000 dark:text-neutral-300">
+            <span>Giường</span>
+            <span>{data.beds}</span>
+          </div>
+          <div className="flex justify-between text-neutral-6000 dark:text-neutral-300">
+            <span>Phòng tắm</span>
+            <span>{data.bathrooms}</span>
+          </div>
+          {nights > 0 && (
+            <>
+              <div className="border-b border-neutral-200 dark:border-neutral-700"></div>
+              <div className="flex justify-between text-neutral-6000 dark:text-neutral-300">
+                <span>
+                  {data.pricePerNight?.toLocaleString()} đ x {nights} đêm
+                </span>
+                <span>{(data.pricePerNight || 0) * nights} đ</span>
+              </div>
+            </>
+          )}
+          <div className="border-b border-neutral-200 dark:border-neutral-700"></div>
+          <div className="flex justify-between font-semibold">
+            <span>Tổng</span>
+            <span>
+              {totalPrice > 0 ? totalPrice.toLocaleString() : data.pricePerNight?.toLocaleString()} đ
+            </span>
+          </div>
+        </div>
+
+        <ButtonPrimary className="mt-4" onClick={handleBooking}>
+          Đặt ngay
+        </ButtonPrimary>
+        <ButtonSecondary className="mt-2" href="/listing-stay">
+          Xem thêm chỗ ở
+        </ButtonSecondary>
       </div>
     );
+  };
 
   return (
     <div className={`ListingDetailPage nc-ListingStayDetailPage`} data-nc-id="ListingStayDetailPage">

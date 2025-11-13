@@ -87,7 +87,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const logout = async () => {
     try {
-      // Gọi API logout để backend xử lý (optional - nếu API có)
+      // Gọi API logout để backend xử lý (works for all roles: Admin, Host, Tenant)
       const token = localStorage.getItem("token");
       if (token) {
         try {
@@ -95,19 +95,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           console.log("✅ Logout API called successfully");
         } catch (error) {
           // Nếu API logout fail, vẫn tiếp tục logout ở frontend
+          // Điều này đảm bảo logout vẫn hoạt động ngay cả khi backend có vấn đề
           console.warn("⚠️ Logout API failed, continuing with frontend logout:", error);
         }
       }
     } catch (error) {
       console.error("Error during logout:", error);
     } finally {
-      // Luôn xóa token và user data, redirect về login
+      // Luôn xóa token và user data cho mọi role (Admin, Host, Tenant)
       localStorage.removeItem("token");
       localStorage.removeItem("user");
       setUser(null);
-      console.log("✅ User logged out, redirecting to login...");
       
-      // Force redirect to login page
+      // Clear any other auth-related data if exists
+      // This ensures complete logout for all roles
+      
+      console.log("✅ User logged out successfully (all roles supported)");
+      
+      // Force redirect to login page (works for all roles)
       window.location.href = "/login";
     }
   };

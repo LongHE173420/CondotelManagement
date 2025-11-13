@@ -21,6 +21,8 @@ import AccountPage from "containers/AccountPage/AccountPage";
 import AccountPass from "containers/AccountPage/AccountPass";
 import AccountSavelists from "containers/AccountPage/AccountSavelists";
 import AccountBilling from "containers/AccountPage/AccountBilling";
+import AccountRewards from "containers/AccountPage/AccountRewards";
+import AccountVouchers from "containers/AccountPage/AccountVouchers";
 import AdminPage from "containers/AdminPage/AdminPage";
 import ProtectedRoute from "components/ProtectedRoute/ProtectedRoute";
 import PageContact from "containers/PageContact/PageContact";
@@ -55,9 +57,12 @@ import PageEditCondotel from "containers/PageEditCondotel/PageEditCondotel";
 import PageBookingHistory from "containers/PageBookingHistory/PageBookingHistory";
 import PageBookingHistoryDetail from "containers/PageBookingHistory/PageBookingHistoryDetail";
 import PageWriteReview from "containers/PageWriteReview/PageWriteReview";
+import PageMyReviews from "containers/PageMyReviews/PageMyReviews";
 import PageBlogList from "containers/PageManageBlog/PageBlogList";
 import PageBlogAdd from "containers/PageManageBlog/PageBlogAdd";
 import PageBlogEdit from "containers/PageManageBlog/PageBlogEdit";
+import PageBlogCategory from "containers/PageManageBlog/PageBlogCategory";
+import PageCreateBlogExperience from "containers/PageCreateBlogExperience/PageCreateBlogExperience";
 
 export const pages: Page[] = [
   { path: "/", exact: true, component: PageHome },
@@ -92,6 +97,8 @@ export const pages: Page[] = [
   //
   { path: "/blog", component: BlogPage },
   { path: "/blog-single", component: BlogSingle },
+  { path: "/blog-single/:slug", component: BlogSingle },
+  { path: "/create-blog-experience", component: PageCreateBlogExperience },
   //
   { path: "/contact", component: PageContact },
   { path: "/about", component: PageAbout },
@@ -107,6 +114,8 @@ export const pages: Page[] = [
   { path: "/account-password", component: AccountPass },
   { path: "/account-savelists", component: AccountSavelists },
   { path: "/account-billing", component: AccountBilling },
+  { path: "/account-rewards", component: AccountRewards },
+  { path: "/account-vouchers", component: AccountVouchers },
   //
   { path: "/listing-stay", component: ListingStayPage },
   { path: "/listing-stay-map", component: ListingStayMapPage },
@@ -120,10 +129,12 @@ export const pages: Page[] = [
   { path: "/booking-history", component: PageBookingHistory },
   { path: "/booking-history/:id", component: PageBookingHistoryDetail },
   { path: "/write-review/:id", component: PageWriteReview },
+  { path: "/my-reviews", component: PageMyReviews },
   //
   { path: "/manage-blog", component: PageBlogList },
   { path: "/manage-blog/add", component: PageBlogAdd },
   { path: "/manage-blog/edit/:id", component: PageBlogEdit },
+  { path: "/manage-blog/categories", component: PageBlogCategory },
   //
   { path: "/subscription", component: PageSubcription },
   { path: "/host-dashboard", component: HostCondotelDashboard },

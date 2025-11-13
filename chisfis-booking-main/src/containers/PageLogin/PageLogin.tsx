@@ -1,4 +1,4 @@
-import React, { FC, useState } from "react";
+import React, { FC, useState, useEffect, useCallback } from "react";
 import facebookSvg from "images/Facebook.svg";
 import twitterSvg from "images/Twitter.svg";
 import googleSvg from "images/Google.svg";
@@ -9,6 +9,33 @@ import ButtonPrimary from "shared/Button/ButtonPrimary";
 import { useAuth } from "contexts/AuthContext";
 import { authAPI } from "api/auth";
 
+// Declare Google Identity Services types
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize: (config: {
+            client_id: string;
+            callback: (response: { credential: string }) => void;
+          }) => void;
+          renderButton: (element: HTMLElement, config: {
+            theme?: "outline" | "filled_blue" | "filled_black";
+            size?: "large" | "medium" | "small";
+            text?: "signin_with" | "signup_with" | "continue_with" | "signin";
+            shape?: "rectangular" | "pill" | "circle" | "square";
+            logo_alignment?: "left" | "center";
+            width?: string | number;
+          }) => void;
+          prompt: (momentNotification?: (notification: {
+            isNotMoment: boolean;
+          }) => void) => void;
+        };
+      };
+    };
+  }
+}
+
 export interface PageLoginProps {
   className?: string;
 }
@@ -16,8 +43,10 @@ export interface PageLoginProps {
 const loginSocials = [
   { name: "Continue with Facebook", href: "#", icon: facebookSvg },
   { name: "Continue with Twitter", href: "#", icon: twitterSvg },
-  { name: "Continue with Google", href: "#", icon: googleSvg },
 ];
+
+// Google OAuth Client ID - Cần thay bằng Client ID thực tế từ Google Cloud Console
+const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID || "";
 
 const PageLogin: FC<PageLoginProps> = ({ className = "" }) => {
   const navigate = useNavigate();
@@ -26,6 +55,144 @@ const PageLogin: FC<PageLoginProps> = ({ className = "" }) => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  // Handle Google Login
+  const handleGoogleLogin = useCallback(async (idToken: string) => {
+    setError("");
+    setGoogleLoading(true);
+
+    try {
+      // Decode Google ID token to get user info (optional - backend will verify)
+      // Backend sẽ verify token với Google Client ID từ appsettings.json
+      let email = "";
+      let fullName = "";
+      let imageUrl = "";
+      
+      try {
+        const payload = JSON.parse(atob(idToken.split('.')[1]));
+        email = payload.email || "";
+        fullName = payload.name || "";
+        imageUrl = payload.picture || "";
+        console.log("📦 Google login payload (decoded):", { email, fullName, imageUrl });
+      } catch (e) {
+        console.warn("⚠️ Could not decode Google ID token (backend will verify):", e);
+        // Continue anyway - backend will verify and extract info from token
+      }
+
+      // Send ID token to backend - backend will verify with Google Client ID from appsettings
+      const response = await authAPI.googleLogin({
+        idToken, // Backend sẽ verify token này với Google Client ID
+        email, // Optional - backend có thể lấy từ verified token
+        fullName, // Optional - backend có thể lấy từ verified token
+        imageUrl, // Optional - backend có thể lấy từ verified token
+      });
+
+      console.log("✅ Google login response:", response);
+
+      if (response.token && response.user) {
+        // Lưu token và user vào context
+        login(response.token, response.user);
+
+        // Navigate based on role
+        if (response.user.roleName === "Admin") {
+          navigate("/admin");
+        } else if (response.user.roleName === "Host") {
+          navigate("/host-dashboard");
+        } else {
+          navigate("/");
+        }
+      } else {
+        setError("Không nhận được dữ liệu từ server.");
+      }
+    } catch (error: any) {
+      console.error("Google login error:", error);
+      
+      if (error.response) {
+        // Server responded with error
+        const status = error.response.status;
+        if (status === 401) {
+          setError("Xác thực Google thất bại. Vui lòng thử lại!");
+        } else if (status === 400) {
+          setError(error.response.data?.message || "Dữ liệu không hợp lệ!");
+        } else if (status === 403) {
+          setError("Truy cập bị từ chối. Kiểm tra CORS configuration.");
+        } else if (status === 500) {
+          setError("Lỗi máy chủ. Vui lòng thử lại sau.");
+        } else {
+          setError(error.response.data?.message || `Lỗi: ${status} - ${error.response.statusText}`);
+        }
+      } else if (error.request) {
+        // Request made but no response (ERR_EMPTY_RESPONSE)
+        console.error("❌ Backend không phản hồi:", {
+          url: error.config?.url,
+          message: error.message,
+        });
+        setError("Backend không phản hồi. Kiểm tra backend có đang chạy không (http://localhost:7216/api)");
+      } else {
+        // Error setting up request
+        setError(`Không thể kết nối đến server: ${error.message}`);
+      }
+    } finally {
+      setGoogleLoading(false);
+    }
+  }, [login, navigate]);
+
+  // Initialize Google Sign-In
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID) {
+      console.warn("⚠️ Google Client ID chưa được cấu hình.");
+      console.warn("📝 Hướng dẫn:");
+      console.warn("   1. Tạo file .env trong root directory");
+      console.warn("   2. Thêm: REACT_APP_GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com");
+      console.warn("   3. Restart development server (npm start)");
+      console.warn("   Xem SETUP_GOOGLE_LOGIN.md để biết chi tiết");
+      return;
+    }
+
+    const initializeGoogleSignIn = () => {
+      if (window.google?.accounts?.id) {
+        window.google.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: (response: { credential: string }) => {
+            handleGoogleLogin(response.credential);
+          },
+        });
+
+        // Render Google Sign-In button
+        const buttonElement = document.getElementById("google-signin-button");
+        if (buttonElement && window.google.accounts.id) {
+          window.google.accounts.id.renderButton(buttonElement, {
+            theme: "outline",
+            size: "large",
+            text: "signin_with",
+            width: "100%",
+          });
+        }
+      }
+    };
+
+    // Check if script is already loaded
+    if (window.google?.accounts?.id) {
+      initializeGoogleSignIn();
+      return;
+    }
+
+    // Check if script is already in the DOM
+    const existingScript = document.querySelector('script[src="https://accounts.google.com/gsi/client"]');
+    if (existingScript) {
+      existingScript.addEventListener('load', initializeGoogleSignIn);
+      return;
+    }
+
+    // Load Google Identity Services script
+    const script = document.createElement("script");
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+    script.onload = initializeGoogleSignIn;
+    document.body.appendChild(script);
+  }, [handleGoogleLogin]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,11 +255,13 @@ const PageLogin: FC<PageLoginProps> = ({ className = "" }) => {
         <div className="max-w-md mx-auto space-y-6">
           {/* Social Login */}
           <div className="grid gap-3">
+            {/* Facebook and Twitter (disabled for now) */}
             {loginSocials.map((item, index) => (
               <a
                 key={index}
                 href={item.href}
-                className="nc-will-change-transform flex w-full rounded-lg bg-primary-50 dark:bg-neutral-800 px-4 py-3 transition-transform hover:-translate-y-0.5"
+                className="nc-will-change-transform flex w-full rounded-lg bg-primary-50 dark:bg-neutral-800 px-4 py-3 transition-transform hover:-translate-y-0.5 opacity-50 cursor-not-allowed"
+                onClick={(e) => e.preventDefault()}
               >
                 <img className="flex-shrink-0" src={item.icon} alt={item.name} />
                 <h3 className="flex-grow text-center text-sm font-medium text-neutral-700 dark:text-neutral-300">
@@ -100,6 +269,25 @@ const PageLogin: FC<PageLoginProps> = ({ className = "" }) => {
                 </h3>
               </a>
             ))}
+            
+            {/* Google Sign-In Button */}
+            {GOOGLE_CLIENT_ID ? (
+              <div className="w-full">
+                <div id="google-signin-button" className="flex justify-center"></div>
+                {googleLoading && (
+                  <p className="text-center text-sm text-neutral-500 mt-2">
+                    Đang xử lý đăng nhập Google...
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="flex w-full rounded-lg bg-neutral-100 dark:bg-neutral-800 px-4 py-3 opacity-50">
+                <img className="flex-shrink-0" src={googleSvg} alt="Google" />
+                <h3 className="flex-grow text-center text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                  Google Login (Chưa cấu hình)
+                </h3>
+              </div>
+            )}
           </div>
 
           {/* OR */}

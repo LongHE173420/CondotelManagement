@@ -1,38 +1,40 @@
 import { Popover, Transition } from "@headlessui/react";
 import {
-  ChatBubbleBottomCenterTextIcon,
-  HeartIcon,
   ArrowRightOnRectangleIcon,
   LifebuoyIcon,
   DocumentTextIcon,
   UserIcon,
+  StarIcon,
 } from "@heroicons/react/24/outline";
 import { Fragment } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Avatar from "shared/Avatar/Avatar";
 import { useAuth } from "contexts/AuthContext";
-
-const solutionsFoot = [
-  {
-    name: "Help",
-    href: "##",
-    icon: LifebuoyIcon,
-  },
-
-  {
-    name: "Logout",
-    href: "##",
-    icon: ArrowRightOnRectangleIcon,
-  },
-];
+import { useTranslation } from "i18n/LanguageContext";
 
 export default function AvatarDropdown() {
   const { user, logout, isAdmin, isAuthenticated } = useAuth();
+  const { t } = useTranslation();
   const navigate = useNavigate();
+
+  const solutionsFoot = [
+    {
+      name: t.header.help,
+      href: "##",
+      icon: LifebuoyIcon,
+      isLogout: false,
+    },
+    {
+      name: t.header.logout,
+      href: "##",
+      icon: ArrowRightOnRectangleIcon,
+      isLogout: true,
+    },
+  ];
   
-  const handleLogout = () => {
-    logout();
-    navigate("/");
+  const handleLogout = async () => {
+    await logout();
+    // logout() already redirects to /login, so no need to navigate
   };
 
   const getAccountLink = () => {
@@ -53,7 +55,7 @@ export default function AvatarDropdown() {
         to="/login"
         className="px-4 py-2 bg-primary-600 text-white rounded-full text-sm font-medium hover:bg-primary-700 transition-colors"
       >
-        Đăng nhập
+        {t.header.login}
       </Link>
     );
   }
@@ -62,7 +64,7 @@ export default function AvatarDropdown() {
   const getMenuItems = () => {
     const items = [
       {
-        name: "Profile",
+        name: t.account.profile,
         href: getAccountLink(),
         icon: UserIcon,
       },
@@ -71,14 +73,14 @@ export default function AvatarDropdown() {
     // Add role-specific items
     if (user?.roleName === "Host") {
       items.push({
-        name: "Host Dashboard",
+        name: t.header.dashboard,
         href: "/host-dashboard",
         icon: DocumentTextIcon,
       });
     } else if (user?.roleName !== "Admin") {
       // Tenant or other roles
       items.push({
-        name: "History Booking",
+        name: t.header.myBookings,
         href: "/my-bookings",
         icon: DocumentTextIcon,
       });
@@ -88,14 +90,9 @@ export default function AvatarDropdown() {
     if (!isAdmin) {
       items.push(
         {
-          name: "Messages",
-          href: "##",
-          icon: ChatBubbleBottomCenterTextIcon,
-        },
-        {
-          name: "Wishlists",
-          href: "/account-savelists",
-          icon: HeartIcon,
+          name: t.header.myReviews,
+          href: "/my-reviews",
+          icon: StarIcon,
         }
       );
     }
@@ -152,7 +149,7 @@ export default function AvatarDropdown() {
                   <hr className="h-[1px] border-t border-neutral-300 dark:border-neutral-700" />
                   <div className="relative grid gap-6 bg-white dark:bg-neutral-800 p-7">
                     {solutionsFoot.map((item, index) => (
-                      item.name === "Logout" ? (
+                      item.isLogout ? (
                         <button
                           key={index}
                           onClick={handleLogout}

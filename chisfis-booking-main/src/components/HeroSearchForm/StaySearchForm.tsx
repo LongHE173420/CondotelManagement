@@ -5,6 +5,7 @@ import { FocusedInputShape } from "react-dates";
 import StayDatesRangeInput from "./StayDatesRangeInput";
 import moment from "moment";
 import { FC } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 
 export interface DateRage {
   startDate: moment.Moment | null;
@@ -30,12 +31,20 @@ const defaultGuestValue: GuestsInputProps["defaultValue"] = {
 const StaySearchForm: FC<StaySearchFormProps> = ({
   haveDefaultValue = false,
 }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Initialize location from URL if available
+  const searchParams = new URLSearchParams(location.search);
+  const locationFromUrl = searchParams.get("location");
+  const initialLocation = locationFromUrl || (haveDefaultValue ? defaultLocationValue : "");
+  
   const [dateRangeValue, setDateRangeValue] = useState<DateRage>({
     startDate: null,
     endDate: null,
   });
-  const [locationInputValue, setLocationInputValue] = useState("");
-  const [guestValue, setGuestValue] = useState({});
+  const [locationInputValue, setLocationInputValue] = useState(initialLocation);
+  const [guestValue, setGuestValue] = useState<GuestsInputProps["defaultValue"]>({});
 
   const [dateFocused, setDateFocused] = useState<FocusedInputShape | null>(
     null
@@ -43,18 +52,69 @@ const StaySearchForm: FC<StaySearchFormProps> = ({
 
   //
   useEffect(() => {
-    if (haveDefaultValue) {
+    // Check if location is in URL search params
+    const searchParams = new URLSearchParams(location.search);
+    const locationFromUrl = searchParams.get("location");
+    
+    if (locationFromUrl) {
+      // Use location from URL if available
+      setLocationInputValue(locationFromUrl);
+    } else if (haveDefaultValue && !locationFromUrl) {
+      // Otherwise use default values if haveDefaultValue is true and no URL location
       setDateRangeValue(defaultDateRange);
       setLocationInputValue(defaultLocationValue);
       setGuestValue(defaultGuestValue);
     }
-  }, []);
+  }, [location.search, haveDefaultValue]);
   //
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Build search params
+    const params = new URLSearchParams();
+    
+    if (locationInputValue) {
+      params.set("location", locationInputValue);
+    }
+    
+    if (dateRangeValue.startDate) {
+      params.set("startDate", dateRangeValue.startDate.format("YYYY-MM-DD"));
+    }
+    
+    if (dateRangeValue.endDate) {
+      params.set("endDate", dateRangeValue.endDate.format("YYYY-MM-DD"));
+    }
+    
+    // Calculate total guests
+    const totalGuests = 
+      (guestValue.guestAdults || 0) + 
+      (guestValue.guestChildren || 0) + 
+      (guestValue.guestInfants || 0);
+    
+    if (totalGuests > 0) {
+      params.set("guests", totalGuests.toString());
+    }
+
+    // Navigate to listing-stay-map page with search params when location is provided
+    const queryString = params.toString();
+    if (locationInputValue) {
+      // If location is provided, navigate to map view
+      navigate(`/listing-stay-map${queryString ? `?${queryString}` : ""}`);
+    } else {
+      // Otherwise, navigate to list view
+      navigate(`/listing-stay${queryString ? `?${queryString}` : ""}`);
+    }
+  };
 
   const renderForm = () => {
     return (
-      <form className="w-full relative mt-8 flex rounded-full shadow-xl dark:shadow-2xl bg-white dark:bg-neutral-800 ">
+      <form 
+        onSubmit={handleSubmit}
+        className="w-full relative mt-8 flex rounded-full shadow-xl dark:shadow-2xl bg-white dark:bg-neutral-800 "
+      >
         <LocationInput
+          key={locationInputValue || "location-input"}
           defaultValue={locationInputValue}
           onChange={(e) => setLocationInputValue(e)}
           onInputDone={() => setDateFocused("startDate")}
@@ -71,6 +131,12 @@ const StaySearchForm: FC<StaySearchFormProps> = ({
           onChange={(data) => setGuestValue(data)}
           className="flex-[1.2]"
         />
+        <button
+          type="submit"
+          className="px-8 py-3 bg-primary-600 text-white rounded-full hover:bg-primary-700 transition-colors font-medium"
+        >
+          Search
+        </button>
       </form>
     );
   };

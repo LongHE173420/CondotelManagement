@@ -13,61 +13,80 @@ import SectionGridCategoryBox from "components/SectionGridCategoryBox/SectionGri
 import SectionBecomeAnAuthor from "components/SectionBecomeAnAuthor/SectionBecomeAnAuthor";
 import SectionVideos from "./SectionVideos";
 import SectionClientSay from "components/SectionClientSay/SectionClientSay";
+import { useTranslation } from "i18n/LanguageContext";
 
 const DEMO_CATS: TaxonomyType[] = [
   {
     id: "1",
     href: "/listing-stay",
-    name: "New Yourk",
+    name: "Hà Nội",
     taxonomy: "category",
-    count: 188288,
+    count: 15234,
     thumbnail:
-      "https://images.pexels.com/photos/64271/queen-of-liberty-statue-of-liberty-new-york-liberty-statue-64271.jpeg?auto=compress&cs=tinysrgb&dpr=3&h=750&w=1260",
+      "https://images.unsplash.com/photo-1528181304800-259b08848526?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
   },
   {
     id: "2",
     href: "/listing-stay",
-    name: "Singapore",
+    name: "Hồ Chí Minh",
     taxonomy: "category",
-    count: 188288,
+    count: 18956,
     thumbnail:
-      "https://images.pexels.com/photos/7740160/pexels-photo-7740160.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=750&w=1260",
+      "https://images.unsplash.com/photo-1583417319070-4a69db38a482?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
   },
   {
-    id: "2",
+    id: "3",
     href: "/listing-stay",
-    name: "Paris",
+    name: "Đà Nẵng",
     taxonomy: "category",
-    count: 188288,
+    count: 12456,
     thumbnail:
-      "https://images.pexels.com/photos/739407/pexels-photo-739407.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=750&w=1260",
+      "https://images.unsplash.com/photo-1559827260-dc66d52bef19?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
   },
   {
-    id: "2",
+    id: "4",
     href: "/listing-stay",
-    name: "London",
+    name: "Hạ Long",
     taxonomy: "category",
-    count: 188288,
+    count: 9876,
     thumbnail:
-      "https://images.pexels.com/photos/460672/pexels-photo-460672.jpeg?auto=compress&cs=tinysrgb&dpr=3&h=750&w=1260",
+      "https://images.unsplash.com/photo-1552465011-bf9c67938f1a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
   },
   {
-    id: "2",
+    id: "5",
     href: "/listing-stay",
-    name: "Tokyo",
+    name: "Hội An",
     taxonomy: "category",
-    count: 188288,
+    count: 11234,
     thumbnail:
-      "https://images.pexels.com/photos/4151484/pexels-photo-4151484.jpeg?auto=compress&cs=tinysrgb&dpr=3&h=750&w=1260",
+      "https://images.unsplash.com/photo-1528181304800-259b08848526?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
   },
   {
-    id: "2",
+    id: "6",
     href: "/listing-stay",
-    name: "Maldives",
+    name: "Nha Trang",
     taxonomy: "category",
-    count: 188288,
+    count: 8765,
     thumbnail:
-      "https://images.pexels.com/photos/3250613/pexels-photo-3250613.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=750&w=1260",
+      "https://images.unsplash.com/photo-1552465011-bf9c67938f1a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
+  },
+  {
+    id: "7",
+    href: "/listing-stay",
+    name: "Phú Quốc",
+    taxonomy: "category",
+    count: 6543,
+    thumbnail:
+      "https://images.unsplash.com/photo-1559827260-dc66d52bef19?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
+  },
+  {
+    id: "8",
+    href: "/listing-stay",
+    name: "Sapa",
+    taxonomy: "category",
+    count: 5432,
+    thumbnail:
+      "https://images.unsplash.com/photo-1528181304800-259b08848526?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
   },
 ];
 
@@ -75,51 +94,53 @@ const DEMO_CATS_2: TaxonomyType[] = [
   {
     id: "1",
     href: "/listing-stay",
-    name: "Enjoy the great cold",
+    name: "Huế",
     taxonomy: "category",
-    count: 188288,
+    count: 8765,
     thumbnail:
-      "https://images.pexels.com/photos/5764100/pexels-photo-5764100.jpeg?auto=compress&cs=tinysrgb&dpr=3&h=750&w=1260",
+      "https://images.unsplash.com/photo-1528181304800-259b08848526?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
   },
   {
-    id: "222",
+    id: "2",
     href: "/listing-stay",
-    name: "Sleep in a floating way",
+    name: "Đà Lạt",
     taxonomy: "category",
-    count: 188288,
+    count: 7654,
     thumbnail:
-      "https://images.pexels.com/photos/2869499/pexels-photo-2869499.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=750&w=1260",
+      "https://images.unsplash.com/photo-1552465011-bf9c67938f1a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
   },
   {
     id: "3",
     href: "/listing-stay",
-    name: "In the billionaire's house",
+    name: "Mũi Né",
     taxonomy: "category",
-    count: 188288,
+    count: 5432,
     thumbnail:
-      "https://images.pexels.com/photos/7031413/pexels-photo-7031413.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=750&w=1260",
+      "https://images.unsplash.com/photo-1559827260-dc66d52bef19?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
   },
   {
     id: "4",
     href: "/listing-stay",
-    name: "Cool in the deep forest",
+    name: "Vũng Tàu",
     taxonomy: "category",
-    count: 188288,
+    count: 4321,
     thumbnail:
-      "https://images.pexels.com/photos/247532/pexels-photo-247532.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=750&w=1260",
+      "https://images.unsplash.com/photo-1583417319070-4a69db38a482?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
   },
   {
     id: "5",
     href: "/listing-stay",
-    name: "In the billionaire's house",
+    name: "Cát Bà",
     taxonomy: "category",
-    count: 188288,
+    count: 3210,
     thumbnail:
-      "https://images.pexels.com/photos/7031413/pexels-photo-7031413.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=750&w=1260",
+      "https://images.unsplash.com/photo-1528181304800-259b08848526?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
   },
 ];
 
 function PageHome() {
+  const { t } = useTranslation();
+
   return (
     <div className="nc-PageHome relative overflow-hidden">
       {/* GLASSMOPHIN */}
@@ -154,8 +175,8 @@ function PageHome() {
             categories={DEMO_CATS_2}
             categoryCardType="card4"
             itemPerRow={4}
-            heading="Suggestions for discovery"
-            subHeading="Popular places to stay that Chisfis recommends for you"
+            heading={t.home.popularDestinations}
+            subHeading={t.home.popularDestinationsSubtitle}
             sliderStyle="style2"
             uniqueClassName="PageHome_s2"
           />
@@ -181,8 +202,8 @@ function PageHome() {
 
         {/* SECTION 1 */}
         <SectionSliderNewCategories
-          heading="Explore by types of stays"
-          subHeading="Explore houses based on 10 types of stays"
+          heading={t.home.exploreByType}
+          subHeading={t.home.exploreByTypeSubtitle}
           categoryCardType="card5"
           itemPerRow={5}
           uniqueClassName="PageHome_s3"

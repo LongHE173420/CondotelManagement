@@ -68,14 +68,11 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
 };
 
 // --- [NÂNG CẤP UI] Component Nút Thao tác ---
+// Tenant chỉ có thể xem booking, không được hủy
 const ActionButtons: React.FC<{ 
     booking: BookingDTO; 
     onView: (id: number) => void;
-    onCancel: (id: number) => void;
-}> = ({ booking, onView, onCancel }) => {
-    const canCancel = booking.status?.toLowerCase() === "pending" || 
-                      booking.status?.toLowerCase() === "confirmed";
-    
+}> = ({ booking, onView }) => {
     return (
         <div className="flex items-center gap-2">
             <button 
@@ -84,14 +81,6 @@ const ActionButtons: React.FC<{
             >
                 Xem
             </button>
-            {canCancel && (
-                <button 
-                    onClick={() => booking.bookingId && onCancel(booking.bookingId)}
-                    className="px-3 py-1 bg-red-500 text-white rounded-md text-sm font-medium hover:bg-red-600 transition-colors"
-                >
-                    Hủy
-                </button>
-            )}
         </div>
     );
 };
@@ -147,49 +136,9 @@ const PageTenantBookings = () => {
     }, [sortBy]);
 
     // Xem chi tiết booking
+    // Tenant chỉ có thể xem booking, không được hủy
     const handleViewBooking = (id: number) => {
         navigate(`/booking-history/${id}`);
-    };
-
-    // Hủy booking
-    const handleCancelBooking = async (id: number) => {
-        if (!window.confirm("Bạn có chắc chắn muốn hủy đặt phòng này?")) {
-            return;
-        }
-
-        try {
-            await bookingAPI.cancelBooking(id);
-            // Refresh danh sách với sort order hiện tại
-            const data = await bookingAPI.getMyBookings();
-            let sortedData = [...data];
-            switch (sortBy) {
-                case "newest":
-                    sortedData.sort((a, b) => {
-                        const dateA = new Date(a.createdAt || 0).getTime();
-                        const dateB = new Date(b.createdAt || 0).getTime();
-                        return dateB - dateA;
-                    });
-                    break;
-                case "oldest":
-                    sortedData.sort((a, b) => {
-                        const dateA = new Date(a.createdAt || 0).getTime();
-                        const dateB = new Date(b.createdAt || 0).getTime();
-                        return dateA - dateB;
-                    });
-                    break;
-                case "status":
-                    sortedData.sort((a, b) => {
-                        return (a.status || "").localeCompare(b.status || "");
-                    });
-                    break;
-            }
-            setBookings(sortedData);
-            alert("Đã hủy đặt phòng thành công!");
-        } catch (err: any) {
-            console.error("Error cancelling booking:", err);
-            const message = err.response?.data?.message || err.response?.data?.error;
-            alert(message || "Không thể hủy đặt phòng. Vui lòng thử lại sau.");
-        }
     };
 
     return (
@@ -290,7 +239,6 @@ const PageTenantBookings = () => {
                                             <ActionButtons 
                                                 booking={booking}
                                                 onView={handleViewBooking}
-                                                onCancel={handleCancelBooking}
                                             />
                                         </td>
                                     </tr>

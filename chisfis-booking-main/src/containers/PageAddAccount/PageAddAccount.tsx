@@ -4,7 +4,6 @@ import { adminAPI, AdminCreateUserDTO } from "api/admin";
 
 // --- Định nghĩa kiểu dữ liệu (Copy từ các file trước) ---
 type UserRole = "Owner" | "Tenant" | "Admin" | "";
-type UserStatus = "Active" | "Inactive";
 
 // --- Dùng lại các component Form (Bạn có thể chuyển ra file shared) ---
 const FormInput: React.FC<{

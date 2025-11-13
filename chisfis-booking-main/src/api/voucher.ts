@@ -27,6 +27,7 @@ export interface VoucherCreateDTO {
   isActive?: boolean;
   usageLimit?: number;
   minimumOrderAmount?: number;
+  condotelId?: number; // ID của condotel mà voucher áp dụng
 }
 
 // API Calls
@@ -55,6 +56,18 @@ export const voucherAPI = {
   // DELETE /api/host/vouchers/{id} - Xóa voucher
   delete: async (id: number): Promise<void> => {
     await axiosClient.delete(`/host/vouchers/${id}`);
+  },
+
+  // GET /api/vouchers/condotel/{condotelId} - Lấy vouchers theo condotel
+  getByCondotel: async (condotelId: number): Promise<VoucherDTO[]> => {
+    const response = await axiosClient.get<VoucherDTO[]>(`/vouchers/condotel/${condotelId}`);
+    return response.data;
+  },
+
+  // GET /api/tenant/vouchers - Lấy vouchers available cho tenant
+  getAvailableForTenant: async (): Promise<VoucherDTO[]> => {
+    const response = await axiosClient.get<VoucherDTO[]>(`/tenant/vouchers`);
+    return response.data || [];
   },
 };
 

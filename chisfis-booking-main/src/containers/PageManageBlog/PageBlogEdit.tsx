@@ -1,8 +1,10 @@
-import React, { useState, useRef, useCallback, useEffect } from "react"; // <-- 1. THÊM useEffect
-import { Link, useNavigate, useParams } from "react-router-dom"; // <-- 1. THÊM useParams
+import React, { useState, useRef, useCallback, useEffect } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import ReactQuill, { Quill } from "react-quill";
 import ImageResize from "quill-image-resize-module-react";
 import "react-quill/dist/quill.snow.css";
+import blogAPI, { BlogCategoryDTO } from "api/blog";
+import { uploadAPI } from "api/upload";
 
 // Đăng ký module resize
 Quill.register("modules/imageResize", ImageResize);
@@ -15,34 +17,60 @@ const SidebarCard: React.FC<{ title: string; children: React.ReactNode }> = ({ t
   </div>
 );
 
-// 2. ĐỔI TÊN COMPONENT
 const PageBlogEdit = () => {
-  const { id } = useParams(); // <-- 3. LẤY ID TỪ URL
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
   const [title, setTitle] = useState("");
-  const [summary, setSummary] = useState("");
   const [content, setContent] = useState("");
-  const [category, setCategory] = useState("");
-  const [author, setAuthor] = useState(""); // <-- THÊM DÒNG NÀY
+  const [categoryId, setCategoryId] = useState<number | undefined>(undefined);
   const [featuredImage, setFeaturedImage] = useState<string | null>(null);
+  const [featuredImageFile, setFeaturedImageFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [categories, setCategories] = useState<BlogCategoryDTO[]>([]);
+  const [status, setStatus] = useState<string>("Draft");
   const quillRef = useRef<ReactQuill>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // 3. THÊM useEffect ĐỂ TẢI DỮ LIỆU CŨ
+  // Load post data and categories
   useEffect(() => {
-    // TODO: Dùng `id` này để gọi API và lấy dữ liệu bài viết thật
-    console.log("Đang tải dữ liệu cho bài viết ID:", id);
+    const loadData = async () => {
+      if (!id) {
+        setLoading(false);
+        return;
+      }
 
-    // Giả lập dữ liệu đã fetch
-    setTitle("Trải nghiệm kỳ nghỉ 5 sao tại Condotel Vũng Tàu");
-    setSummary("Đây là tóm tắt của bài viết đã có...");
-    setContent("<p>Đây là <strong>nội dung</strong> bài viết đã được tải từ database...</p>");
-    setCategory("cam-nang");
-    setAuthor("Nguyễn Văn An"); // <-- THÊM DÒNG NÀY
-    setFeaturedImage("https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=600&q=80"); // Ảnh mẫu
-  }, [id]); // Chạy lại khi id thay đổi
+      try {
+        setLoading(true);
+        const postId = parseInt(id);
+        
+        // Load post
+        const post = await blogAPI.adminGetPostById(postId);
+        if (post) {
+          setTitle(post.title);
+          setContent(post.content);
+          setFeaturedImage(post.featuredImageUrl || null);
+          // Note: Backend DTOs don't have status or categoryId in detail, 
+          // so we'll need to get them from the post if available
+        } else {
+          alert("Không tìm thấy bài viết!");
+          navigate("/manage-blog");
+        }
+
+        // Load categories
+        const cats = await blogAPI.adminGetCategories();
+        setCategories(cats);
+      } catch (err: any) {
+        console.error("Failed to load post:", err);
+        alert(err.response?.data?.message || "Không thể tải bài viết");
+        navigate("/manage-blog");
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, [id, navigate]);
 
   // (Các handlers image, video, modules, formats giữ nguyên...)
   const imageHandler = useCallback(() => {
@@ -151,13 +179,18 @@ const PageBlogEdit = () => {
     'list', 'bullet', 'indent',
     'link', 'image', 'video'
   ];
-  const handleFeaturedImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFeaturedImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       if (!file.type.startsWith('image/')) {
         alert('Vui lòng chọn file ảnh!');
         return;
       }
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Kích thước file không được vượt quá 5MB!');
+        return;
+      }
+      setFeaturedImageFile(file);
       const imageUrl = URL.createObjectURL(file);
       setFeaturedImage(imageUrl);
     }
@@ -172,41 +205,79 @@ const PageBlogEdit = () => {
     }
   };
 
-  // 5. SỬA LẠI HÀM SUBMIT THÀNH HÀM UPDATE
-  const handleUpdate = (e: React.FormEvent) => {
+  // Handle update
+  const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title || !category || !content) {
-      alert("Vui lòng nhập Tiêu đề, Nội dung và chọn Danh mục.");
+    if (!id) {
+      alert("Không tìm thấy ID bài viết!");
       return;
     }
-    if (!featuredImage) {
-      alert("Vui lòng tải lên ảnh bìa!");
+    if (!title || !content) {
+      alert("Vui lòng nhập Tiêu đề và Nội dung.");
       return;
     }
 
     setIsLoading(true);
-    console.log("Cập nhật bài viết với ID:", id, {
-      title, summary, content, category, featuredImage
-    });
+    try {
+      const postId = parseInt(id);
+      let featuredImageUrl: string | undefined = undefined;
+      
+      // Upload featured image if changed
+      if (featuredImageFile) {
+        try {
+          const uploadResult = await uploadAPI.uploadImage(featuredImageFile);
+          featuredImageUrl = uploadResult.imageUrl;
+        } catch (uploadErr) {
+          console.error("Failed to upload image:", uploadErr);
+          alert("Không thể tải ảnh lên. Vui lòng thử lại.");
+          setIsLoading(false);
+          return;
+        }
+      } else if (featuredImage) {
+        // Keep existing image URL
+        featuredImageUrl = featuredImage;
+      }
 
-    setTimeout(() => {
-      setIsLoading(false);
+      // Update post
+      await blogAPI.adminUpdatePost(postId, {
+        title,
+        content,
+        featuredImageUrl,
+        status,
+        categoryId,
+      });
+
       alert("Đã cập nhật bài viết thành công!");
-      navigate("/manage-blog"); // Quay lại trang danh sách
-    }, 1000);
+      navigate("/manage-blog");
+    } catch (err: any) {
+      console.error("Failed to update post:", err);
+      alert(err.response?.data?.message || "Không thể cập nhật bài viết. Vui lòng thử lại.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  // 4. THÊM HÀM XỬ LÝ XÓA
-  const handleDelete = () => {
+  // Handle delete
+  const handleDelete = async () => {
+    if (!id) return;
+    
     if (window.confirm("Bạn có chắc chắn muốn xóa bài viết này không? Hành động này không thể hoàn tác.")) {
-      setIsLoading(true);
-      // TODO: Gọi API xóa bài viết với 'id'
-      console.log("Xóa bài viết với ID:", id);
-      setTimeout(() => {
+      try {
+        setIsLoading(true);
+        const postId = parseInt(id);
+        const success = await blogAPI.adminDeletePost(postId);
+        if (success) {
+          alert("Đã xóa bài viết.");
+          navigate("/manage-blog");
+        } else {
+          alert("Không tìm thấy bài viết để xóa.");
+        }
+      } catch (err: any) {
+        console.error("Failed to delete post:", err);
+        alert(err.response?.data?.message || "Không thể xóa bài viết.");
+      } finally {
         setIsLoading(false);
-        alert("Đã xóa bài viết.");
-        navigate("/manage-blog");
-      }, 1000);
+      }
     }
   };
 
@@ -240,11 +311,22 @@ const PageBlogEdit = () => {
 }
   `;
 
+  if (loading) {
+    return (
+      <div className="p-4 md:p-8 bg-gray-50 min-h-screen">
+        <div className="max-w-7xl mx-auto bg-white p-6 rounded-lg shadow-md">
+          <div className="flex items-center justify-center py-20">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-800"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 md:p-8 bg-gray-50 min-h-screen">
       <style>{editorStyles}</style>
 
-      {/* 5. SỬA onSUBMIT */}
       <form onSubmit={handleUpdate}>
         {/* --- Link quay lại --- */}
         <div className="mb-4">
@@ -275,21 +357,6 @@ const PageBlogEdit = () => {
               />
             </div>
 
-            {/* Tóm tắt */}
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              <label htmlFor="summary" className="block text-sm font-medium text-gray-700 mb-1">
-                Tóm tắt
-              </label>
-              <textarea
-                id="summary"
-                rows={4}
-                value={summary}
-                onChange={(e) => setSummary(e.target.value)}
-                placeholder="Nhập một đoạn tóm tắt ngắn..."
-                className="w-full px-4 py-2 border border-gray-300 rounded-md resize-y"
-              ></textarea>
-            </div>
-
             {/* Nội dung với ReactQuill */}
             <div className="bg-white rounded-lg shadow-md overflow-hidden">
               <label className="block text-sm font-medium text-gray-700 mb-2 px-6 pt-6">
@@ -312,57 +379,53 @@ const PageBlogEdit = () => {
           {/* --- CỘT PHẢI (SIDEBAR) --- */}
           <div className="md:col-span-4 lg:col-span-3 space-y-6">
 
-            {/* 4. SỬA LẠI BOX HÀNH ĐỘNG */}
-            <SidebarCard title="Hành động">
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400"
-              >
-                {isLoading ? "Đang cập nhật..." : "Cập nhật bài viết"}
-              </button>
-              <button
-                type="button" // Quan trọng: type="button" để không submit form
-                disabled={isLoading}
-                onClick={handleDelete}
-                className="w-full px-4 py-2 bg-white text-red-600 border border-red-500 rounded-md hover:bg-red-50 disabled:bg-gray-100"
-              >
-                Xóa bài viết
-              </button>
+            <SidebarCard title="Xuất bản">
+              <div className="space-y-3">
+                <label htmlFor="status" className="block text-sm font-medium text-gray-700">
+                  Trạng thái
+                </label>
+                <select
+                  id="status"
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md bg-white"
+                >
+                  <option value="Draft">Bản nháp</option>
+                  <option value="Published">Xuất bản</option>
+                </select>
+                <button
+                  type="submit"
+                  disabled={isLoading || loading}
+                  className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400"
+                >
+                  {isLoading ? "Đang cập nhật..." : "Cập nhật bài viết"}
+                </button>
+                <button
+                  type="button"
+                  disabled={isLoading || loading}
+                  onClick={handleDelete}
+                  className="w-full px-4 py-2 bg-white text-red-600 border border-red-500 rounded-md hover:bg-red-50 disabled:bg-gray-100"
+                >
+                  Xóa bài viết
+                </button>
+              </div>
             </SidebarCard>
 
-            {/* Box Cài đặt (Giữ nguyên) */}
             <SidebarCard title="Cài đặt">
-              <label htmlFor="category" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">
                 Danh mục
               </label>
               <select
                 id="category"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
+                value={categoryId || ""}
+                onChange={(e) => setCategoryId(e.target.value ? parseInt(e.target.value) : undefined)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-md bg-white"
-                required
               >
-                <option value="">Chọn một danh mục</option>
-                <option value="cam-nang">Cẩm nang</option>
-                <option value="khuyen-mai">Khuyến mãi</option>
-                <option value="tin-tuc">Tin tức</option>
+                <option value="">Chọn một danh mục (tùy chọn)</option>
+                {categories.map(cat => (
+                  <option key={cat.categoryId} value={cat.categoryId}>{cat.name}</option>
+                ))}
               </select>
-
-              <div>
-                <label htmlFor="author" className="block text-sm font-medium text-gray-700 mb-1">
-                  Tác giả
-                </label>
-                <input
-                  type="text"
-                  id="author"
-                  value={author}
-                  onChange={(e) => setAuthor(e.target.value)}
-                  placeholder="Nhập tên tác giả..."
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md"
-                  required
-                />
-              </div>
             </SidebarCard>
 
             {/* Box Ảnh bìa (Giữ nguyên) */}

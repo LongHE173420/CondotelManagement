@@ -30,10 +30,19 @@ export interface TenantAnalytics {
 export const adminDashboardAPI = {
   // GET /api/admin/dashboard/overview
   getOverview: async (): Promise<DashboardOverview> => {
-    const response = await axiosClient.get<{ data: DashboardOverview }>(
-      "/admin/dashboard/overview"
-    );
-    return response.data.data;
+    const response = await axiosClient.get<any>("/admin/dashboard/overview");
+    const data = response.data;
+    
+    // Handle both response formats: { data: {...} } or direct object
+    const overviewData = data.data || data;
+    
+    // Normalize field names (PascalCase -> camelCase)
+    return {
+      totalCondotels: overviewData.TotalCondotels ?? overviewData.totalCondotels ?? 0,
+      totalTenants: overviewData.TotalTenants ?? overviewData.totalTenants ?? 0,
+      totalBookings: overviewData.TotalBookings ?? overviewData.totalBookings ?? 0,
+      totalRevenue: overviewData.TotalRevenue ?? overviewData.totalRevenue ?? 0,
+    };
   },
 
   // GET /api/admin/dashboard/revenue/chart

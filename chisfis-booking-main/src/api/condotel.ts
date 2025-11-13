@@ -158,14 +158,41 @@ export interface CreateCondotelDTO {
 
 // API Calls
 export const condotelAPI = {
-  // GET /api/condotel - Lấy tất cả condotels
+  // GET /api/tenant/condotel - Lấy tất cả condotels (public, không cần đăng nhập)
   getAll: async (): Promise<CondotelDTO[]> => {
+    const response = await axiosClient.get<CondotelDTO[]>("/tenant/condotel");
+    return response.data || [];
+  },
+
+  // GET /api/tenant/condotel/{id} - Lấy chi tiết condotel (public, không cần đăng nhập)
+  getById: async (id: number): Promise<CondotelDetailDTO> => {
+    const response = await axiosClient.get<CondotelDetailDTO>(`/tenant/condotel/${id}`);
+    return response.data;
+  },
+
+  // GET /api/tenant/condotel/location?name=Da Nang - Tìm kiếm condotel theo location
+  getCondotelsByLocation: async (locationName?: string): Promise<CondotelDTO[]> => {
+    const params = locationName ? { name: locationName } : {};
+    const response = await axiosClient.get<CondotelDTO[]>("/tenant/condotel/location", { params });
+    return response.data || [];
+  },
+
+  // GET /api/tenant/condotel/location?name=Da Nang - Tìm kiếm condotel theo location (public, AllowAnonymous)
+  // Sử dụng endpoint tenant vì nó là public và không cần authentication
+  getCondotelsByLocationPublic: async (locationName?: string): Promise<CondotelDTO[]> => {
+    const params = locationName ? { name: locationName } : {};
+    const response = await axiosClient.get<CondotelDTO[]>("/tenant/condotel/location", { params });
+    return response.data || [];
+  },
+
+  // GET /api/host/condotel - Lấy tất cả condotels của host (cần đăng nhập)
+  getAllForHost: async (): Promise<CondotelDTO[]> => {
     const response = await axiosClient.get<CondotelDTO[]>("/host/condotel");
     return response.data;
   },
 
-  // GET /api/condotel/{id} - Lấy condotel theo ID
-  getById: async (id: number): Promise<CondotelDetailDTO> => {
+  // GET /api/host/condotel/{id} - Lấy condotel theo ID của host (cần đăng nhập)
+  getByIdForHost: async (id: number): Promise<CondotelDetailDTO> => {
     const response = await axiosClient.get<CondotelDetailDTO>(`/host/condotel/${id}`);
     return response.data;
   },

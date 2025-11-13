@@ -1,10 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "contexts/AuthContext";
-import condotelAPI, { CondotelDetailDTO, CreateCondotelDTO } from "api/condotel";
+import condotelAPI, { CondotelDetailDTO } from "api/condotel";
 import uploadAPI from "api/upload";
 import Input from "shared/Input/Input";
-import Select from "shared/Select/Select";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
 import ButtonSecondary from "shared/Button/ButtonSecondary";
 import NcInputNumber from "components/NcInputNumber/NcInputNumber";
@@ -47,7 +46,7 @@ const PageEditCondotel: React.FC = () => {
       setLoading(true);
       setError("");
       try {
-        const data = await condotelAPI.getById(Number(id));
+        const data = await condotelAPI.getByIdForHost(Number(id));
         setName(data.name || "");
         setDescription(data.description || "");
         // Chuẩn hóa về Active/Inactive để đồng bộ badge hiển thị
@@ -71,20 +70,45 @@ const PageEditCondotel: React.FC = () => {
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith("image/")) { setError("File phải là ảnh"); return; }
-    if (file.size > 10 * 1024 * 1024) { setError("Tối đa 10MB"); return; }
+    
+    // Validate file type
+    if (!file.type.startsWith("image/")) {
+      setError("File phải là ảnh");
+      return;
+    }
+    
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      setError("Tối đa 10MB");
+      return;
+    }
+    
     setUploading(true);
     setError("");
+    
     try {
       const res = await uploadAPI.uploadImage(file);
-      if (res?.imageUrl) {
+      
+      if (res?.imageUrl && res.imageUrl.trim()) {
         setImages((arr) => [...arr, { imageUrl: res.imageUrl, caption: file.name }]);
+        // Clear error on success
+        setError("");
+      } else {
+        setError("Upload thành công nhưng không nhận được URL ảnh. Vui lòng thử lại.");
       }
     } catch (err: any) {
-      setError(err?.response?.data?.message || err.message || "Upload thất bại");
+      console.error("Upload error:", err);
+      const errorMessage = err?.response?.data?.message 
+        || err?.response?.data?.error
+        || err?.message 
+        || "Upload thất bại. Vui lòng kiểm tra kết nối và thử lại.";
+      setError(errorMessage);
     } finally {
       setUploading(false);
-      if (fileRef.current) fileRef.current.value = "";
+      // Reset file input để có thể chọn lại file cùng tên
+      if (fileRef.current) {
+        fileRef.current.value = "";
+      }
     }
   };
 
@@ -328,22 +352,33 @@ const PageEditCondotel: React.FC = () => {
               <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300">
                 Upload ảnh từ máy tính
               </label>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*"
-                onChange={handleUpload}
-                disabled={uploading}
-                className="block w-full text-sm text-neutral-500 dark:text-neutral-400
-                  file:mr-4 file:py-2 file:px-4
-                  file:rounded-lg file:border-0
-                  file:text-sm file:font-semibold
-                  file:bg-primary-50 file:text-primary-700
-                  hover:file:bg-primary-100
-                  file:cursor-pointer
-                  cursor-pointer
-                  disabled:opacity-50"
-              />
+              <div className="flex items-center gap-3">
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleUpload}
+                  disabled={uploading}
+                  className="block w-full text-sm text-neutral-500 dark:text-neutral-400
+                    file:mr-4 file:py-2 file:px-4
+                    file:rounded-lg file:border-0
+                    file:text-sm file:font-semibold
+                    file:bg-primary-50 file:text-primary-700
+                    hover:file:bg-primary-100
+                    file:cursor-pointer
+                    cursor-pointer
+                    disabled:opacity-50 disabled:cursor-not-allowed"
+                />
+                {uploading && (
+                  <div className="flex items-center gap-2 text-sm text-primary-600 dark:text-primary-400">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-600"></div>
+                    <span>Đang upload...</span>
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                Chấp nhận: JPG, PNG, GIF (tối đa 10MB)
+              </p>
             </div>
 
             <div className="space-y-3">

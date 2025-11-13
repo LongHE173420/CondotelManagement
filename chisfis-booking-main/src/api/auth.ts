@@ -11,6 +11,26 @@ export interface RegisterRequest {
   password: string;
   fullName: string;
   phone?: string;
+  gender?: string;
+  dateOfBirth?: string;
+  address?: string;
+}
+
+export interface VerifyEmailRequest {
+  email: string;
+  otp: string;
+}
+
+export interface VerifyOtpRequest {
+  email: string;
+  otp: string;
+}
+
+export interface GoogleLoginRequest {
+  idToken: string;
+  email?: string;
+  fullName?: string;
+  imageUrl?: string;
 }
 
 export interface ForgotPasswordRequest {
@@ -54,10 +74,13 @@ export const authAPI = {
       email?: string;
       phone?: string;
       user?: UserProfile;
-    }>("/Auth/login", credentials);
+    }>("/Auth/login", credentials, {
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
     
     const data = response.data;
-    console.log("📦 Raw response:", data);
     
     // Backend trả về: { token, roleName, fullName } ở root level
     const loginResponse: LoginResponse = {
@@ -65,7 +88,7 @@ export const authAPI = {
       user: data.user || {
         userId: data.userId || 0,
         fullName: data.fullName || "",
-        email: credentials.email, // Use email from request
+        email: credentials.email,
         phone: data.phone,
         roleName: data.roleName || "User",
         status: "Active",
@@ -77,8 +100,121 @@ export const authAPI = {
 
   // POST /api/Auth/register
   register: async (data: RegisterRequest): Promise<{ message: string }> => {
-    const response = await axiosClient.post<{ message: string }>("/Auth/register", data);
+    // Map camelCase sang PascalCase để khớp với backend DTO
+    const requestData: any = {
+      Email: data.email,
+      Password: data.password,
+      FullName: data.fullName,
+    };
+    
+    if (data.phone) {
+      requestData.Phone = data.phone;
+    }
+    if (data.gender) {
+      requestData.Gender = data.gender;
+    }
+    if (data.dateOfBirth) {
+      requestData.DateOfBirth = data.dateOfBirth;
+    }
+    if (data.address) {
+      requestData.Address = data.address;
+    }
+    
+    const response = await axiosClient.post<{ message: string }>("/Auth/register", requestData);
     return response.data;
+  },
+
+  // POST /api/Auth/verify-email - Xác thực email với OTP sau khi đăng ký
+  verifyEmail: async (data: VerifyEmailRequest): Promise<{ message: string }> => {
+    // Map camelCase sang PascalCase
+    const requestData: any = {
+      Email: data.email,
+      Otp: data.otp,
+    };
+    
+    const response = await axiosClient.post<{ message: string }>("/Auth/verify-email", requestData);
+    return response.data;
+  },
+
+  // POST /api/Auth/verify-otp - Verify OTP (dùng cho quên mật khẩu)
+  verifyOtp: async (data: VerifyOtpRequest): Promise<{ message: string }> => {
+    // Map camelCase sang PascalCase
+    const requestData: any = {
+      Email: data.email,
+      Otp: data.otp,
+    };
+    
+    const response = await axiosClient.post<{ message: string }>("/Auth/verify-otp", requestData);
+    return response.data;
+  },
+
+  // POST /api/Auth/google-login
+  googleLogin: async (data: GoogleLoginRequest): Promise<LoginResponse> => {
+    // Backend expects PascalCase (IdToken) but we send camelCase
+    // Backend should handle both, but we normalize to match backend DTO
+    const requestData: any = {
+      IdToken: data.idToken, // Backend expects PascalCase
+    };
+    
+    // Optional fields - only send if they exist
+    if (data.email) {
+      requestData.Email = data.email;
+    }
+    if (data.fullName) {
+      requestData.FullName = data.fullName;
+    }
+    if (data.imageUrl) {
+      requestData.ImageUrl = data.imageUrl;
+    }
+    
+    // Backend GenerateJwtToken returns: { Token, RoleName, FullName }
+    // May also include: UserId, Email (if backend adds them)
+    const response = await axiosClient.post<{
+      Token?: string;
+      token?: string;
+      RoleName?: string;
+      roleName?: string;
+      FullName?: string;
+      fullName?: string;
+      UserId?: number;
+      userId?: number;
+      Email?: string;
+      email?: string;
+      Phone?: string;
+      phone?: string;
+      User?: UserProfile;
+      user?: UserProfile;
+    }>("/Auth/google-login", requestData);
+    
+    const responseData = response.data;
+    
+    // Normalize response (backend may return PascalCase or camelCase)
+    // Backend GenerateJwtToken returns: Token, RoleName, FullName
+    const token = responseData.Token || responseData.token || "";
+    const userId = responseData.UserId || responseData.userId || 0;
+    const fullName = responseData.FullName || responseData.fullName || data.fullName || "";
+    const email = responseData.Email || responseData.email || data.email || "";
+    const phone = responseData.Phone || responseData.phone;
+    const roleName = responseData.RoleName || responseData.roleName || "User";
+    const user = responseData.User || responseData.user;
+    
+    // Backend trả về: { Token, RoleName, FullName } từ GenerateJwtToken
+    // Nếu có User object thì dùng, không thì tạo từ các field riêng lẻ
+    const loginResponse: LoginResponse = {
+      token: token,
+      user: user || {
+        userId: userId || 0, // Backend có thể không trả về UserId, sẽ lấy từ token sau
+        fullName: fullName,
+        email: email || data.email || "", // Fallback to request data
+        phone: phone,
+        roleName: roleName,
+        status: "Active",
+      },
+    };
+    
+    console.log("🔐 Google login response normalized:", loginResponse);
+    
+    return loginResponse;
   },
 
   // POST /api/Auth/logout
