@@ -58,11 +58,10 @@ const PageSubcription: FC<PageSubcriptionProps> = ({ className = "" }) => {
     return (
       <div
         key={index}
-        className={`h-full relative px-6 py-8 rounded-3xl border-2 flex flex-col overflow-hidden ${
-          pricing.isPopular
+        className={`h-full relative px-6 py-8 rounded-3xl border-2 flex flex-col overflow-hidden ${pricing.isPopular
             ? "border-primary-500"
             : "border-neutral-100 dark:border-neutral-700"
-        }`}
+          }`}
       >
         {pricing.isPopular && (
           <span className="bg-primary-500 text-white px-3 py-1 tracking-widest text-xs absolute right-3 top-3 rounded-full z-10">

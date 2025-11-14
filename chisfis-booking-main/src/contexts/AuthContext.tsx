@@ -1,14 +1,19 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { UserProfile } from "api/auth";
-import { authAPI } from "api/auth";
+import { authAPI, UserProfile } from "api/auth";
+import axiosClient from "api/axiosClient";
+import { packageAPI, HostPackageDetailsDto } from "api/package";
 
+// === 1. ĐỊNH NGHĨA CONTEXT TYPE ===
 interface AuthContextType {
   user: UserProfile | null;
+  token: string | null;
+  hostPackage: HostPackageDetailsDto | null;
+  isLoading: boolean; // Đang khởi tạo auth
   isAuthenticated: boolean;
-  isLoading: boolean;
   isAdmin: boolean;
   login: (token: string, user: UserProfile) => void;
   logout: () => void;
+  reloadUser: () => Promise<void>;
   updateUser: (user: UserProfile) => void;
 }
 
@@ -16,124 +21,163 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth must be used within AuthProvider");
-  }
+  if (!context) throw new Error("useAuth must be used within an AuthProvider");
   return context;
 };
 
-interface AuthProviderProps {
-  children: ReactNode;
-}
-
-export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+// === 2. AUTH PROVIDER ===
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<UserProfile | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [token, setToken] = useState<string | null>(null);
+  const [hostPackage, setHostPackage] = useState<HostPackageDetailsDto | null>(null);
+  const [isLoading, setIsLoading] = useState(true); // Bắt đầu là true
 
-  // Initialize from localStorage and fetch full user profile
+  // === KHỞI TẠO AUTH KHI APP LOAD ===
   useEffect(() => {
     const initializeAuth = async () => {
-      const token = localStorage.getItem("token");
+      const storedToken = localStorage.getItem("token");
       const userStr = localStorage.getItem("user");
 
-      if (token && userStr) {
+      if (userStr) {
         try {
-          const parsedUser = JSON.parse(userStr);
-          setUser(parsedUser);
-          
-          // Gọi /Auth/me để lấy đầy đủ thông tin user (bao gồm imageUrl) từ database
-          try {
-            const fullUserProfile = await authAPI.getMe();
-            console.log("✅ Loaded full user profile with avatar:", fullUserProfile);
-            console.log("🖼️ Avatar URL from API:", fullUserProfile.imageUrl);
-            
-            // Cập nhật user state và localStorage
-            setUser(fullUserProfile);
-            localStorage.setItem("user", JSON.stringify(fullUserProfile));
-            
-            // Log để debug
-            if (fullUserProfile.imageUrl) {
-              console.log("✅ Avatar URL is set:", fullUserProfile.imageUrl);
-            } else {
-              console.warn("⚠️ No avatar URL in user profile");
-            }
-          } catch (meError: any) {
-            console.warn("⚠️ Failed to refresh user profile, using cached data:", meError);
-            // Nếu /Auth/me fail (token expired, etc.), vẫn dùng user từ localStorage
-            // Nhưng có thể token đã hết hạn, nên sẽ được xử lý bởi axios interceptor
-          }
-        } catch (error) {
-          console.error("Failed to parse user from localStorage", error);
-          localStorage.removeItem("token");
-          localStorage.removeItem("user");
+          setUser(JSON.parse(userStr));
+        } catch {
+          console.warn("Invalid user data in localStorage");
         }
       }
+
+      if (storedToken) {
+        setToken(storedToken);
+        axiosClient.defaults.headers.common["Authorization"] = `Bearer ${storedToken}`;
+
+        try {
+          const userProfile = await authAPI.getMe();
+          setUser(userProfile);
+          localStorage.setItem("user", JSON.stringify(userProfile));
+
+          // Load package nếu là Host
+          if (userProfile.roleName === "Host") {
+            try {
+              const pkg = await packageAPI.getMyPackage();
+              setHostPackage(pkg);
+              console.log("Host package loaded:", pkg);
+            } catch (pkgError) {
+              console.warn("Failed to load host package:", pkgError);
+              setHostPackage(null);
+            }
+          } else {
+            setHostPackage(null);
+          }
+        } catch (error) {
+          console.error("Token invalid or expired. Logging out.", error);
+          handleLogout();
+        }
+      }
+
       setIsLoading(false);
     };
 
     initializeAuth();
   }, []);
 
-  const login = (token: string, userData: UserProfile) => {
-    // Đảm bảo token không có "Bearer" prefix khi lưu vào localStorage
-    // (Axios interceptor sẽ tự động thêm "Bearer" khi gửi request)
-    const cleanToken = token.startsWith("Bearer ") ? token.substring(7) : token;
+  // === LOGIN ===
+  const login = (newToken: string, newUser: UserProfile) => {
+    const cleanToken = newToken.startsWith("Bearer ") ? newToken.substring(7) : newToken;
+    setToken(cleanToken);
+    setUser(newUser);
     localStorage.setItem("token", cleanToken);
-    localStorage.setItem("user", JSON.stringify(userData));
-    setUser(userData);
-    
-    console.log("✅ Token saved to localStorage (without Bearer prefix)");
-  };
+    localStorage.setItem("user", JSON.stringify(newUser));
+    axiosClient.defaults.headers.common["Authorization"] = `Bearer ${cleanToken}`;
 
-  const logout = async () => {
-    try {
-      // Gọi API logout để backend xử lý (works for all roles: Admin, Host, Tenant)
-      const token = localStorage.getItem("token");
-      if (token) {
-        try {
-          await authAPI.logout();
-          console.log("✅ Logout API called successfully");
-        } catch (error) {
-          // Nếu API logout fail, vẫn tiếp tục logout ở frontend
-          // Điều này đảm bảo logout vẫn hoạt động ngay cả khi backend có vấn đề
-          console.warn("⚠️ Logout API failed, continuing with frontend logout:", error);
-        }
-      }
-    } catch (error) {
-      console.error("Error during logout:", error);
-    } finally {
-      // Luôn xóa token và user data cho mọi role (Admin, Host, Tenant)
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      setUser(null);
-      
-      // Clear any other auth-related data if exists
-      // This ensures complete logout for all roles
-      
-      console.log("✅ User logged out successfully (all roles supported)");
-      
-      // Force redirect to login page (works for all roles)
-      window.location.href = "/login";
+    // Load package nếu là Host
+    if (newUser.roleName === "Host") {
+      packageAPI.getMyPackage()
+        .then(pkg => {
+          setHostPackage(pkg);
+          console.log("Host package loaded on login:", pkg);
+        })
+        .catch(err => {
+          console.warn("Failed to load package after login:", err);
+          setHostPackage(null);
+        });
+    } else {
+      setHostPackage(null);
     }
   };
 
-  const updateUser = (userData: UserProfile) => {
-    localStorage.setItem("user", JSON.stringify(userData));
-    setUser(userData);
+  // === LOGOUT ===
+  const handleLogout = async () => {
+    const currentToken = localStorage.getItem("token");
+
+    if (currentToken) {
+      try {
+        await authAPI.logout();
+        console.log("Logout API success");
+      } catch (error) {
+        console.warn("Logout API failed, proceeding with local logout:", error);
+      }
+    }
+
+    // Xóa toàn bộ dữ liệu
+    setUser(null);
+    setToken(null);
+    setHostPackage(null);
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    delete axiosClient.defaults.headers.common["Authorization"];
+
+    // Chuyển hướng cứng (đảm bảo không cache)
+    window.location.href = "/login";
   };
 
+  // === RELOAD USER (Chỉ refresh dữ liệu, KHÔNG logout) ===
+  const reloadUser = async () => {
+    if (!token) return;
+
+    try {
+      const userProfile = await authAPI.getMe();
+      setUser(userProfile);
+      localStorage.setItem("user", JSON.stringify(userProfile));
+
+      if (userProfile.roleName === "Host") {
+        try {
+          const pkg = await packageAPI.getMyPackage();
+          setHostPackage(pkg);
+        } catch {
+          setHostPackage(null);
+        }
+      } else {
+        setHostPackage(null);
+      }
+    } catch (error) {
+      console.error("Failed to reload user, logging out:", error);
+      handleLogout();
+    }
+  };
+
+  // === UPDATE USER (Sau khi edit profile, upload ảnh, v.v.) ===
+  const updateUser = (updatedUser: UserProfile) => {
+    setUser(updatedUser);
+    localStorage.setItem("user", JSON.stringify(updatedUser));
+  };
+
+  // === GIÁ TRỊ CUNG CẤP ===
   const value: AuthContextType = {
     user,
-    isAuthenticated: !!user,
+    token,
+    hostPackage,
     isLoading,
+    isAuthenticated: !!user && !!token,
     isAdmin: user?.roleName === "Admin",
     login,
-    logout,
+    logout: handleLogout,
+    reloadUser,
     updateUser,
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
-
-
-

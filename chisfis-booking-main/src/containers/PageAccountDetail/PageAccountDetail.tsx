@@ -1,8 +1,33 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { adminAPI, AdminUserDTO, AdminUpdateUserDTO } from "api/admin";
+import { adminAPI, AdminUserDTO, AdminUpdateUserDTO, AdminUserResponse } from "api/admin";
 
+// === 1. ĐỊNH NGHĨA LOẠI VAI TRÒ & TRẠNG THÁI ===
+type UserRole = "Owner" | "Tenant" | "Admin" | "Marketer" | "";
+type UserStatus = "Active" | "Inactive" | "Pending";
 
+// === 2. HÀM CHUYỂN ĐỔI GIỮA FE & BE ===
+const roleNameToId = (roleName?: string): number | undefined => {
+  switch (roleName) {
+    case "Admin": return 1;
+    case "Owner": return 2;        // BE: Host
+    case "Tenant": return 3;       // BE: User
+    case "Marketer": return 4;     // BE: ContentManager
+    default: return undefined;
+  }
+};
+
+const roleIdToName = (roleNameBE?: string): UserRole => {
+  switch (roleNameBE) {
+    case "Host": return "Owner";
+    case "User": return "Tenant";
+    case "ContentManager": return "Marketer";
+    case "Admin": return "Admin";
+    default: return "";
+  }
+};
+
+// === 3. COMPONENT FORM INPUT ===
 interface FormInputProps {
   label: string;
   value: string;
@@ -11,7 +36,13 @@ interface FormInputProps {
   type?: string;
 }
 
-const FormInput: React.FC<FormInputProps> = ({ label, value, onChange, disabled, type = "text" }) => (
+const FormInput: React.FC<FormInputProps> = ({
+  label,
+  value,
+  onChange,
+  disabled,
+  type = "text",
+}) => (
   <div>
     <label className="block text-sm font-medium text-gray-700">{label}</label>
     <input
@@ -19,41 +50,46 @@ const FormInput: React.FC<FormInputProps> = ({ label, value, onChange, disabled,
       value={value}
       onChange={(e) => onChange(e.target.value)}
       disabled={disabled}
-      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm 
-                 focus:outline-none focus:ring-blue-500 focus:border-blue-500 
-                 disabled:bg-gray-100 disabled:text-gray-500"
+      className={`mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm 
+                 focus:outline-none focus:ring-blue-500 focus:border-blue-500
+                 disabled:bg-gray-100 disabled:text-gray-500`}
     />
   </div>
 );
 
-
+// === 4. COMPONENT FORM SELECT ===
 interface FormSelectProps {
   label: string;
   value: string;
-  onChange: (value: any) => void;
+  onChange: (value: string) => void;
   children: React.ReactNode;
   disabled?: boolean;
 }
 
-const FormSelect: React.FC<FormSelectProps> = ({ label, value, onChange, children, disabled }) => (
+const FormSelect: React.FC<FormSelectProps> = ({
+  label,
+  value,
+  onChange,
+  children,
+  disabled,
+}) => (
   <div>
     <label className="block text-sm font-medium text-gray-700">{label}</label>
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
       disabled={disabled}
-      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm 
+      className={`mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm 
                  focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white
-                 disabled:bg-gray-100 disabled:text-gray-500"
+                 disabled:bg-gray-100 disabled:text-gray-500`}
     >
       {children}
     </select>
   </div>
 );
 
-
-
-const PageAccountDetail = () => {
+// === 5. MAIN COMPONENT ===
+const PageAccountDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
@@ -61,7 +97,9 @@ const PageAccountDetail = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
+  // === LOAD USER DATA ===
   useEffect(() => {
     if (!id) {
       setError("Không tìm thấy ID người dùng");
@@ -72,33 +110,25 @@ const PageAccountDetail = () => {
     const loadUser = async () => {
       setLoading(true);
       setError("");
-      
+      setSuccess("");
+
       try {
         const userId = parseInt(id, 10);
-        if (isNaN(userId)) {
-          throw new Error("ID không hợp lệ");
-        }
-        
-        console.log("Fetching data for user:", userId);
+        if (isNaN(userId)) throw new Error("ID không hợp lệ");
+
         const userData = await adminAPI.getUserById(userId);
-        console.log("User data loaded:", userData);
-        
-        // Store original status for comparison
+
         setFormData({
           ...userData,
+          roleName: roleIdToName(userData.roleName),
           originalStatus: userData.status,
         });
       } catch (err: any) {
-        console.error("Failed to load user:", err);
-        let errorMessage = "Không thể tải thông tin người dùng";
-        
-        if (err.response?.data?.message) {
-          errorMessage = err.response.data.message;
-        } else if (err.message) {
-          errorMessage = err.message;
-        }
-        
-        setError(errorMessage);
+        const msg =
+          err.response?.data?.message ||
+          err.message ||
+          "Không thể tải thông tin người dùng";
+        setError(msg);
       } finally {
         setLoading(false);
       }
@@ -107,110 +137,83 @@ const PageAccountDetail = () => {
     loadUser();
   }, [id]);
 
-
+  // === HANDLE CHANGE ===
   const handleChange = (field: keyof AdminUserDTO, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
+  // === HANDLE SUBMIT ===
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!id) {
-      setError("Không tìm thấy ID người dùng");
-      return;
-    }
+    if (!id) return;
 
     setSaving(true);
     setError("");
+    setSuccess("");
 
     try {
       const userId = parseInt(id, 10);
-      if (isNaN(userId)) {
-        throw new Error("ID không hợp lệ");
-      }
+      if (isNaN(userId)) throw new Error("ID không hợp lệ");
 
       // Validate required fields
-      if (!formData.fullName || !formData.email) {
-        setError("Vui lòng điền đầy đủ các trường bắt buộc (Tên, Email).");
-        setSaving(false);
-        return;
+      if (!formData.fullName?.trim() || !formData.email?.trim()) {
+        throw new Error("Vui lòng điền đầy đủ Tên và Email");
       }
 
-      // Validate email format
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(formData.email)) {
-        setError("Email không đúng định dạng.");
-        setSaving(false);
-        return;
+      if (!emailRegex.test(formData.email.trim())) {
+        throw new Error("Email không đúng định dạng");
       }
 
+      // Build update data
       const updateData: AdminUpdateUserDTO = {
         fullName: formData.fullName.trim(),
         email: formData.email.trim(),
       };
 
-      // Add optional fields if they have values
-      if (formData.phone && formData.phone.trim()) {
-        updateData.phone = formData.phone.trim();
-      }
-      if (formData.roleName) {
-        updateData.roleName = formData.roleName;
-      }
-      if (formData.gender && formData.gender.trim()) {
-        updateData.gender = formData.gender.trim();
-      }
-      if (formData.dateOfBirth && formData.dateOfBirth.trim()) {
-        updateData.dateOfBirth = formData.dateOfBirth.trim();
-      }
-      if (formData.address && formData.address.trim()) {
-        updateData.address = formData.address.trim();
-      }
-      
-      // Update status separately using updateUserStatus API
-      if (formData.status && formData.status !== (formData as any).originalStatus) {
-        try {
-          await adminAPI.updateUserStatus(userId, formData.status);
-        } catch (statusErr: any) {
-          console.error("Failed to update status:", statusErr);
-          throw new Error(`Không thể cập nhật trạng thái: ${statusErr.response?.data?.message || statusErr.message}`);
-        }
+      if (formData.phone?.trim()) updateData.phone = formData.phone.trim();
+      if (formData.gender?.trim()) updateData.gender = formData.gender.trim();
+      if (formData.dateOfBirth?.trim()) updateData.dateOfBirth = formData.dateOfBirth.trim();
+      if (formData.address?.trim()) updateData.address = formData.address.trim();
+
+      // Handle Role
+      if (formData.roleName && formData.roleName !== "Admin") {
+        const roleId = roleNameToId(formData.roleName as UserRole);
+        if (!roleId) throw new Error("Vai trò không hợp lệ");
+        updateData.roleId = roleId;
       }
 
-      console.log("Saving data:", updateData);
-      await adminAPI.updateUser(userId, updateData);
-      
-      alert("Lưu thành công!");
-      navigate("/admin?tab=accounts"); // Quay lại trang admin accounts
-    } catch (err: any) {
-      console.error("Failed to update user:", err);
-      let errorMessage = "Không thể cập nhật thông tin người dùng";
-      
-      if (err.response?.data?.message) {
-        errorMessage = err.response.data.message;
-      } else if (err.response?.data?.errors) {
-        const errors = err.response.data.errors;
-        const errorList = Object.entries(errors)
-          .map(([field, messages]: [string, any]) => {
-            const fieldName = field.charAt(0).toUpperCase() + field.slice(1);
-            const messageList = Array.isArray(messages) ? messages.join(", ") : messages;
-            return `${fieldName}: ${messageList}`;
-          })
-          .join("\n");
-        errorMessage = `Lỗi validation:\n${errorList}`;
-      } else if (err.message) {
-        errorMessage = err.message;
+      // Update Status (if changed)
+      if (
+        formData.status &&
+        formData.status !== formData.originalStatus
+      ) {
+        await adminAPI.updateUserStatus(userId, formData.status as UserStatus);
       }
-      
-      setError(errorMessage);
+
+      // Update User
+      const response: AdminUserResponse = await adminAPI.updateUser(userId, updateData);
+
+      setSuccess(response.message || "Cập nhật thành công!");
+      setTimeout(() => navigate("/admin?tab=accounts"), 1500);
+    } catch (err: any) {
+      const msg =
+        err.response?.data?.message ||
+        err.message ||
+        "Không thể cập nhật thông tin";
+      setError(msg);
     } finally {
       setSaving(false);
     }
   };
 
   const handleCancel = () => {
-    navigate("/admin?tab=accounts"); // Quay lại trang admin accounts
+    navigate("/admin?tab=accounts");
   };
 
+  const isAdmin = formData.roleName === "Admin";
+
+  // === RENDER ===
   if (loading) {
     return (
       <div className="p-8 flex items-center justify-center min-h-screen">
@@ -222,11 +225,11 @@ const PageAccountDetail = () => {
 
   if (error && !formData.userId) {
     return (
-      <div className="p-8 bg-red-100 text-red-800 rounded-lg">
-        {error}
+      <div className="p-8 bg-red-100 text-red-800 rounded-lg max-w-2xl mx-auto">
+        <p>{error}</p>
         <button
           onClick={() => navigate("/admin?tab=accounts")}
-          className="ml-4 text-red-600 underline hover:text-red-800"
+          className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
         >
           Quay lại
         </button>
@@ -245,7 +248,7 @@ const PageAccountDetail = () => {
           <FormInput
             label="User ID"
             value={formData.userId?.toString() || ""}
-            onChange={() => {}}
+            onChange={() => { }}
             disabled
           />
 
@@ -253,35 +256,41 @@ const PageAccountDetail = () => {
             label="Tên người dùng *"
             value={formData.fullName || ""}
             onChange={(val) => handleChange("fullName", val)}
+            disabled={isAdmin}
           />
 
           <FormInput
             label="Email *"
             value={formData.email || ""}
             onChange={(val) => handleChange("email", val)}
+            disabled={isAdmin}
           />
 
           <FormSelect
             label="Vai trò"
             value={formData.roleName || ""}
             onChange={(val) => handleChange("roleName", val)}
+            disabled={isAdmin}
           >
             <option value="">-- Chọn vai trò --</option>
-            <option value="Tenant">Khách Hàng (Tenant)</option>
-            <option value="Owner">Chủ Condotel (Owner)</option>
-            <option value="Admin">Admin</option>
+            <option value="Tenant">Khách hàng (User)</option>
+            <option value="Owner">Chủ condotel (Host)</option>
+            <option value="Marketer">Nhân viên tiếp thị</option>
+            {isAdmin && <option value="Admin">Quản trị viên (Không thể thay đổi)</option>}
           </FormSelect>
 
           <FormInput
             label="Số điện thoại"
             value={formData.phone || ""}
             onChange={(val) => handleChange("phone", val)}
+            disabled={isAdmin}
           />
 
           <FormSelect
             label="Giới tính"
             value={formData.gender || ""}
             onChange={(val) => handleChange("gender", val)}
+            disabled={isAdmin}
           >
             <option value="">-- Chọn giới tính --</option>
             <option value="Male">Nam</option>
@@ -291,55 +300,65 @@ const PageAccountDetail = () => {
 
           <FormInput
             label="Ngày sinh"
+            type="date"
             value={formData.dateOfBirth || ""}
             onChange={(val) => handleChange("dateOfBirth", val)}
-            type="date"
+            disabled={isAdmin}
           />
 
           <FormInput
             label="Địa chỉ"
             value={formData.address || ""}
             onChange={(val) => handleChange("address", val)}
+            disabled={isAdmin}
           />
 
           <FormSelect
             label="Trạng thái"
             value={formData.status || ""}
             onChange={(val) => handleChange("status", val)}
+            disabled={isAdmin}
           >
-            <option value="Active">Hoạt động (Active)</option>
-            <option value="Inactive">Không hoạt động (Inactive)</option>
+            <option value="Active">Hoạt động</option>
+            <option value="Inactive">Không hoạt động</option>
+            <option value="Pending">Chờ kích hoạt</option>
           </FormSelect>
 
-          {/* --- Thông tin ngày tháng (chỉ hiển thị) --- */}
           {formData.createdAt && (
-            <div className="text-sm text-gray-500 space-y-2">
+            <div className="text-sm text-gray-500">
               <p>Ngày tạo: {new Date(formData.createdAt).toLocaleDateString("vi-VN")}</p>
             </div>
           )}
 
-          {/* Error display */}
+          {/* Thông báo */}
+          {success && (
+            <div className="p-4 bg-green-100 text-green-800 rounded-lg text-sm">
+              {success}
+            </div>
+          )}
           {error && (
             <div className="p-4 bg-red-100 text-red-800 rounded-lg text-sm whitespace-pre-line">
               {error}
             </div>
           )}
 
-          {/* --- Nút Bấm --- */}
-          <div className="flex justify-end items-center gap-4 pt-4">
+          <div className="flex justify-end gap-4 pt-4">
             <button
-              type="button" // Nút Hủy không submit form
+              type="button"
               onClick={handleCancel}
-              className="px-6 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+              className="px-6 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition"
             >
               Hủy
             </button>
             <button
               type="submit"
-              disabled={saving}
-              className="px-6 py-2 bg-gray-800 text-white rounded-md hover:bg-gray-700 disabled:bg-gray-400"
+              disabled={saving || isAdmin}
+              className={`px-6 py-2 rounded-md text-white font-medium transition ${isAdmin
+                ? "bg-gray-400 cursor-not-allowed"
+                : "bg-blue-600 hover:bg-blue-700"
+                }`}
             >
-              {saving ? "Đang lưu..." : "Lưu thay đổi"}
+              {saving ? "Đang lưu..." : isAdmin ? "Không thể sửa Admin" : "Lưu thay đổi"}
             </button>
           </div>
         </form>
