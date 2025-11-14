@@ -34,35 +34,31 @@ const AccountPage: FC<AccountPageProps> = ({ className = "", noLayout = false })
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Cập nhật preview khi user thay đổi
+  // Cập nhật preview khi user thay đổi (từ context)
   useEffect(() => {
-    if (user?.imageUrl && user.imageUrl.trim() !== "") {
-      console.log("Updating imagePreview from user context:", user.imageUrl);
-      setImagePreview(user.imageUrl);
+    if (user?.imageUrl && user.imageUrl.trim()) {
+      setImagePreview(user.imageUrl.trim());
     }
   }, [user?.imageUrl]);
 
-  // Load dữ liệu người dùng
+  // Load dữ liệu người dùng khi mount
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) {
-      console.error("No token found");
       setError("Bạn cần đăng nhập để xem thông tin");
       return;
     }
 
     const loadUserData = async () => {
       try {
-        console.log("Calling getMe API...");
         const userProfile = await authAPI.getMe();
-        console.log("User profile:", userProfile);
 
         setFormData({
           fullName: userProfile.fullName || "",
           email: userProfile.email || "",
           phone: userProfile.phone || "",
           gender: userProfile.gender || "",
-          dateOfBirth: userProfile.dateOfBirth?.split("T")[0] || "",
+          dateOfBirth: (userProfile.dateOfBirth || "").split("T")[0],
           address: userProfile.address || "",
           about: "",
         });
@@ -71,7 +67,6 @@ const AccountPage: FC<AccountPageProps> = ({ className = "", noLayout = false })
 
         const imageUrl = userProfile.imageUrl || (userProfile as any).ImageUrl;
         if (imageUrl && typeof imageUrl === "string" && imageUrl.trim()) {
-          console.log("Setting imagePreview from API:", imageUrl);
           setImagePreview(imageUrl.trim());
         } else {
           setImagePreview(null);
@@ -85,7 +80,7 @@ const AccountPage: FC<AccountPageProps> = ({ className = "", noLayout = false })
     };
 
     loadUserData();
-  }, []);
+  }, [updateUser]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -120,7 +115,6 @@ const AccountPage: FC<AccountPageProps> = ({ className = "", noLayout = false })
     setMessage("");
 
     try {
-      console.log("Uploading image...");
       const response = await uploadAPI.uploadUserImage(file);
       const imageUrl = response.imageUrl;
 
@@ -140,7 +134,7 @@ const AccountPage: FC<AccountPageProps> = ({ className = "", noLayout = false })
       setError(err.response?.data?.message || "Không thể upload ảnh");
       setImagePreview(user?.imageUrl || null);
     } finally {
-      setUploadingImage(false); // ĐÃ SỬA LỖI TYPO
+      setUploadingImage(false);
     }
   };
 
@@ -169,7 +163,6 @@ const AccountPage: FC<AccountPageProps> = ({ className = "", noLayout = false })
         updateData.imageUrl = imagePreview.trim();
       }
 
-      console.log("Sending update:", updateData);
       await authAPI.updateProfile(updateData);
 
       const updatedUser = await authAPI.getMe();
@@ -200,8 +193,9 @@ const AccountPage: FC<AccountPageProps> = ({ className = "", noLayout = false })
               userName={user?.fullName}
             />
             <div
-              className={`absolute inset-0 bg-black bg-opacity-60 flex flex-col items-center justify-center text-neutral-50 cursor-pointer transition-opacity ${uploadingImage ? "opacity-80" : "hover:bg-opacity-70"
-                }`}
+              className={`absolute inset-0 bg-black bg-opacity-60 flex flex-col items-center justify-center text-neutral-50 cursor-pointer transition-opacity ${
+                uploadingImage ? "opacity-80" : "hover:bg-opacity-70"
+              }`}
               onClick={() => fileInputRef.current?.click()}
             >
               {uploadingImage ? (
@@ -262,46 +256,4 @@ const AccountPage: FC<AccountPageProps> = ({ className = "", noLayout = false })
             <Input className="mt-1.5" type="date" name="dateOfBirth" value={formData.dateOfBirth} onChange={handleChange} />
           </div>
 
-          <div>
-            <Label>Địa chỉ</Label>
-            <Input className="mt-1.5" name="address" value={formData.address} onChange={handleChange} placeholder="Hà Nội, Việt Nam" />
-          </div>
-
-          <div>
-            <Label>Số điện thoại</Label>
-            <Input className="mt-1.5" name="phone" value={formData.phone} onChange={handleChange} placeholder="0123456789" />
-          </div>
-
-          <div>
-            <Label>Giới thiệu</Label>
-            <Textarea className="mt-1.5" name="about" value={formData.about} onChange={handleTextareaChange} placeholder="Giới thiệu về bạn..." rows={4} />
-          </div>
-
-          {message && <div className="p-4 bg-green-100 text-green-800 rounded-lg text-sm">{message}</div>}
-          {error && <div className="p-4 bg-red-100 text-red-800 rounded-lg text-sm whitespace-pre-line">{error}</div>}
-
-          <div className="pt-2">
-            <ButtonPrimary onClick={handleUpdate} disabled={loading || uploadingImage}>
-              {loading ? "Đang cập nhật..." : "Cập nhật thông tin"}
-            </ButtonPrimary>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  if (noLayout) {
-    return <div className={`nc-AccountPage ${className}`}>{content}</div>;
-  }
-
-  return (
-    <div className={`nc-AccountPage ${className}`} data-nc-id="AccountPage">
-      <Helmet>
-        <title>Thông tin tài khoản || Condotel Management</title>
-      </Helmet>
-      <CommonLayout>{content}</CommonLayout>
-    </div>
-  );
-};
-
-export default AccountPage;
+         

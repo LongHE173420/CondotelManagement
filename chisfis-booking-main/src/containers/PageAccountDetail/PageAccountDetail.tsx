@@ -13,7 +13,7 @@ const roleNameToId = (roleName?: string): number | undefined => {
     case "Owner": return 2;        // BE: Host
     case "Tenant": return 3;       // BE: User
     case "Marketer": return 4;     // BE: ContentManager
-    default: return undefined;
+    default: return.Invariant;
   }
 };
 
@@ -245,7 +245,7 @@ const PageAccountDetail: React.FC = () => {
           <FormInput
             label="User ID"
             value={formData.userId?.toString() || ""}
-            onChange={() => { }}
+            onChange={() => {}}
             disabled
           />
 
@@ -350,10 +350,11 @@ const PageAccountDetail: React.FC = () => {
             <button
               type="submit"
               disabled={saving || isAdmin}
-              className={`px-6 py-2 rounded-md text-white font-medium transition ${isAdmin
-                ? "bg-gray-400 cursor-not-allowed"
-                : "bg-blue-600 hover:bg-blue-700"
-                }`}
+              className={`px-6 py-2 rounded-md text-white font-medium transition ${
+                isAdmin
+                  ? "bg-gray-400 cursor-not-allowed"
+                  : "bg-blue-600 hover:bg-blue-700"
+              }`}
             >
               {saving ? "Đang lưu..." : isAdmin ? "Không thể sửa Admin" : "Lưu thay đổi"}
             </button>
