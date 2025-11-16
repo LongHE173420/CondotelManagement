@@ -12,16 +12,18 @@ const BecomeAHostPage: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
 
+    // SỬA 1: Dùng PascalCase cho state (để khớp DTO)
     const [formData, setFormData] = useState<HostRegisterRequest>({
-        PhoneContact: "", // 👈 SỬA
-        Address: "",      // 👈 SỬA
-        CompanyName: "",  // 👈 SỬA
-        BankName: "",     // 👈 SỬA
-        AccountNumber: "",// 👈 SỬA
-        AccountHolderName: "",// 👈 SỬA
+        PhoneContact: "",
+        Address: "",
+        CompanyName: "",
+        BankName: "",
+        AccountNumber: "",
+        AccountHolderName: "",
     });
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        // name (PascalCase) sẽ khớp với state
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
@@ -30,46 +32,40 @@ const BecomeAHostPage: React.FC = () => {
         setLoading(true);
         setError("");
 
-        // Validation đơn giản
+        // SỬA 2: Kiểm tra state bằng PascalCase
         if (!formData.PhoneContact || !formData.BankName || !formData.AccountNumber || !formData.AccountHolderName) {
             setError("Vui lòng điền các trường bắt buộc (*).");
             setLoading(false);
             return;
         }
 
-        // B1: Ghi log dữ liệu gửi đi để kiểm tra naming convention (camelCase vs PascalCase)
-        console.log("Dữ liệu gửi đi:", formData);
+        console.log("Dữ liệu gửi đi (PascalCase):", formData);
 
         try {
+            // formData (PascalCase) giờ đã khớp với DTO (PascalCase)
             const response = await authAPI.registerAsHost(formData);
             toast.success(response.message || "Đăng ký Host thành công! Vui lòng chọn gói dịch vụ.");
 
-            // QUAN TRỌNG: Load lại thông tin user trong Context
             await reloadUser();
 
-            // Chuyển hướng đến trang chọn gói dịch vụ
-            navigate("/pricing");
+            navigate("/pricing"); // Chuyển hướng đến trang chọn gói
 
         } catch (err: any) {
-            // B2: Xử lý chi tiết lỗi 400 để tìm ra lỗi validation
             let errorMessage = err.response?.data?.message || "Đã xảy ra lỗi khi đăng ký.";
 
+            // (Code xử lý lỗi 400 validation của bạn)
             if (err.response?.status === 400) {
-                // Thử đọc lỗi Validation Model State từ Backend (.NET Core)
                 const validationErrors = err.response.data?.errors;
                 if (validationErrors) {
-                    // Trích xuất các lỗi thành một chuỗi dễ đọc
                     let errorList: string[] = [];
                     Object.keys(validationErrors).forEach(key => {
                         errorList = errorList.concat(validationErrors[key]);
                     });
-
                     if (errorList.length > 0) {
                         errorMessage = "Lỗi Validation: " + errorList.join(" | ");
                     }
                 }
             }
-
             setError(errorMessage);
         } finally {
             setLoading(false);
@@ -82,6 +78,7 @@ const BecomeAHostPage: React.FC = () => {
             <p className="mb-6">Cung cấp thông tin bổ sung để chúng tôi có thể setup tài khoản Host cho bạn.</p>
 
             <form onSubmit={handleSubmit} className="space-y-6">
+                {/* SỬA 3: Đổi 'name' sang PascalCase */}
                 <Input
                     label="Số điện thoại liên hệ (*)"
                     name="PhoneContact"
