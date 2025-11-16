@@ -176,18 +176,15 @@ const PageAccountDetail: React.FC = () => {
       if (formData.dateOfBirth?.trim()) updateData.dateOfBirth = formData.dateOfBirth.trim();
       if (formData.address?.trim()) updateData.address = formData.address.trim();
 
-      // Handle Role
+      // Handle Role (chỉ gửi roleId nếu không phải Admin)
       if (formData.roleName && formData.roleName !== "Admin") {
         const roleId = roleNameToId(formData.roleName as UserRole);
         if (!roleId) throw new Error("Vai trò không hợp lệ");
         updateData.roleId = roleId;
       }
 
-      // Update Status (if changed)
-      if (
-        formData.status &&
-        formData.status !== formData.originalStatus
-      ) {
+      // Update Status (nếu thay đổi)
+      if (formData.status && formData.status !== formData.originalStatus) {
         await adminAPI.updateUserStatus(userId, formData.status as UserStatus);
       }
 
@@ -217,7 +214,7 @@ const PageAccountDetail: React.FC = () => {
   if (loading) {
     return (
       <div className="p-8 flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
         <span className="ml-4 text-gray-600">Đang tải dữ liệu...</span>
       </div>
     );
@@ -354,8 +351,8 @@ const PageAccountDetail: React.FC = () => {
               type="submit"
               disabled={saving || isAdmin}
               className={`px-6 py-2 rounded-md text-white font-medium transition ${isAdmin
-                ? "bg-gray-400 cursor-not-allowed"
-                : "bg-blue-600 hover:bg-blue-700"
+                  ? "bg-gray-400 cursor-not-allowed"
+                  : "bg-blue-600 hover:bg-blue-700"
                 }`}
             >
               {saving ? "Đang lưu..." : isAdmin ? "Không thể sửa Admin" : "Lưu thay đổi"}

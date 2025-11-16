@@ -27,7 +27,7 @@ const PageBlogList = () => {
                 setLoading(true);
                 // Load posts
                 const blogPosts = await blogAPI.adminGetAllPosts();
-                const convertedPosts: BlogPost[] = blogPosts.map((post) => ({
+                const convertedPosts: BlogPost[] = blogPosts.map((post: any) => ({
                     id: post.postId,
                     thumbnailUrl: post.featuredImageUrl,
                     title: post.title,
@@ -39,9 +39,9 @@ const PageBlogList = () => {
                 }));
                 setPosts(convertedPosts);
 
-                // Load categories
-                const cats = await blogAPI.adminGetCategories();
-                setCategories(cats.map(cat => ({ id: cat.categoryId, name: cat.name })));
+                // Load categories - sử dụng public API
+                const cats = await blogAPI.getCategories();
+                setCategories(cats.map((cat: any) => ({ id: cat.categoryId, name: cat.name })));
             } catch (err: any) {
                 console.error("Failed to load blog posts:", err);
                 setError(err.response?.data?.message || "Không thể tải danh sách bài viết");

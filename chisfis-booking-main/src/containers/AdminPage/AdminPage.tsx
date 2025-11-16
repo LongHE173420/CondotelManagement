@@ -7,13 +7,14 @@ import { adminAPI } from "api/admin";
 import PageAccountList from "containers/PageAccountList/PageAccountList";
 import AccountPage from "containers/AccountPage/AccountPage";
 import PageBlogList from "containers/PageManageBlog/PageBlogList";
+import PageManageReviews from "containers/PageManageReviews/PageManageReviews";
 import { Link } from "react-router-dom";
 
 export interface AdminPageProps {
   className?: string;
 }
 
-type AdminTab = "dashboard" | "accounts" | "profile" | "blog";
+type AdminTab = "dashboard" | "accounts" | "profile" | "blog" | "reviews";
 
 const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
   const { isAdmin, isLoading } = useAuth();
@@ -23,7 +24,7 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
 
   // Sync tab with URL
   useEffect(() => {
-    if (tabParam && ["dashboard", "accounts", "profile", "blog"].includes(tabParam)) {
+    if (tabParam && ["dashboard", "accounts", "profile", "blog", "reviews"].includes(tabParam)) {
       setActiveTab(tabParam);
     }
   }, [tabParam]);
@@ -56,7 +57,7 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
           let finalOverview = overviewData;
           if (overviewData.totalTenants === 0 && allUsers.length > 0) {
             const tenantCount = allUsers.filter(
-              (user) => user.roleName === "Tenant" && (user.status === "Active" || user.status === "Hoạt động")
+              (user: any) => user.roleName === "Tenant" && (user.status === "Active" || user.status === "Hoạt động")
             ).length;
             
             if (tenantCount > 0) {
@@ -206,6 +207,16 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
               Quản lý Blog
             </button>
             <button
+              onClick={() => handleTabChange("reviews")}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === "reviews"
+                  ? "border-primary-500 text-primary-600"
+                  : "border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300"
+              }`}
+            >
+              Quản lý Review
+            </button>
+            <button
               onClick={() => handleTabChange("profile")}
               className={`py-4 px-1 border-b-2 font-medium text-sm ${
                 activeTab === "profile"
@@ -257,7 +268,7 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
                       let finalOverview = overviewData;
                       if (overviewData.totalTenants === 0 && allUsers.length > 0) {
                         const tenantCount = allUsers.filter(
-                          (user) => user.roleName === "Tenant" && (user.status === "Active" || user.status === "Hoạt động")
+                          (user: any) => user.roleName === "Tenant" && (user.status === "Active" || user.status === "Hoạt động")
                         ).length;
                         
                         if (tenantCount > 0) {
@@ -303,6 +314,12 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
         {/* Tab Content */}
         {activeTab === "accounts" ? (
           <PageAccountList />
+        ) : activeTab === "reviews" ? (
+          <div className="space-y-6">
+            <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg p-6">
+              <PageManageReviews />
+            </div>
+          </div>
         ) : activeTab === "blog" ? (
           <div className="space-y-6">
             <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg p-6">

@@ -56,8 +56,8 @@ const PageEditCondotel: React.FC = () => {
         setBeds(data.beds || 1);
         setBathrooms(data.bathrooms || 1);
         setPricePerNight(data.pricePerNight || 0);
-        setImages((data.images || []).map((it) => ({ imageUrl: it.imageUrl, caption: it.caption })));
-        setDetails((data.details || []).map((d) => ({ buildingName: d.buildingName, roomNumber: d.roomNumber })));
+        setImages((data.images || []).map((it: any) => ({ imageUrl: it.imageUrl, caption: it.caption })));
+        setDetails((data.details || []).map((d: any) => ({ buildingName: d.buildingName, roomNumber: d.roomNumber })));
       } catch (e: any) {
         setError(e?.response?.data?.message || e?.message || "Không thể tải condotel");
       } finally {

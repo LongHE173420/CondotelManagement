@@ -11,6 +11,7 @@ import HostVoucherContent from "containers/HostVoucherPage/HostVoucherContent";
 import HostCustomerContent from "containers/HostCustomerPage/HostCustomerContent";
 import HostReportContent from "containers/HostReportPage/HostReportContent";
 import HostServicePackageContent from "containers/HostServicePackagePage/HostServicePackageContent";
+import HostReviewContent from "containers/HostReviewPage/HostReviewContent";
 
 const HostCondotelDashboard = () => {
   const { user, isAuthenticated } = useAuth();
@@ -36,6 +37,7 @@ const HostCondotelDashboard = () => {
     } else if (activeTab === "bookings") {
       fetchBookings();
     }
+    // Reviews will be loaded by HostReviewContent component
   }, [activeTab]);
 
   const fetchCondotels = async () => {
@@ -269,6 +271,16 @@ const HostCondotelDashboard = () => {
             Báo cáo
           </button>
           <button
+            onClick={() => handleTabChange("reviews")}
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === "reviews"
+                ? "border-primary-500 text-primary-600"
+                : "border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300"
+            }`}
+          >
+            Reviews
+          </button>
+          <button
             onClick={() => handleTabChange("bookings")}
             className={`py-4 px-1 border-b-2 font-medium text-sm ${
               activeTab === "bookings"
@@ -301,6 +313,10 @@ const HostCondotelDashboard = () => {
       ) : activeTab === "reports" ? (
         <div className="mt-6">
           <HostReportContent />
+        </div>
+      ) : activeTab === "reviews" ? (
+        <div className="mt-6">
+          <HostReviewContent />
         </div>
       ) : activeTab === "bookings" ? (
         <div className="mt-6">

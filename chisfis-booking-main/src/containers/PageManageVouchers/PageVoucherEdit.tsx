@@ -22,6 +22,7 @@ const PageVoucherEdit = () => {
   const [usedCount, setUsedCount] = useState(0); // <-- Thêm
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [status, setStatus] = useState("Active");
   const [isLoading, setIsLoading] = useState(false);
 

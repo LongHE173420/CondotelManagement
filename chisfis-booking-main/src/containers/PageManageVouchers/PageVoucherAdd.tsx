@@ -17,7 +17,7 @@ const PageVoucherAdd = () => {
   const [usageLimit, setUsageLimit] = useState(100);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [status, setStatus] = useState("Active");
+  const [status] = useState("Active");
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 

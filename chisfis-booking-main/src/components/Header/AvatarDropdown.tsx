@@ -7,7 +7,7 @@ import {
   StarIcon,
 } from "@heroicons/react/24/outline";
 import { Fragment } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import Avatar from "shared/Avatar/Avatar";
 import { useAuth } from "contexts/AuthContext";
 import { useTranslation } from "i18n/LanguageContext";
@@ -15,7 +15,6 @@ import { useTranslation } from "i18n/LanguageContext";
 export default function AvatarDropdown() {
   const { user, logout, isAdmin, isAuthenticated } = useAuth();
   const { t } = useTranslation();
-  const navigate = useNavigate();
 
   const solutionsFoot = [
     {
@@ -41,10 +40,7 @@ export default function AvatarDropdown() {
     if (isAdmin) {
       return "/admin?tab=profile";
     }
-    // Check if user is Host
-    if (user?.roleName === "Host") {
-      return "/host-dashboard";
-    }
+    // Host and Tenant both use /account for profile
     return "/account";
   };
 
@@ -62,13 +58,21 @@ export default function AvatarDropdown() {
 
   // Get menu items based on user role (only called when authenticated)
   const getMenuItems = () => {
-    const items = [
-      {
+    const items: Array<{
+      name: string;
+      href: string;
+      icon: any;
+    }> = [];
+
+    // Only Admin and Host can see Profile and Dashboard
+    // Tenant and other roles cannot access Profile and Dashboard
+    if (isAdmin || user?.roleName === "Host") {
+      items.push({
         name: t.account.profile,
         href: getAccountLink(),
         icon: UserIcon,
-      },
-    ];
+      });
+    }
 
     // Add role-specific items
     if (user?.roleName === "Host") {
@@ -77,8 +81,8 @@ export default function AvatarDropdown() {
         href: "/host-dashboard",
         icon: DocumentTextIcon,
       });
-    } else if (user?.roleName !== "Admin") {
-      // Tenant or other roles
+    } else if (user?.roleName !== "Admin" && user?.roleName !== "Host") {
+      // Tenant or other roles - only show bookings, no profile/dashboard
       items.push({
         name: t.header.myBookings,
         href: "/my-bookings",

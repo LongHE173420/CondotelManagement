@@ -172,43 +172,53 @@ export const blogAPI = {
 
   // POST /api/admin/blog/posts - Tạo post mới
   adminCreatePost: async (dto: AdminBlogCreateDTO): Promise<BlogPostDetailDTO> => {
-    // Map camelCase sang PascalCase để khớp với backend
+    // Backend nhận camelCase (từ curl request: title, content, featuredImageUrl, status, categoryId)
     const requestData: any = {
-      Title: dto.title || dto.Title || "",
-      Content: dto.content || dto.Content || "",
-      Status: dto.status || dto.Status || "Draft",
+      title: dto.title || dto.Title || "",
+      content: dto.content || dto.Content || "",
+      status: dto.status || dto.Status || "Draft",
     };
     
     if (dto.featuredImageUrl || dto.FeaturedImageUrl) {
-      requestData.FeaturedImageUrl = dto.featuredImageUrl || dto.FeaturedImageUrl;
+      requestData.featuredImageUrl = dto.featuredImageUrl || dto.FeaturedImageUrl || "";
     }
     
     if (dto.categoryId !== undefined || dto.CategoryId !== undefined) {
-      requestData.CategoryId = dto.categoryId ?? dto.CategoryId ?? null;
+      const catId = dto.categoryId ?? dto.CategoryId;
+      if (catId !== null && catId !== undefined) {
+        requestData.categoryId = catId;
+      }
     }
 
+    console.log("📤 Creating blog post with data:", JSON.stringify(requestData, null, 2));
     const response = await axiosClient.post<any>("/admin/blog/posts", requestData);
+    console.log("✅ Blog post created:", response.data);
     return normalizePostDetail(response.data);
   },
 
   // PUT /api/admin/blog/posts/{postId} - Cập nhật post
   adminUpdatePost: async (postId: number, dto: AdminBlogCreateDTO): Promise<BlogPostDetailDTO> => {
-    // Map camelCase sang PascalCase
+    // Backend nhận camelCase
     const requestData: any = {
-      Title: dto.title || dto.Title || "",
-      Content: dto.content || dto.Content || "",
-      Status: dto.status || dto.Status || "Draft",
+      title: dto.title || dto.Title || "",
+      content: dto.content || dto.Content || "",
+      status: dto.status || dto.Status || "Draft",
     };
     
     if (dto.featuredImageUrl || dto.FeaturedImageUrl) {
-      requestData.FeaturedImageUrl = dto.featuredImageUrl || dto.FeaturedImageUrl;
+      requestData.featuredImageUrl = dto.featuredImageUrl || dto.FeaturedImageUrl || "";
     }
     
     if (dto.categoryId !== undefined || dto.CategoryId !== undefined) {
-      requestData.CategoryId = dto.categoryId ?? dto.CategoryId ?? null;
+      const catId = dto.categoryId ?? dto.CategoryId;
+      if (catId !== null && catId !== undefined) {
+        requestData.categoryId = catId;
+      }
     }
 
+    console.log("📤 Updating blog post with data:", JSON.stringify(requestData, null, 2));
     const response = await axiosClient.put<any>(`/admin/blog/posts/${postId}`, requestData);
+    console.log("✅ Blog post updated:", response.data);
     return normalizePostDetail(response.data);
   },
 
@@ -233,10 +243,25 @@ export const blogAPI = {
 
   // POST /api/admin/blog/categories - Tạo category mới
   adminCreateCategory: async (name: string): Promise<BlogCategoryDTO> => {
-    const response = await axiosClient.post<any>("/admin/blog/categories", {
-      Name: name,
-    });
-    return normalizeCategory(response.data);
+    try {
+      const response = await axiosClient.post<any>("/admin/blog/categories", {
+        Name: name,
+      });
+      
+      // Backend CreatedAtAction có thể trả về object trong response.data
+      // Hoặc có thể là response.data trực tiếp
+      const categoryData = response.data;
+      
+      if (!categoryData) {
+        throw new Error("Không nhận được dữ liệu từ server");
+      }
+      
+      return normalizeCategory(categoryData);
+    } catch (error: any) {
+      console.error("Error creating category:", error);
+      // Re-throw để component có thể xử lý
+      throw error;
+    }
   },
 
   // PUT /api/admin/blog/categories/{categoryId} - Cập nhật category
@@ -248,7 +273,9 @@ export const blogAPI = {
       requestData.Slug = slug;
     }
     const response = await axiosClient.put<any>(`/admin/blog/categories/${categoryId}`, requestData);
-    return normalizeCategory(response.data);
+    // Backend có thể trả về object trực tiếp hoặc trong response.data
+    const categoryData = response.data || response;
+    return normalizeCategory(categoryData);
   },
 
   // DELETE /api/admin/blog/categories/{categoryId} - Xóa category

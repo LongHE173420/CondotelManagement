@@ -3,7 +3,6 @@ import { useLocation } from "react-router-dom";
 import AnyReactComponent from "components/AnyReactComponent/AnyReactComponent";
 import StayCardH from "components/StayCardH/StayCardH";
 import GoogleMapReact from "google-map-react";
-import { DEMO_STAY_LISTINGS } from "data/listings";
 import { StayDataType } from "data/types";
 import ButtonClose from "shared/ButtonClose/ButtonClose";
 import Checkbox from "shared/Checkbox/Checkbox";
@@ -11,8 +10,6 @@ import Pagination from "shared/Pagination/Pagination";
 import TabFilters from "./TabFilters";
 import Heading2 from "components/Heading/Heading2";
 import condotelAPI, { CondotelDTO } from "api/condotel";
-
-const DEMO_STAYS = DEMO_STAY_LISTINGS.filter((_, i) => i < 12);
 
 // Default coordinates for Vietnam (center of Vietnam)
 const DEFAULT_VIETNAM_CENTER = {
@@ -77,6 +74,8 @@ const SectionGridHasMap: FC<SectionGridHasMapProps> = () => {
 
   const params = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const searchLocation = params.get("location");
+  const searchFromDate = params.get("startDate");
+  const searchToDate = params.get("endDate");
 
   useEffect(() => {
     const fetchCondotels = async () => {
@@ -84,15 +83,21 @@ const SectionGridHasMap: FC<SectionGridHasMapProps> = () => {
         setLoading(true);
         setError("");
         
+        // Build search query
+        const searchQuery: any = {};
         if (searchLocation) {
-          // Search by location
-          const results = await condotelAPI.getCondotelsByLocationPublic(searchLocation);
-          setCondotels(results);
-        } else {
-          // If no search params, load all condotels
-          const results = await condotelAPI.getAll();
-          setCondotels(results);
+          searchQuery.location = searchLocation;
         }
+        if (searchFromDate) {
+          searchQuery.fromDate = searchFromDate;
+        }
+        if (searchToDate) {
+          searchQuery.toDate = searchToDate;
+        }
+        
+        // Use new search API with all parameters
+        const results = await condotelAPI.search(searchQuery);
+        setCondotels(results);
       } catch (err: any) {
         console.error("Error fetching condotels:", err);
         setError(err.response?.data?.message || "Không thể tải danh sách condotel");
@@ -103,7 +108,7 @@ const SectionGridHasMap: FC<SectionGridHasMapProps> = () => {
     };
 
     fetchCondotels();
-  }, [searchLocation]);
+  }, [searchLocation, searchFromDate, searchToDate]);
 
   // Convert condotels to StayDataType for display
   const stayListings: StayDataType[] = condotels.map(convertCondotelToStay);

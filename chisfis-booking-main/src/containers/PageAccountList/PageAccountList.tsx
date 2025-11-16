@@ -90,7 +90,7 @@ const PageAccountList = () => {
       console.log("Users data from API:", data);
       
       // Map API data to component format
-      const mappedUsers: UserAccount[] = data.map((user) => ({
+      const mappedUsers: UserAccount[] = data.map((user: any) => ({
         id: user.userId.toString(),
         userId: user.userId,
         fullName: user.fullName,
