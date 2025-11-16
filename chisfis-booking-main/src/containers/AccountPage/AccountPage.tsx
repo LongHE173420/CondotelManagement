@@ -34,14 +34,12 @@ const AccountPage: FC<AccountPageProps> = ({ className = "", noLayout = false })
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Cập nhật preview khi user thay đổi (từ context)
   useEffect(() => {
     if (user?.imageUrl && user.imageUrl.trim()) {
       setImagePreview(user.imageUrl.trim());
     }
   }, [user?.imageUrl]);
 
-  // Load dữ liệu người dùng khi mount
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) {
@@ -52,7 +50,6 @@ const AccountPage: FC<AccountPageProps> = ({ className = "", noLayout = false })
     const loadUserData = async () => {
       try {
         const userProfile = await authAPI.getMe();
-
         setFormData({
           fullName: userProfile.fullName || "",
           email: userProfile.email || "",
@@ -62,7 +59,6 @@ const AccountPage: FC<AccountPageProps> = ({ className = "", noLayout = false })
           address: userProfile.address || "",
           about: "",
         });
-
         updateUser(userProfile);
 
         const imageUrl = userProfile.imageUrl || (userProfile as any).ImageUrl;
@@ -92,7 +88,6 @@ const AccountPage: FC<AccountPageProps> = ({ className = "", noLayout = false })
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  // Upload ảnh
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -130,7 +125,6 @@ const AccountPage: FC<AccountPageProps> = ({ className = "", noLayout = false })
 
       if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (err: any) {
-      console.error("Upload error:", err);
       setError(err.response?.data?.message || "Không thể upload ảnh");
       setImagePreview(user?.imageUrl || null);
     } finally {
@@ -138,7 +132,6 @@ const AccountPage: FC<AccountPageProps> = ({ className = "", noLayout = false })
     }
   };
 
-  // Cập nhật profile
   const handleUpdate = async () => {
     if (!formData.fullName.trim()) {
       setError("Vui lòng nhập họ tên");
@@ -170,7 +163,6 @@ const AccountPage: FC<AccountPageProps> = ({ className = "", noLayout = false })
 
       setMessage("Cập nhật thông tin thành công!");
     } catch (err: any) {
-      console.error("Update failed:", err);
       const msg = err.response?.data?.message || "Không thể cập nhật thông tin";
       setError(typeof msg === "string" ? msg : JSON.stringify(msg));
     } finally {
@@ -184,18 +176,12 @@ const AccountPage: FC<AccountPageProps> = ({ className = "", noLayout = false })
       {!noLayout && <div className="w-14 border-b border-neutral-200 dark:border-neutral-700"></div>}
 
       <div className="flex flex-col md:flex-row">
-        {/* Avatar */}
         <div className="flex-shrink-0 flex items-start">
           <div className="relative rounded-full overflow-hidden">
-            <Avatar
-              sizeClass="w-32 h-32"
-              imgUrl={imagePreview || undefined}
-              userName={user?.fullName}
-            />
+            <Avatar sizeClass="w-32 h-32" imgUrl={imagePreview || undefined} userName={user?.fullName} />
             <div
-              className={`absolute inset-0 bg-black bg-opacity-60 flex flex-col items-center justify-center text-neutral-50 cursor-pointer transition-opacity ${
-                uploadingImage ? "opacity-80" : "hover:bg-opacity-70"
-              }`}
+              className={`absolute inset-0 bg-black bg-opacity-60 flex flex-col items-center justify-center text-neutral-50 cursor-pointer transition-opacity ${uploadingImage ? "opacity-80" : "hover:bg-opacity-70"
+                }`}
               onClick={() => fileInputRef.current?.click()}
             >
               {uploadingImage ? (
@@ -224,7 +210,6 @@ const AccountPage: FC<AccountPageProps> = ({ className = "", noLayout = false })
           </div>
         </div>
 
-        {/* Form */}
         <div className="flex-grow mt-10 md:mt-0 md:pl-16 max-w-3xl space-y-6">
           <div>
             <Label>Họ tên *</Label>
@@ -256,4 +241,46 @@ const AccountPage: FC<AccountPageProps> = ({ className = "", noLayout = false })
             <Input className="mt-1.5" type="date" name="dateOfBirth" value={formData.dateOfBirth} onChange={handleChange} />
           </div>
 
-         
+          <div>
+            <Label>Địa chỉ</Label>
+            <Input className="mt-1.5" name="address" value={formData.address} onChange={handleChange} placeholder="Hà Nội, Việt Nam" />
+          </div>
+
+          <div>
+            <Label>Số điện thoại</Label>
+            <Input className="mt-1.5" name="phone" value={formData.phone} onChange={handleChange} placeholder="0123456789" />
+          </div>
+
+          <div>
+            <Label>Giới thiệu</Label>
+            <Textarea className="mt-1.5" name="about" value={formData.about} onChange={handleTextareaChange} placeholder="Giới thiệu về bạn..." rows={4} />
+          </div>
+
+          {message && <div className="p-4 bg-green-100 text-green-800 rounded-lg text-sm">{message}</div>}
+          {error && <div className="p-4 bg-red-100 text-red-800 rounded-lg text-sm whitespace-pre-line">{error}</div>}
+
+          <div className="pt-2">
+            <ButtonPrimary onClick={handleUpdate} disabled={loading || uploadingImage}>
+              {loading ? "Đang cập nhật..." : "Cập nhật thông tin"}
+            </ButtonPrimary>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  if (noLayout) {
+    return <div className={`nc-AccountPage ${className}`}>{content}</div>;
+  }
+
+  return (
+    <div className={`nc-AccountPage ${className}`} data-nc-id="AccountPage">
+      <Helmet>
+        <title>Thông tin tài khoản || Condotel Management</title>
+      </Helmet>
+      <CommonLayout>{content}</CommonLayout>
+    </div>
+  );
+};
+
+export default AccountPage;
