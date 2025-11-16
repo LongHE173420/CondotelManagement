@@ -9,6 +9,9 @@ export interface InputProps
   rounded?: string;
   fontClass?: string;
   sizeClass?: string;
+  // Support textarea-specific props
+  rows?: number;
+  cols?: number;
 }
 
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
@@ -23,6 +26,8 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
       rounded = "rounded-2xl",
       fontClass = "text-sm",
       sizeClass = "px-4 py-3",
+      rows,
+      cols,
       ...rest
     },
     ref
@@ -42,6 +47,8 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           <textarea
             // SỬA DÒNG NÀY:
             className={baseClassName}
+            rows={rows}
+            cols={cols}
             {...(rest as React.TextareaHTMLAttributes<HTMLTextAreaElement>)}
           />
         ) : as === "select" ? (

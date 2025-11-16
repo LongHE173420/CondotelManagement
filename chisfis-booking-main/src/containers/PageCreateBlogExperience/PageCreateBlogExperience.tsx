@@ -6,7 +6,6 @@ import "react-quill/dist/quill.snow.css";
 import blogAPI, { BlogCategoryDTO } from "api/blog";
 import { uploadAPI } from "api/upload";
 import { useAuth } from "contexts/AuthContext";
-import { useTranslation } from "i18n/LanguageContext";
 
 // Đăng ký module resize với Quill
 Quill.register("modules/imageResize", ImageResize);
@@ -22,7 +21,6 @@ const SidebarCard: React.FC<{ title: string; children: React.ReactNode }> = ({ t
 // Component Trang Tạo Blog Trải nghiệm cho User
 const PageCreateBlogExperience = () => {
     const { isAuthenticated } = useAuth();
-    const { t } = useTranslation();
     const [title, setTitle] = useState("");
     const [content, setContent] = useState("");
     const [categoryId, setCategoryId] = useState<number | undefined>(undefined);

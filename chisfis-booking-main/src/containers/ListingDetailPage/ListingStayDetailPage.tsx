@@ -124,7 +124,7 @@ const ListingStayDetailPage: FC = () => {
       // Tính average rating từ tất cả reviews (cần load tất cả để tính chính xác)
       // Hoặc dùng từ response nếu backend trả về
       if (response.data && response.data.length > 0) {
-        const totalRating = response.data.reduce((sum, r) => sum + r.rating, 0);
+        const totalRating = response.data.reduce((sum: number, r: any) => sum + r.rating, 0);
         setAverageRating(totalRating / response.data.length);
       }
     } catch (err: any) {
@@ -146,7 +146,7 @@ const ListingStayDetailPage: FC = () => {
       // Tìm booking có status "Completed" cho condotel này
       // Chỉ cho phép review khi booking status là "Completed"
       const completedBooking = myBookings.find(
-        (b) => {
+        (b: any) => {
           const status = b.status?.toLowerCase();
           return b.condotelId === condotelId && status === "completed";
         }
@@ -177,7 +177,7 @@ const ListingStayDetailPage: FC = () => {
     }
   };
 
-  const PHOTOS = (data?.images ?? []).map((i) => i.imageUrl).filter(Boolean);
+  const PHOTOS = (data?.images ?? []).map((i: any) => i.imageUrl).filter(Boolean);
 
   const handleOpenModal = (index: number) => {
     setIsOpen(true);
@@ -202,7 +202,7 @@ const ListingStayDetailPage: FC = () => {
           />
           <div className="absolute inset-0 bg-neutral-900 bg-opacity-20 opacity-0 hover:opacity-100 transition-opacity"></div>
         </div>
-        {(PHOTOS.length ? PHOTOS : ["", "", ""]).filter((_, i) => i >= 1 && i < 4).map((item, index) => (
+        {(PHOTOS.length ? PHOTOS : ["", "", ""]).filter((_: any, i: number) => i >= 1 && i < 4).map((item: string, index: number) => (
           <div key={index} className={`relative rounded-md sm:rounded-xl overflow-hidden ${index >= 2 ? "block" : ""}`}>
             <NcImage
               containerClassName="aspect-w-4 aspect-h-3"
@@ -321,7 +321,7 @@ const ListingStayDetailPage: FC = () => {
           </h4>
           {data.amenities && data.amenities.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {data.amenities.map((amenity) => (
+              {data.amenities.map((amenity: any) => (
                 <div
                   key={amenity.amenityId}
                   className="flex items-center space-x-3 p-3 rounded-lg bg-neutral-50 dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
@@ -345,7 +345,7 @@ const ListingStayDetailPage: FC = () => {
           </h4>
           {data.utilities && data.utilities.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {data.utilities.map((utility) => (
+              {data.utilities.map((utility: any) => (
                 <div
                   key={utility.utilityId}
                   className="flex items-center space-x-3 p-3 rounded-lg bg-neutral-50 dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
@@ -739,7 +739,7 @@ const ListingStayDetailPage: FC = () => {
               <h2 className="text-2xl font-semibold">Chi tiết phòng</h2>
               <div className="w-14 border-b border-neutral-200 dark:border-neutral-700"></div>
               <div className="space-y-3">
-                {data.details?.map((d, i) => (
+                {data.details?.map((d: any, i: number) => (
                   <div key={i} className="border rounded p-3">
                     <div><b>Tòa nhà:</b> {d.buildingName || "—"} · <b>Phòng:</b> {d.roomNumber || "—"}</div>
                     <div><b>Giường:</b> {d.beds} · <b>Phòng tắm:</b> {d.bathrooms}</div>

@@ -78,7 +78,7 @@ const LocationInput: FC<LocationInputProps> = ({
         
         // Extract unique resort names/locations
         const uniqueLocations = new Set<string>();
-        condotels.forEach((condotel) => {
+        condotels.forEach((condotel: any) => {
           if (condotel.resortName) {
             uniqueLocations.add(condotel.resortName);
           }

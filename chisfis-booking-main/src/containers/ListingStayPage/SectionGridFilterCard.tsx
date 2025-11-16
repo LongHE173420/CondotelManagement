@@ -77,6 +77,8 @@ const SectionGridFilterCard: FC<SectionGridFilterCardProps> = ({
 
   const params = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const searchLocation = params.get("location");
+  const searchFromDate = params.get("startDate");
+  const searchToDate = params.get("endDate");
 
   useEffect(() => {
     const fetchCondotels = async () => {
@@ -84,9 +86,21 @@ const SectionGridFilterCard: FC<SectionGridFilterCardProps> = ({
         setLoading(true);
         setError("");
         
+        // Build search query
+        const searchQuery: any = {};
         if (searchLocation) {
-          // Search by location
-          const results = await condotelAPI.getCondotelsByLocation(searchLocation);
+          searchQuery.location = searchLocation;
+        }
+        if (searchFromDate) {
+          searchQuery.fromDate = searchFromDate;
+        }
+        if (searchToDate) {
+          searchQuery.toDate = searchToDate;
+        }
+        
+        if (Object.keys(searchQuery).length > 0) {
+          // Use new search API with all parameters
+          const results = await condotelAPI.search(searchQuery);
           setCondotels(results);
         } else {
           // If no search params, show empty or use demo data
@@ -102,7 +116,7 @@ const SectionGridFilterCard: FC<SectionGridFilterCardProps> = ({
     };
 
     fetchCondotels();
-  }, [searchLocation]);
+  }, [searchLocation, searchFromDate, searchToDate]);
 
   // Use condotels if available, otherwise use provided data or demo data
   const displayData = condotels.length > 0 

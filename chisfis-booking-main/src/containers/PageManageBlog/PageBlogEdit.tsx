@@ -59,7 +59,8 @@ const PageBlogEdit = () => {
         }
 
         // Load categories
-        const cats = await blogAPI.adminGetCategories();
+        // Sử dụng public API để lấy categories
+        const cats = await blogAPI.getCategories();
         setCategories(cats);
       } catch (err: any) {
         console.error("Failed to load post:", err);

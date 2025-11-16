@@ -37,13 +37,13 @@ const HostPromotionContent: React.FC = () => {
       try {
         const promotionsData = await condotelAPI.getPromotions();
         // Gắn condotelName và chuẩn hóa trạng thái
-        const promotionsWithNames = promotionsData.map((p) => {
+        const promotionsWithNames = promotionsData.map((p: any) => {
           const active = p.isActive === true || (p as any).isActive === "true" || (p.status || "").toLowerCase() === "active";
           return {
             ...p,
             condotelName:
               p.condotelName ||
-              condotelsData.find((c) => c.condotelId === p.condotelId)?.name ||
+              condotelsData.find((c: any) => c.condotelId === p.condotelId)?.name ||
               `Condotel #${p.condotelId}`,
             isActive: active,
             status: active ? "Active" : "Inactive",
@@ -63,13 +63,13 @@ const HostPromotionContent: React.FC = () => {
             // Skip if condotel has no promotions
           }
         }
-        const promotionsWithNames = allPromotions.map((p) => {
+        const promotionsWithNames = allPromotions.map((p: any) => {
           const active = p.isActive === true || (p as any).isActive === "true" || (p.status || "").toLowerCase() === "active";
           return {
             ...p,
             condotelName:
               p.condotelName ||
-              condotelsData.find((c) => c.condotelId === p.condotelId)?.name ||
+              condotelsData.find((c: any) => c.condotelId === p.condotelId)?.name ||
               `Condotel #${p.condotelId}`,
             isActive: active,
             status: active ? "Active" : "Inactive",

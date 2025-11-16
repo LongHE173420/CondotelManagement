@@ -21,25 +21,34 @@ const ListingStayMapPage: FC<ListingStayMapPageProps> = ({
   const location = useLocation();
   const params = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const searchLocation = params.get("location") || "Việt Nam";
+  const searchFromDate = params.get("startDate");
+  const searchToDate = params.get("endDate");
   const [propertyCount, setPropertyCount] = useState<number>(0);
 
   useEffect(() => {
     const fetchCount = async () => {
       try {
+        // Build search query
+        const searchQuery: any = {};
         if (searchLocation && searchLocation !== "Việt Nam") {
-          const condotels = await condotelAPI.getCondotelsByLocationPublic(searchLocation);
-          setPropertyCount(condotels.length);
-        } else {
-          const condotels = await condotelAPI.getAll();
-          setPropertyCount(condotels.length);
+          searchQuery.location = searchLocation;
         }
+        if (searchFromDate) {
+          searchQuery.fromDate = searchFromDate;
+        }
+        if (searchToDate) {
+          searchQuery.toDate = searchToDate;
+        }
+        
+        const condotels = await condotelAPI.search(searchQuery);
+        setPropertyCount(condotels.length);
       } catch (err) {
         console.error("Error fetching condotel count:", err);
         setPropertyCount(0);
       }
     };
     fetchCount();
-  }, [searchLocation]);
+  }, [searchLocation, searchFromDate, searchToDate]);
 
   return (
     <div

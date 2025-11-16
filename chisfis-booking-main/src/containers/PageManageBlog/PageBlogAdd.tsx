@@ -34,7 +34,8 @@ const PageBlogAdd = () => {
     useEffect(() => {
         const loadCategories = async () => {
             try {
-                const cats = await blogAPI.adminGetCategories();
+                // Sử dụng public API để lấy categories
+                const cats = await blogAPI.getCategories();
                 setCategories(cats);
             } catch (err) {
                 console.error("Failed to load categories:", err);

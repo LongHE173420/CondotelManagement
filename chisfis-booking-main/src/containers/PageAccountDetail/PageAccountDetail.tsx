@@ -109,7 +109,7 @@ const PageAccountDetail = () => {
 
 
   const handleChange = (field: keyof AdminUserDTO, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev: any) => ({ ...prev, [field]: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
