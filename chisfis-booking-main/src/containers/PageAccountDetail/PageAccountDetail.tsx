@@ -351,8 +351,8 @@ const PageAccountDetail: React.FC = () => {
               type="submit"
               disabled={saving || isAdmin}
               className={`px-6 py-2 rounded-md text-white font-medium transition ${isAdmin
-                  ? "bg-gray-400 cursor-not-allowed"
-                  : "bg-blue-600 hover:bg-blue-700"
+                ? "bg-gray-400 cursor-not-allowed"
+                : "bg-blue-600 hover:bg-blue-700"
                 }`}
             >
               {saving ? "Đang lưu..." : isAdmin ? "Không thể sửa Admin" : "Lưu thay đổi"}
