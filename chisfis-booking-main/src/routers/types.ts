@@ -71,8 +71,8 @@ export interface LocationStates {
   "/manage-blog/add"?: {};
   "/manage-blog/edit/:id"?: {};
   "/manage-blog/categories"?: {};
-  "/manage-vouchers"?: {};         
-  "/manage-vouchers/add"?: {};   
+  "/manage-vouchers"?: {};
+  "/manage-vouchers/add"?: {};
   "/manage-vouchers/edit/:id"?: {};
   "/manage-locations"?: {};
   "/manage-locations/add"?: {};
@@ -81,6 +81,7 @@ export interface LocationStates {
   "/page404"?: {};
   "/subscription"?: {};
   "/host-dashboard"?: {};
+  "/become-a-host"?: {};
 }
 
 export type PathName = keyof LocationStates;
