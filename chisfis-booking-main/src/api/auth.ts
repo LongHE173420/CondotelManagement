@@ -34,12 +34,12 @@ export interface ResetPasswordWithOtpRequest {
 
 // Dành riêng cho Host đăng ký
 export interface HostRegisterRequest {
-  PhoneContact: string; // 👈 SỬA
-  Address?: string; // 👈 SỬA
-  CompanyName?: string; // 👈 SỬA
-  BankName: string; // 👈 SỬA
-  AccountNumber: string; // 👈 SỬA
-  AccountHolderName: string; // 👈 SỬA
+  PhoneContact: string;
+  Address?: string;
+  CompanyName?: string;
+  BankName: string;
+  AccountNumber: string;
+  AccountHolderName: string;
 }
 
 // =====================
@@ -160,7 +160,7 @@ export const authAPI = {
     data: HostRegisterRequest
   ): Promise<{ message: string }> => {
     const response = await axiosClient.post<{ message: string }>(
-      "/Host/register",
+      "/Host/register-as-host",
       data
     );
     return response.data;
@@ -172,18 +172,16 @@ export const authAPI = {
   updateProfile: async (data: Partial<UserProfile>): Promise<{ message: string }> => {
     const requestData: any = {
       FullName: data.fullName,
-      Email: data.email,
       Phone: data.phone,
       Gender: data.gender,
       DateOfBirth: data.dateOfBirth,
       Address: data.address,
+      // imageUrl: data.imageUrl, // camelCase → đúng với backend mới (nếu backend dùng camelCase)
+      // Nếu backend vẫn dùng ImageUrl (PascalCase) → dùng dòng dưới
       ImageUrl: data.imageUrl,
     };
 
-    const response = await axiosClient.put<{ message: string }>(
-      "/Profile/me",
-      requestData
-    );
+    const response = await axiosClient.put<{ message: string }>("/Profile/me", requestData);
     return response.data;
   },
 
