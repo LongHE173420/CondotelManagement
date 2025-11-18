@@ -30,21 +30,19 @@ export default function AvatarDropdown() {
       isLogout: true,
     },
   ];
-  
+
   const handleLogout = async () => {
     await logout();
-    // logout() already redirects to /login, so no need to navigate
   };
 
   const getAccountLink = () => {
     if (isAdmin) {
       return "/admin?tab=profile";
     }
-    // Host and Tenant both use /account for profile
-    return "/account";
+    return "/account"; // Host, Tenant, Marketer → đều vào /account
   };
 
-  // If not authenticated, show login button
+  // Nếu chưa đăng nhập → hiện nút Login
   if (!isAuthenticated || !user) {
     return (
       <Link
@@ -56,7 +54,7 @@ export default function AvatarDropdown() {
     );
   }
 
-  // Get menu items based on user role (only called when authenticated)
+  // === MENU ITEMS DỰA TRÊN ROLE ===
   const getMenuItems = () => {
     const items: Array<{
       name: string;
@@ -64,25 +62,24 @@ export default function AvatarDropdown() {
       icon: any;
     }> = [];
 
-    // Only Admin and Host can see Profile and Dashboard
-    // Tenant and other roles cannot access Profile and Dashboard
-    if (isAdmin || user?.roleName === "Host") {
-      items.push({
-        name: t.account.profile,
-        href: getAccountLink(),
-        icon: UserIcon,
-      });
-    }
+    // TẤT CẢ người dùng đều thấy "Thông tin tài khoản"
+    items.push({
+      name: t.account.profile,
+      href: getAccountLink(),
+      icon: UserIcon,
+    });
 
-    // Add role-specific items
+    // Host: thêm Dashboard
     if (user?.roleName === "Host") {
       items.push({
         name: t.header.dashboard,
         href: "/host-dashboard",
         icon: DocumentTextIcon,
       });
-    } else if (user?.roleName !== "Admin" && user?.roleName !== "Host") {
-      // Tenant or other roles - only show bookings, no profile/dashboard
+    }
+
+    // Tenant & các role khác (không phải Admin/Host): chỉ hiện My Bookings
+    if (user?.roleName !== "Admin" && user?.roleName !== "Host") {
       items.push({
         name: t.header.myBookings,
         href: "/my-bookings",
@@ -90,15 +87,13 @@ export default function AvatarDropdown() {
       });
     }
 
-    // Add common items for non-admin users
+    // Tất cả (trừ Admin) đều thấy My Reviews
     if (!isAdmin) {
-      items.push(
-        {
-          name: t.header.myReviews,
-          href: "/my-reviews",
-          icon: StarIcon,
-        }
-      );
+      items.push({
+        name: t.header.myReviews,
+        href: "/my-reviews",
+        icon: StarIcon,
+      });
     }
 
     return items;
@@ -114,8 +109,8 @@ export default function AvatarDropdown() {
             <Popover.Button
               className={`inline-flex items-center space-x-2 px-3 py-2 rounded-full bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-opacity-75`}
             >
-              <Avatar 
-                sizeClass="w-8 h-8 sm:w-9 sm:h-9" 
+              <Avatar
+                sizeClass="w-8 h-8 sm:w-9 sm:h-9"
                 imgUrl={user?.imageUrl}
                 userName={user?.fullName || "User"}
               />
@@ -123,6 +118,7 @@ export default function AvatarDropdown() {
                 {user?.fullName || "User"}
               </span>
             </Popover.Button>
+
             <Transition
               as={Fragment}
               enter="transition ease-out duration-200"
@@ -134,6 +130,7 @@ export default function AvatarDropdown() {
             >
               <Popover.Panel className="absolute z-10 w-screen max-w-[260px] px-4 mt-4 -right-10 sm:right-0 sm:px-0">
                 <div className="overflow-hidden rounded-3xl shadow-lg ring-1 ring-black ring-opacity-5">
+                  {/* === MENU CHÍNH === */}
                   <div className="relative grid gap-6 bg-white dark:bg-neutral-800 p-7">
                     {solutions.map((item, index) => (
                       <Link
@@ -145,14 +142,17 @@ export default function AvatarDropdown() {
                           <item.icon aria-hidden="true" className="w-6 h-6" />
                         </div>
                         <div className="ml-4">
-                          <p className="text-sm font-medium ">{item.name}</p>
+                          <p className="text-sm font-medium">{item.name}</p>
                         </div>
                       </Link>
                     ))}
                   </div>
+
                   <hr className="h-[1px] border-t border-neutral-300 dark:border-neutral-700" />
+
+                  {/* === FOOTER: Help + Logout === */}
                   <div className="relative grid gap-6 bg-white dark:bg-neutral-800 p-7">
-                    {solutionsFoot.map((item, index) => (
+                    {solutionsFoot.map((item, index) =>
                       item.isLogout ? (
                         <button
                           key={index}
@@ -163,7 +163,7 @@ export default function AvatarDropdown() {
                             <item.icon aria-hidden="true" className="w-6 h-6" />
                           </div>
                           <div className="ml-4">
-                            <p className="text-sm font-medium ">{item.name}</p>
+                            <p className="text-sm font-medium">{item.name}</p>
                           </div>
                         </button>
                       ) : (
@@ -176,11 +176,11 @@ export default function AvatarDropdown() {
                             <item.icon aria-hidden="true" className="w-6 h-6" />
                           </div>
                           <div className="ml-4">
-                            <p className="text-sm font-medium ">{item.name}</p>
+                            <p className="text-sm font-medium">{item.name}</p>
                           </div>
                         </a>
                       )
-                    ))}
+                    )}
                   </div>
                 </div>
               </Popover.Panel>

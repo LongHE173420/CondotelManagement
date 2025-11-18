@@ -38,47 +38,59 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const storedToken = localStorage.getItem("token");
       const userStr = localStorage.getItem("user");
 
+      // Khôi phục user từ localStorage (nếu có)
       if (userStr) {
         try {
-          setUser(JSON.parse(userStr));
+          const parsedUser = JSON.parse(userStr);
+          setUser(parsedUser);
         } catch {
           console.warn("Invalid user data in localStorage");
         }
       }
 
-      if (storedToken) {
-        setToken(storedToken);
-        axiosClient.defaults.headers.common["Authorization"] = `Bearer ${storedToken}`;
-
-        try {
-          const userProfile = await authAPI.getMe();
-          setUser(userProfile);
-          localStorage.setItem("user", JSON.stringify(userProfile));
-
-          // Load package nếu là Host
-          if (userProfile.roleName === "Host") {
-            try {
-              const pkg = await packageAPI.getMyPackage();
-              setHostPackage(pkg);
-              console.log("Host package loaded:", pkg);
-            } catch (pkgError) {
-              console.warn("Failed to load host package:", pkgError);
-              setHostPackage(null);
-            }
-          } else {
-            setHostPackage(null);
-          }
-        } catch (error) {
-          console.error("Token invalid or expired. Logging out.", error);
-          handleLogout();
-        }
+      if (!storedToken) {
+        setIsLoading(false);
+        return;
       }
 
-      setIsLoading(false);
+      // Có token → thiết lập header
+      setToken(storedToken);
+      axiosClient.defaults.headers.common["Authorization"] = `Bearer ${storedToken}`;
+
+      try {
+        // Lấy thông tin user mới nhất từ server
+        const userProfile = await authAPI.getMe();
+        setUser(userProfile);
+        localStorage.setItem("user", JSON.stringify(userProfile));
+
+        // CHỈ gọi packageAPI.getMyPackage() KHI USER LÀ HOST
+        if (userProfile.roleName === "Host") {
+          try {
+            const pkg = await packageAPI.getMyPackage();
+            setHostPackage(pkg);
+            console.log("Host package loaded:", pkg);
+          } catch (pkgError: any) {
+            // Nếu 400 hoặc 404 → người dùng chưa có package → bình thường
+            if (pkgError.response?.status === 400 || pkgError.response?.status === 404) {
+              console.log("Host chưa có package → bình thường");
+              setHostPackage(null);
+            } else {
+              console.warn("Lỗi không mong muốn khi load package:", pkgError);
+            }
+          }
+        } else {
+          setHostPackage(null); // Tenant, Admin → không cần package
+        }
+      } catch (error: any) {
+        console.error("Token không hợp lệ hoặc hết hạn → đăng xuất", error);
+        handleLogout();
+      } finally {
+        setIsLoading(false);
+      }
     };
 
     initializeAuth();
-  }, []);
+  }, []); // Chỉ chạy 1 lần khi app load
 
   // === LOGIN ===
   const login = (newToken: string, newUser: UserProfile) => {
@@ -89,16 +101,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.setItem("user", JSON.stringify(newUser));
     axiosClient.defaults.headers.common["Authorization"] = `Bearer ${cleanToken}`;
 
-    // Load package nếu là Host
+    // Chỉ load package nếu là Host
     if (newUser.roleName === "Host") {
       packageAPI.getMyPackage()
-        .then(pkg => {
-          setHostPackage(pkg);
-          console.log("Host package loaded on login:", pkg);
-        })
+        .then(setHostPackage)
         .catch(err => {
-          console.warn("Failed to load package after login:", err);
-          setHostPackage(null);
+          if (err.response?.status === 400 || err.response?.status === 404) {
+            setHostPackage(null);
+          } else {
+            console.warn("Lỗi load package sau login:", err);
+          }
         });
     } else {
       setHostPackage(null);
@@ -130,7 +142,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     window.location.href = "/login";
   };
 
-  // === RELOAD USER (Chỉ refresh dữ liệu, KHÔNG logout) ===
+  // === RELOAD USER ===
   const reloadUser = async () => {
     if (!token) return;
 
@@ -143,14 +155,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         try {
           const pkg = await packageAPI.getMyPackage();
           setHostPackage(pkg);
-        } catch {
-          setHostPackage(null);
+        } catch (err: any) {
+          if (err.response?.status === 400 || err.response?.status === 404) {
+            setHostPackage(null);
+          } else {
+            console.warn("Lỗi reload package:", err);
+          }
         }
       } else {
         setHostPackage(null);
       }
     } catch (error) {
-      console.error("Failed to reload user, logging out:", error);
+      console.error("Reload user thất bại → logout", error);
       handleLogout();
     }
   };
