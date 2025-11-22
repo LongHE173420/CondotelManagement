@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from "react";
+import axiosClient from "api/axiosClient"; // ← DÒNG NÀY BẠN CHƯA CÓ → THÊM VÀO NGAY!
 // Giả định PackageAPI có hàm purchasePackage trả về { paymentUrl: string }
 import { packageAPI, PackageDto } from "api/package";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
 import { Helmet } from "react-helmet";
+import paymentAPI from "api/payment";
 
 const PricingPage: React.FC = () => {
     const [packages, setPackages] = useState<PackageDto[]>([]);
@@ -29,27 +31,42 @@ const PricingPage: React.FC = () => {
     }, []);
 
     const handlePurchase = async (pkg: PackageDto) => {
-        if (!window.confirm(`Bạn có chắc muốn mua gói "${pkg.name}" với giá ${pkg.price.toLocaleString("vi-VN")} VNĐ? Gói cũ (nếu có) sẽ bị hủy và thay thế.`)) {
+        if (!window.confirm(`Xác nhận mua gói "${pkg.name}" - ${pkg.price.toLocaleString("vi-VN")} VNĐ?`)) {
             return;
         }
 
         setPurchaseLoading(pkg.packageId);
+
         try {
-            // ✅ CHỈNH SỬA: Gọi API và chờ URL thanh toán
-            // Giả định API trả về { paymentUrl: string }
-            const response = await packageAPI.purchasePackage(pkg.packageId);
+            // B1: Gọi backend tạo đơn + lấy orderCode + amount
+            const result = await packageAPI.purchasePackage(pkg.packageId);
 
-            if (response.paymentUrl) {
-                toast.info(`Đang chuyển hướng đến cổng thanh toán cho gói "${pkg.name}"...`);
-                // ✅ CHUYỂN HƯỚNG ĐẾN CỔNG THANH TOÁN
-                window.location.href = response.paymentUrl;
+            toast.success(result.message || "Đã tạo đơn hàng!");
+
+            // B2: Gọi PayOS để tạo link thanh toán
+            // Gọi thẳng endpoint mới – không cần thêm hàm
+            const paymentResponse = await axiosClient.post("/payment/create-package-payment", {
+                OrderCode: result.orderCode!.toString(),
+                Amount: result.amount!,
+                Description: `Nâng cấp gói ${pkg.name}`
+            });
+
+            // B3: Chuyển hướng đến PayOS – FIX 100% TypeScript
+            const responseData = paymentResponse.data as any;
+            const checkoutUrl = responseData?.checkoutUrl || responseData?.data?.checkoutUrl;
+
+            if (checkoutUrl) {
+                window.location.href = checkoutUrl;
             } else {
-                // Trường hợp dự phòng nếu API không trả về URL (ví dụ: thanh toán 0đ hoặc lỗi logic server)
-                toast.error("Server không trả về URL thanh toán. Vui lòng liên hệ hỗ trợ.");
+                toast.error("Không nhận được link thanh toán từ PayOS");
+                console.error("Payment response:", paymentResponse.data);
             }
-
         } catch (error: any) {
-            toast.error(error.response?.data?.message || "Tạo đơn hàng/Thanh toán thất bại.");
+            toast.error(
+                error.response?.data?.message ||
+                error.message ||
+                "Mua gói thất bại. Vui lòng thử lại."
+            );
         } finally {
             setPurchaseLoading(null);
         }
