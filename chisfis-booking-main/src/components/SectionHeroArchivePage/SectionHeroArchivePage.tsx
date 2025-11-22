@@ -3,6 +3,7 @@ import imagePng from "images/hero-right2.png";
 import HeroSearchForm, {
   SearchTab,
 } from "components/HeroSearchForm/HeroSearchForm";
+import { useTranslation } from "i18n/LanguageContext";
 
 export interface SectionHeroArchivePageProps {
   className?: string;
@@ -23,8 +24,10 @@ const SectionHeroArchivePage: FC<SectionHeroArchivePageProps> = ({
   locationName,
   propertyCount,
 }) => {
+  const { t } = useTranslation();
+  
   // Default location name if not provided
-  const displayLocation = locationName || "Việt Nam";
+  const displayLocation = locationName || t.condotel.allCondotels || "Tất cả Condotel";
   const displayCount = propertyCount !== undefined ? propertyCount : 0;
 
   return (
@@ -39,14 +42,18 @@ const SectionHeroArchivePage: FC<SectionHeroArchivePageProps> = ({
           </h2>
           <div className="flex items-center text-base md:text-lg text-neutral-500 dark:text-neutral-400">
             <i className="text-2xl las la-map-marked"></i>
-            <span className="ml-2.5">Việt Nam</span>
+            <span className="ml-2.5">{t.condotel.location || "Việt Nam"}</span>
             <span className="mx-5"></span>
             {listingType ? (
               listingType
             ) : (
               <>
                 <i className="text-2xl las la-home"></i>
-                <span className="ml-2.5">{displayCount} condotel{displayCount !== 1 ? "s" : ""}</span>
+                <span className="ml-2.5">
+                  {displayCount} {displayCount !== 1 
+                    ? (t.condotel.list || "condotels") 
+                    : (t.condotel.list === "condotels" ? "condotel" : (t.condotel.list || "condotel"))}
+                </span>
               </>
             )}
           </div>

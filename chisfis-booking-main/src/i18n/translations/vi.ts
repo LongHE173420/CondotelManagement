@@ -53,6 +53,56 @@ export const vi = {
     popularDestinationsSubtitle: "Những địa điểm du lịch được Chisfis gợi ý cho bạn",
     exploreByType: "Khám phá theo loại hình lưu trú",
     exploreByTypeSubtitle: "Khám phá các loại hình lưu trú đa dạng tại Việt Nam",
+    destinations: {
+      hanoi: "Hà Nội",
+      hoChiMinh: "Hồ Chí Minh",
+      daNang: "Đà Nẵng",
+      haLong: "Hạ Long",
+      hoiAn: "Hội An",
+      nhaTrang: "Nha Trang",
+      phuQuoc: "Phú Quốc",
+      sapa: "Sapa",
+      hue: "Huế",
+      daLat: "Đà Lạt",
+      muiNe: "Mũi Né",
+      vungTau: "Vũng Tàu",
+      catBa: "Cát Bà",
+    },
+    howItWork: {
+      title: "Cách thức hoạt động",
+      subtitle: "Giữ bình tĩnh & tiếp tục du lịch",
+      step1: {
+        title: "Đặt phòng & thư giãn",
+        desc: "Để mỗi chuyến đi là một hành trình đầy cảm hứng, mỗi phòng là một không gian yên bình",
+      },
+      step2: {
+        title: "Danh sách thông minh",
+        desc: "Để mỗi chuyến đi là một hành trình đầy cảm hứng, mỗi phòng là một không gian yên bình",
+      },
+      step3: {
+        title: "Tiết kiệm hơn",
+        desc: "Để mỗi chuyến đi là một hành trình đầy cảm hứng, mỗi phòng là một không gian yên bình",
+      },
+    },
+    features: {
+      title: "Lợi ích",
+      subtitle: "Thành phố sôi động",
+      feature1: {
+        badge: "Quảng cáo",
+        title: "Quảng cáo hiệu quả về chi phí",
+        desc: "Với danh sách miễn phí, bạn có thể quảng cáo cho thuê mà không cần chi phí trước",
+      },
+      feature2: {
+        badge: "Tiếp cận",
+        title: "Tiếp cận hàng triệu người với Chisfis",
+        desc: "Hàng triệu người đang tìm kiếm những nơi độc đáo để ở trên khắp thế giới",
+      },
+      feature3: {
+        badge: "Bảo mật",
+        title: "An toàn và đơn giản",
+        desc: "Danh sách Chisfis cung cấp cho bạn cách an toàn và dễ dàng để nhận đặt phòng và thanh toán trực tuyến",
+      },
+    },
   },
 
   // Auth
@@ -145,6 +195,15 @@ export const vi = {
     location: "Vị trí",
     host: "Chủ nhà",
     similarPlaces: "Nơi tương tự",
+    allCondotels: "Tất cả Condotel",
+    list: "condotel",
+    total: "Tổng cộng",
+    noResults: "Không tìm thấy condotel nào tại",
+    noCondotels: "Chưa có condotel nào",
+    viewMore: "Xem thêm condotel",
+    viewAll: "Xem tất cả",
+    showLess: "Hiển thị ít hơn",
+    staysIn: "Stays in",
   },
 
   // Account

@@ -1,47 +1,116 @@
 import StartRating from "components/StartRating/StartRating";
-import React, { FC } from "react";
+import React, { FC, useEffect, useState } from "react";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
 import NcImage from "shared/NcImage/NcImage";
+import bookingAPI, { BookingDTO } from "api/booking";
+import moment from "moment";
 
 export interface PayPageProps {
   className?: string;
 }
 
 const PayPage: FC<PayPageProps> = ({ className = "" }) => {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const [booking, setBooking] = useState<BookingDTO | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const bookingId = searchParams.get("bookingId");
+  const status = searchParams.get("status");
+
+  useEffect(() => {
+    const fetchBooking = async () => {
+      if (!bookingId) {
+        setError("Không tìm thấy thông tin booking");
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const bookingData = await bookingAPI.getBookingById(parseInt(bookingId));
+        setBooking(bookingData);
+      } catch (err: any) {
+        console.error("Error fetching booking:", err);
+        setError(err.response?.data?.message || err.message || "Không thể tải thông tin booking");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBooking();
+  }, [bookingId]);
+
   const renderContent = () => {
+    if (loading) {
+      return (
+        <div className="w-full flex flex-col items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-6000 mb-4"></div>
+          <p className="text-neutral-600 dark:text-neutral-400">Đang tải thông tin...</p>
+        </div>
+      );
+    }
+
+    if (error || !booking) {
+      return (
+        <div className="w-full flex flex-col sm:rounded-2xl sm:border border-neutral-200 dark:border-neutral-700 space-y-8 px-0 sm:p-6 xl:p-8">
+          <h2 className="text-3xl lg:text-4xl font-semibold text-red-600 dark:text-red-400">
+            Có lỗi xảy ra
+          </h2>
+          <div className="border-b border-neutral-200 dark:border-neutral-700"></div>
+          <p className="text-neutral-600 dark:text-neutral-400">{error || "Không tìm thấy thông tin booking"}</p>
+          <ButtonPrimary onClick={() => navigate("/")}>Về trang chủ</ButtonPrimary>
+        </div>
+      );
+    }
+
+    const isSuccess = status === "success" && booking.status === "Confirmed";
+    const startDate = moment(booking.startDate);
+    const endDate = moment(booking.endDate);
+    const nights = endDate.diff(startDate, "days");
+
     return (
       <div className="w-full flex flex-col sm:rounded-2xl sm:border border-neutral-200 dark:border-neutral-700 space-y-8 px-0 sm:p-6 xl:p-8">
-        <h2 className="text-3xl lg:text-4xl font-semibold">
-          Congratulation 🎉
+        <h2 className={`text-3xl lg:text-4xl font-semibold ${isSuccess ? "text-green-600 dark:text-green-400" : "text-orange-600 dark:text-orange-400"}`}>
+          {isSuccess ? "Thanh toán thành công! 🎉" : "Đang chờ thanh toán"}
         </h2>
 
         <div className="border-b border-neutral-200 dark:border-neutral-700"></div>
 
+        {!isSuccess && (
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+            <p className="text-sm text-yellow-800 dark:text-yellow-200">
+              <strong>Lưu ý:</strong> Booking của bạn đang ở trạng thái "{booking.status}". 
+              {booking.status === "Pending" && " Vui lòng hoàn tất thanh toán để xác nhận đặt phòng."}
+            </p>
+          </div>
+        )}
+
         {/* ------------------------ */}
         <div className="space-y-6">
-          <h3 className="text-2xl font-semibold">Your booking</h3>
-          <div className="flex flex-col sm:flex-row sm:items-center">
-            <div className="flex-shrink-0 w-full sm:w-40">
-              <div className=" aspect-w-4 aspect-h-3 sm:aspect-h-4 rounded-2xl overflow-hidden">
-                <NcImage src="https://images.pexels.com/photos/6373478/pexels-photo-6373478.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940" />
+          <h3 className="text-2xl font-semibold">Thông tin đặt phòng</h3>
+          {booking.condotelImageUrl && (
+            <div className="flex flex-col sm:flex-row sm:items-center">
+              <div className="flex-shrink-0 w-full sm:w-40">
+                <div className="aspect-w-4 aspect-h-3 sm:aspect-h-4 rounded-2xl overflow-hidden">
+                  <NcImage src={booking.condotelImageUrl} alt={booking.condotelName || "Condotel"} />
+                </div>
+              </div>
+              <div className="pt-5 sm:pb-5 sm:px-5 space-y-3">
+                <div>
+                  <span className="text-sm text-neutral-500 dark:text-neutral-400 line-clamp-1">
+                    Condotel
+                  </span>
+                  <span className="text-base sm:text-lg font-medium mt-1 block">
+                    {booking.condotelName || "Căn hộ"}
+                  </span>
+                </div>
+                <div className="w-10 border-b border-neutral-200 dark:border-neutral-700"></div>
+                <StartRating />
               </div>
             </div>
-            <div className="pt-5  sm:pb-5 sm:px-5 space-y-3">
-              <div>
-                <span className="text-sm text-neutral-500 dark:text-neutral-400 line-clamp-1">
-                  Hotel room in Tokyo, Jappan
-                </span>
-                <span className="text-base sm:text-lg font-medium mt-1 block">
-                  The Lounge & Bar
-                </span>
-              </div>
-              <span className="block  text-sm text-neutral-500 dark:text-neutral-400">
-                2 beds · 2 baths
-              </span>
-              <div className="w-10 border-b border-neutral-200  dark:border-neutral-700"></div>
-              <StartRating />
-            </div>
-          </div>
+          )}
           <div className="mt-6 border border-neutral-200 dark:border-neutral-700 rounded-3xl flex flex-col sm:flex-row divide-y sm:divide-x sm:divide-y-0 divide-neutral-200 dark:divide-neutral-700">
             <div className="flex-1 p-5 flex space-x-4">
               <svg
@@ -60,31 +129,13 @@ const PayPage: FC<PayPageProps> = ({ className = "" }) => {
               </svg>
 
               <div className="flex flex-col">
-                <span className="text-sm text-neutral-400">Date</span>
+                <span className="text-sm text-neutral-400">Ngày</span>
                 <span className="mt-1.5 text-lg font-semibold">
-                  Aug 12 - 16, 2021
+                  {startDate.format("DD MMM")} - {endDate.format("DD MMM, YYYY")}
                 </span>
-              </div>
-            </div>
-            <div className="flex-1 p-5 flex space-x-4">
-              <svg
-                className="w-8 h-8 text-neutral-300 dark:text-neutral-6000"
-                viewBox="0 0 28 28"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  d="M14 5.07987C14.8551 4.11105 16.1062 3.5 17.5 3.5C20.0773 3.5 22.1667 5.58934 22.1667 8.16667C22.1667 10.744 20.0773 12.8333 17.5 12.8333C16.1062 12.8333 14.8551 12.2223 14 11.2535M17.5 24.5H3.5V23.3333C3.5 19.4673 6.63401 16.3333 10.5 16.3333C14.366 16.3333 17.5 19.4673 17.5 23.3333V24.5ZM17.5 24.5H24.5V23.3333C24.5 19.4673 21.366 16.3333 17.5 16.3333C16.225 16.3333 15.0296 16.6742 14 17.2698M15.1667 8.16667C15.1667 10.744 13.0773 12.8333 10.5 12.8333C7.92267 12.8333 5.83333 10.744 5.83333 8.16667C5.83333 5.58934 7.92267 3.5 10.5 3.5C13.0773 3.5 15.1667 5.58934 15.1667 8.16667Z"
-                  stroke="#D1D5DB"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-
-              <div className="flex flex-col">
-                <span className="text-sm text-neutral-400">Guests</span>
-                <span className="mt-1.5 text-lg font-semibold">3 Guests</span>
+                <span className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
+                  {nights} đêm
+                </span>
               </div>
             </div>
           </div>
@@ -92,36 +143,55 @@ const PayPage: FC<PayPageProps> = ({ className = "" }) => {
 
         {/* ------------------------ */}
         <div className="space-y-6">
-          <h3 className="text-2xl font-semibold">Booking detail</h3>
+          <h3 className="text-2xl font-semibold">Chi tiết booking</h3>
           <div className="flex flex-col space-y-4">
             <div className="flex text-neutral-6000 dark:text-neutral-300">
-              <span className="flex-1">Booking code</span>
+              <span className="flex-1">Mã booking</span>
               <span className="flex-1 font-medium text-neutral-900 dark:text-neutral-100">
-                #222-333-111
+                #{booking.bookingId}
               </span>
             </div>
             <div className="flex text-neutral-6000 dark:text-neutral-300">
-              <span className="flex-1">Date</span>
+              <span className="flex-1">Ngày đặt</span>
               <span className="flex-1 font-medium text-neutral-900 dark:text-neutral-100">
-                12 Aug, 2021
+                {moment(booking.createdAt).format("DD MMM, YYYY")}
               </span>
             </div>
             <div className="flex text-neutral-6000 dark:text-neutral-300">
-              <span className="flex-1">Total</span>
+              <span className="flex-1">Tổng tiền</span>
               <span className="flex-1 font-medium text-neutral-900 dark:text-neutral-100">
-                $199
+                {booking.totalPrice ? booking.totalPrice.toLocaleString() : "0"} đ
               </span>
             </div>
             <div className="flex justify-between text-neutral-6000 dark:text-neutral-300">
-              <span className="flex-1">Payment method</span>
+              <span className="flex-1">Trạng thái</span>
+              <span className={`flex-1 font-medium ${
+                booking.status === "Confirmed" ? "text-green-600 dark:text-green-400" :
+                booking.status === "Pending" ? "text-yellow-600 dark:text-yellow-400" :
+                booking.status === "Cancelled" ? "text-red-600 dark:text-red-400" :
+                "text-neutral-900 dark:text-neutral-100"
+              }`}>
+                {booking.status === "Confirmed" ? "Đã xác nhận" :
+                 booking.status === "Pending" ? "Đang chờ" :
+                 booking.status === "Cancelled" ? "Đã hủy" :
+                 booking.status}
+              </span>
+            </div>
+            <div className="flex justify-between text-neutral-6000 dark:text-neutral-300">
+              <span className="flex-1">Phương thức thanh toán</span>
               <span className="flex-1 font-medium text-neutral-900 dark:text-neutral-100">
-                Credit card
+                PayOS
               </span>
             </div>
           </div>
         </div>
-        <div>
-          <ButtonPrimary href="/">Explore more stays</ButtonPrimary>
+        <div className="flex flex-col sm:flex-row gap-4">
+          <ButtonPrimary onClick={() => navigate("/my-bookings")}>
+            Xem booking của tôi
+          </ButtonPrimary>
+          <ButtonPrimary onClick={() => navigate("/")} className="bg-neutral-600 hover:bg-neutral-700">
+            Về trang chủ
+          </ButtonPrimary>
         </div>
       </div>
     );

@@ -4,22 +4,64 @@ import SectionGridAuthorBox from "components/SectionGridAuthorBox/SectionGridAut
 import SectionHeroArchivePage from "components/SectionHeroArchivePage/SectionHeroArchivePage";
 import SectionSliderNewCategories from "components/SectionSliderNewCategories/SectionSliderNewCategories";
 import SectionSubscribe2 from "components/SectionSubscribe2/SectionSubscribe2";
-import React, { FC } from "react";
+import React, { FC, useState, useEffect, useMemo } from "react";
+import { useLocation } from "react-router-dom";
 import SectionGridFilterCard from "./SectionGridFilterCard";
 import { Helmet } from "react-helmet";
+import { useTranslation } from "i18n/LanguageContext";
+import condotelAPI from "api/condotel";
 
 export interface ListingStayPageProps {
   className?: string;
 }
 
 const ListingStayPage: FC<ListingStayPageProps> = ({ className = "" }) => {
+  const { t } = useTranslation();
+  const location = useLocation();
+  const [propertyCount, setPropertyCount] = useState<number>(0);
+  
+  const params = useMemo(() => new URLSearchParams(location.search), [location.search]);
+  const searchLocation = params.get("location");
+  const searchFromDate = params.get("startDate");
+  const searchToDate = params.get("endDate");
+
+  useEffect(() => {
+    const fetchCount = async () => {
+      try {
+        // Build search query
+        const searchQuery: any = {};
+        if (searchLocation) {
+          searchQuery.location = searchLocation;
+        }
+        if (searchFromDate) {
+          searchQuery.fromDate = searchFromDate;
+        }
+        if (searchToDate) {
+          searchQuery.toDate = searchToDate;
+        }
+        
+        // Always fetch all condotels to get count
+        const condotels = await condotelAPI.search(searchQuery);
+        setPropertyCount(condotels.length);
+      } catch (err) {
+        console.error("Error fetching condotel count:", err);
+        setPropertyCount(0);
+      }
+    };
+    fetchCount();
+  }, [searchLocation, searchFromDate, searchToDate]);
+  
   return (
     <div
       className={`nc-ListingStayPage relative overflow-hidden ${className}`}
       data-nc-id="ListingStayPage"
     >
       <Helmet>
-        <title>Chisfis || Booking React Template</title>
+        <title>
+          {searchLocation 
+            ? `${t.condotel.staysIn || "Stays in"} ${searchLocation}` 
+            : (t.condotel.allCondotels || "Tất cả Condotel")} - Chisfis
+        </title>
       </Helmet>
       <BgGlassmorphism />
 
@@ -28,6 +70,12 @@ const ListingStayPage: FC<ListingStayPageProps> = ({ className = "" }) => {
         <SectionHeroArchivePage
           currentPage="Stays"
           currentTab="Stays"
+          locationName={
+            searchLocation 
+              ? `${t.condotel.staysIn || "Stays in"} ${searchLocation}`
+              : (t.condotel.allCondotels || "Tất cả Condotel")
+          }
+          propertyCount={propertyCount}
           className="pt-10 pb-24 lg:pb-28 lg:pt-16 "
         />
 
@@ -38,8 +86,8 @@ const ListingStayPage: FC<ListingStayPageProps> = ({ className = "" }) => {
         <div className="relative py-16">
           <BackgroundSection />
           <SectionSliderNewCategories
-            heading="Explore by types of stays"
-            subHeading="Explore houses based on 10 types of stays"
+            heading={t.home.exploreByType}
+            subHeading={t.home.exploreByTypeSubtitle}
             categoryCardType="card5"
             itemPerRow={5}
             sliderStyle="style2"

@@ -9,6 +9,8 @@ import Heading2 from "components/Heading/Heading2";
 import { condotelAPI, CondotelDTO } from "api/condotel";
 import CondotelCard from "components/CondotelCard/CondotelCard";
 import { TaxonomyType } from "data/types";
+import { useTranslation } from "i18n/LanguageContext";
+import moment from "moment";
 
 export interface SectionGridFilterCardProps {
   className?: string;
@@ -70,6 +72,7 @@ const SectionGridFilterCard: FC<SectionGridFilterCardProps> = ({
   className = "",
   data,
 }) => {
+  const { t } = useTranslation();
   const location = useLocation();
   const [condotels, setCondotels] = useState<CondotelDTO[]>([]);
   const [loading, setLoading] = useState(false);
@@ -79,6 +82,7 @@ const SectionGridFilterCard: FC<SectionGridFilterCardProps> = ({
   const searchLocation = params.get("location");
   const searchFromDate = params.get("startDate");
   const searchToDate = params.get("endDate");
+  const searchGuests = params.get("guests");
 
   useEffect(() => {
     const fetchCondotels = async () => {
@@ -89,7 +93,10 @@ const SectionGridFilterCard: FC<SectionGridFilterCardProps> = ({
         // Build search query
         const searchQuery: any = {};
         if (searchLocation) {
-          searchQuery.location = searchLocation;
+          // Trim và decode location để đảm bảo đúng format
+          const locationValue = decodeURIComponent(searchLocation.trim());
+          searchQuery.location = locationValue;
+          console.log("🔍 Searching with location:", locationValue);
         }
         if (searchFromDate) {
           searchQuery.fromDate = searchFromDate;
@@ -98,14 +105,12 @@ const SectionGridFilterCard: FC<SectionGridFilterCardProps> = ({
           searchQuery.toDate = searchToDate;
         }
         
-        if (Object.keys(searchQuery).length > 0) {
-          // Use new search API with all parameters
-          const results = await condotelAPI.search(searchQuery);
-          setCondotels(results);
-        } else {
-          // If no search params, show empty or use demo data
-          setCondotels([]);
-        }
+        console.log("📤 Search query:", searchQuery);
+        
+        // Always fetch condotels - if no search params, get all condotels
+        const results = await condotelAPI.search(searchQuery);
+        console.log("✅ Search results:", results.length, "condotels found");
+        setCondotels(results);
       } catch (err: any) {
         console.error("Error fetching condotels:", err);
         setError(err.response?.data?.message || "Không thể tải danh sách condotel");
@@ -124,8 +129,24 @@ const SectionGridFilterCard: FC<SectionGridFilterCardProps> = ({
     : (data || DEMO_DATA);
 
   const heading = searchLocation 
-    ? `Kết quả tìm kiếm: ${searchLocation}`
-    : "Danh sách Condotel";
+    ? `${t.condotel.staysIn || "Stays in"} ${searchLocation}`
+    : t.condotel.allCondotels || "Tất cả Condotel";
+
+  // Build subheading
+  let subHeadingText = "";
+  if (searchLocation) {
+    subHeadingText = `${condotels.length} ${t.condotel.list || "condotels"}`;
+    if (searchFromDate && searchToDate) {
+      const fromDate = moment(searchFromDate).format("MMM DD");
+      const toDate = moment(searchToDate).format("MMM DD");
+      subHeadingText += ` · ${fromDate} - ${toDate}`;
+    }
+    if (searchGuests) {
+      subHeadingText += ` · ${searchGuests} ${t.booking.guests || "Guests"}`;
+    }
+  } else {
+    subHeadingText = `${t.condotel.total || "Tổng cộng"}: ${condotels.length} ${t.condotel.list || "condotel"}`;
+  }
 
   return (
     <div
@@ -134,7 +155,7 @@ const SectionGridFilterCard: FC<SectionGridFilterCardProps> = ({
     >
       <Heading2 
         heading={heading}
-        subHeading={searchLocation ? `Tìm thấy ${condotels.length} condotel` : undefined}
+        subHeading={subHeadingText}
       />
 
       {error && (
@@ -148,35 +169,30 @@ const SectionGridFilterCard: FC<SectionGridFilterCardProps> = ({
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-20">
+        <div className="flex flex-col items-center justify-center py-20">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+          <p className="mt-4 text-neutral-600 dark:text-neutral-400">{t.common.loading}</p>
         </div>
-      ) : displayData.length === 0 ? (
+      ) : condotels.length === 0 ? (
         <div className="text-center py-20">
-          <p className="text-neutral-600 dark:text-neutral-400">
+          <p className="text-neutral-600 dark:text-neutral-400 text-lg">
             {searchLocation 
-              ? `Không tìm thấy condotel nào tại "${searchLocation}"`
-              : "Chưa có condotel nào"}
+              ? `${t.condotel.noResults || "Không tìm thấy condotel nào tại"} "${searchLocation}"`
+              : t.condotel.noCondotels || "Chưa có condotel nào"}
           </p>
         </div>
       ) : (
         <>
           <div className="grid grid-cols-1 gap-6 md:gap-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {condotels.length > 0 ? (
-              // Render CondotelCard for API results
-              condotels.map((condotel) => (
-                <CondotelCard key={condotel.condotelId} data={condotel} />
-              ))
-            ) : (
-              // Render StayCard for demo/default data
-              displayData.map((stay) => (
-                <StayCard key={stay.id} data={stay} />
-              ))
-            )}
+            {condotels.map((condotel) => (
+              <CondotelCard key={condotel.condotelId} data={condotel} />
+            ))}
           </div>
-          <div className="flex mt-16 justify-center items-center">
-            <Pagination />
-          </div>
+          {condotels.length > 12 && (
+            <div className="flex mt-16 justify-center items-center">
+              <Pagination />
+            </div>
+          )}
         </>
       )}
     </div>

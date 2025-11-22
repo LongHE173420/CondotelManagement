@@ -25,8 +25,8 @@ const PageBlogList = () => {
         const loadData = async () => {
             try {
                 setLoading(true);
-                // Load posts
-                const blogPosts = await blogAPI.adminGetAllPosts();
+                // Load posts - sử dụng public API /api/blog/posts thay vì /admin/blog/posts
+                const blogPosts = await blogAPI.getPublishedPosts();
                 const convertedPosts: BlogPost[] = blogPosts.map((post: any) => ({
                     id: post.postId,
                     thumbnailUrl: post.featuredImageUrl,

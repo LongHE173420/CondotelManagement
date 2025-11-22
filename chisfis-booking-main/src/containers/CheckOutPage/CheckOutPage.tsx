@@ -17,6 +17,10 @@ import { DateRage } from "components/HeroSearchForm/StaySearchForm";
 import converSelectedDateToString from "utils/converSelectedDateToString";
 import ModalSelectGuests from "components/ModalSelectGuests";
 import { GuestsObject } from "components/HeroSearchForm2Mobile/GuestsInput";
+import { useAuth } from "contexts/AuthContext";
+import bookingAPI, { CreateBookingDTO } from "api/booking";
+import paymentAPI from "api/payment";
+import condotelAPI from "api/condotel";
 
 export interface CheckOutPageProps {
   className?: string;
@@ -36,7 +40,12 @@ interface CheckoutState {
 const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const state = location.state as CheckoutState | null;
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [bookingId, setBookingId] = useState<number | null>(null);
 
   // Initialize dates from state or default
   const [rangeDates, setRangeDates] = useState<DateRage>(() => {
@@ -68,6 +77,213 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
       // navigate("/listing-stay");
     }
   }, [state, navigate]);
+
+  // Handle payment
+  const handlePayment = async () => {
+    if (!user) {
+      alert("Vui lòng đăng nhập để đặt phòng");
+      navigate("/login");
+      return;
+    }
+
+    if (!state?.condotelId) {
+      alert("Vui lòng chọn căn hộ để đặt phòng");
+      return;
+    }
+
+    if (!rangeDates.startDate || !rangeDates.endDate) {
+      alert("Vui lòng chọn ngày check-in và check-out");
+      return;
+    }
+
+    const nights = rangeDates.endDate.diff(rangeDates.startDate, "days");
+    if (nights <= 0) {
+      alert("Ngày check-out phải sau ngày check-in");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Ensure we have condotelName - fetch if missing
+      let condotelName = state?.condotelName;
+      if (!condotelName && state?.condotelId) {
+        try {
+          const condotelDetail = await condotelAPI.getById(state.condotelId);
+          condotelName = condotelDetail.name;
+        } catch (err) {
+          console.warn("Could not fetch condotel name:", err);
+        }
+      }
+
+      if (!condotelName) {
+        setError("Không thể lấy thông tin căn hộ. Vui lòng thử lại.");
+        setLoading(false);
+        return;
+      }
+
+      const startDateStr = rangeDates.startDate.format("YYYY-MM-DD");
+      const endDateStr = rangeDates.endDate.format("YYYY-MM-DD");
+
+      // Step 0: Check availability before creating booking
+      try {
+        console.log("🔍 Checking availability...");
+        const availability = await bookingAPI.checkAvailability(
+          state.condotelId!,
+          startDateStr,
+          endDateStr
+        );
+        
+        if (!availability.available) {
+          setError("Căn hộ không khả dụng trong khoảng thời gian đã chọn. Vui lòng chọn ngày khác.");
+          setLoading(false);
+          return;
+        }
+        console.log("✅ Condotel is available for selected dates");
+      } catch (availabilityErr: any) {
+        // If availability check fails, still try to create booking (backend will validate)
+        console.warn("⚠️ Could not check availability, proceeding with booking:", availabilityErr);
+      }
+
+      // Step 1: Tạo booking
+      const bookingData: CreateBookingDTO = {
+        condotelId: state.condotelId!,
+        startDate: startDateStr,
+        endDate: endDateStr,
+        status: "Pending", // Default status for new bookings
+        condotelName: condotelName, // Required by backend validation
+      };
+
+      console.log("📤 Creating booking...");
+      let booking = await bookingAPI.createBooking(bookingData);
+      console.log("✅ Booking created:", booking);
+      console.log("💰 Booking totalPrice:", booking.totalPrice);
+      
+      // Validate bookingId exists
+      if (!booking.bookingId) {
+        throw new Error("Booking created but BookingId is missing. Please try again.");
+      }
+      
+      // If booking doesn't have totalPrice, try to fetch it again (backend might calculate it asynchronously)
+      if (!booking.totalPrice || booking.totalPrice <= 0) {
+        console.warn("⚠️ Booking created without totalPrice, fetching booking again...");
+        try {
+          // Wait a bit for backend to calculate totalPrice
+          await new Promise(resolve => setTimeout(resolve, 500));
+          booking = await bookingAPI.getBookingById(booking.bookingId);
+          console.log("✅ Booking fetched again:", booking);
+          console.log("💰 Booking totalPrice after fetch:", booking.totalPrice);
+        } catch (fetchError) {
+          console.error("❌ Error fetching booking:", fetchError);
+        }
+      }
+      
+      // Validate booking has totalPrice (required for PayOS)
+      if (!booking.totalPrice || booking.totalPrice <= 0) {
+        throw new Error(
+          "Booking chưa có tổng tiền (TotalPrice = 0 hoặc null). " +
+          "Có thể backend chưa tính toán tổng tiền cho booking. " +
+          "Vui lòng thử lại sau hoặc liên hệ hỗ trợ. " +
+          `Booking ID: ${booking.bookingId}`
+        );
+      }
+      
+      setBookingId(booking.bookingId);
+
+      // Step 2: Tạo payment link
+      const returnUrl = `${window.location.origin}/pay-done?bookingId=${booking.bookingId}&status=success`;
+      const cancelUrl = `${window.location.origin}/checkout?bookingId=${booking.bookingId}&status=cancelled`;
+
+      console.log("📤 Creating payment link for booking:", booking.bookingId);
+      
+      // PayOS requires description to be max 25 characters
+      // Create a short description that fits within 25 characters
+      const bookingIdStr = String(booking.bookingId);
+      let description: string;
+      
+      // Try "Booking #123" format first (9 chars + bookingId length)
+      const bookingPrefix = "Booking #";
+      if (bookingPrefix.length + bookingIdStr.length <= 25) {
+        description = `${bookingPrefix}${bookingIdStr}`;
+      } else {
+        // If too long, use just "#123" format (1 char + bookingId length)
+        const hashPrefix = "#";
+        if (hashPrefix.length + bookingIdStr.length <= 25) {
+          description = `${hashPrefix}${bookingIdStr}`;
+        } else {
+          // If bookingId itself is too long, truncate it
+          const maxIdLength = 25 - hashPrefix.length;
+          description = `${hashPrefix}${bookingIdStr.substring(0, maxIdLength)}`;
+        }
+      }
+      
+      // Final safety check: ensure description is exactly 25 characters or less
+      description = description.substring(0, 25);
+      
+      console.log(`📝 Payment description (${description.length} chars): "${description}"`);
+      
+      const paymentResponse = await paymentAPI.createPayment({
+        bookingId: booking.bookingId,
+        description: description,
+        returnUrl: returnUrl,
+        cancelUrl: cancelUrl,
+      });
+
+      console.log("✅ Payment link created:", paymentResponse);
+
+      if (paymentResponse.data?.checkoutUrl) {
+        // Step 3: Redirect đến PayOS checkout
+        window.location.href = paymentResponse.data.checkoutUrl;
+      } else {
+        throw new Error(paymentResponse.desc || "Không thể tạo link thanh toán");
+      }
+    } catch (err: any) {
+      console.error("❌ Payment error:", err);
+      
+      // Handle validation errors (400)
+      if (err.response?.status === 400) {
+        const errorData = err.response?.data;
+        let errorMessage = "";
+        
+        // Prioritize message field (usually contains user-friendly messages)
+        if (errorData?.message) {
+          errorMessage = errorData.message;
+        } else if (errorData?.errors) {
+          // Check for validation errors
+          errorMessage = "Có lỗi xảy ra khi tạo đặt phòng:\n";
+          const validationErrors = Object.entries(errorData.errors)
+            .map(([key, value]: [string, any]) => {
+              if (Array.isArray(value)) {
+                return `• ${key}: ${value.join(', ')}`;
+              }
+              return `• ${key}: ${value}`;
+            })
+            .join('\n');
+          errorMessage += validationErrors;
+        } else {
+          errorMessage = "Dữ liệu không hợp lệ. Vui lòng kiểm tra lại thông tin đặt phòng.";
+        }
+        
+        setError(errorMessage);
+      } else if (err.response?.status === 404) {
+        setError("Không tìm thấy căn hộ. Vui lòng thử lại.");
+      } else if (err.response?.status === 401) {
+        setError("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+        setTimeout(() => {
+          navigate("/login");
+        }, 2000);
+      } else {
+        setError(
+          err.response?.data?.message ||
+          err.message ||
+          "Có lỗi xảy ra khi tạo thanh toán. Vui lòng thử lại."
+        );
+      }
+      
+      setLoading(false);
+    }
+  };
 
   const renderSidebar = () => {
     // Calculate nights and total price
@@ -204,91 +420,58 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
         </div>
 
         <div>
-          <h3 className="text-2xl font-semibold">Pay with</h3>
+          <h3 className="text-2xl font-semibold">Thanh toán</h3>
           <div className="w-14 border-b border-neutral-200 dark:border-neutral-700 my-5"></div>
 
           <div className="mt-6">
-            <Tab.Group>
-              <Tab.List className="flex my-5">
-                <Tab as={Fragment}>
-                  {({ selected }) => (
-                    <button
-                      className={`px-4 py-1.5 sm:px-6 sm:py-2.5 rounded-full focus:outline-none ${
-                        selected
-                          ? "bg-neutral-800 dark:bg-neutral-300 text-white dark:text-neutral-900"
-                          : "text-neutral-6000 dark:text-neutral-400"
-                      }`}
-                    >
-                      Paypal
-                    </button>
-                  )}
-                </Tab>
-                <Tab as={Fragment}>
-                  {({ selected }) => (
-                    <button
-                      className={`px-4 py-1.5 sm:px-6 sm:py-2.5  rounded-full flex items-center justify-center focus:outline-none  ${
-                        selected
-                          ? "bg-neutral-800 dark:bg-neutral-300 text-white dark:text-neutral-900"
-                          : " text-neutral-6000 dark:text-neutral-400"
-                      }`}
-                    >
-                      <span className="mr-2.5">Credit card</span>
-                      <img className="w-8" src={visaPng} alt="" />
-                      <img className="w-8" src={mastercardPng} alt="" />
-                    </button>
-                  )}
-                </Tab>
-              </Tab.List>
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6">
+              <p className="text-sm text-blue-800 dark:text-blue-200">
+                <strong>Thanh toán qua PayOS</strong>
+                <br />
+                Bạn sẽ được chuyển hướng đến trang thanh toán PayOS để hoàn tất giao dịch.
+              </p>
+            </div>
 
-              <Tab.Panels>
-                <Tab.Panel className="space-y-5">
-                  <div className="space-y-1">
-                    <Label>Card number </Label>
-                    <Input defaultValue="111 112 222 999" />
-                  </div>
-                  <div className="space-y-1">
-                    <Label>Card holder </Label>
-                    <Input defaultValue="JOHN DOE" />
-                  </div>
-                  <div className="flex space-x-5  ">
-                    <div className="flex-1 space-y-1">
-                      <Label>Expiration date </Label>
-                      <Input type="date" defaultValue="MM/YY" />
-                    </div>
-                    <div className="flex-1 space-y-1">
-                      <Label>CVC </Label>
-                      <Input />
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <Label>Messager for author </Label>
-                    <Textarea placeholder="..." />
-                    <span className="text-sm text-neutral-500 block">
-                      Write a few sentences about yourself.
-                    </span>
-                  </div>
-                </Tab.Panel>
-                <Tab.Panel className="space-y-5">
-                  <div className="space-y-1">
-                    <Label>Email </Label>
-                    <Input type="email" defaultValue="example@gmail.com" />
-                  </div>
-                  <div className="space-y-1">
-                    <Label>Password </Label>
-                    <Input type="password" defaultValue="***" />
-                  </div>
-                  <div className="space-y-1">
-                    <Label>Messager for author </Label>
-                    <Textarea placeholder="..." />
-                    <span className="text-sm text-neutral-500 block">
-                      Write a few sentences about yourself.
-                    </span>
-                  </div>
-                </Tab.Panel>
-              </Tab.Panels>
-            </Tab.Group>
+            {error && (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6">
+                <p className="text-sm text-red-800 dark:text-red-200 whitespace-pre-line">{error}</p>
+              </div>
+            )}
+
             <div className="pt-8">
-              <ButtonPrimary href={"/pay-done"}>Confirm and pay</ButtonPrimary>
+              <ButtonPrimary
+                onClick={handlePayment}
+                disabled={loading || !state?.condotelId}
+                className="w-full"
+              >
+                {loading ? (
+                  <span className="flex items-center justify-center">
+                    <svg
+                      className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                    Đang xử lý...
+                  </span>
+                ) : (
+                  "Xác nhận và thanh toán"
+                )}
+              </ButtonPrimary>
             </div>
           </div>
         </div>

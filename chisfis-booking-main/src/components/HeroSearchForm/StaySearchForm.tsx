@@ -37,7 +37,8 @@ const StaySearchForm: FC<StaySearchFormProps> = ({
   // Initialize location from URL if available
   const searchParams = new URLSearchParams(location.search);
   const locationFromUrl = searchParams.get("location");
-  const initialLocation = locationFromUrl || (haveDefaultValue ? defaultLocationValue : "");
+  // Always prioritize URL location, never use default "Tokyo" if URL has location
+  const initialLocation = locationFromUrl || "";
   
   const [dateRangeValue, setDateRangeValue] = useState<DateRage>({
     startDate: null,
@@ -55,15 +56,39 @@ const StaySearchForm: FC<StaySearchFormProps> = ({
     // Check if location is in URL search params
     const searchParams = new URLSearchParams(location.search);
     const locationFromUrl = searchParams.get("location");
+    const startDateFromUrl = searchParams.get("startDate");
+    const endDateFromUrl = searchParams.get("endDate");
+    const guestsFromUrl = searchParams.get("guests");
     
     if (locationFromUrl) {
-      // Use location from URL if available
+      // Always use location from URL if available
       setLocationInputValue(locationFromUrl);
-    } else if (haveDefaultValue && !locationFromUrl) {
-      // Otherwise use default values if haveDefaultValue is true and no URL location
-      setDateRangeValue(defaultDateRange);
-      setLocationInputValue(defaultLocationValue);
-      setGuestValue(defaultGuestValue);
+    } else {
+      // Clear location if no URL location (never use default "Tokyo")
+      setLocationInputValue("");
+      // Only set default dates and guests if haveDefaultValue is true
+      if (haveDefaultValue) {
+        setDateRangeValue(defaultDateRange);
+        setGuestValue(defaultGuestValue);
+      }
+    }
+    
+    // Update dates from URL if available
+    if (startDateFromUrl && endDateFromUrl) {
+      setDateRangeValue({
+        startDate: moment(startDateFromUrl),
+        endDate: moment(endDateFromUrl),
+      });
+    }
+    
+    // Update guests from URL if available
+    if (guestsFromUrl) {
+      const totalGuests = parseInt(guestsFromUrl, 10);
+      setGuestValue({
+        guestAdults: totalGuests,
+        guestChildren: 0,
+        guestInfants: 0,
+      });
     }
   }, [location.search, haveDefaultValue]);
   //

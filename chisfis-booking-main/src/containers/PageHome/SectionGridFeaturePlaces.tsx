@@ -37,7 +37,14 @@ const SectionGridFeaturePlaces: FC<SectionGridFeaturePlacesProps> = ({
   // Use translations as defaults if not provided
   const displayHeading = heading || t.home.featuredPlaces;
   const displaySubHeading = subHeading || t.home.featuredPlacesSubtitle;
-  const displayTabs = tabs || ["Hà Nội", "Hồ Chí Minh", "Đà Nẵng", "Hạ Long", "Hội An", "Nha Trang"];
+  const displayTabs = tabs || [
+    t.home.destinations.hanoi,
+    t.home.destinations.hoChiMinh,
+    t.home.destinations.daNang,
+    t.home.destinations.haLong,
+    t.home.destinations.hoiAn,
+    t.home.destinations.nhaTrang,
+  ];
 
   // Fetch condotels from API
   useEffect(() => {
@@ -95,7 +102,9 @@ const SectionGridFeaturePlaces: FC<SectionGridFeaturePlacesProps> = ({
             ))}
           </div>
           <div className="flex mt-16 justify-center items-center">
-            <ButtonPrimary href="/listing-stay">Xem thêm condotel</ButtonPrimary>
+            <ButtonPrimary href="/listing-stay">
+              {t.condotel.viewMore || "Xem thêm condotel"}
+            </ButtonPrimary>
           </div>
         </>
       ) : (
@@ -106,7 +115,9 @@ const SectionGridFeaturePlaces: FC<SectionGridFeaturePlacesProps> = ({
             {DEMO_DATA.map((stay) => renderCard(stay))}
           </div>
           <div className="flex mt-16 justify-center items-center">
-            <ButtonPrimary loading>Show me more</ButtonPrimary>
+            <ButtonPrimary href="/listing-stay">
+              {t.condotel.viewMore || "Xem thêm condotel"}
+            </ButtonPrimary>
           </div>
         </>
       )}

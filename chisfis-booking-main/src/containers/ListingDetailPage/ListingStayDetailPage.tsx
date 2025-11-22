@@ -23,11 +23,13 @@ import { DateRage } from "components/HeroSearchForm/StaySearchForm";
 import { GuestsObject } from "components/HeroSearchForm2Mobile/GuestsInput";
 import converSelectedDateToString from "utils/converSelectedDateToString";
 import { PencilSquareIcon } from "@heroicons/react/24/outline";
+import { useTranslation } from "i18n/LanguageContext";
 
 
 const ListingStayDetailPage: FC = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [data, setData] = useState<CondotelDetailDTO | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -128,7 +130,12 @@ const ListingStayDetailPage: FC = () => {
         setAverageRating(totalRating / response.data.length);
       }
     } catch (err: any) {
-      console.error("Error loading reviews:", err);
+      // 404 is expected if there are no reviews - don't log as error
+      if (err.response?.status === 404) {
+        console.log("ℹ️ No reviews found for condotel", condotelId);
+      } else {
+        console.error("Error loading reviews:", err);
+      }
       // Không set error, chỉ log - reviews có thể không có
       setReviews([]);
       setReviewsTotalPages(1);
@@ -721,7 +728,7 @@ const ListingStayDetailPage: FC = () => {
           Đặt ngay
         </ButtonPrimary>
         <ButtonSecondary className="mt-2" href="/listing-stay">
-          Xem thêm chỗ ở
+          {t.condotel.viewMore || "Xem thêm chỗ ở"}
         </ButtonSecondary>
       </div>
     );

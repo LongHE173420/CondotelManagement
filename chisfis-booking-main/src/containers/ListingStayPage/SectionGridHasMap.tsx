@@ -10,6 +10,8 @@ import Pagination from "shared/Pagination/Pagination";
 import TabFilters from "./TabFilters";
 import Heading2 from "components/Heading/Heading2";
 import condotelAPI, { CondotelDTO } from "api/condotel";
+import { useTranslation } from "i18n/LanguageContext";
+import moment from "moment";
 
 // Default coordinates for Vietnam (center of Vietnam)
 const DEFAULT_VIETNAM_CENTER = {
@@ -76,6 +78,7 @@ const SectionGridHasMap: FC<SectionGridHasMapProps> = () => {
   const searchLocation = params.get("location");
   const searchFromDate = params.get("startDate");
   const searchToDate = params.get("endDate");
+  const searchGuests = params.get("guests");
 
   useEffect(() => {
     const fetchCondotels = async () => {
@@ -118,12 +121,33 @@ const SectionGridHasMap: FC<SectionGridHasMapProps> = () => {
     ? stayListings[0].map 
     : DEFAULT_VIETNAM_CENTER;
 
+  // Build heading and subheading
+  const { t } = useTranslation();
+  const heading = searchLocation 
+    ? `${t.condotel.staysIn || "Stays in"} ${searchLocation}`
+    : t.condotel.allCondotels || "Tất cả Condotel";
+
+  let subHeadingText = "";
+  if (searchLocation) {
+    subHeadingText = `${condotels.length} ${t.condotel.list || "condotels"}`;
+    if (searchFromDate && searchToDate) {
+      const fromDate = moment(searchFromDate).format("MMM DD");
+      const toDate = moment(searchToDate).format("MMM DD");
+      subHeadingText += ` · ${fromDate} - ${toDate}`;
+    }
+    if (searchGuests) {
+      subHeadingText += ` · ${searchGuests} ${t.booking.guests || "Guests"}`;
+    }
+  } else {
+    subHeadingText = `${t.condotel.total || "Tổng cộng"}: ${condotels.length} ${t.condotel.list || "condotel"}`;
+  }
+
   return (
     <div>
       <div className="relative flex min-h-screen">
         {/* CARDSSSS */}
         <div className="min-h-screen w-full xl:w-[780px] 2xl:w-[880px] flex-shrink-0 xl:px-8 ">
-          <Heading2 />
+          <Heading2 heading={heading} subHeading={subHeadingText} />
           <div className="mb-8 lg:mb-11">
             <TabFilters />
           </div>

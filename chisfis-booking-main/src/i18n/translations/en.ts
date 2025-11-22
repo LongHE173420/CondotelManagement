@@ -53,6 +53,56 @@ export const en = {
     popularDestinationsSubtitle: "Popular places to stay that Chisfis recommends for you",
     exploreByType: "Explore by types of stays",
     exploreByTypeSubtitle: "Explore diverse types of stays in Vietnam",
+    destinations: {
+      hanoi: "Hanoi",
+      hoChiMinh: "Ho Chi Minh City",
+      daNang: "Da Nang",
+      haLong: "Ha Long",
+      hoiAn: "Hoi An",
+      nhaTrang: "Nha Trang",
+      phuQuoc: "Phu Quoc",
+      sapa: "Sapa",
+      hue: "Hue",
+      daLat: "Da Lat",
+      muiNe: "Mui Ne",
+      vungTau: "Vung Tau",
+      catBa: "Cat Ba",
+    },
+    howItWork: {
+      title: "How it works",
+      subtitle: "Keep calm & travel on",
+      step1: {
+        title: "Book & relax",
+        desc: "Let each trip be an inspirational journey, each room a peaceful space",
+      },
+      step2: {
+        title: "Smart checklist",
+        desc: "Let each trip be an inspirational journey, each room a peaceful space",
+      },
+      step3: {
+        title: "Save more",
+        desc: "Let each trip be an inspirational journey, each room a peaceful space",
+      },
+    },
+    features: {
+      title: "Benefits",
+      subtitle: "Happening cities",
+      feature1: {
+        badge: "Advertising",
+        title: "Cost-effective advertising",
+        desc: "With a free listing, you can advertise your rental with no upfront costs",
+      },
+      feature2: {
+        badge: "Exposure",
+        title: "Reach millions with Chisfis",
+        desc: "Millions of people are searching for unique places to stay around the world",
+      },
+      feature3: {
+        badge: "Secure",
+        title: "Secure and simple",
+        desc: "A Chisfis listing gives you a secure and easy way to take bookings and payments online",
+      },
+    },
   },
 
   // Auth
@@ -145,6 +195,15 @@ export const en = {
     location: "Location",
     host: "Host",
     similarPlaces: "Similar Places",
+    allCondotels: "All Condotels",
+    list: "condotels",
+    total: "Total",
+    noResults: "No condotels found at",
+    noCondotels: "No condotels available",
+    viewMore: "View more condotels",
+    viewAll: "View all",
+    showLess: "Show less",
+    staysIn: "Stays in",
   },
 
   // Account

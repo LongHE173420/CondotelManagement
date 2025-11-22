@@ -5,8 +5,10 @@ import CommonLayout from "./CommonLayout";
 import CondotelCard from "components/CondotelCard/CondotelCard";
 import { CondotelDTO } from "api/condotel";
 import condotelAPI from "api/condotel";
+import { useTranslation } from "i18n/LanguageContext";
 
 const AccountSavelists = () => {
+  const { t } = useTranslation();
   let [categories] = useState(["Condotels"]);
   const [condotels, setCondotels] = useState<CondotelDTO[]>([]);
   const [loading, setLoading] = useState(false);
@@ -86,7 +88,9 @@ const AccountSavelists = () => {
                   )}
                   {condotels.length > 8 && (
                     <div className="flex mt-11 justify-center items-center">
-                      <ButtonSecondary>Xem thêm</ButtonSecondary>
+                      <ButtonSecondary onClick={() => window.location.href = "/listing-stay"}>
+                        {t.condotel.viewMore || "Xem thêm"}
+                      </ButtonSecondary>
                     </div>
                   )}
                 </Tab.Panel>

@@ -10,6 +10,7 @@ import SectionGridHasMap from "./SectionGridHasMap";
 import { Helmet } from "react-helmet";
 import imagePng from "images/hero-right.png";
 import condotelAPI from "api/condotel";
+import { useTranslation } from "i18n/LanguageContext";
 
 export interface ListingStayMapPageProps {
   className?: string;
@@ -18,9 +19,10 @@ export interface ListingStayMapPageProps {
 const ListingStayMapPage: FC<ListingStayMapPageProps> = ({
   className = "",
 }) => {
+  const { t } = useTranslation();
   const location = useLocation();
   const params = useMemo(() => new URLSearchParams(location.search), [location.search]);
-  const searchLocation = params.get("location") || "Việt Nam";
+  const searchLocation = params.get("location");
   const searchFromDate = params.get("startDate");
   const searchToDate = params.get("endDate");
   const [propertyCount, setPropertyCount] = useState<number>(0);
@@ -30,7 +32,7 @@ const ListingStayMapPage: FC<ListingStayMapPageProps> = ({
       try {
         // Build search query
         const searchQuery: any = {};
-        if (searchLocation && searchLocation !== "Việt Nam") {
+        if (searchLocation) {
           searchQuery.location = searchLocation;
         }
         if (searchFromDate) {
@@ -56,7 +58,11 @@ const ListingStayMapPage: FC<ListingStayMapPageProps> = ({
       data-nc-id="ListingStayMapPage"
     >
       <Helmet>
-        <title>Chisfis || Booking React Template</title>
+        <title>
+          {searchLocation 
+            ? `${t.condotel.staysIn || "Stays in"} ${searchLocation} - Chisfis`
+            : `${t.condotel.allCondotels || "Tất cả Condotel"} - Chisfis`}
+        </title>
       </Helmet>
       <BgGlassmorphism />
 
@@ -65,7 +71,11 @@ const ListingStayMapPage: FC<ListingStayMapPageProps> = ({
         <SectionHeroArchivePage 
           currentPage="Stays" 
           currentTab="Stays"
-          locationName={searchLocation}
+          locationName={
+            searchLocation 
+              ? `${t.condotel.staysIn || "Stays in"} ${searchLocation}`
+              : (t.condotel.allCondotels || "Tất cả Condotel")
+          }
           propertyCount={propertyCount}
           rightImage={imagePng}
         />

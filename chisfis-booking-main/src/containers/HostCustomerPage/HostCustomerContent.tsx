@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "contexts/AuthContext";
-import customerAPI, { CustomerBookingDTO } from "api/customer";
+import customerAPI, { CustomerDTO, CustomerBookingDTO } from "api/customer";
 import bookingAPI from "api/booking";
 
 const HostCustomerContent: React.FC = () => {
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
-  const [customers, setCustomers] = useState<CustomerBookingDTO[]>([]);
+  const [customers, setCustomers] = useState<CustomerDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [selectedCustomer, setSelectedCustomer] = useState<CustomerBookingDTO | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerDTO | null>(null);
   const [customerBookings, setCustomerBookings] = useState<any[]>([]);
   const [loadingBookings, setLoadingBookings] = useState(false);
 
@@ -27,7 +27,7 @@ const HostCustomerContent: React.FC = () => {
     setLoading(true);
     setError("");
     try {
-      const customersData = await customerAPI.getCustomerBooked();
+      const customersData = await customerAPI.getCustomers();
       setCustomers(customersData);
     } catch (err: any) {
       console.error("Failed to load customers:", err);
@@ -38,10 +38,10 @@ const HostCustomerContent: React.FC = () => {
     }
   };
 
-  const loadCustomerBookings = async (customerId: number) => {
+  const loadCustomerBookings = async (userId: number) => {
     setLoadingBookings(true);
     try {
-      const bookings = await bookingAPI.getHostBookingsByCustomer(customerId);
+      const bookings = await bookingAPI.getHostBookingsByCustomer(userId);
       setCustomerBookings(bookings);
     } catch (err: any) {
       console.error("Failed to load customer bookings:", err);
@@ -51,10 +51,10 @@ const HostCustomerContent: React.FC = () => {
     }
   };
 
-  const handleViewCustomer = (customer: CustomerBookingDTO) => {
+  const handleViewCustomer = (customer: CustomerDTO) => {
     setSelectedCustomer(customer);
-    if (customer.customerId) {
-      loadCustomerBookings(customer.customerId);
+    if (customer.userId) {
+      loadCustomerBookings(customer.userId);
     }
   };
 
@@ -163,48 +163,50 @@ const HostCustomerContent: React.FC = () => {
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {customers.map((customer) => (
             <div
-              key={customer.customerId}
+              key={customer.userId}
               className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow cursor-pointer"
               onClick={() => handleViewCustomer(customer)}
             >
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
                   <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">
-                    {customer.customerName}
+                    {customer.fullName}
                   </h3>
-                  {customer.customerEmail && (
+                  {customer.email && (
                     <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">
-                      {customer.customerEmail}
+                      {customer.email}
                     </p>
                   )}
-                  {customer.customerPhone && (
+                  {customer.phone && (
                     <p className="text-sm text-neutral-500 dark:text-neutral-400">
-                      {customer.customerPhone}
+                      {customer.phone}
                     </p>
                   )}
                 </div>
               </div>
 
               <div className="space-y-2 mb-4">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-neutral-500 dark:text-neutral-400">Tổng đặt phòng:</span>
-                  <span className="text-neutral-900 dark:text-neutral-100 font-semibold">
-                    {customer.totalBookings}
-                  </span>
-                </div>
-                {customer.totalSpent && (
+                {customer.gender && (
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-neutral-500 dark:text-neutral-400">Tổng chi tiêu:</span>
-                    <span className="text-neutral-900 dark:text-neutral-100 font-semibold">
-                      {formatCurrency(customer.totalSpent)}
+                    <span className="text-neutral-500 dark:text-neutral-400">Giới tính:</span>
+                    <span className="text-neutral-900 dark:text-neutral-100">
+                      {customer.gender}
                     </span>
                   </div>
                 )}
-                {customer.lastBookingDate && (
+                {customer.dateOfBirth && (
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-neutral-500 dark:text-neutral-400">Đặt phòng cuối:</span>
+                    <span className="text-neutral-500 dark:text-neutral-400">Ngày sinh:</span>
                     <span className="text-neutral-900 dark:text-neutral-100">
-                      {formatDate(customer.lastBookingDate)}
+                      {formatDate(customer.dateOfBirth)}
+                    </span>
+                  </div>
+                )}
+                {customer.address && (
+                  <div className="flex items-start justify-between text-sm">
+                    <span className="text-neutral-500 dark:text-neutral-400">Địa chỉ:</span>
+                    <span className="text-neutral-900 dark:text-neutral-100 text-right ml-2">
+                      {customer.address}
                     </span>
                   </div>
                 )}
@@ -233,7 +235,7 @@ const HostCustomerContent: React.FC = () => {
               <div className="px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-medium text-neutral-900 dark:text-neutral-100">
-                    Chi tiết khách hàng: {selectedCustomer.customerName}
+                    Chi tiết khách hàng: {selectedCustomer.fullName}
                   </h3>
                   <button
                     onClick={() => setSelectedCustomer(null)}
@@ -255,26 +257,36 @@ const HostCustomerContent: React.FC = () => {
                     <div>
                       <p className="text-sm text-neutral-500 dark:text-neutral-400">Email</p>
                       <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
-                        {selectedCustomer.customerEmail || "N/A"}
+                        {selectedCustomer.email || "N/A"}
                       </p>
                     </div>
                     <div>
                       <p className="text-sm text-neutral-500 dark:text-neutral-400">Số điện thoại</p>
                       <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
-                        {selectedCustomer.customerPhone || "N/A"}
+                        {selectedCustomer.phone || "N/A"}
                       </p>
                     </div>
-                    <div>
-                      <p className="text-sm text-neutral-500 dark:text-neutral-400">Tổng đặt phòng</p>
-                      <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
-                        {selectedCustomer.totalBookings}
-                      </p>
-                    </div>
-                    {selectedCustomer.totalSpent && (
+                    {selectedCustomer.gender && (
                       <div>
-                        <p className="text-sm text-neutral-500 dark:text-neutral-400">Tổng chi tiêu</p>
+                        <p className="text-sm text-neutral-500 dark:text-neutral-400">Giới tính</p>
                         <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
-                          {formatCurrency(selectedCustomer.totalSpent)}
+                          {selectedCustomer.gender}
+                        </p>
+                      </div>
+                    )}
+                    {selectedCustomer.dateOfBirth && (
+                      <div>
+                        <p className="text-sm text-neutral-500 dark:text-neutral-400">Ngày sinh</p>
+                        <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                          {formatDate(selectedCustomer.dateOfBirth)}
+                        </p>
+                      </div>
+                    )}
+                    {selectedCustomer.address && (
+                      <div className="col-span-2">
+                        <p className="text-sm text-neutral-500 dark:text-neutral-400">Địa chỉ</p>
+                        <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                          {selectedCustomer.address}
                         </p>
                       </div>
                     )}

@@ -88,8 +88,28 @@ axiosClient.interceptors.response.use(
       });
 
       // 🚨 BƯỚC DEBUG QUAN TRỌNG NHẤT: In chi tiết lỗi Validation (400 Bad Request)
-      if (status === 400 && data && data.errors) {
-        console.error("  👉 CHI TIẾT LỖI VALIDATION (400):", data.errors);
+      if (status === 400) {
+        if (data?.errors) {
+          console.error("  👉 CHI TIẾT LỖI VALIDATION (400):", data.errors);
+          // Format validation errors for easier reading
+          if (typeof data.errors === 'object') {
+            const errorMessages = Object.entries(data.errors)
+              .map(([key, value]: [string, any]) => {
+                if (Array.isArray(value)) {
+                  return `${key}: ${value.join(', ')}`;
+                }
+                return `${key}: ${value}`;
+              })
+              .join('\n');
+            console.error("  📋 Validation Errors:\n", errorMessages);
+          }
+        }
+        if (data?.message) {
+          console.error("  📋 Error Message:", data.message);
+        }
+        if (data?.title) {
+          console.error("  📋 Error Title:", data.title);
+        }
       }
 
       // Handle 401 Unauthorized - token expired or invalid

@@ -169,13 +169,58 @@ export const condotelAPI = {
   // GET /api/tenant/condotels?name=abc&location=abc&fromDate=...&toDate=... - Tìm kiếm condotel (public, không cần đăng nhập)
   search: async (query?: CondotelSearchQuery): Promise<CondotelDTO[]> => {
     const params: any = {};
-    if (query?.name) params.name = query.name;
-    if (query?.location) params.location = query.location;
-    if (query?.fromDate) params.fromDate = query.fromDate;
-    if (query?.toDate) params.toDate = query.toDate;
+    if (query?.name) {
+      params.name = query.name.trim();
+    }
+    if (query?.location) {
+      // Trim location và đảm bảo format đúng
+      params.location = query.location.trim();
+    }
+    if (query?.fromDate) {
+      params.fromDate = query.fromDate;
+    }
+    if (query?.toDate) {
+      params.toDate = query.toDate;
+    }
     
-    const response = await axiosClient.get<CondotelDTO[]>("/tenant/condotels", { params });
-    return response.data || [];
+    console.log("🔍 Searching condotels with params:", params);
+    console.log("🔍 Full URL will be: /tenant/condotels?" + new URLSearchParams(params).toString());
+    
+    try {
+      const response = await axiosClient.get<any>("/tenant/condotels", { params });
+      console.log("✅ Search response:", response.data);
+      console.log("✅ Response type:", Array.isArray(response.data) ? "Array" : typeof response.data);
+      
+      // Normalize response - handle both array and object with data property
+      let data: any[] = [];
+      if (Array.isArray(response.data)) {
+        data = response.data;
+      } else if (response.data && typeof response.data === 'object' && 'data' in response.data) {
+        data = Array.isArray(response.data.data) ? response.data.data : [];
+      }
+      
+      console.log("✅ Processed data count:", data.length);
+      
+      // Map response to CondotelDTO format
+      const mapped = data.map((item: any) => ({
+        condotelId: item.CondotelId || item.condotelId,
+        name: item.Name || item.name,
+        pricePerNight: item.PricePerNight !== undefined ? item.PricePerNight : item.pricePerNight,
+        beds: item.Beds !== undefined ? item.Beds : item.beds,
+        bathrooms: item.Bathrooms !== undefined ? item.Bathrooms : item.bathrooms,
+        status: item.Status || item.status,
+        thumbnailUrl: item.ThumbnailUrl || item.thumbnailUrl,
+        resortName: item.ResortName || item.resortName,
+        hostName: item.HostName || item.hostName,
+      }));
+      
+      console.log("✅ Mapped results:", mapped.length, "condotels");
+      return mapped;
+    } catch (error: any) {
+      console.error("❌ Search error:", error);
+      console.error("❌ Error response:", error.response?.data);
+      throw error;
+    }
   },
 
   // GET /api/tenant/condotels - Lấy tất cả condotels (public, không cần đăng nhập)

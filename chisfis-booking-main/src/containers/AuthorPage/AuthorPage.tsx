@@ -17,12 +17,14 @@ import SocialsList from "shared/SocialsList/SocialsList";
 import { Helmet } from "react-helmet";
 import condotelAPI, { CondotelDTO } from "api/condotel";
 import { useAuth } from "contexts/AuthContext";
+import { useTranslation } from "i18n/LanguageContext";
 
 export interface AuthorPageProps {
   className?: string;
 }
 
 const AuthorPage: FC<AuthorPageProps> = ({ className = "" }) => {
+  const { t } = useTranslation();
   let [categories] = useState(["Stays", "Experiences", "Car for rent", "Condotels"]);
   const [condotels, setCondotels] = useState<CondotelDTO[]>([]);
   const [isLoadingCondotels, setIsLoadingCondotels] = useState(false);
@@ -166,8 +168,13 @@ const AuthorPage: FC<AuthorPageProps> = ({ className = "" }) => {
                     </div>
                     {condotels.length > 4 && (
                       <div className="flex mt-11 justify-center items-center">
-                        <ButtonSecondary onClick={() => setShowAllCondotels(!showAllCondotels)}>
-                          {showAllCondotels ? "Show less" : "Show me more"}
+                        <ButtonSecondary 
+                          onClick={() => {
+                            // Always navigate to listing page to show all condotels
+                            window.location.href = "/listing-stay";
+                          }}
+                        >
+                          {t.condotel.viewMore || "Xem thêm condotel"}
                         </ButtonSecondary>
                       </div>
                     )}
