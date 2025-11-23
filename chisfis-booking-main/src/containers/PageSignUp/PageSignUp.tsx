@@ -192,7 +192,7 @@ const PageSignUp: FC<PageSignUpProps> = ({ className = "" }) => {
   return (
     <div className={`${className}`} data-nc-id="PageSignUp">
       <Helmet>
-        <title>Sign up || Booking React Template</title>
+        <title>Sign up || Fiscondotel</title>
       </Helmet>
       <div className="container mb-24 lg:mb-32">
         <h2 className="my-20 text-center text-3xl md:text-5xl font-semibold">

@@ -160,7 +160,7 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
   return (
     <div className={`nc-AdminPage ${className}`} data-nc-id="AdminPage">
       <Helmet>
-        <title>Admin Dashboard || Booking React Template</title>
+        <title>Admin Dashboard || Fiscondotel</title>
       </Helmet>
 
       <div className="container py-8 lg:py-12">

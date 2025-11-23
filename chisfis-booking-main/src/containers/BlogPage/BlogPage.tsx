@@ -78,7 +78,7 @@ const BlogPage: React.FC = () => {
     return (
       <div className="nc-BlogPage overflow-hidden relative">
         <Helmet>
-          <title>Blog || Booking React Template</title>
+          <title>Blog || Fiscondotel</title>
         </Helmet>
         <BgGlassmorphism />
         <div className="container relative">
@@ -93,7 +93,7 @@ const BlogPage: React.FC = () => {
   return (
     <div className="nc-BlogPage overflow-hidden relative">
       <Helmet>
-        <title>Blog || Booking React Template</title>
+        <title>Blog || Fiscondotel</title>
       </Helmet>
 
       {/* ======== BG GLASS ======== */}

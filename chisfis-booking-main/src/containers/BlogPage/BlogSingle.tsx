@@ -239,7 +239,7 @@ const BlogSingle = () => {
     return (
       <div className="nc-PageSingle pt-8 lg:pt-16 ">
         <Helmet>
-          <title>Loading... || Booking React Template</title>
+          <title>Loading... || Fiscondotel</title>
         </Helmet>
         <div className="container">
           <div className="flex items-center justify-center py-20">
@@ -254,7 +254,7 @@ const BlogSingle = () => {
     return (
       <div className="nc-PageSingle pt-8 lg:pt-16 ">
         <Helmet>
-          <title>Error || Booking React Template</title>
+          <title>Error || Fiscondotel</title>
         </Helmet>
         <div className="container">
           <div className="text-center py-20">
@@ -271,7 +271,7 @@ const BlogSingle = () => {
   return (
     <div className="nc-PageSingle pt-8 lg:pt-16 ">
       <Helmet>
-        <title>{post.title} || Booking React Template</title>
+        <title>{post.title} || Fiscondotel</title>
       </Helmet>
       {renderHeader()}
       {post.featuredImageUrl && (

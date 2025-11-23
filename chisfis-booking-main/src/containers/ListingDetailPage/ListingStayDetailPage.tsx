@@ -71,20 +71,17 @@ const ListingStayDetailPage: FC = () => {
         console.log("📦 CondotelDetailDTO response:", res);
         console.log("👤 Current user:", user);
         
-        // Ưu tiên: Backend trả về hostName và hostImageUrl
+        // Luôn ưu tiên hostName từ backend - không dùng tên user đang login
         if (res.hostName) {
           console.log("✅ Backend trả về hostName:", res.hostName);
           setHostName(res.hostName);
           setHostImageUrl(res.hostImageUrl);
-        } else if (user) {
-          // Nếu backend chưa trả về, dùng thông tin từ AuthContext (nếu có user đang login)
-          console.log("✅ Backend chưa trả về hostName, dùng thông tin từ AuthContext");
-          setHostName(user.fullName);
-          setHostImageUrl(user.imageUrl);
         } else {
-          // Fallback: Hiển thị Host ID
-          console.warn("⚠️ Backend chưa trả về hostName và không có user đang login");
+          // Nếu backend không trả về hostName, chỉ dùng Host ID làm fallback
+          // KHÔNG dùng tên user đang login vì user có thể là tenant, không phải host
+          console.warn("⚠️ Backend chưa trả về hostName, sử dụng Host ID");
           setHostName(`Host #${res.hostId}`);
+          setHostImageUrl(undefined);
         }
 
         // Load reviews cho condotel này
@@ -373,12 +370,14 @@ const ListingStayDetailPage: FC = () => {
   );
 
   const renderHost = () => {
+    // Luôn ưu tiên hostName từ backend - không dùng tên user đang login
     const finalHostName = hostName || data.hostName || `Host #${data.hostId}`;
-    const finalHostImageUrl = hostImageUrl || data.hostImageUrl || user?.imageUrl;
+    // Chỉ dùng hostImageUrl từ backend, không dùng user image
+    const finalHostImageUrl = hostImageUrl || data.hostImageUrl;
     
     return (
       <div className="listingSection__wrap">
-        <h2 className="text-2xl font-semibold">Host Information</h2>
+        <h2 className="text-2xl font-semibold">{t.condotel.host || "Thông tin Host"}</h2>
         <div className="w-14 border-b border-neutral-200 dark:border-neutral-700"></div>
         <div className="flex items-center space-x-4">
           <Avatar
@@ -392,7 +391,7 @@ const ListingStayDetailPage: FC = () => {
           <div>
             <div className="block text-xl font-medium">{finalHostName}</div>
             <div className="mt-1.5 flex items-center text-sm text-neutral-500 dark:text-neutral-400">
-              <StartRating /><span className="mx-2">·</span><span> Verified Host</span>
+              <StartRating /><span className="mx-2">·</span><span>Verified Host</span>
             </div>
           </div>
         </div>

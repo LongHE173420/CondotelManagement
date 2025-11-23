@@ -114,7 +114,7 @@ const PageLogin: FC<PageLoginProps> = ({ className = "" }) => {
   return (
     <div className={`nc-PageLogin ${className}`} data-nc-id="PageLogin">
       <Helmet>
-        <title>Login || Condotel Management</title>
+        <title>Login || Fiscondotel</title>
       </Helmet>
 
       <div className="container mb-24 lg:mb-32">

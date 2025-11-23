@@ -16,6 +16,7 @@ import ListingCarMapPage from "containers/ListingCarPage/ListingCarMapPage";
 import ListingCarDetailPage from "containers/ListingDetailPage/ListingCarDetailPage";
 import CheckOutPage from "containers/CheckOutPage/CheckOutPage";
 import PayPage from "containers/PayPage/PayPage";
+import PaymentCancelPage from "containers/PaymentCancelPage/PaymentCancelPage";
 import AuthorPage from "containers/AuthorPage/AuthorPage";
 import AccountPage from "containers/AccountPage/AccountPage";
 import AccountPass from "containers/AccountPage/AccountPass";
@@ -129,6 +130,7 @@ export const pages: Page[] = [
   //
   { path: "/checkout", component: CheckOutPage },
   { path: "/pay-done", component: PayPage },
+  { path: "/payment/cancel", component: PaymentCancelPage },
   //
   { path: "/my-bookings", component: PageTenantBookings },
   { path: "/booking-history", component: PageBookingHistory },

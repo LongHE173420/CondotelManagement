@@ -118,7 +118,7 @@ const HostPromotionPage: React.FC<HostPromotionPageProps> = ({ className = "" })
   return (
     <div className={`nc-HostPromotionPage ${className}`} data-nc-id="HostPromotionPage">
       <Helmet>
-        <title>Quản lý Khuyến mãi || Booking React Template</title>
+        <title>Quản lý Khuyến mãi || Fiscondotel</title>
       </Helmet>
 
       <div className="container py-8 lg:py-12">

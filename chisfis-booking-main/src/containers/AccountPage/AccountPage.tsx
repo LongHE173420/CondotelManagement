@@ -276,7 +276,7 @@ const AccountPage: FC<AccountPageProps> = ({ className = "", noLayout = false })
   return (
     <div className={`nc-AccountPage ${className}`} data-nc-id="AccountPage">
       <Helmet>
-        <title>Thông tin tài khoản • Condotel Management</title>
+        <title>Thông tin tài khoản • Fiscondotel</title>
       </Helmet>
       <CommonLayout>{content}</CommonLayout>
     </div>

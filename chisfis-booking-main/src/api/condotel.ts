@@ -231,8 +231,28 @@ export const condotelAPI = {
 
   // GET /api/tenant/condotels/{id} - Lấy chi tiết condotel (public, không cần đăng nhập)
   getById: async (id: number): Promise<CondotelDetailDTO> => {
-    const response = await axiosClient.get<CondotelDetailDTO>(`/tenant/condotels/${id}`);
-    return response.data;
+    const response = await axiosClient.get<any>(`/tenant/condotels/${id}`);
+    const data = response.data;
+    
+    // Normalize response - map PascalCase to camelCase
+    return {
+      condotelId: data.CondotelId || data.condotelId,
+      hostId: data.HostId || data.hostId,
+      resortId: data.ResortId || data.resortId,
+      name: data.Name || data.name,
+      description: data.Description || data.description,
+      pricePerNight: data.PricePerNight !== undefined ? data.PricePerNight : data.pricePerNight,
+      beds: data.Beds !== undefined ? data.Beds : data.beds,
+      bathrooms: data.Bathrooms !== undefined ? data.Bathrooms : data.bathrooms,
+      status: data.Status || data.status,
+      hostName: data.HostName || data.hostName,
+      hostImageUrl: data.HostImageUrl || data.hostImageUrl,
+      images: data.Images || data.images || [],
+      prices: data.Prices || data.prices || [],
+      details: data.Details || data.details || [],
+      amenities: data.Amenities || data.amenities || [],
+      utilities: data.Utilities || data.utilities || [],
+    };
   },
 
   // GET /api/tenant/condotels?location=... - Tìm kiếm condotel theo location (sử dụng endpoint mới)

@@ -83,7 +83,7 @@ const PricingPage: React.FC = () => {
     return (
         <div className="container mx-auto p-4 md:p-12">
             <Helmet>
-                <title>Nâng cấp Gói Dịch Vụ || Condotel Management</title>
+                <title>Nâng cấp Gói Dịch Vụ || Fiscondotel</title>
             </Helmet>
             <h1 className="text-3xl font-bold text-center mb-4">
                 Bảng giá Dịch vụ

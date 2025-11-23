@@ -193,7 +193,7 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
 
       // Step 2: Tạo payment link
       const returnUrl = `${window.location.origin}/pay-done?bookingId=${booking.bookingId}&status=success`;
-      const cancelUrl = `${window.location.origin}/checkout?bookingId=${booking.bookingId}&status=cancelled`;
+      const cancelUrl = `${window.location.origin}/payment/cancel?bookingId=${booking.bookingId}&status=cancelled`;
 
       console.log("📤 Creating payment link for booking:", booking.bookingId);
       

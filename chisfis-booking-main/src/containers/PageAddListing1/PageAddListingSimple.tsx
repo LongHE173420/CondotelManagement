@@ -440,7 +440,7 @@ const PageAddListingSimple: FC = () => {
   return (
     <div className="nc-PageAddListingSimple">
       <Helmet>
-        <title>Thêm Condotel || Booking React Template</title>
+        <title>Thêm Condotel || Fiscondotel</title>
       </Helmet>
 
       <div className="container py-8 lg:py-12">

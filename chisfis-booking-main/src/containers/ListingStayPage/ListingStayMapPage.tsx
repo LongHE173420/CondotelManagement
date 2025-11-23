@@ -60,8 +60,8 @@ const ListingStayMapPage: FC<ListingStayMapPageProps> = ({
       <Helmet>
         <title>
           {searchLocation 
-            ? `${t.condotel.staysIn || "Stays in"} ${searchLocation} - Chisfis`
-            : `${t.condotel.allCondotels || "Tất cả Condotel"} - Chisfis`}
+            ? `${t.condotel.staysIn || "Stays in"} ${searchLocation} - Fiscondotel`
+            : `${t.condotel.allCondotels || "Tất cả Condotel"} - Fiscondotel`}
         </title>
       </Helmet>
       <BgGlassmorphism />
