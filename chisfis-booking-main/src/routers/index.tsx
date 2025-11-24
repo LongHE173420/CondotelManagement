@@ -68,6 +68,7 @@ import PageLocationAdd from "containers/PageManageLocations/PageLocationAdd";
 import PageLocationEdit from "containers/PageManageLocations/PageLocationEdit";
 import BecomeAHostPage from "containers/BecomeAHostPage/BecomeAHostPage";
 import PricingPage from "containers/PagePricing/PricingPage";
+import PaymentSuccess from "containers/PagePaymentSuccess/PaymentSuccess";
 
 
 export const pages: Page[] = [
@@ -160,6 +161,7 @@ export const pages: Page[] = [
   { path: "/become-a-host", component: BecomeAHostPage },
 
 
+
 ];
 
 const MyRoutes = () => {
@@ -205,6 +207,7 @@ const MyRoutes = () => {
         {/* ------------------------------------------------------------- */}
         <Route path="/subscription" element={<PageSubcription />} />
         <Route path="/pricing" element={<PricingPage />} />
+        <Route path="/payment/success" element={<PaymentSuccess />} />
 
         {pages.map(({ component, path }) => {
           const Component = component;
