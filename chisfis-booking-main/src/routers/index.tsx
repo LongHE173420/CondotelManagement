@@ -16,13 +16,16 @@ import ListingCarMapPage from "containers/ListingCarPage/ListingCarMapPage";
 import ListingCarDetailPage from "containers/ListingDetailPage/ListingCarDetailPage";
 import CheckOutPage from "containers/CheckOutPage/CheckOutPage";
 import PayPage from "containers/PayPage/PayPage";
+import PaymentCancelPage from "containers/PaymentCancelPage/PaymentCancelPage";
 import AuthorPage from "containers/AuthorPage/AuthorPage";
 import AccountPage from "containers/AccountPage/AccountPage";
 import AccountPass from "containers/AccountPage/AccountPass";
 import AccountSavelists from "containers/AccountPage/AccountSavelists";
 import AccountBilling from "containers/AccountPage/AccountBilling";
+import AccountRewards from "containers/AccountPage/AccountRewards";
+import AccountVouchers from "containers/AccountPage/AccountVouchers";
 import AdminPage from "containers/AdminPage/AdminPage";
-import ProtectedRoute from "components/ProtectedRoute/ProtectedRoute";
+import ProtectedRoute from "components/ProtectedRoute/ProtectedRoute"; 
 import PageContact from "containers/PageContact/PageContact";
 import PageAbout from "containers/PageAbout/PageAbout";
 import PageSignUp from "containers/PageSignUp/PageSignUp";
@@ -31,11 +34,6 @@ import PageForgotPassword from "containers/PageForgotPassword/PageForgotPassword
 import PageAccountList from "containers/PageAccountList/PageAccountList";
 import PageAccountDetail from "containers/PageAccountDetail/PageAccountDetail";
 import PageAddAccount from "containers/PageAddAccount/PageAddAccount";
-// -----
-// Đảm bảo tên này khớp với tên file của bạn (PageTenantBookings hay PageTenantBookingList)
-// Tôi sẽ dùng tên PageTenantBookings như chúng ta đã thống nhất
-
-// -----
 import PageSubcription from "containers/PageSubcription/PageSubcription";
 import BlogPage from "containers/BlogPage/BlogPage";
 import BlogSingle from "containers/BlogPage/BlogSingle";
@@ -55,9 +53,12 @@ import PageEditCondotel from "containers/PageEditCondotel/PageEditCondotel";
 import PageBookingHistory from "containers/PageBookingHistory/PageBookingHistory";
 import PageBookingHistoryDetail from "containers/PageBookingHistory/PageBookingHistoryDetail";
 import PageWriteReview from "containers/PageWriteReview/PageWriteReview";
+import PageMyReviews from "containers/PageMyReviews/PageMyReviews";
 import PageBlogList from "containers/PageManageBlog/PageBlogList";
 import PageBlogAdd from "containers/PageManageBlog/PageBlogAdd";
 import PageBlogEdit from "containers/PageManageBlog/PageBlogEdit";
+import PageBlogCategory from "containers/PageManageBlog/PageBlogCategory";
+import PageCreateBlogExperience from "containers/PageCreateBlogExperience/PageCreateBlogExperience";
 import PageVoucherList from "containers/PageManageVouchers/PageVoucherList";
 import PageVoucherAdd from "containers/PageManageVouchers/PageVoucherAdd";
 import PageVoucherEdit from "containers/PageManageVouchers/PageVoucherEdit";
@@ -65,6 +66,11 @@ import PageMyVouchers from "containers/PageMyVouchers/PageMyVouchers";
 import PageLocationList from "containers/PageManageLocations/PageLocationList";
 import PageLocationAdd from "containers/PageManageLocations/PageLocationAdd";
 import PageLocationEdit from "containers/PageManageLocations/PageLocationEdit";
+import BecomeAHostPage from "containers/BecomeAHostPage/BecomeAHostPage";
+import PricingPage from "containers/PagePricing/PricingPage";
+import PaymentSuccess from "containers/PagePaymentSuccess/PaymentSuccess";
+
+// --- Imports được thêm từ code cũ (Refund & Payout) ---
 import PageAdminRefund from "containers/PageAdminRefund/PageAdminRefund";
 import PageRefundPolicy from "containers/PageRefundPolicy/PageRefundPolicy";
 import PageAdminPayout from "containers/PageAdminOwnerManagement/PageAdminPayout";
@@ -102,6 +108,8 @@ export const pages: Page[] = [
   //
   { path: "/blog", component: BlogPage },
   { path: "/blog-single", component: BlogSingle },
+  { path: "/blog-single/:slug", component: BlogSingle },
+  { path: "/create-blog-experience", component: PageCreateBlogExperience },
   //
   { path: "/contact", component: PageContact },
   { path: "/about", component: PageAbout },
@@ -117,6 +125,8 @@ export const pages: Page[] = [
   { path: "/account-password", component: AccountPass },
   { path: "/account-savelists", component: AccountSavelists },
   { path: "/account-billing", component: AccountBilling },
+  { path: "/account-rewards", component: AccountRewards },
+  { path: "/account-vouchers", component: AccountVouchers },
   //
   { path: "/listing-stay", component: ListingStayPage },
   { path: "/listing-stay-map", component: ListingStayMapPage },
@@ -125,17 +135,19 @@ export const pages: Page[] = [
   //
   { path: "/checkout", component: CheckOutPage },
   { path: "/pay-done", component: PayPage },
+  { path: "/payment/cancel", component: PaymentCancelPage },
   //
   { path: "/my-bookings", component: PageTenantBookings },
   { path: "/booking-history", component: PageBookingHistory },
   { path: "/booking-history/:id", component: PageBookingHistoryDetail },
   { path: "/write-review/:id", component: PageWriteReview },
+  { path: "/my-reviews", component: PageMyReviews },
   //
   { path: "/manage-blog", component: PageBlogList },
   { path: "/manage-blog/add", component: PageBlogAdd },
   { path: "/manage-blog/edit/:id", component: PageBlogEdit },
+  { path: "/manage-blog/categories", component: PageBlogCategory },
   //
-  { path: "/subscription", component: PageSubcription },
   { path: "/host-dashboard", component: HostCondotelDashboard },
   //
   { path: "/manage-vouchers", component: PageVoucherList },
@@ -147,9 +159,11 @@ export const pages: Page[] = [
   { path: "/manage-locations/add", component: PageLocationAdd },
   { path: "/manage-locations/edit/:id", component: PageLocationEdit },
   //
+  { path: "/become-a-host", component: BecomeAHostPage },
+  
+  // --- Các routes được bổ sung từ code cũ ---
   { path: "/refund-policy", component: PageRefundPolicy },
   { path: "/admin/refunds", component: PageAdminRefund },
-  //
   { path: "/admin/payouts", component: PageAdminPayout },
 ];
 
@@ -191,8 +205,16 @@ const MyRoutes = () => {
           }
         />
 
+        {/* ------------------------------------------------------------- */}
+        {/* THÊM ROUTE CHO SUBSCRIPTION VÀ PRICING (KHÔNG DÙNG ProtectedRoute) */}
+        {/* ------------------------------------------------------------- */}
+        <Route path="/subscription" element={<PageSubcription />} />
+        <Route path="/pricing" element={<PricingPage />} />
+        <Route path="/payment/success" element={<PaymentSuccess />} />
+
         {pages.map(({ component, path }) => {
           const Component = component;
+
           // Protect host dashboard - only Host role can access
           if (path === "/host-dashboard") {
             return (
@@ -222,7 +244,7 @@ const MyRoutes = () => {
           }
         />
 
-        <Route path="*" element={<Page404 />} /> {/* Đã sửa lại Route cho Page404 */}
+        <Route path="*" element={<Page404 />} />
       </Routes>
 
       {WIN_WIDTH < 768 && <FooterNav />}
