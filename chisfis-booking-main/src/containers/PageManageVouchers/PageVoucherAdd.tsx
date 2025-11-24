@@ -1,165 +1,187 @@
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 
-// Component con Sidebar
-const SidebarCard: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
-  <div className="bg-white p-5 rounded-lg shadow-md">
-    <h2 className="text-lg font-semibold border-b border-gray-200 pb-3 mb-4">{title}</h2>
-    <div className="space-y-4">{children}</div>
-  </div>
-);
+// --- Định nghĩa kiểu dữ liệu ---
+interface Voucher {
+  id: string;
+  code: string;
+  type: "Phần trăm" | "Số tiền cố định";
+  value: number;
+  condotelName: string;
+  usage: string;
+  dates: string;
+  status: "Active" | "Expired" | "Inactive";
+}
 
-const PageVoucherAdd = () => {
-  const [code, setCode] = useState("");
-  const [discountType, setDiscountType] = useState<"percentage" | "amount">("percentage");
-  const [discountValue, setDiscountValue] = useState(0);
-  const [condotelId, setCondotelId] = useState("all");
-  const [usageLimit, setUsageLimit] = useState(100);
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [status, setStatus] = useState("Active");
-  const [isLoading, setIsLoading] = useState(false);
-  const navigate = useNavigate();
+// --- Dữ liệu mẫu (Mock Data) ---
+const mockVoucherData: Voucher[] = [
+  {
+    id: "1",
+    code: "SALE30",
+    type: "Phần trăm",
+    value: 30,
+    condotelName: "Tất cả Condotel",
+    usage: "15/100",
+    dates: "10/11/2025 - 20/11/2025",
+    status: "Active",
+  },
+  {
+    id: "2",
+    code: "GIAM100K",
+    type: "Số tiền cố định",
+    value: 100000,
+    condotelName: "Mường Thanh Vũng Tàu",
+    usage: "50/50",
+    dates: "01/11/2025 - 10/11/2025",
+    status: "Expired",
+  },
+  {
+    id: "3",
+    code: "NEWUSER",
+    type: "Phần trăm",
+    value: 15,
+    condotelName: "Tất cả Condotel",
+    usage: "0/200",
+    dates: "01/11/2025 - 01/12/2025",
+    status: "Inactive",
+  },
+];
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!code || discountValue <= 0 || !startDate || !endDate) {
-      alert("Vui lòng điền đầy đủ thông tin: Mã, Giá trị, Ngày bắt đầu và Ngày kết thúc.");
-      return;
+// --- Component Badge cho Trạng thái ---
+const StatusBadge: React.FC<{ status: Voucher["status"] }> = ({ status }) => {
+  let colorClasses = "";
+  if (status === "Active") colorClasses = "bg-green-100 text-green-800";
+  else if (status === "Expired") colorClasses = "bg-gray-100 text-gray-800";
+  else colorClasses = "bg-yellow-100 text-yellow-800";
+  return (
+    <span className={`px-3 py-1 rounded-full text-xs font-medium ${colorClasses}`}>
+      {status === "Active" ? "Hoạt động" : (status === "Expired" ? "Hết hạn" : "Ẩn")}
+    </span>
+  );
+};
+
+// --- Component Trang Danh sách Voucher ---
+const PageVoucherList = () => {
+  // ✨ 1. THÊM STATE CHO TÌM KIẾM VÀ LỌC
+  const [vouchers, setVouchers] = useState<Voucher[]>(mockVoucherData);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState(""); // "" có nghĩa là "Tất cả"
+
+  const handleDelete = (id: string, code: string) => {
+    if (window.confirm(`Bạn có chắc muốn xóa voucher "${code}" không?`)) {
+      // TODO: Gọi API xóa
+      console.log("Xóa voucher:", id);
+      setVouchers(current => current.filter(v => v.id !== id));
     }
-    setIsLoading(true);
-    // TODO: Gọi API
-    console.log("Tạo voucher mới:", { 
-      code, discountType, discountValue, condotelId, usageLimit, startDate, endDate, status 
-    });
-    setTimeout(() => {
-      setIsLoading(false);
-      alert("Tạo voucher thành công!");
-      navigate("/manage-vouchers");
-    }, 1000);
   };
+
+  // ✨ 2. TẠO DANH SÁCH LỌC (DERIVED STATE)
+  // Lọc danh sách vouchers dựa trên searchTerm và statusFilter
+  const filteredVouchers = vouchers.filter(voucher => {
+    const matchesSearch = voucher.code.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter ? voucher.status === statusFilter : true; // Nếu không lọc status, luôn trả về true
+    return matchesSearch && matchesStatus;
+  });
 
   return (
     <div className="p-4 md:p-8 bg-gray-50 min-h-screen">
-      <form onSubmit={handleSubmit}>
-        <div className="mb-4">
-          <Link to="/manage-vouchers" className="text-sm text-blue-600 hover:underline">
-            &larr; Quay lại danh sách
+      <div className="max-w-7xl mx-auto bg-white p-6 rounded-lg shadow-md">
+        
+        {/* --- Header --- */}
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-800">
+            Quản lý Voucher
+          </h1>
+          <Link
+            to="/manage-vouchers/add"
+            className="px-4 py-2 bg-gray-800 text-white rounded-md hover:bg-gray-700"
+          >
+            Tạo voucher mới
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-          
-          {/* --- CỘT TRÁI (NỘI DUNG CHÍNH) --- */}
-          <div className="md:col-span-8 lg:col-span-9 space-y-6">
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              <label htmlFor="code" className="block text-sm font-medium text-gray-700 mb-1">
-                Mã Voucher
-              </label>
-              <input
-                type="text"
-                id="code"
-                value={code}
-                onChange={(e) => setCode(e.target.value.toUpperCase())}
-                placeholder="Ví dụ: SALE30"
-                className="w-full px-4 py-2 border border-gray-300 rounded-md"
-                required
-              />
-            </div>
-          </div>
-
-          {/* --- CỘT PHẢI (SIDEBAR) --- */}
-          <div className="md:col-span-4 lg:col-span-3 space-y-6">
-            
-            <SidebarCard title="Xuất bản">
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full px-4 py-2 bg-gray-800 text-white rounded-md hover:bg-gray-700 disabled:bg-gray-400"
-              >
-                {isLoading ? "Đang lưu..." : "Lưu Voucher"}
-              </button>
-            </SidebarCard>
-
-            <SidebarCard title="Loại giảm giá">
-              <div className="flex gap-4">
-                <div className="flex items-center">
-                  <input id="type_percentage" type="radio" value="percentage" name="discountType"
-                    checked={discountType === "percentage"}
-                    onChange={() => setDiscountType("percentage")}
-                  />
-                  <label htmlFor="type_percentage" className="ml-2 text-sm">Phần trăm (%)</label>
-                </div>
-                <div className="flex items-center">
-                  <input id="type_amount" type="radio" value="amount" name="discountType"
-                    checked={discountType === "amount"}
-                    onChange={() => setDiscountType("amount")}
-                  />
-                  <label htmlFor="type_amount" className="ml-2 text-sm">Số tiền cố định (VNĐ)</label>
-                </div>
-              </div>
-              <div>
-                <label htmlFor="value" className="block text-sm font-medium text-gray-700 mb-1">
-                  Giá trị
-                </label>
-                <input
-                  type="number"
-                  id="value"
-                  value={discountValue}
-                  onChange={(e) => setDiscountValue(Number(e.target.value))}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md"
-                  required
-                />
-              </div>
-            </SidebarCard>
-
-            <SidebarCard title="Cài đặt">
-              <label htmlFor="condotel" className="block text-sm font-medium text-gray-700 mb-1">
-                Áp dụng cho
-              </label>
-              <select id="condotel" value={condotelId} onChange={(e) => setCondotelId(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md bg-white"
-              >
-                <option value="all">Tất cả Condotel</option>
-                {/* TODO: Tải danh sách condotel của Host vào đây */}
-                <option value="1">Mường Thanh Vũng Tàu</option>
-                <option value="2">Vinpearl Nha Trang</option>
-              </select>
-
-              <label htmlFor="usageLimit" className="block text-sm font-medium text-gray-700 mb-1">
-                Giới hạn sử dụng
-              </label>
-              <input type="number" id="usageLimit" value={usageLimit}
-                onChange={(e) => setUsageLimit(Number(e.target.value))}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md"
-              />
-            </SidebarCard>
-            
-            <SidebarCard title="Thời gian hiệu lực">
-              <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 mb-1">
-                Ngày bắt đầu
-              </label>
-              <input type="date" id="startDate" value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md"
-                required
-              />
-              
-              <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-1">
-                Ngày kết thúc
-              </label>
-              <input type="date" id="endDate" value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md"
-                required
-              />
-            </SidebarCard>
-
-          </div>
+        {/* --- Thanh Filter --- */}
+        <div className="flex flex-col md:flex-row gap-4 mb-6">
+          {/* ✨ 3. KẾT NỐI INPUT VỚI STATE */}
+          <input
+            type="text"
+            placeholder="Tìm theo mã voucher..."
+            className="flex-1 md:max-w-lg px-4 py-2 border border-gray-300 rounded-md"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          {/* ✨ 3. KẾT NỐI SELECT VỚI STATE */}
+          <select 
+            className="pl-4 pr-10 py-2 border border-gray-300 rounded-md bg-white w-full md:w-auto flex-shrink-0"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value="">Lọc theo trạng thái</option>
+            <option value="Active">Hoạt động</option>
+            <option value="Expired">Hết hạn</option>
+            <option value="Inactive">Ẩn</option>
+          </select>
         </div>
-      </form>
+
+        {/* --- Bảng Dữ liệu --- */}
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mã Voucher</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Giá trị</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Áp dụng cho</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sử dụng</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hiệu lực</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trạng thái</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hành động</th>
+              </tr>
+            </thead>
+            
+            {/* ✨ 4. MAP QUA DANH SÁCH ĐÃ LỌC `filteredVouchers` */}
+            <tbody className="bg-white divide-y divide-gray-200">
+              {filteredVouchers.map((v) => (
+                <tr key={v.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">{v.code}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                    {v.type === "Phần trăm" ? `${v.value}%` : `${v.value.toLocaleString("vi-VN")} VNĐ`}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{v.condotelName}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{v.usage}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{v.dates}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <StatusBadge status={v.status} />
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <Link
+                      to={`/manage-vouchers/edit/${v.id}`}
+                      className="text-blue-600 hover:text-blue-800"
+                    >
+                      Sửa
+                    </Link>
+                    <button
+                      onClick={() => handleDelete(v.id, v.code)}
+                      className="text-red-600 hover:text-red-800 ml-4"
+                    >
+                      Xóa
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          {/* ✨ 5. THÊM THÔNG BÁO KHI KHÔNG CÓ KẾT QUẢ */}
+          {filteredVouchers.length === 0 && (
+            <div className="text-center py-12">
+              <p className="text-gray-500">Không tìm thấy voucher nào khớp.</p>
+            </div>
+          )}
+
+        </div>
+      </div>
     </div>
   );
 };
 
-export default PageVoucherAdd;
+export default PageVoucherList;

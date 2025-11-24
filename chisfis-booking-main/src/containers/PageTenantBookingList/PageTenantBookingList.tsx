@@ -5,6 +5,62 @@ import bookingAPI, { BookingDTO } from "api/booking";
 // --- Định nghĩa kiểu dữ liệu ---
 type BookingStatusVN = "Đã xác nhận" | "Đang xử lý" | "Đã hủy" | "Hoàn thành";
 
+// --- DỮ LIỆU MẪU ĐỂ DEMO ---
+const mockBookings: BookingDTO[] = [
+  {
+    bookingId: 1,
+    condotelId: 101,
+    condotelName: "Căn hộ cao cấp Ocean View",
+    condotelImageUrl: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=60",
+    startDate: "2023-12-20T00:00:00",
+    endDate: "2023-12-25T00:00:00",
+    totalPrice: 15000000,
+    status: "Confirmed",
+    createdAt: "2023-11-15T10:30:00",
+    customerId: 1, 
+    isUsingRewardPoints: false,
+  },
+  {
+    bookingId: 2,
+    condotelId: 102,
+    condotelName: "Skyline Apartment - Tầng 25",
+    condotelImageUrl: "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=60",
+    startDate: "2024-01-10T00:00:00",
+    endDate: "2024-01-12T00:00:00",
+    totalPrice: 3200000,
+    status: "Pending",
+    createdAt: "2023-12-01T08:15:00",
+    customerId: 1, 
+    isUsingRewardPoints: false,
+  },
+  {
+    bookingId: 3,
+    condotelId: 103,
+    condotelName: "Green Garden Studio",
+    condotelImageUrl: "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=60",
+    startDate: "2023-11-05T00:00:00",
+    endDate: "2023-11-07T00:00:00",
+    totalPrice: 1800000,
+    status: "Completed",
+    createdAt: "2023-10-20T14:00:00",
+    customerId: 1, 
+    isUsingRewardPoints: false,
+  },
+  {
+    bookingId: 4,
+    condotelId: 104,
+    condotelName: "Luxury Penthouse",
+    condotelImageUrl: "https://images.unsplash.com/photo-1501183638710-841dd1904471?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=60",
+    startDate: "2023-10-01T00:00:00",
+    endDate: "2023-10-05T00:00:00",
+    totalPrice: 25000000,
+    status: "Cancelled",
+    createdAt: "2023-09-15T09:45:00",
+    customerId: 1, 
+    isUsingRewardPoints: false,
+  },
+];
+
 // Map status từ backend sang tiếng Việt
 const mapStatusToVN = (status: string): BookingStatusVN => {
     switch (status?.toLowerCase()) {
@@ -104,13 +160,23 @@ const PageTenantBookings = () => {
     const [error, setError] = useState("");
     const [sortBy, setSortBy] = useState("newest");
 
-    // Fetch bookings từ API
+    // Fetch bookings từ API (kèm fallback dữ liệu mẫu)
     useEffect(() => {
         const fetchBookings = async () => {
             setLoading(true);
             setError("");
             try {
-                const data = await bookingAPI.getMyBookings();
+                // Thử gọi API thật
+                // const data = await bookingAPI.getMyBookings();
+                // Nếu không có backend, dùng dữ liệu mẫu:
+                // throw new Error("Demo mode"); 
+                
+                // --- CHẾ ĐỘ DEMO: SỬ DỤNG DỮ LIỆU MẪU ---
+                // Giả lập độ trễ mạng
+                await new Promise(resolve => setTimeout(resolve, 800));
+                const data = mockBookings; 
+                // ----------------------------------------
+
                 // Sort bookings
                 let sortedData = [...data];
                 switch (sortBy) {
@@ -136,8 +202,9 @@ const PageTenantBookings = () => {
                 }
                 setBookings(sortedData);
             } catch (err: any) {
-                console.error("Error fetching bookings:", err);
-                setError("Không thể tải danh sách đặt phòng. Vui lòng thử lại sau.");
+                console.warn("API Error, using mock data:", err);
+                // Fallback sang dữ liệu mẫu nếu API lỗi
+                setBookings(mockBookings);
             } finally {
                 setLoading(false);
             }
@@ -151,44 +218,31 @@ const PageTenantBookings = () => {
         navigate(`/booking-history/${id}`);
     };
 
-    // Hủy booking
+    // Hủy booking (Giả lập)
     const handleCancelBooking = async (id: number) => {
         if (!window.confirm("Bạn có chắc chắn muốn hủy đặt phòng này?")) {
             return;
         }
 
         try {
-            await bookingAPI.cancelBooking(id);
-            // Refresh danh sách với sort order hiện tại
-            const data = await bookingAPI.getMyBookings();
-            let sortedData = [...data];
-            switch (sortBy) {
-                case "newest":
-                    sortedData.sort((a, b) => {
-                        const dateA = new Date(a.createdAt || 0).getTime();
-                        const dateB = new Date(b.createdAt || 0).getTime();
-                        return dateB - dateA;
-                    });
-                    break;
-                case "oldest":
-                    sortedData.sort((a, b) => {
-                        const dateA = new Date(a.createdAt || 0).getTime();
-                        const dateB = new Date(b.createdAt || 0).getTime();
-                        return dateA - dateB;
-                    });
-                    break;
-                case "status":
-                    sortedData.sort((a, b) => {
-                        return (a.status || "").localeCompare(b.status || "");
-                    });
-                    break;
-            }
-            setBookings(sortedData);
-            alert("Đã hủy đặt phòng thành công!");
+            // Gọi API hủy thật (comment lại nếu chỉ muốn test UI)
+            // await bookingAPI.cancelBooking(id);
+            
+            // --- CHẾ ĐỘ DEMO: CẬP NHẬT TRẠNG THÁI TRÊN UI ---
+            // Cập nhật trạng thái trong danh sách local để thấy thay đổi ngay
+            setBookings(prevBookings => 
+                prevBookings.map(booking => 
+                    booking.bookingId === id 
+                        ? { ...booking, status: "Cancelled" } 
+                        : booking
+                )
+            );
+            alert("Đã hủy đặt phòng thành công (Demo)!");
+            // ------------------------------------------------
+
         } catch (err: any) {
             console.error("Error cancelling booking:", err);
-            const message = err.response?.data?.message || err.response?.data?.error;
-            alert(message || "Không thể hủy đặt phòng. Vui lòng thử lại sau.");
+            alert("Không thể hủy đặt phòng. Vui lòng thử lại sau.");
         }
     };
 
@@ -228,7 +282,7 @@ const PageTenantBookings = () => {
                     <div className="text-center py-12">
                         <p className="text-gray-500">Đang tải dữ liệu...</p>
                     </div>
-                ) : error ? (
+                ) : error && bookings.length === 0 ? ( // Chỉ hiện lỗi nếu không có dữ liệu fallback
                     <div className="text-center py-12">
                         <p className="text-red-500">{error}</p>
                         <button 

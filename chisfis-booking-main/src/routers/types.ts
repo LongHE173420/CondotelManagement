@@ -75,6 +75,9 @@ export interface LocationStates {
   "/page404"?: {};
   "/subscription"?: {};
   "/host-dashboard"?: {};
+  "/admin/refunds"?: {};
+  "/refund-policy"?: {};
+  "/admin/payouts"?: {};
 }
 
 export type PathName = keyof LocationStates;

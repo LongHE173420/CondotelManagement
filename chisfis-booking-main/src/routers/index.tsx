@@ -65,6 +65,9 @@ import PageMyVouchers from "containers/PageMyVouchers/PageMyVouchers";
 import PageLocationList from "containers/PageManageLocations/PageLocationList";
 import PageLocationAdd from "containers/PageManageLocations/PageLocationAdd";
 import PageLocationEdit from "containers/PageManageLocations/PageLocationEdit";
+import PageAdminRefund from "containers/PageAdminRefund/PageAdminRefund";
+import PageRefundPolicy from "containers/PageRefundPolicy/PageRefundPolicy";
+import PageAdminPayout from "containers/PageAdminOwnerManagement/PageAdminPayout";
 
 export const pages: Page[] = [
   { path: "/", exact: true, component: PageHome },
@@ -104,7 +107,7 @@ export const pages: Page[] = [
   { path: "/about", component: PageAbout },
   { path: "/signup", component: PageSignUp },
   { path: "/login", component: PageLogin },
-  { path: "/forgot-pass", component: PageForgotPassword }, 
+  { path: "/forgot-pass", component: PageForgotPassword },
   //
   { path: "/account-list", component: PageAccountList },
   { path: "/account-detail/:id", component: PageAccountDetail },
@@ -118,7 +121,7 @@ export const pages: Page[] = [
   { path: "/listing-stay", component: ListingStayPage },
   { path: "/listing-stay-map", component: ListingStayMapPage },
   // 
-  { path: "/listing-stay-detail/:id", component: ListingStayDetailPage }, 
+  { path: "/listing-stay-detail/:id", component: ListingStayDetailPage },
   //
   { path: "/checkout", component: CheckOutPage },
   { path: "/pay-done", component: PayPage },
@@ -143,6 +146,11 @@ export const pages: Page[] = [
   { path: "/manage-locations", component: PageLocationList },
   { path: "/manage-locations/add", component: PageLocationAdd },
   { path: "/manage-locations/edit/:id", component: PageLocationEdit },
+  //
+  { path: "/refund-policy", component: PageRefundPolicy },
+  { path: "/admin/refunds", component: PageAdminRefund },
+  //
+  { path: "/admin/payouts", component: PageAdminPayout },
 ];
 
 const MyRoutes = () => {
@@ -186,7 +194,7 @@ const MyRoutes = () => {
         {pages.map(({ component, path }) => {
           const Component = component;
           // Protect host dashboard - only Host role can access
-          if(path === "/host-dashboard") {
+          if (path === "/host-dashboard") {
             return (
               <Route key={path} path={path} element={
                 <ProtectedRoute requireAuth={true} requireHost={true}>
@@ -195,15 +203,15 @@ const MyRoutes = () => {
               } />
             );
           }
-          
+
           // Skip add-listing routes (đã được handle ở trên)
-          if(path && (path.startsWith("/add-listing") || path.startsWith("/add-condotel"))) {
+          if (path && (path.startsWith("/add-listing") || path.startsWith("/add-condotel"))) {
             return null;
           }
-          
+
           return <Route key={path} element={<Component />} path={path} />;
         })}
-        
+
         {/* Protected Admin Route */}
         <Route
           path="/admin/*"
@@ -213,7 +221,7 @@ const MyRoutes = () => {
             </ProtectedRoute>
           }
         />
-        
+
         <Route path="*" element={<Page404 />} /> {/* Đã sửa lại Route cho Page404 */}
       </Routes>
 
