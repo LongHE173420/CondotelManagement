@@ -83,6 +83,9 @@ export interface LocationStates {
   "/subscription"?: {};
   "/host-dashboard"?: {};
   "/become-a-host"?: {};
+  "/admin/refunds"?: {};
+  "/refund-policy"?: {};
+  "/admin/payouts"?: {};
 }
 
 export type PathName = keyof LocationStates;

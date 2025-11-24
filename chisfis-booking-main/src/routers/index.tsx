@@ -25,7 +25,7 @@ import AccountBilling from "containers/AccountPage/AccountBilling";
 import AccountRewards from "containers/AccountPage/AccountRewards";
 import AccountVouchers from "containers/AccountPage/AccountVouchers";
 import AdminPage from "containers/AdminPage/AdminPage";
-import ProtectedRoute from "components/ProtectedRoute/ProtectedRoute"; // Giữ lại vì nó vẫn được sử dụng cho Admin và Host
+import ProtectedRoute from "components/ProtectedRoute/ProtectedRoute"; 
 import PageContact from "containers/PageContact/PageContact";
 import PageAbout from "containers/PageAbout/PageAbout";
 import PageSignUp from "containers/PageSignUp/PageSignUp";
@@ -70,6 +70,10 @@ import BecomeAHostPage from "containers/BecomeAHostPage/BecomeAHostPage";
 import PricingPage from "containers/PagePricing/PricingPage";
 import PaymentSuccess from "containers/PagePaymentSuccess/PaymentSuccess";
 
+// --- Imports được thêm từ code cũ (Refund & Payout) ---
+import PageAdminRefund from "containers/PageAdminRefund/PageAdminRefund";
+import PageRefundPolicy from "containers/PageRefundPolicy/PageRefundPolicy";
+import PageAdminPayout from "containers/PageAdminOwnerManagement/PageAdminPayout";
 
 export const pages: Page[] = [
   { path: "/", exact: true, component: PageHome },
@@ -144,8 +148,6 @@ export const pages: Page[] = [
   { path: "/manage-blog/edit/:id", component: PageBlogEdit },
   { path: "/manage-blog/categories", component: PageBlogCategory },
   //
-  // ❌ Đã xóa { path: "/subscription", component: PageSubcription },
-  // ❌ Đã xóa { path: "/pricing", component: PageSubcription }, 
   { path: "/host-dashboard", component: HostCondotelDashboard },
   //
   { path: "/manage-vouchers", component: PageVoucherList },
@@ -156,12 +158,13 @@ export const pages: Page[] = [
   { path: "/manage-locations", component: PageLocationList },
   { path: "/manage-locations/add", component: PageLocationAdd },
   { path: "/manage-locations/edit/:id", component: PageLocationEdit },
-  { path: "/manage-locations/edit/:id", component: PageLocationEdit },
   //
   { path: "/become-a-host", component: BecomeAHostPage },
-
-
-
+  
+  // --- Các routes được bổ sung từ code cũ ---
+  { path: "/refund-policy", component: PageRefundPolicy },
+  { path: "/admin/refunds", component: PageAdminRefund },
+  { path: "/admin/payouts", component: PageAdminPayout },
 ];
 
 const MyRoutes = () => {
@@ -223,8 +226,6 @@ const MyRoutes = () => {
             );
           }
 
-          // ❌ Đã xóa khối if (path === "/subscription" || path === "/pricing") { return null; }
-
           // Skip add-listing routes (đã được handle ở trên)
           if (path && (path.startsWith("/add-listing") || path.startsWith("/add-condotel"))) {
             return null;
@@ -243,7 +244,7 @@ const MyRoutes = () => {
           }
         />
 
-        <Route path="*" element={<Page404 />} /> {/* Đã sửa lại Route cho Page404 */}
+        <Route path="*" element={<Page404 />} />
       </Routes>
 
       {WIN_WIDTH < 768 && <FooterNav />}
@@ -251,6 +252,5 @@ const MyRoutes = () => {
     </BrowserRouter>
   );
 };
-
 
 export default MyRoutes;
