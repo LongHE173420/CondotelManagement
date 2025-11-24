@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import RentalCarDatesRangeInput from "./RentalCarDatesRangeInput";
 import { FC } from "react";
 import { Popover, Transition } from "@headlessui/react";
@@ -50,7 +50,6 @@ const FlightSearchForm: FC<FlightSearchFormProps> = ({ haveDefaultValue }) => {
   const [timeRangeValue, setTimeRangeValue] = useState<TimeRage>({ startTime: "10:00 AM", endTime: "10:00 AM" });
   const [pickUpInputValue, setPickUpInputValue] = useState(defaultPickUpInputValue);
   const [dropOffInputValue, setDropOffInputValue] = useState(defaultDropOffInputValue);
-  const [fieldFocused, setFieldFocused] = useState<null>(null);
   const [dropOffLocationType, setDropOffLocationType] = useState<"roundTrip" | "oneWay" | "">("roundTrip");
   const [guests, setGuests] = useState(1);
   const [flightClassState, setFlightClassState] = useState("Economy");

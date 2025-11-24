@@ -4,6 +4,8 @@ import Nav from "shared/Nav/Nav";
 import NavItem from "shared/NavItem/NavItem";
 import ButtonSecondary from "shared/Button/ButtonSecondary";
 import { ReactNode } from "react";
+import { useNavigate } from "react-router-dom";
+import { useTranslation } from "i18n/LanguageContext";
 
 export interface HeaderFilterProps {
   tabActive: string;
@@ -20,6 +22,8 @@ const HeaderFilter: FC<HeaderFilterProps> = ({
   heading = "🎈 Latest Articles",
   onClickTab,
 }) => {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
   const [tabActiveState, setTabActiveState] = useState(tabActive);
 
   useEffect(() => {
@@ -29,6 +33,10 @@ const HeaderFilter: FC<HeaderFilterProps> = ({
   const handleClickTab = (item: string) => {
     onClickTab && onClickTab(item);
     setTabActiveState(item);
+  };
+
+  const handleViewAll = () => {
+    navigate("/listing-stay");
   };
 
   return (
@@ -50,8 +58,8 @@ const HeaderFilter: FC<HeaderFilterProps> = ({
           ))}
         </Nav>
         <span className="hidden sm:block flex-shrink-0">
-          <ButtonSecondary className="!leading-none">
-            <span>View all</span>
+          <ButtonSecondary className="!leading-none" onClick={handleViewAll}>
+            <span>{t.condotel.viewAll || "Xem tất cả"}</span>
             <i className="ml-3 las la-arrow-right text-xl"></i>
           </ButtonSecondary>
         </span>

@@ -28,14 +28,19 @@ export interface LocationStates {
   //
   "/checkout"?: {};
   "/pay-done"?: {};
+  "/payment/cancel"?: {};
   //
   "/account"?: {};
   "/account-savelists"?: {};
   "/account-password"?: {};
   "/account-billing"?: {};
+  "/account-rewards"?: {};
+  "/account-vouchers"?: {};
   //
   "/blog"?: {};
   "/blog-single"?: {};
+  "/blog-single/:slug"?: {};
+  "/create-blog-experience"?: {};
   //
   "/add-listing-1"?: {};
   "/add-listing-2"?: {};
@@ -62,19 +67,22 @@ export interface LocationStates {
   "/booking-history"?: {};
   "/booking-history/:id"?: {};
   "/write-review/:id"?: {};
+  "/my-reviews"?: {};
   "/manage-blog"?: {};
   "/manage-blog/add"?: {};
   "/manage-blog/edit/:id"?: {};
-  "/manage-vouchers"?: {};         
-  "/manage-vouchers/add"?: {};   
+  "/manage-blog/categories"?: {};
+  "/manage-vouchers"?: {};
+  "/manage-vouchers/add"?: {};
   "/manage-vouchers/edit/:id"?: {};
-  "/manage-locations"?: {};         // <-- ✨ THÊM DÒNG NÀY
+  "/manage-locations"?: {};
   "/manage-locations/add"?: {};
   "/manage-locations/edit/:id"?: {};
   "/my-vouchers"?: {};
   "/page404"?: {};
   "/subscription"?: {};
   "/host-dashboard"?: {};
+  "/become-a-host"?: {};
   "/admin/refunds"?: {};
   "/refund-policy"?: {};
   "/admin/payouts"?: {};

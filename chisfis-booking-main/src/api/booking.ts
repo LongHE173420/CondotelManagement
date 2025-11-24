@@ -29,6 +29,8 @@ export interface CreateBookingDTO {
   endDate: string; // YYYY-MM-DD (DateOnly)
   promotionId?: number;
   isUsingRewardPoints?: boolean;
+  status?: string; // "Pending", "Confirmed", "Cancelled", "Completed" - defaults to "Pending"
+  condotelName?: string; // Required by backend validation
 }
 
 export interface UpdateBookingDTO {
@@ -120,7 +122,13 @@ export const bookingAPI = {
       CondotelId: booking.condotelId,
       StartDate: booking.startDate,
       EndDate: booking.endDate,
+      Status: booking.status || "Pending", // Default to "Pending" for new bookings
     };
+
+    // Backend requires CondotelName for validation
+    if (booking.condotelName) {
+      requestData.CondotelName = booking.condotelName;
+    }
 
     if (booking.promotionId !== undefined) {
       requestData.PromotionId = booking.promotionId;
@@ -134,10 +142,25 @@ export const bookingAPI = {
     const response = await axiosClient.post<any>("/booking", requestData);
     console.log("✅ Booking created successfully:", response.data);
 
+    // Backend returns result with nested Data property (ServiceResult pattern)
+    // Response structure: { success: true, data: BookingDTO, message: ... }
+    // Or direct BookingDTO if CreatedAtAction returns it directly
+    const responseData: any = response.data;
+    
+    // Extract booking data - could be in responseData.data or responseData directly
+    const data: any = responseData.data || responseData;
+    
+    console.log("📦 Extracted booking data:", data);
+    
     // Normalize response từ backend (PascalCase -> camelCase)
-    const data: any = response.data;
+    const bookingId = data.BookingId || data.bookingId;
+    if (!bookingId) {
+      console.error("❌ BookingId not found in response:", responseData);
+      throw new Error("Booking created but BookingId not found in response");
+    }
+    
     return {
-      bookingId: data.BookingId || data.bookingId,
+      bookingId: bookingId,
       condotelId: data.CondotelId || data.condotelId,
       customerId: data.CustomerId || data.customerId,
       startDate: data.StartDate || data.startDate,

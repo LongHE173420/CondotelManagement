@@ -9,16 +9,24 @@ export interface UploadImageResponse {
 export const uploadAPI = {
   // POST /api/Upload/user-image
   // Upload ảnh cho user hiện tại (yêu cầu authentication)
+  // Backend trả về: { message: string, imageUrl: string }
   uploadUserImage: async (file: File): Promise<UploadImageResponse> => {
     const formData = new FormData();
     formData.append("file", file);
 
-    const response = await axiosClient.post<UploadImageResponse>(
-      "/Upload/user-image",
-      formData
-    );
+    const response = await axiosClient.post<any>("/Upload/user-image", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
 
-    return response.data;
+    const data = response.data;
+    
+    // Normalize response (PascalCase -> camelCase)
+    return {
+      message: data.message || data.Message || "Upload thành công",
+      imageUrl: data.imageUrl || data.ImageUrl || data.imageURL || "",
+    };
   },
 
   // POST /api/Upload/image
@@ -27,12 +35,22 @@ export const uploadAPI = {
     const formData = new FormData();
     formData.append("file", file);
 
-    const response = await axiosClient.post<{ imageUrl: string }>(
+    const response = await axiosClient.post<any>(
       "/Upload/image",
-      formData
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
     );
 
-    return response.data;
+    const data = response.data;
+    
+    // Normalize response (PascalCase -> camelCase)
+    return {
+      imageUrl: data.imageUrl || data.ImageUrl || data.imageURL || "",
+    };
   },
 };
 

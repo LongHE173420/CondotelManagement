@@ -1,8 +1,10 @@
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import ReactQuill, { Quill } from "react-quill";
 import ImageResize from "quill-image-resize-module-react";
 import "react-quill/dist/quill.snow.css";
+import blogAPI, { BlogCategoryDTO } from "api/blog";
+import { uploadAPI } from "api/upload";
 
 // Đăng ký module resize với Quill
 Quill.register("modules/imageResize", ImageResize);
@@ -18,15 +20,29 @@ const SidebarCard: React.FC<{ title: string; children: React.ReactNode }> = ({ t
 // Component Trang Thêm Bài viết
 const PageBlogAdd = () => {
     const [title, setTitle] = useState("");
-    const [summary, setSummary] = useState("");
     const [content, setContent] = useState("");
-    const [category, setCategory] = useState("");
-    const [author, setAuthor] = useState("");
+    const [categoryId, setCategoryId] = useState<number | undefined>(undefined);
     const [featuredImage, setFeaturedImage] = useState<string | null>(null);
+    const [featuredImageFile, setFeaturedImageFile] = useState<File | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+    const [categories, setCategories] = useState<BlogCategoryDTO[]>([]);
+    const [status, setStatus] = useState<string>("Draft");
     const navigate = useNavigate();
     const quillRef = useRef<ReactQuill>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        const loadCategories = async () => {
+            try {
+                // Sử dụng public API để lấy categories
+                const cats = await blogAPI.getCategories();
+                setCategories(cats);
+            } catch (err) {
+                console.error("Failed to load categories:", err);
+            }
+        };
+        loadCategories();
+    }, []);
 
     // Image upload handler - ĐÃ SỬA
     const imageHandler = useCallback(() => {
@@ -182,13 +198,18 @@ const videoHandler = useCallback(() => {
         'blockquote'
     ];
 
-    const handleFeaturedImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFeaturedImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
             if (!file.type.startsWith('image/')) {
                 alert('Vui lòng chọn file ảnh!');
                 return;
             }
+            if (file.size > 5 * 1024 * 1024) {
+                alert('Kích thước file không được vượt quá 5MB!');
+                return;
+            }
+            setFeaturedImageFile(file);
             const imageUrl = URL.createObjectURL(file);
             setFeaturedImage(imageUrl);
         }
@@ -204,25 +225,47 @@ const videoHandler = useCallback(() => {
         }
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!title || !category || !content || !author) { // <--- Thêm !author
-            alert("Vui lòng nhập Tiêu đề, Tác giả, Nội dung và chọn Danh mục.");
+        if (!title || !content) {
+            alert("Vui lòng nhập Tiêu đề và Nội dung.");
             return;
         }
-        if (!featuredImage) {
-            alert("Vui lòng tải lên ảnh bìa!");
-            return;
-        }
+        
         setIsLoading(true);
-        console.log("Dữ liệu bài viết mới:", {
-            title, summary, content, category, author, featuredImage // <--- Thêm author
-        });
-        setTimeout(() => {
-            setIsLoading(false);
+        try {
+            let featuredImageUrl: string | undefined = undefined;
+            
+            // Upload featured image if exists
+            if (featuredImageFile) {
+                try {
+                    const uploadResult = await uploadAPI.uploadImage(featuredImageFile);
+                    featuredImageUrl = uploadResult.imageUrl;
+                } catch (uploadErr) {
+                    console.error("Failed to upload image:", uploadErr);
+                    alert("Không thể tải ảnh lên. Vui lòng thử lại.");
+                    setIsLoading(false);
+                    return;
+                }
+            }
+
+            // Create post
+            await blogAPI.adminCreatePost({
+                title,
+                content,
+                featuredImageUrl,
+                status,
+                categoryId,
+            });
+
             alert("Đã thêm bài viết thành công!");
             navigate("/manage-blog");
-        }, 1000);
+        } catch (err: any) {
+            console.error("Failed to create post:", err);
+            alert(err.response?.data?.message || "Không thể tạo bài viết. Vui lòng thử lại.");
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     // CSS đã sửa
@@ -308,20 +351,6 @@ const videoHandler = useCallback(() => {
                             />
                         </div>
 
-                        <div className="bg-white p-6 rounded-lg shadow-md">
-                            <label htmlFor="summary" className="block text-sm font-medium text-gray-700 mb-1">
-                                Tóm tắt
-                            </label>
-                            <textarea
-                                id="summary"
-                                rows={4}
-                                value={summary}
-                                onChange={(e) => setSummary(e.target.value)}
-                                placeholder="Nhập một đoạn tóm tắt ngắn..."
-                                className="w-full px-4 py-2 border border-gray-300 rounded-md resize-y"
-                            ></textarea>
-                        </div>
-
                         <div className="bg-white rounded-lg shadow-md overflow-hidden">
                             <label className="block text-sm font-medium text-gray-700 mb-2 px-6 pt-6">
                                 Nội dung
@@ -349,46 +378,44 @@ const videoHandler = useCallback(() => {
                     <div className="md:col-span-4 lg:col-span-3 space-y-6">
 
                         <SidebarCard title="Xuất bản">
-                            <button
-                                type="submit"
-                                disabled={isLoading}
-                                className="w-full px-4 py-2 bg-gray-800 text-white rounded-md hover:bg-gray-700 disabled:bg-gray-400"
-                            >
-                                {isLoading ? "Đang lưu..." : "Xuất bản"}
-                            </button>
+                            <div className="space-y-3">
+                                <label htmlFor="status" className="block text-sm font-medium text-gray-700">
+                                    Trạng thái
+                                </label>
+                                <select
+                                    id="status"
+                                    value={status}
+                                    onChange={(e) => setStatus(e.target.value)}
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-md bg-white"
+                                >
+                                    <option value="Draft">Bản nháp</option>
+                                    <option value="Published">Xuất bản</option>
+                                </select>
+                                <button
+                                    type="submit"
+                                    disabled={isLoading}
+                                    className="w-full px-4 py-2 bg-gray-800 text-white rounded-md hover:bg-gray-700 disabled:bg-gray-400"
+                                >
+                                    {isLoading ? "Đang lưu..." : status === "Published" ? "Xuất bản" : "Lưu bản nháp"}
+                                </button>
+                            </div>
                         </SidebarCard>
 
                         <SidebarCard title="Cài đặt">
-                            <label htmlFor="category" className="block text-sm font-medium text-gray-700">
+                            <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">
                                 Danh mục
                             </label>
                             <select
                                 id="category"
-                                value={category}
-                                onChange={(e) => setCategory(e.target.value)}
+                                value={categoryId || ""}
+                                onChange={(e) => setCategoryId(e.target.value ? parseInt(e.target.value) : undefined)}
                                 className="w-full px-4 py-2 border border-gray-300 rounded-md bg-white"
-                                required
                             >
-                                <option value="">Chọn một danh mục</option>
-                                <option value="cam-nang">Cẩm nang</option>
-                                <option value="khuyen-mai">Khuyến mãi</option>
-                                <option value="tin-tuc">Tin tức</option>
+                                <option value="">Chọn một danh mục (tùy chọn)</option>
+                                {categories.map(cat => (
+                                    <option key={cat.categoryId} value={cat.categoryId}>{cat.name}</option>
+                                ))}
                             </select>
-
-                            <div>
-                                <label htmlFor="author" className="block text-sm font-medium text-gray-700 mb-1">
-                                    Tác giả
-                                </label>
-                                <input
-                                    type="text"
-                                    id="author"
-                                    value={author}
-                                    onChange={(e) => setAuthor(e.target.value)}
-                                    placeholder="Nhập tên tác giả..."
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-md"
-                                    required
-                                />
-                            </div>
                         </SidebarCard>
 
                         <SidebarCard title="Ảnh bìa">

@@ -5,6 +5,7 @@ import { useAddCondotel } from "./_context";
 import { useAuth } from "contexts/AuthContext";
 import condotelAPI, { CreateCondotelDTO } from "api/condotel";
 import locationAPI from "api/location";
+import resortAPI, { ResortDTO } from "api/resort";
 import uploadAPI from "api/upload";
 import Input from "shared/Input/Input";
 import Select from "shared/Select/Select";
@@ -89,6 +90,8 @@ const PageAddListingSimple: FC = () => {
 
   // ResortId
   const [resortId, setResortId] = useState<number | undefined>(formData.resortId as number | undefined);
+  const [resorts, setResorts] = useState<ResortDTO[]>([]);
+  const [loadingResorts, setLoadingResorts] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -107,6 +110,23 @@ const PageAddListingSimple: FC = () => {
       }
     };
     fetchLocations();
+  }, []);
+
+  // Load resorts từ API
+  useEffect(() => {
+    const fetchResorts = async () => {
+      setLoadingResorts(true);
+      try {
+        const resortsData = await resortAPI.getAll();
+        setResorts(resortsData);
+      } catch (err) {
+        console.error("Error loading resorts:", err);
+        setResorts([]);
+      } finally {
+        setLoadingResorts(false);
+      }
+    };
+    fetchResorts();
   }, []);
 
   // Sync formData
@@ -420,7 +440,7 @@ const PageAddListingSimple: FC = () => {
   return (
     <div className="nc-PageAddListingSimple">
       <Helmet>
-        <title>Thêm Condotel || Booking React Template</title>
+        <title>Thêm Condotel || Fiscondotel</title>
       </Helmet>
 
       <div className="container py-8 lg:py-12">
@@ -855,18 +875,45 @@ const PageAddListingSimple: FC = () => {
             {/* ResortId */}
             <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg p-6 space-y-6">
               <h2 className="text-xl font-semibold mb-4">Resort (Tùy chọn)</h2>
-              <FormItem label="Resort ID">
-                <Input
-                  type="number"
-                  placeholder="Nhập Resort ID (để trống nếu không có)"
-                  value={resortId || ""}
-                  onChange={(e) => setResortId(e.target.value ? Number(e.target.value) : undefined)}
-                  min={1}
-                />
+              <FormItem label="Chọn Resort">
+                {loadingResorts ? (
+                  <div className="flex items-center space-x-2">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary-600"></div>
+                    <span className="text-sm text-neutral-500">Đang tải danh sách resort...</span>
+                  </div>
+                ) : (
+                  <Select
+                    value={resortId || ""}
+                    onChange={(e) => setResortId(e.target.value ? Number(e.target.value) : undefined)}
+                  >
+                    <option value="">-- Không chọn resort --</option>
+                    {resorts.map((resort) => (
+                      <option key={resort.resortId} value={resort.resortId}>
+                        {resort.name}
+                        {resort.address && ` - ${resort.address}`}
+                        {resort.city && `, ${resort.city}`}
+                      </option>
+                    ))}
+                  </Select>
+                )}
                 <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
-                  Nếu condotel thuộc một resort, nhập ID của resort
+                  Nếu condotel thuộc một resort, chọn resort từ danh sách
                 </p>
               </FormItem>
+
+              {resortId && (() => {
+                const selectedResort = resorts.find(r => r.resortId === resortId);
+                return selectedResort ? (
+                  <div className="p-4 bg-neutral-100 dark:bg-neutral-700 rounded-lg">
+                    <h3 className="font-semibold mb-2">Thông tin resort đã chọn:</h3>
+                    <p className="text-sm"><strong>Tên:</strong> {selectedResort.name}</p>
+                    {selectedResort.description && <p className="text-sm"><strong>Mô tả:</strong> {selectedResort.description}</p>}
+                    {selectedResort.address && <p className="text-sm"><strong>Địa chỉ:</strong> {selectedResort.address}</p>}
+                    {selectedResort.city && <p className="text-sm"><strong>Thành phố:</strong> {selectedResort.city}</p>}
+                    {selectedResort.country && <p className="text-sm"><strong>Quốc gia:</strong> {selectedResort.country}</p>}
+                  </div>
+                ) : null;
+              })()}
             </div>
 
             {/* Submit Buttons */}

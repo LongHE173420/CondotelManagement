@@ -1,67 +1,94 @@
-import React, { useState } from "react"; // <-- DÒNG NÀY RẤT QUAN TRỌNG
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-
-// --- Định nghĩa kiểu dữ liệu cho bài viết ---
-type PostStatus = "Đã xuất bản" | "Bản nháp";
+import blogAPI from "api/blog";
 
 interface BlogPost {
-    id: string;
-    thumbnailUrl: string;
+    id: number;
+    thumbnailUrl?: string;
     title: string;
     author: string;
     category: string;
     createdAt: string;
+    status?: string;
 }
-
-// --- Dữ liệu mẫu (Mock Data) dựa trên ảnh của bạn ---
-const mockPostData: BlogPost[] = [
-    {
-        id: "1",
-        thumbnailUrl: "",
-        title: "Trải nghiệm kỳ nghỉ 5 sao tại Condotel Vũng Tàu",
-        author: "Nguyễn Văn An",
-        category: "Cẩm nang",
-        createdAt: "20/10/2025",
-    },
-    {
-        id: "2",
-        thumbnailUrl: "",
-        title: "Khuyến mãi hè rực rỡ: Giảm 30% khi đặt phòng",
-        author: "Trần Thị Bình",
-        category: "Khuyến mãi",
-        createdAt: "15/10/2025",
-    },
-    {
-        id: "3",
-        thumbnailUrl: "",
-        title: "5 địa điểm ăn uống không thể bỏ lỡ gần đây",
-        author: "Nguyễn Văn An",
-        category: "Cẩm nang",
-        createdAt: "12/10/2025",
-    },
-    {
-        id: "4",
-        thumbnailUrl: "",
-        title: "Condotel Royal khai trương tiện ích hồ bơi vô cực",
-        author: "Lê Văn Cường",
-        category: "Tin tức",
-        createdAt: "10/10/2025",
-    },
-];
 
 // --- Component Trang Danh sách Bài viết ---
 const PageBlogList = () => {
-    const [posts, setPosts] = useState<BlogPost[]>(mockPostData);
-    const [currentPage, setCurrentPage] = useState(1);
+    const [posts, setPosts] = useState<BlogPost[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
+    const [searchTerm, setSearchTerm] = useState("");
+    const [selectedCategory, setSelectedCategory] = useState("");
+    const [categories, setCategories] = useState<{ id: number; name: string }[]>([]);
 
-    // Hàm xử lý Xóa (sau này sẽ gọi API)
-    const handleDelete = (postId: string, postTitle: string) => {
+    useEffect(() => {
+        const loadData = async () => {
+            try {
+                setLoading(true);
+                // Load posts - sử dụng public API /api/blog/posts thay vì /admin/blog/posts
+                const blogPosts = await blogAPI.getPublishedPosts();
+                const convertedPosts: BlogPost[] = blogPosts.map((post: any) => ({
+                    id: post.postId,
+                    thumbnailUrl: post.featuredImageUrl,
+                    title: post.title,
+                    author: post.authorName,
+                    category: post.categoryName,
+                    createdAt: post.publishedAt 
+                        ? new Date(post.publishedAt).toLocaleDateString("vi-VN")
+                        : "Chưa xuất bản",
+                }));
+                setPosts(convertedPosts);
+
+                // Load categories - sử dụng public API
+                const cats = await blogAPI.getCategories();
+                setCategories(cats.map((cat: any) => ({ id: cat.categoryId, name: cat.name })));
+            } catch (err: any) {
+                console.error("Failed to load blog posts:", err);
+                setError(err.response?.data?.message || "Không thể tải danh sách bài viết");
+            } finally {
+                setLoading(false);
+            }
+        };
+        loadData();
+    }, []);
+
+    // Hàm xử lý Xóa
+    const handleDelete = async (postId: number, postTitle: string) => {
         if (window.confirm(`Bạn có chắc muốn xóa bài viết "${postTitle}" không?`)) {
-            // TODO: Gọi API xóa
-            console.log("Xóa bài viết:", postId);
-            setPosts(currentPosts => currentPosts.filter(p => p.id !== postId));
+            try {
+                const success = await blogAPI.adminDeletePost(postId);
+                if (success) {
+                    setPosts(currentPosts => currentPosts.filter(p => p.id !== postId));
+                    alert("Xóa bài viết thành công!");
+                } else {
+                    alert("Không tìm thấy bài viết để xóa.");
+                }
+            } catch (err: any) {
+                console.error("Failed to delete post:", err);
+                alert(err.response?.data?.message || "Không thể xóa bài viết");
+            }
         }
     };
+
+    // Filter posts
+    const filteredPosts = posts.filter(post => {
+        const matchesSearch = post.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                             post.author.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesCategory = !selectedCategory || post.category === selectedCategory;
+        return matchesSearch && matchesCategory;
+    });
+
+    if (loading) {
+        return (
+            <div className="p-4 md:p-8 bg-gray-50 min-h-screen">
+                <div className="max-w-7xl mx-auto bg-white p-6 rounded-lg shadow-md">
+                    <div className="flex items-center justify-center py-20">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-800"></div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="p-4 md:p-8 bg-gray-50 min-h-screen">
@@ -72,29 +99,47 @@ const PageBlogList = () => {
                     <h1 className="text-2xl md:text-3xl font-bold text-gray-800">
                         Danh sách bài viết
                     </h1>
-                    {/* Nút này đã link đến trang /manage-blog/add (bạn sẽ tạo sau) */}
-                    <Link
-                        to="/manage-blog/add"
-                        className="px-4 py-2 bg-gray-800 text-white rounded-md hover:bg-gray-700"
-                    >
-                        Thêm bài viết mới
-                    </Link>
+                    <div className="flex gap-3">
+                        <Link
+                            to="/manage-blog/categories"
+                            className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+                        >
+                            Quản lý Danh mục
+                        </Link>
+                        <Link
+                            to="/manage-blog/add"
+                            className="px-4 py-2 bg-gray-800 text-white rounded-md hover:bg-gray-700"
+                        >
+                            Thêm bài viết mới
+                        </Link>
+                    </div>
                 </div>
 
-                {/* --- Thanh Filter và Tìm kiếm --- */}
+                {error && (
+                    <div className="mb-4 p-4 bg-red-100 text-red-800 rounded-md">
+                        {error}
+                    </div>
+                )}
+
                 {/* --- Thanh Filter và Tìm kiếm --- */}
                 <div className="flex flex-col md:flex-row gap-4 mb-6">
                     <input
                         type="text"
-                        placeholder="Tìm kiếm "
+                        placeholder="Tìm kiếm theo tiêu đề hoặc tác giả..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
                         className="w-full md:flex-1 md:max-w-lg px-4 py-2 border border-gray-300 rounded-md"
                     />
 
-                    <select className="pl-4 pr-10 py-2 border border-gray-300 rounded-md bg-white w-full md:w-auto flex-shrink-0">
+                    <select 
+                        value={selectedCategory}
+                        onChange={(e) => setSelectedCategory(e.target.value)}
+                        className="pl-4 pr-10 py-2 border border-gray-300 rounded-md bg-white w-full md:w-auto flex-shrink-0"
+                    >
                         <option value="">Lọc theo danh mục</option>
-                        <option value="cam-nang">Cẩm nang</option>
-                        <option value="khuyen-mai">Khuyến mãi</option>
-                        <option value="tin-tuc">Tin tức</option>
+                        {categories.map(cat => (
+                            <option key={cat.id} value={cat.name}>{cat.name}</option>
+                        ))}
                     </select>
                 </div>
 
@@ -112,61 +157,55 @@ const PageBlogList = () => {
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                            {posts.map((post) => (
-                                <tr key={post.id} className="hover:bg-gray-50">
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <div className="w-16 h-10 bg-gray-200 rounded text-xs flex items-center justify-center text-gray-500">
-                                            Thumbnail
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{post.title}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{post.author}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{post.category}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{post.createdAt}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                        {/* Link đến trang /manage-blog/edit/:id (bạn sẽ tạo sau) */}
-                                        <Link
-                                            to={`/manage-blog/edit/${post.id}`}
-                                            className="text-blue-600 hover:text-blue-800"
-                                        >
-                                            Sửa
-                                        </Link>
-                                        <button
-                                            onClick={() => handleDelete(post.id, post.title)}
-                                            className="text-red-600 hover:text-red-800 ml-4"
-                                        >
-                                            Xóa
-                                        </button>
+                            {filteredPosts.length === 0 ? (
+                                <tr>
+                                    <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
+                                        {posts.length === 0 ? "Chưa có bài viết nào" : "Không tìm thấy bài viết"}
                                     </td>
                                 </tr>
-                            ))}
+                            ) : (
+                                filteredPosts.map((post) => (
+                                    <tr key={post.id} className="hover:bg-gray-50">
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            {post.thumbnailUrl ? (
+                                                <img 
+                                                    src={post.thumbnailUrl} 
+                                                    alt={post.title}
+                                                    className="w-16 h-10 object-cover rounded"
+                                                />
+                                            ) : (
+                                                <div className="w-16 h-10 bg-gray-200 rounded text-xs flex items-center justify-center text-gray-500">
+                                                    No Image
+                                                </div>
+                                            )}
+                                        </td>
+                                        <td className="px-6 py-4 text-sm font-medium text-gray-900 max-w-xs truncate">{post.title}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{post.author}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{post.category}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{post.createdAt}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                            <Link
+                                                to={`/manage-blog/edit/${post.id}`}
+                                                className="text-blue-600 hover:text-blue-800"
+                                            >
+                                                Sửa
+                                            </Link>
+                                            <button
+                                                onClick={() => handleDelete(post.id, post.title)}
+                                                className="text-red-600 hover:text-red-800 ml-4"
+                                            >
+                                                Xóa
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
                         </tbody>
                     </table>
-                </div>
-
-                {/* --- Phân trang (Pagination) --- */}
-                <div className="flex justify-center items-center mt-6">
-                    <nav className="flex items-center space-x-2">
-                        <button className="px-4 py-2 text-sm text-gray-600 rounded-md hover:bg-gray-100">
-                            Trang đầu
-                        </button>
-                        <button className="px-4 py-2 text-sm text-white bg-gray-600 rounded-md">
-                            1
-                        </button>
-                        <button className="px-4 py-2 text-sm text-gray-600 rounded-md hover:bg-gray-100">
-                            2
-                        </button>
-                        <button className="px-4 py-2 text-sm text-gray-600 rounded-md hover:bg-gray-100">
-                            3
-                        </button>
-                        <button className="px-4 py-2 text-sm text-gray-600 rounded-md hover:bg-gray-100">
-                            Trang cuối
-                        </button>
-                    </nav>
                 </div>
             </div>
         </div>
     );
 };
 
-export default PageBlogList; // <-- DÒNG NÀY CŨNG RẤT QUAN TRỌNG
+export default PageBlogList;

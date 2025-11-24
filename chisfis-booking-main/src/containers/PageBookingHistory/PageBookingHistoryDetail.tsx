@@ -100,14 +100,26 @@ const PageBookingHistoryDetail = () => {
           }
         }
 
-        // Check if can review
-        if (bookingData.status?.toLowerCase() === "completed") {
+        // Check if can review - CHỈ cho phép khi booking status là "Completed"
+        // Backend sẽ kiểm tra: user phải là customer của booking, booking phải completed, chưa review trước đó
+        const bookingStatus = bookingData.status?.toLowerCase();
+        if (bookingStatus === "completed") {
           try {
             const canReviewRes = await reviewAPI.canReviewBooking(bookingData.bookingId);
             setCanReview(canReviewRes.canReview);
+            if (!canReviewRes.canReview) {
+              console.log("Cannot review:", canReviewRes.message);
+            }
           } catch (err: any) {
             console.error("Error checking can review:", err);
+            // Nếu lỗi, mặc định là không thể review
+            setCanReview(false);
           }
+        } else {
+          // Nếu booking chưa completed, không thể review
+          // Chỉ booking với status "Completed" mới được phép review
+          setCanReview(false);
+          console.log(`Booking status is "${bookingData.status}", not "Completed". Cannot review.`);
         }
       } catch (err: any) {
         console.error("Error fetching booking detail:", err);

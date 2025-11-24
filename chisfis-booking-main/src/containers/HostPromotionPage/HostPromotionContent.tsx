@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "contexts/AuthContext";
-import { condotelAPI, CondotelDTO, PromotionDTO, CreatePromotionDTO, UpdatePromotionDTO } from "api/condotel";
+import { condotelAPI, CondotelDTO, PromotionDTO } from "api/condotel";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
 import ButtonSecondary from "shared/Button/ButtonSecondary";
 
@@ -30,20 +30,20 @@ const HostPromotionContent: React.FC = () => {
     setError("");
     try {
       // Load condotels first
-      const condotelsData = await condotelAPI.getAll();
+      const condotelsData = await condotelAPI.getAllForHost();
       setCondotels(condotelsData);
       
       // Load all promotions (từ tất cả condotels của host)
       try {
         const promotionsData = await condotelAPI.getPromotions();
         // Gắn condotelName và chuẩn hóa trạng thái
-        const promotionsWithNames = promotionsData.map((p) => {
+        const promotionsWithNames = promotionsData.map((p: any) => {
           const active = p.isActive === true || (p as any).isActive === "true" || (p.status || "").toLowerCase() === "active";
           return {
             ...p,
             condotelName:
               p.condotelName ||
-              condotelsData.find((c) => c.condotelId === p.condotelId)?.name ||
+              condotelsData.find((c: any) => c.condotelId === p.condotelId)?.name ||
               `Condotel #${p.condotelId}`,
             isActive: active,
             status: active ? "Active" : "Inactive",
@@ -63,13 +63,13 @@ const HostPromotionContent: React.FC = () => {
             // Skip if condotel has no promotions
           }
         }
-        const promotionsWithNames = allPromotions.map((p) => {
+        const promotionsWithNames = allPromotions.map((p: any) => {
           const active = p.isActive === true || (p as any).isActive === "true" || (p.status || "").toLowerCase() === "active";
           return {
             ...p,
             condotelName:
               p.condotelName ||
-              condotelsData.find((c) => c.condotelId === p.condotelId)?.name ||
+              condotelsData.find((c: any) => c.condotelId === p.condotelId)?.name ||
               `Condotel #${p.condotelId}`,
             isActive: active,
             status: active ? "Active" : "Inactive",
@@ -320,7 +320,7 @@ const PromotionModal: React.FC<PromotionModalProps> = ({
     const ensureCondotels = async () => {
       if (!localCondotels || localCondotels.length === 0) {
         try {
-          const data = await condotelAPI.getAll();
+          const data = await condotelAPI.getAllForHost();
           setLocalCondotels(data);
         } catch (e) {
           // ignore, dropdown will show empty state

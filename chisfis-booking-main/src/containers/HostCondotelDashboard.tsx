@@ -11,6 +11,7 @@ import HostVoucherContent from "containers/HostVoucherPage/HostVoucherContent";
 import HostCustomerContent from "containers/HostCustomerPage/HostCustomerContent";
 import HostReportContent from "containers/HostReportPage/HostReportContent";
 import HostServicePackageContent from "containers/HostServicePackagePage/HostServicePackageContent";
+import HostReviewContent from "containers/HostReviewPage/HostReviewContent";
 
 const HostCondotelDashboard = () => {
   const { user, isAuthenticated } = useAuth();
@@ -18,6 +19,7 @@ const HostCondotelDashboard = () => {
   const [bookings, setBookings] = useState<BookingDTO[]>([]);
   const [loading, setLoading] = useState(false);
   const [bookingsLoading, setBookingsLoading] = useState(false);
+  const [updatingStatusId, setUpdatingStatusId] = useState<number | null>(null);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const activeTab = searchParams.get("tab") || "condotels";
@@ -35,12 +37,13 @@ const HostCondotelDashboard = () => {
     } else if (activeTab === "bookings") {
       fetchBookings();
     }
+    // Reviews will be loaded by HostReviewContent component
   }, [activeTab]);
 
   const fetchCondotels = async () => {
     try {
       setLoading(true);
-      const data = await condotelAPI.getAll();
+      const data = await condotelAPI.getAllForHost();
       setCondotels(data);
     } catch {
       setCondotels([]);
@@ -78,6 +81,24 @@ const HostCondotelDashboard = () => {
     return date.toLocaleDateString("vi-VN");
   };
 
+  // Normalize status để đảm bảo format nhất quán (PascalCase)
+  const normalizeStatus = (status: string | undefined): string => {
+    if (!status) return "Pending";
+    const lower = status.toLowerCase();
+    switch (lower) {
+      case "confirmed":
+        return "Confirmed";
+      case "pending":
+        return "Pending";
+      case "cancelled":
+        return "Cancelled";
+      case "completed":
+        return "Completed";
+      default:
+        return "Pending";
+    }
+  };
+
   // Map status từ backend sang tiếng Việt
   const mapStatusToVN = (status: string): string => {
     switch (status?.toLowerCase()) {
@@ -113,23 +134,42 @@ const HostCondotelDashboard = () => {
 
   // Handle status change
   const handleStatusChange = async (bookingId: number, newStatus: string) => {
-    if (!window.confirm(`Bạn có chắc chắn muốn đổi trạng thái sang "${mapStatusToVN(newStatus)}"?`)) {
+    // Normalize status để đảm bảo format đúng
+    const normalizedStatus = normalizeStatus(newStatus);
+    
+    // Lấy booking hiện tại để so sánh
+    const currentBooking = bookings.find(b => b.bookingId === bookingId);
+    const currentStatus = normalizeStatus(currentBooking?.status);
+    
+    // Nếu status không thay đổi, không làm gì
+    if (currentStatus === normalizedStatus) {
+      return;
+    }
+
+    if (!window.confirm(`Bạn có chắc chắn muốn đổi trạng thái từ "${mapStatusToVN(currentStatus)}" sang "${mapStatusToVN(normalizedStatus)}"?`)) {
       // Reload để reset select về giá trị cũ
       fetchBookings();
       return;
     }
 
+    setUpdatingStatusId(bookingId);
     try {
-      await bookingAPI.updateHostBookingStatus(bookingId, newStatus);
+      await bookingAPI.updateHostBookingStatus(bookingId, normalizedStatus);
       // Refresh danh sách
       await fetchBookings();
-      alert("Đã cập nhật trạng thái thành công!");
+      // Show success message
+      const successMsg = `Đã cập nhật trạng thái sang "${mapStatusToVN(normalizedStatus)}" thành công!`;
+      console.log(successMsg);
+      // Có thể thay bằng toast notification nếu có
+      alert(successMsg);
     } catch (err: any) {
       console.error("Error updating booking status:", err);
-      const message = err.response?.data?.message || err.response?.data?.error;
-      alert(message || "Không thể cập nhật trạng thái. Vui lòng thử lại sau.");
+      const message = err.response?.data?.message || err.response?.data?.error || "Không thể cập nhật trạng thái. Vui lòng thử lại sau.";
+      alert(message);
       // Reload để reset select về giá trị cũ
       fetchBookings();
+    } finally {
+      setUpdatingStatusId(null);
     }
   };
 
@@ -231,6 +271,16 @@ const HostCondotelDashboard = () => {
             Báo cáo
           </button>
           <button
+            onClick={() => handleTabChange("reviews")}
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === "reviews"
+                ? "border-primary-500 text-primary-600"
+                : "border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300"
+            }`}
+          >
+            Reviews
+          </button>
+          <button
             onClick={() => handleTabChange("bookings")}
             className={`py-4 px-1 border-b-2 font-medium text-sm ${
               activeTab === "bookings"
@@ -263,6 +313,10 @@ const HostCondotelDashboard = () => {
       ) : activeTab === "reports" ? (
         <div className="mt-6">
           <HostReportContent />
+        </div>
+      ) : activeTab === "reviews" ? (
+        <div className="mt-6">
+          <HostReviewContent />
         </div>
       ) : activeTab === "bookings" ? (
         <div className="mt-6">
@@ -353,19 +407,23 @@ const HostCondotelDashboard = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <select
-                          value={booking.status || "Pending"}
+                          value={normalizeStatus(booking.status)}
                           onChange={(e) => handleStatusChange(booking.bookingId, e.target.value)}
-                          className="text-xs font-semibold px-3 py-1 rounded-full border-0 focus:ring-2 focus:ring-primary-500"
+                          disabled={updatingStatusId === booking.bookingId}
+                          className="text-xs font-semibold px-3 py-1 rounded-full border-0 focus:ring-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
                           style={{
-                            backgroundColor: getStatusColor(booking.status || "Pending").bg,
-                            color: getStatusColor(booking.status || "Pending").text,
+                            backgroundColor: getStatusColor(normalizeStatus(booking.status)).bg,
+                            color: getStatusColor(normalizeStatus(booking.status)).text,
                           }}
                         >
                           <option value="Pending">Đang xử lý</option>
                           <option value="Confirmed">Đã xác nhận</option>
-                          <option value="Completed">Hoàn thành</option>
                           <option value="Cancelled">Đã hủy</option>
+                          <option value="Completed">Hoàn thành</option>
                         </select>
+                        {updatingStatusId === booking.bookingId && (
+                          <span className="ml-2 text-xs text-neutral-500">Đang cập nhật...</span>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500 dark:text-neutral-400">
                         {formatDate(booking.createdAt)}

@@ -9,6 +9,9 @@ export interface ReviewDTO {
   comment?: string;
   createdAt?: string;
   updatedAt?: string;
+  // Thông tin customer nếu backend trả về
+  customerName?: string;
+  customerImageUrl?: string;
 }
 
 export interface CreateReviewDTO {
@@ -52,6 +55,12 @@ export interface ReviewListResponse {
 export interface CanReviewResponse {
   canReview: boolean;
   message: string;
+}
+
+// Reported Review DTO - for admin
+export interface ReportedReviewDTO extends ReviewDTO {
+  reportCount?: number;
+  status?: string; // "Active", "Reported", "Deleted"
 }
 
 // API Calls
@@ -181,6 +190,117 @@ export const reviewAPI = {
       `/tenant/reviews/can-review/${bookingId}`
     );
     return response.data;
+  },
+
+  // GET /api/tenant/reviews/condotel/{condotelId} - Lấy tất cả reviews của một condotel (public)
+  getReviewsByCondotel: async (
+    condotelId: number,
+    query?: ReviewQueryDTO
+  ): Promise<ReviewListResponse> => {
+    const params: any = {};
+    if (query?.page) params.page = query.page;
+    if (query?.pageSize) params.pageSize = query.pageSize;
+    if (query?.rating) params.rating = query.rating;
+    if (query?.sortBy) params.sortBy = query.sortBy;
+
+    const response = await axiosClient.get<any>(`/tenant/reviews/condotel/${condotelId}`, { params });
+    const data = response.data;
+
+    // Normalize response
+    const reviews = (data.data || data || []).map((item: any) => ({
+      reviewId: item.ReviewId || item.reviewId,
+      bookingId: item.BookingId || item.bookingId,
+      rating: item.Rating || item.rating,
+      title: item.Title || item.title,
+      comment: item.Comment || item.comment,
+      createdAt: item.CreatedAt || item.createdAt,
+      updatedAt: item.UpdatedAt || item.updatedAt,
+      customerName: item.CustomerName || item.customerName,
+      customerImageUrl: item.CustomerImageUrl || item.customerImageUrl,
+    }));
+
+    return {
+      success: data.success !== undefined ? data.success : true,
+      data: reviews,
+      pagination: data.pagination || {
+        page: query?.page || 1,
+        pageSize: query?.pageSize || 10,
+        totalCount: reviews.length,
+        totalPages: 1,
+      },
+    };
+  },
+
+  // ========== ADMIN API ==========
+  // GET /api/admin/review/reported - Lấy danh sách review bị báo cáo
+  getReportedReviews: async (): Promise<ReportedReviewDTO[]> => {
+    const response = await axiosClient.get<any>("/admin/review/reported");
+    const data = response.data;
+    
+    // Normalize response
+    const reviews = (data.data || data || []).map((item: any) => ({
+      reviewId: item.ReviewId || item.reviewId,
+      bookingId: item.BookingId || item.bookingId,
+      rating: item.Rating || item.rating,
+      title: item.Title || item.title,
+      comment: item.Comment || item.comment,
+      createdAt: item.CreatedAt || item.createdAt,
+      updatedAt: item.UpdatedAt || item.updatedAt,
+      customerName: item.CustomerName || item.customerName,
+      customerImageUrl: item.CustomerImageUrl || item.customerImageUrl,
+      reportCount: item.ReportCount || item.reportCount || 0,
+      status: item.Status || item.status || "Active",
+    }));
+
+    return reviews;
+  },
+
+  // DELETE /api/admin/review/{reviewId} - Admin xóa review
+  deleteReviewByAdmin: async (reviewId: number): Promise<{ message: string }> => {
+    const response = await axiosClient.delete<any>(`/admin/review/${reviewId}`);
+    return {
+      message: response.data?.message || "Đã xóa review",
+    };
+  },
+
+  // ========== HOST API ==========
+  // GET /api/host/review - Lấy tất cả reviews của condotel của host
+  getHostReviews: async (): Promise<ReviewDTO[]> => {
+    const response = await axiosClient.get<any>("/host/review");
+    const data = response.data;
+    
+    // Normalize response
+    const reviews = (data.data || data || []).map((item: any) => ({
+      reviewId: item.ReviewId || item.reviewId,
+      bookingId: item.BookingId || item.bookingId,
+      rating: item.Rating || item.rating,
+      title: item.Title || item.title,
+      comment: item.Comment || item.comment,
+      createdAt: item.CreatedAt || item.createdAt,
+      updatedAt: item.UpdatedAt || item.updatedAt,
+      customerName: item.CustomerName || item.customerName,
+      customerImageUrl: item.CustomerImageUrl || item.customerImageUrl,
+    }));
+
+    return reviews;
+  },
+
+  // PUT /api/host/review/{reviewId}/reply - Host trả lời review
+  replyToReview: async (reviewId: number, reply: string): Promise<{ message: string }> => {
+    const response = await axiosClient.put<any>(`/host/review/${reviewId}/reply`, {
+      Reply: reply,
+    });
+    return {
+      message: response.data?.message || "Đã trả lời review",
+    };
+  },
+
+  // PUT /api/host/review/{reviewId}/report - Host report review
+  reportReview: async (reviewId: number): Promise<{ message: string }> => {
+    const response = await axiosClient.put<any>(`/host/review/${reviewId}/report`);
+    return {
+      message: response.data?.message || "Đã report review",
+    };
   },
 };
 

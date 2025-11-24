@@ -85,7 +85,7 @@ const ListingRealEstatePage: FC<ListingRealEstatePageProps> = ({
       data-nc-id="ListingRealEstatePage"
     >
       <Helmet>
-        <title>Chisfis || Booking React Template</title>
+        <title>Fiscondotel website cho thue can ho</title>
       </Helmet>
 
       <div className="container relative">

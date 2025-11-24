@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Helmet } from "react-helmet";
 import { useAuth } from "contexts/AuthContext";
 import { Navigate } from "react-router-dom";
-import { condotelAPI, CondotelDTO, PromotionDTO, CreatePromotionDTO, UpdatePromotionDTO } from "api/condotel";
+import { condotelAPI, CondotelDTO, PromotionDTO } from "api/condotel";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
 import ButtonSecondary from "shared/Button/ButtonSecondary";
 
@@ -30,7 +30,7 @@ const HostPromotionPage: React.FC<HostPromotionPageProps> = ({ className = "" })
     setLoading(true);
     setError("");
     try {
-      const condotelsData = await condotelAPI.getAll();
+      const condotelsData = await condotelAPI.getAllForHost();
       // Load promotions từ condotel API
       let promotionsData: PromotionDTO[] = [];
       try {
@@ -48,13 +48,13 @@ const HostPromotionPage: React.FC<HostPromotionPageProps> = ({ className = "" })
           }
         }
       }
-      const promotionsWithNames = promotionsData.map((p) => {
+      const promotionsWithNames = promotionsData.map((p: any) => {
         const active = p.isActive === true || (p as any).isActive === "true" || (p.status || "").toLowerCase() === "active";
         return {
           ...p,
           condotelName:
             p.condotelName ||
-            condotelsData.find((c) => c.condotelId === p.condotelId)?.name ||
+            condotelsData.find((c: any) => c.condotelId === p.condotelId)?.name ||
             `Condotel #${p.condotelId}`,
           isActive: active,
           status: active ? "Active" : "Inactive",
@@ -118,7 +118,7 @@ const HostPromotionPage: React.FC<HostPromotionPageProps> = ({ className = "" })
   return (
     <div className={`nc-HostPromotionPage ${className}`} data-nc-id="HostPromotionPage">
       <Helmet>
-        <title>Quản lý Khuyến mãi || Booking React Template</title>
+        <title>Quản lý Khuyến mãi || Fiscondotel</title>
       </Helmet>
 
       <div className="container py-8 lg:py-12">

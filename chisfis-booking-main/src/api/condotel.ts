@@ -156,16 +156,124 @@ export interface CreateCondotelDTO {
   utilityIds?: number[];
 }
 
+// Search query interface for condotel search
+export interface CondotelSearchQuery {
+  name?: string;
+  location?: string;
+  fromDate?: string; // DateOnly format: YYYY-MM-DD
+  toDate?: string; // DateOnly format: YYYY-MM-DD
+}
+
 // API Calls
 export const condotelAPI = {
-  // GET /api/condotel - Lấy tất cả condotels
+  // GET /api/tenant/condotels?name=abc&location=abc&fromDate=...&toDate=... - Tìm kiếm condotel (public, không cần đăng nhập)
+  search: async (query?: CondotelSearchQuery): Promise<CondotelDTO[]> => {
+    const params: any = {};
+    if (query?.name) {
+      params.name = query.name.trim();
+    }
+    if (query?.location) {
+      // Trim location và đảm bảo format đúng
+      params.location = query.location.trim();
+    }
+    if (query?.fromDate) {
+      params.fromDate = query.fromDate;
+    }
+    if (query?.toDate) {
+      params.toDate = query.toDate;
+    }
+    
+    console.log("🔍 Searching condotels with params:", params);
+    console.log("🔍 Full URL will be: /tenant/condotels?" + new URLSearchParams(params).toString());
+    
+    try {
+      const response = await axiosClient.get<any>("/tenant/condotels", { params });
+      console.log("✅ Search response:", response.data);
+      console.log("✅ Response type:", Array.isArray(response.data) ? "Array" : typeof response.data);
+      
+      // Normalize response - handle both array and object with data property
+      let data: any[] = [];
+      if (Array.isArray(response.data)) {
+        data = response.data;
+      } else if (response.data && typeof response.data === 'object' && 'data' in response.data) {
+        data = Array.isArray(response.data.data) ? response.data.data : [];
+      }
+      
+      console.log("✅ Processed data count:", data.length);
+      
+      // Map response to CondotelDTO format
+      const mapped = data.map((item: any) => ({
+        condotelId: item.CondotelId || item.condotelId,
+        name: item.Name || item.name,
+        pricePerNight: item.PricePerNight !== undefined ? item.PricePerNight : item.pricePerNight,
+        beds: item.Beds !== undefined ? item.Beds : item.beds,
+        bathrooms: item.Bathrooms !== undefined ? item.Bathrooms : item.bathrooms,
+        status: item.Status || item.status,
+        thumbnailUrl: item.ThumbnailUrl || item.thumbnailUrl,
+        resortName: item.ResortName || item.resortName,
+        hostName: item.HostName || item.hostName,
+      }));
+      
+      console.log("✅ Mapped results:", mapped.length, "condotels");
+      return mapped;
+    } catch (error: any) {
+      console.error("❌ Search error:", error);
+      console.error("❌ Error response:", error.response?.data);
+      throw error;
+    }
+  },
+
+  // GET /api/tenant/condotels - Lấy tất cả condotels (public, không cần đăng nhập)
+  // Alias for search with no parameters
   getAll: async (): Promise<CondotelDTO[]> => {
+    return condotelAPI.search();
+  },
+
+  // GET /api/tenant/condotels/{id} - Lấy chi tiết condotel (public, không cần đăng nhập)
+  getById: async (id: number): Promise<CondotelDetailDTO> => {
+    const response = await axiosClient.get<any>(`/tenant/condotels/${id}`);
+    const data = response.data;
+    
+    // Normalize response - map PascalCase to camelCase
+    return {
+      condotelId: data.CondotelId || data.condotelId,
+      hostId: data.HostId || data.hostId,
+      resortId: data.ResortId || data.resortId,
+      name: data.Name || data.name,
+      description: data.Description || data.description,
+      pricePerNight: data.PricePerNight !== undefined ? data.PricePerNight : data.pricePerNight,
+      beds: data.Beds !== undefined ? data.Beds : data.beds,
+      bathrooms: data.Bathrooms !== undefined ? data.Bathrooms : data.bathrooms,
+      status: data.Status || data.status,
+      hostName: data.HostName || data.hostName,
+      hostImageUrl: data.HostImageUrl || data.hostImageUrl,
+      images: data.Images || data.images || [],
+      prices: data.Prices || data.prices || [],
+      details: data.Details || data.details || [],
+      amenities: data.Amenities || data.amenities || [],
+      utilities: data.Utilities || data.utilities || [],
+    };
+  },
+
+  // GET /api/tenant/condotels?location=... - Tìm kiếm condotel theo location (sử dụng endpoint mới)
+  getCondotelsByLocation: async (locationName?: string): Promise<CondotelDTO[]> => {
+    return condotelAPI.search({ location: locationName });
+  },
+
+  // GET /api/tenant/condotels?location=... - Tìm kiếm condotel theo location (public, AllowAnonymous)
+  // Alias for getCondotelsByLocation - sử dụng endpoint mới
+  getCondotelsByLocationPublic: async (locationName?: string): Promise<CondotelDTO[]> => {
+    return condotelAPI.search({ location: locationName });
+  },
+
+  // GET /api/host/condotel - Lấy tất cả condotels của host (cần đăng nhập)
+  getAllForHost: async (): Promise<CondotelDTO[]> => {
     const response = await axiosClient.get<CondotelDTO[]>("/host/condotel");
     return response.data;
   },
 
-  // GET /api/condotel/{id} - Lấy condotel theo ID
-  getById: async (id: number): Promise<CondotelDetailDTO> => {
+  // GET /api/host/condotel/{id} - Lấy condotel theo ID của host (cần đăng nhập)
+  getByIdForHost: async (id: number): Promise<CondotelDetailDTO> => {
     const response = await axiosClient.get<CondotelDetailDTO>(`/host/condotel/${id}`);
     return response.data;
   },

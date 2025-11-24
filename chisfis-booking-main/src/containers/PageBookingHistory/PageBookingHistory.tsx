@@ -1,84 +1,98 @@
-import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom"; // <-- 1. IMPORT useNavigate
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import bookingAPI, { BookingDTO } from "api/booking";
 
-// --- Định nghĩa kiểu dữ liệu ---
-type BookingStatus = "Thành công" | "Đang xử lý" | "Thất bại";
+// Format số tiền
+const formatPrice = (price: number | undefined): string => {
+  if (!price) return "0 đ";
+  return new Intl.NumberFormat("vi-VN", {
+    style: "currency",
+    currency: "VND",
+  }).format(price);
+};
 
-interface Booking {
-  id: string;
-  stt: number;
-  imageUrl: string;
-  apartmentName: string;
-  bookingDate: string;
-  price: string;
+// Format ngày tháng
+const formatDate = (dateString: string | undefined): string => {
+  if (!dateString) return "";
+  try {
+    const date = new Date(dateString + (dateString.includes("T") ? "" : "T00:00:00"));
+    return date.toLocaleDateString("vi-VN");
+  } catch {
+    return dateString;
+  }
+};
 
-}
+// Map status từ backend sang tiếng Việt
+const mapStatusToVN = (status: string): string => {
+  switch (status?.toLowerCase()) {
+    case "confirmed":
+      return "Đã xác nhận";
+    case "pending":
+      return "Đang xử lý";
+    case "cancelled":
+      return "Đã hủy";
+    case "completed":
+      return "Hoàn thành";
+    default:
+      return status || "Đang xử lý";
+  }
+};
 
-// --- Dữ liệu mẫu (Mock Data) - ĐÃ CẬP NHẬT THEO ẢNH MỚI ---
-const mockBookingData: Booking[] = [
-  {
-    id: "1",
-    stt: 1,
-    imageUrl: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=200&q=80",
-    apartmentName: "Mường Thanh",
-    bookingDate: "01/10/2025",
-    price: "2.300.000 vnđ",
-
-  },
-  {
-    id: "2",
-    stt: 2,
-    imageUrl: "https://images.unsplash.com/photo-1580587771525-78b9dba3b914?auto=format&fit=crop&w=200&q=80",
-    apartmentName: "Mường Thanh",
-    bookingDate: "01/10/2025",
-    price: "2.300.000 vnđ",
-
-  },
-  {
-    id: "3",
-    stt: 3,
-    imageUrl: "https://images.unsplash.com/photo-1570129477492-45c003edd2be?auto=format&fit=crop&w=200&q=80",
-    apartmentName: "Mường Thanh",
-    bookingDate: "01/10/2025",
-    price: "2.300.000 vnđ",
-
-  },
-];
-
-// --- [TÁI SỬ DỤNG] Component Badge cho Trạng thái ---
-const StatusBadge: React.FC<{ status: BookingStatus }> = ({ status }) => {
+// Component Badge cho Trạng thái
+const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
+  const statusVN = mapStatusToVN(status);
   let colorClasses = "";
-  switch (status) {
-    case "Thành công":
+  switch (status?.toLowerCase()) {
+    case "confirmed":
+    case "completed":
       colorClasses = "bg-green-100 text-green-700";
       break;
-    case "Đang xử lý":
+    case "pending":
       colorClasses = "bg-blue-100 text-blue-700";
       break;
-    case "Thất bại":
+    case "cancelled":
       colorClasses = "bg-red-100 text-red-700";
       break;
+    default:
+      colorClasses = "bg-blue-100 text-blue-700";
   }
   return (
     <span
       className={`px-3 py-1 rounded-full text-xs font-semibold ${colorClasses}`}
     >
-      {status}
+      {statusVN}
     </span>
   );
 };
 
-// --- 2. XÓA COMPONENT ActionButtons ---
-
 // --- Component Trang Lịch sử Booking (Tenant) ---
 const PageBookingHistory = () => {
-  const [bookings, setBookings] = useState<Booking[]>(mockBookingData);
-  const [currentPage, setCurrentPage] = useState(1);
-  const navigate = useNavigate(); // <-- 1. KHỞI TẠO NAVIGATE
+  const navigate = useNavigate();
+  const [bookings, setBookings] = useState<BookingDTO[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  // 4. TẠO HÀM XỬ LÝ CLICK
-  const handleRowClick = (id: string) => {
-    navigate(`/booking-history/${id}`);
+  useEffect(() => {
+    const fetchBookings = async () => {
+      try {
+        setLoading(true);
+        setError("");
+        const data = await bookingAPI.getMyBookings();
+        setBookings(data);
+      } catch (err: any) {
+        console.error("Failed to load bookings:", err);
+        setError(err.response?.data?.message || "Không thể tải danh sách đặt phòng");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBookings();
+  }, []);
+
+  // Hàm xử lý click vào row
+  const handleRowClick = (bookingId: number) => {
+    navigate(`/booking-history/${bookingId}`);
   };
 
   return (
@@ -112,62 +126,81 @@ const PageBookingHistory = () => {
         </div>
 
         {/* --- Bảng Dữ liệu --- */}
-        <div className="overflow-x-auto">
-          <table className="min-w-full">
-            <thead className="border-b border-gray-200">
-              <tr>
-                <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">STT</th>
-                <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Ảnh</th>
-                <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tên căn hộ</th>
-                <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Ngày đặt phòng</th>
-                <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Giá</th>
-
-                {/* 2. XÓA CỘT THAO TÁC */}
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {bookings.map((booking) => (
-                // 4. THÊM onClick VÀ CURSOR VÀO HÀNG
-                <tr
-                  key={booking.id}
-                  className="hover:bg-gray-50 transition-colors cursor-pointer"
-                  onClick={() => handleRowClick(booking.id)}
-                >
-                  <td className="px-5 py-4 whitespace-nowrap text-sm font-medium text-gray-900 align-middle">{booking.stt}</td>
-                  <td className="px-5 py-4 whitespace-nowrap align-middle">
-                    <img src={booking.imageUrl} alt={booking.apartmentName} className="w-24 h-16 object-cover rounded-lg shadow-sm" />
-                  </td>
-                  <td className="px-5 py-4 whitespace-nowrap text-sm font-medium text-gray-800 align-middle">{booking.apartmentName}</td>
-                  <td className="px-5 py-4 whitespace-nowrap text-sm text-gray-600 align-middle">{booking.bookingDate}</td>
-                  <td className="px-5 py-4 whitespace-nowrap text-sm font-medium text-gray-800 align-middle">{booking.price}</td>
-
-                  {/* 2. XÓA CELL THAO TÁC */}
+        {loading ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500">Đang tải dữ liệu...</p>
+          </div>
+        ) : error ? (
+          <div className="text-center py-12">
+            <p className="text-red-500">{error}</p>
+            <button 
+              onClick={() => window.location.reload()}
+              className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+            >
+              Thử lại
+            </button>
+          </div>
+        ) : bookings.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500">Bạn chưa có đặt phòng nào.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full">
+              <thead className="border-b border-gray-200">
+                <tr>
+                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">STT</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Ảnh</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tên căn hộ</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Ngày đặt phòng</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Trạng thái</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tổng tiền</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {bookings.map((booking, index) => (
+                  <tr
+                    key={booking.bookingId}
+                    className="hover:bg-gray-50 transition-colors cursor-pointer"
+                    onClick={() => handleRowClick(booking.bookingId)}
+                  >
+                    <td className="px-5 py-4 whitespace-nowrap text-sm font-medium text-gray-900 align-middle">
+                      {index + 1}
+                    </td>
+                    <td className="px-5 py-4 whitespace-nowrap align-middle">
+                      <img 
+                        src={booking.condotelImageUrl || "https://via.placeholder.com/200?text=No+Image"} 
+                        alt={booking.condotelName || "Căn hộ"} 
+                        className="w-24 h-16 object-cover rounded-lg shadow-sm" 
+                      />
+                    </td>
+                    <td className="px-5 py-4 whitespace-nowrap text-sm font-medium text-gray-800 align-middle">
+                      {booking.condotelName || `Căn hộ #${booking.condotelId}`}
+                    </td>
+                    <td className="px-5 py-4 whitespace-nowrap text-sm text-gray-600 align-middle">
+                      {formatDate(booking.createdAt)}
+                    </td>
+                    <td className="px-5 py-4 whitespace-nowrap align-middle">
+                      <StatusBadge status={booking.status} />
+                    </td>
+                    <td className="px-5 py-4 whitespace-nowrap text-sm font-medium text-gray-800 align-middle">
+                      {formatPrice(booking.totalPrice)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         {/* --- Phân trang (Pagination) --- */}
-        <div className="flex justify-between items-center mt-6 pt-4 border-t border-gray-200">
-          <span className="text-sm text-gray-600">
-            Hiển thị {bookings.length} dịch vụ
-          </span>
-          <nav className="flex items-center space-x-1">
-            <button className="px-3 py-2 text-sm text-gray-600 rounded-md hover:bg-gray-100 transition-colors">
-              Trước
-            </button>
-            <button className="w-8 h-8 text-sm text-white bg-gray-800 rounded-md transition-colors">
-              1
-            </button>
-            <button className="w-8 h-8 text-sm text-gray-600 rounded-md hover:bg-gray-100 transition-colors">
-              2
-            </button>
-            <button className="px-3 py-2 text-sm text-gray-600 rounded-md hover:bg-gray-100 transition-colors">
-              Sau
-            </button>
-          </nav>
-        </div>
+        {bookings.length > 0 && (
+          <div className="flex justify-between items-center mt-6 pt-4 border-t border-gray-200">
+            <span className="text-sm text-gray-600">
+              Hiển thị {bookings.length} đặt phòng
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -32,7 +32,7 @@ const ListingRealEstateMapPage: FC<ListingRealEstateMapPageProps> = ({
       data-nc-id="ListingRealEstateMapPage"
     >
       <Helmet>
-        <title>Chisfis || Booking React Template</title>
+        <title>Fiscondotel website cho thue can ho</title>
       </Helmet>
 
       {/* SECTION HERO */}

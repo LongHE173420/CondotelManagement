@@ -1,45 +1,191 @@
-import React, { FC, useState } from "react";
+import React, { FC, useState, useEffect, useMemo } from "react";
+import { useLocation } from "react-router-dom";
 import AnyReactComponent from "components/AnyReactComponent/AnyReactComponent";
 import StayCardH from "components/StayCardH/StayCardH";
 import GoogleMapReact from "google-map-react";
-import { DEMO_STAY_LISTINGS } from "data/listings";
+import { StayDataType } from "data/types";
 import ButtonClose from "shared/ButtonClose/ButtonClose";
 import Checkbox from "shared/Checkbox/Checkbox";
 import Pagination from "shared/Pagination/Pagination";
 import TabFilters from "./TabFilters";
 import Heading2 from "components/Heading/Heading2";
+import condotelAPI, { CondotelDTO } from "api/condotel";
+import { useTranslation } from "i18n/LanguageContext";
+import moment from "moment";
 
-const DEMO_STAYS = DEMO_STAY_LISTINGS.filter((_, i) => i < 12);
+// Default coordinates for Vietnam (center of Vietnam)
+const DEFAULT_VIETNAM_CENTER = {
+  lat: 14.0583,
+  lng: 108.2772,
+};
+
+// Helper function to convert CondotelDTO to StayDataType for map display
+const convertCondotelToStay = (condotel: CondotelDTO): StayDataType => {
+  // Default coordinates - có thể cải thiện bằng cách lấy từ resort location nếu có
+  const defaultMap = DEFAULT_VIETNAM_CENTER;
+  
+  return {
+    id: condotel.condotelId.toString(),
+    author: {
+      id: "1",
+      firstName: condotel.hostName || "Host",
+      lastName: "",
+      displayName: condotel.hostName || "Host",
+      avatar: "",
+      count: 0,
+      desc: "",
+      jobName: "Host",
+      href: "/",
+    },
+    date: new Date().toISOString(),
+    href: `/listing-stay-detail/${condotel.condotelId}`,
+    title: condotel.name,
+    featuredImage: condotel.thumbnailUrl || "/images/placeholder.png",
+    galleryImgs: condotel.thumbnailUrl ? [condotel.thumbnailUrl] : [],
+    commentCount: 0,
+    viewCount: 0,
+    like: false,
+    address: condotel.resortName || "",
+    reviewStart: 0,
+    reviewCount: 0,
+    price: (condotel.pricePerNight || 0).toString(),
+    listingCategory: {
+      id: "condotel",
+      name: "Condotel",
+      href: "/listing-stay",
+      taxonomy: "category",
+    },
+    maxGuests: condotel.beds || 0,
+    bedrooms: condotel.beds || 0,
+    bathrooms: condotel.bathrooms || 0,
+    saleOff: undefined,
+    isAds: false,
+    map: defaultMap,
+  };
+};
 
 export interface SectionGridHasMapProps {}
 
 const SectionGridHasMap: FC<SectionGridHasMapProps> = () => {
+  const location = useLocation();
   const [currentHoverID, setCurrentHoverID] = useState<string | number>(-1);
   const [showFullMapFixed, setShowFullMapFixed] = useState(false);
+  const [condotels, setCondotels] = useState<CondotelDTO[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const params = useMemo(() => new URLSearchParams(location.search), [location.search]);
+  const searchLocation = params.get("location");
+  const searchFromDate = params.get("startDate");
+  const searchToDate = params.get("endDate");
+  const searchGuests = params.get("guests");
+
+  useEffect(() => {
+    const fetchCondotels = async () => {
+      try {
+        setLoading(true);
+        setError("");
+        
+        // Build search query
+        const searchQuery: any = {};
+        if (searchLocation) {
+          searchQuery.location = searchLocation;
+        }
+        if (searchFromDate) {
+          searchQuery.fromDate = searchFromDate;
+        }
+        if (searchToDate) {
+          searchQuery.toDate = searchToDate;
+        }
+        
+        // Use new search API with all parameters
+        const results = await condotelAPI.search(searchQuery);
+        setCondotels(results);
+      } catch (err: any) {
+        console.error("Error fetching condotels:", err);
+        setError(err.response?.data?.message || "Không thể tải danh sách condotel");
+        setCondotels([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCondotels();
+  }, [searchLocation, searchFromDate, searchToDate]);
+
+  // Convert condotels to StayDataType for display
+  const stayListings: StayDataType[] = condotels.map(convertCondotelToStay);
+  
+  // Use first condotel's location or default Vietnam center for map center
+  const mapCenter = stayListings.length > 0 
+    ? stayListings[0].map 
+    : DEFAULT_VIETNAM_CENTER;
+
+  // Build heading and subheading
+  const { t } = useTranslation();
+  const heading = searchLocation 
+    ? `${t.condotel.staysIn || "Stays in"} ${searchLocation}`
+    : t.condotel.allCondotels || "Tất cả Condotel";
+
+  let subHeadingText = "";
+  if (searchLocation) {
+    subHeadingText = `${condotels.length} ${t.condotel.list || "condotels"}`;
+    if (searchFromDate && searchToDate) {
+      const fromDate = moment(searchFromDate).format("MMM DD");
+      const toDate = moment(searchToDate).format("MMM DD");
+      subHeadingText += ` · ${fromDate} - ${toDate}`;
+    }
+    if (searchGuests) {
+      subHeadingText += ` · ${searchGuests} ${t.booking.guests || "Guests"}`;
+    }
+  } else {
+    subHeadingText = `${t.condotel.total || "Tổng cộng"}: ${condotels.length} ${t.condotel.list || "condotel"}`;
+  }
 
   return (
     <div>
       <div className="relative flex min-h-screen">
         {/* CARDSSSS */}
         <div className="min-h-screen w-full xl:w-[780px] 2xl:w-[880px] flex-shrink-0 xl:px-8 ">
-          <Heading2 />
+          <Heading2 heading={heading} subHeading={subHeadingText} />
           <div className="mb-8 lg:mb-11">
             <TabFilters />
           </div>
-          <div className="grid grid-cols-1 gap-8">
-            {DEMO_STAYS.map((item) => (
-              <div
-                key={item.id}
-                onMouseEnter={() => setCurrentHoverID((_) => item.id)}
-                onMouseLeave={() => setCurrentHoverID((_) => -1)}
-              >
-                <StayCardH data={item} />
+          
+          {error && (
+            <div className="mb-4 p-4 bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-200 rounded-lg">
+              {error}
+            </div>
+          )}
+
+          {loading ? (
+            <div className="flex items-center justify-center py-20">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+            </div>
+          ) : stayListings.length > 0 ? (
+            <>
+              <div className="grid grid-cols-1 gap-8">
+                {stayListings.map((item) => (
+                  <div
+                    key={item.id}
+                    onMouseEnter={() => setCurrentHoverID((_) => item.id)}
+                    onMouseLeave={() => setCurrentHoverID((_) => -1)}
+                  >
+                    <StayCardH data={item} />
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-          <div className="flex mt-16 justify-center items-center">
-            <Pagination />
-          </div>
+              <div className="flex mt-16 justify-center items-center">
+                <Pagination />
+              </div>
+            </>
+          ) : (
+            <div className="py-20 text-center text-neutral-500 dark:text-neutral-400">
+              {searchLocation 
+                ? `Không tìm thấy condotel nào tại "${searchLocation}"`
+                : "Chưa có condotel nào"}
+            </div>
+          )}
         </div>
 
         {!showFullMapFixed && (
@@ -77,13 +223,13 @@ const SectionGridHasMap: FC<SectionGridHasMapProps> = () => {
             {/* BELLOW IS MY GOOGLE API KEY -- PLEASE DELETE AND TYPE YOUR API KEY */}
             <GoogleMapReact
               defaultZoom={12}
-              defaultCenter={DEMO_STAYS[0].map}
+              defaultCenter={mapCenter}
               bootstrapURLKeys={{
                 key: "AIzaSyAGVJfZMAKYfZ71nzL_v5i3LjTTWnCYwTY",
               }}
               yesIWantToUseGoogleMapApiInternals
             >
-              {DEMO_STAYS.map((item) => (
+              {stayListings.map((item) => (
                 <AnyReactComponent
                   isSelected={currentHoverID === item.id}
                   key={item.id}

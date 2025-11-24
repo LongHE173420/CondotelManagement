@@ -54,7 +54,30 @@ const PageWriteReview = () => {
         const bookingData = await bookingAPI.getBookingById(parseInt(id));
         setBooking(bookingData);
 
-        // Check if can review
+        // Kiểm tra booking status phải là "Completed" trước
+        const bookingStatus = bookingData.status?.toLowerCase();
+        if (bookingStatus !== "completed") {
+          setCanReview(false);
+          let statusMessage = "";
+          switch (bookingStatus) {
+            case "pending":
+              statusMessage = "Đơn đặt phòng đang chờ xử lý. Chỉ có thể đánh giá sau khi đơn đặt phòng hoàn thành.";
+              break;
+            case "confirmed":
+              statusMessage = "Đơn đặt phòng đã được xác nhận nhưng chưa hoàn thành. Chỉ có thể đánh giá sau khi đơn đặt phòng hoàn thành.";
+              break;
+            case "cancelled":
+              statusMessage = "Đơn đặt phòng đã bị hủy. Không thể đánh giá đơn đặt phòng đã hủy.";
+              break;
+            default:
+              statusMessage = `Đơn đặt phòng có trạng thái "${bookingData.status}". Chỉ có thể đánh giá khi đơn đặt phòng đã hoàn thành (Completed).`;
+          }
+          setError(statusMessage);
+          setChecking(false);
+          return;
+        }
+
+        // Check if can review (backend sẽ kiểm tra: user là customer, booking completed, chưa review)
         const canReviewRes = await reviewAPI.canReviewBooking(parseInt(id));
         setCanReview(canReviewRes.canReview);
         
@@ -85,10 +108,17 @@ const PageWriteReview = () => {
       return;
     }
 
+    // Kiểm tra lại canReview trước khi submit (double check)
+    if (!canReview) {
+      setError("Bạn không thể đánh giá đơn đặt phòng này. Vui lòng kiểm tra lại.");
+      return;
+    }
+
     setLoading(true);
     setError("");
 
     try {
+      // Backend sẽ kiểm tra lại: user phải là customer của booking, booking phải completed, chưa review
       await reviewAPI.createReview({
         bookingId: parseInt(id),
         rating: rating,
@@ -100,8 +130,21 @@ const PageWriteReview = () => {
       navigate(`/my-bookings`);
     } catch (err: any) {
       console.error("Error creating review:", err);
-      const message = err.response?.data?.message || err.response?.data?.error;
-      setError(message || "Không thể gửi đánh giá. Vui lòng thử lại sau.");
+      const message = err.response?.data?.message || err.response?.data?.error || "Không thể gửi đánh giá. Vui lòng thử lại sau.";
+      setError(message);
+      
+      // Nếu lỗi là do không đủ điều kiện, refresh lại canReview check
+      if (err.response?.status === 400) {
+        try {
+          const canReviewRes = await reviewAPI.canReviewBooking(parseInt(id));
+          setCanReview(canReviewRes.canReview);
+          if (!canReviewRes.canReview) {
+            setError(canReviewRes.message || message);
+          }
+        } catch (checkErr) {
+          console.error("Error re-checking can review:", checkErr);
+        }
+      }
     } finally {
       setLoading(false);
     }

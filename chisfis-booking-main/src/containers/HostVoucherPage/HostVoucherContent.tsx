@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "contexts/AuthContext";
 import voucherAPI, { VoucherDTO, VoucherCreateDTO } from "api/voucher";
+import condotelAPI, { CondotelDTO } from "api/condotel";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
 import ButtonSecondary from "shared/Button/ButtonSecondary";
 
@@ -269,9 +270,32 @@ const VoucherModal: React.FC<VoucherModalProps> = ({
     isActive: voucher?.isActive !== undefined ? voucher.isActive : true,
     usageLimit: voucher?.usageLimit || undefined,
     minimumOrderAmount: voucher?.minimumOrderAmount || undefined,
+    condotelId: (voucher as any)?.condotelId || undefined,
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [condotels, setCondotels] = useState<CondotelDTO[]>([]);
+  const [loadingCondotels, setLoadingCondotels] = useState(false);
+
+  // Fetch condotels của host khi mở modal (chỉ khi tạo mới)
+  useEffect(() => {
+    if (!voucher) {
+      // Chỉ fetch khi tạo mới, không fetch khi edit
+      const fetchCondotels = async () => {
+        setLoadingCondotels(true);
+        try {
+          const data = await condotelAPI.getAllForHost();
+          setCondotels(data);
+        } catch (err: any) {
+          console.error("Failed to load condotels:", err);
+          // Không set error vì condotelId là optional
+        } finally {
+          setLoadingCondotels(false);
+        }
+      };
+      fetchCondotels();
+    }
+  }, [voucher]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -307,6 +331,7 @@ const VoucherModal: React.FC<VoucherModalProps> = ({
         isActive: formData.isActive,
         usageLimit: formData.usageLimit,
         minimumOrderAmount: formData.minimumOrderAmount,
+        condotelId: formData.condotelId || undefined,
       };
 
       if (voucher) {
@@ -392,6 +417,43 @@ const VoucherModal: React.FC<VoucherModalProps> = ({
                   placeholder="Mô tả về voucher..."
                 />
               </div>
+
+              {/* Dropdown chọn Condotel - chỉ hiển thị khi tạo mới */}
+              {!voucher && (
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                    Áp dụng cho Condotel (Tùy chọn)
+                  </label>
+                  {loadingCondotels ? (
+                    <div className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-md bg-neutral-50 dark:bg-neutral-700">
+                      <span className="text-sm text-neutral-500">Đang tải danh sách condotel...</span>
+                    </div>
+                  ) : (
+                    <select
+                      value={formData.condotelId || ""}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          condotelId: e.target.value ? Number(e.target.value) : undefined,
+                        }))
+                      }
+                      className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-neutral-700 dark:text-neutral-100"
+                    >
+                      <option value="">-- Chọn Condotel (Để trống nếu áp dụng cho tất cả) --</option>
+                      {condotels.map((condotel) => (
+                        <option key={condotel.condotelId} value={condotel.condotelId}>
+                          {condotel.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  {condotels.length === 0 && !loadingCondotels && (
+                    <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                      Bạn chưa có condotel nào. Voucher sẽ áp dụng cho tất cả condotel.
+                    </p>
+                  )}
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -543,4 +605,9 @@ const VoucherModal: React.FC<VoucherModalProps> = ({
 };
 
 export default HostVoucherContent;
+
+
+
+
+
 

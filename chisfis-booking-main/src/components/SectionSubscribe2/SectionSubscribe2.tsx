@@ -41,7 +41,7 @@ const SectionSubscribe2: FC<SectionSubscribe2Props> = ({ className = "" }) => {
             aria-required
             placeholder="Enter your email"
             type="email"
-            rounded="rounded-full"
+            className="!rounded-full"
           />
           <ButtonCircle
             type="submit"

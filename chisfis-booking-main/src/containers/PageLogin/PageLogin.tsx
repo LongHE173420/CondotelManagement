@@ -1,13 +1,15 @@
 import React, { FC, useState } from "react";
 import facebookSvg from "images/Facebook.svg";
 import twitterSvg from "images/Twitter.svg";
-import googleSvg from "images/Google.svg";
 import { Helmet } from "react-helmet";
 import Input from "shared/Input/Input";
 import { Link, useNavigate } from "react-router-dom";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
 import { useAuth } from "contexts/AuthContext";
-import { authAPI } from "api/auth";
+import { authAPI, LoginResponse } from "api/auth";
+
+// Import thư viện Google
+import { GoogleLogin, CredentialResponse } from '@react-oauth/google';
 
 export interface PageLoginProps {
   className?: string;
@@ -16,68 +18,103 @@ export interface PageLoginProps {
 const loginSocials = [
   { name: "Continue with Facebook", href: "#", icon: facebookSvg },
   { name: "Continue with Twitter", href: "#", icon: twitterSvg },
-  { name: "Continue with Google", href: "#", icon: googleSvg },
 ];
 
 const PageLogin: FC<PageLoginProps> = ({ className = "" }) => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login } = useAuth(); // Hàm login từ AuthContext
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // Hàm xử lý đăng nhập Email/Password
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
 
     try {
+      // FE gửi { email, password } (camelCase)
       const response = await authAPI.login({ email, password });
-
-      console.log("✅ Response data:", response);
-
-      if (response.token && response.user) {
-        // Lưu token và user vào context (context sẽ lưu vào localStorage)
-        login(response.token, response.user);
-
-        // Navigate based on role
-        if (response.user.roleName === "Admin") {
-          navigate("/admin");
-        } else if (response.user.roleName === "Host") {
-          navigate("/host-dashboard");
-        } else {
-          navigate("/");
-        }
-      } else {
-        setError("Không nhận được dữ liệu từ server.");
-      }
+      handleLoginSuccess(response); // Gọi hàm xử lý chung
     } catch (error: any) {
-      console.error("Login error:", error);
-      
-      if (error.response) {
-        const status = error.response.status;
-        if (status === 401) {
-          setError("Email hoặc mật khẩu không đúng!");
-        } else if (status === 400) {
-          setError("Dữ liệu không hợp lệ!");
-        } else if (status === 500) {
-          setError("Lỗi máy chủ. Vui lòng thử lại sau.");
-        } else {
-          setError(error.response.data?.message || "Đã xảy ra lỗi!");
-        }
-      } else {
-        setError("Không thể kết nối đến server!");
-      }
+      handleLoginError(error); // Gọi hàm xử lý chung
     } finally {
       setLoading(false);
     }
   };
 
+  // Hàm xử lý Google login
+  const handleGoogleLogin = async (credentialResponse: CredentialResponse) => {
+    setError("");
+    const idToken = credentialResponse.credential;
+    if (!idToken) {
+      setError("Không lấy được thông tin đăng nhập từ Google.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Gọi API, token được lưu trong authAPI.googleLogin
+      const response = await authAPI.googleLogin(idToken);
+
+      // DÒNG NÀY ĐÃ BỊ XÓA VÌ ĐÃ CHUYỂN VÀO auth.ts:
+      // localStorage.setItem("token", response.token); 
+
+      handleLoginSuccess(response);
+    } catch (err: any) {
+      handleLoginError(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  // Xử lý login thành công
+  const handleLoginSuccess = (response: LoginResponse) => {
+    if (response.token && response.user) {
+      // 1. Lưu user vào context (hàm login của context sẽ lưu token vào axios headers)
+      login(response.token, response.user);
+
+      // 2. Điều hướng theo role
+      const role = response.user.roleName;
+      if (role === "Admin" || role === "ContentManager") {
+        navigate("/admin");
+      } else if (role === "Host") {
+        navigate("/host-dashboard");
+      } else {
+        navigate("/");
+      }
+    } else {
+      setError("Không nhận được dữ liệu token hoặc user từ server.");
+    }
+  };
+
+  // Xử lý login thất bại
+  const handleLoginError = (error: any) => {
+    if (error.response) {
+      const status = error.response.status;
+      if (status === 401) {
+        setError("Email/mật khẩu không đúng, hoặc tài khoản Google không hợp lệ!");
+      } else if (status === 400) {
+        // Lỗi 400 Bad Request (có thể do lỗi dữ liệu hoặc BCrypt)
+        // Nếu là lỗi BCrypt, Backend trả về 500. 
+        // Nếu là lỗi validation, Backend trả về 400.
+        setError(error.response.data?.message || "Dữ liệu không hợp lệ!");
+      } else if (status === 500) {
+        setError("Lỗi máy chủ nội bộ. Vui lòng kiểm tra console hoặc database.");
+      } else {
+        setError(error.response.data?.message || "Đã xảy ra lỗi!");
+      }
+    } else {
+      setError("Không thể kết nối đến server! Vui lòng kiểm tra backend.");
+    }
+  };
+
+
   return (
     <div className={`nc-PageLogin ${className}`} data-nc-id="PageLogin">
       <Helmet>
-        <title>Login || Booking React Template</title>
+        <title>Login || Fiscondotel</title>
       </Helmet>
 
       <div className="container mb-24 lg:mb-32">
@@ -88,29 +125,42 @@ const PageLogin: FC<PageLoginProps> = ({ className = "" }) => {
         <div className="max-w-md mx-auto space-y-6">
           {/* Social Login */}
           <div className="grid gap-3">
+            {/* Render các social cũ (FB, Twitter) */}
             {loginSocials.map((item, index) => (
-              <a
-                key={index}
-                href={item.href}
-                className="nc-will-change-transform flex w-full rounded-lg bg-primary-50 dark:bg-neutral-800 px-4 py-3 transition-transform hover:-translate-y-0.5"
-              >
+              <a key={index} href={item.href} className="flex w-full rounded-lg bg-primary-50 dark:bg-neutral-800 px-4 py-3 transform transition-transform sm:hover:scale-105 border dark:border-neutral-700">
                 <img className="flex-shrink-0" src={item.icon} alt={item.name} />
                 <h3 className="flex-grow text-center text-sm font-medium text-neutral-700 dark:text-neutral-300">
                   {item.name}
                 </h3>
               </a>
             ))}
+
+            {/* NÚT GOOGLE LOGIN THẬT */}
+            <div className="flex justify-center">
+              <GoogleLogin
+                onSuccess={handleGoogleLogin}
+                onError={() => {
+                  setError("Đăng nhập Google thất bại. Vui lòng thử lại.");
+                }}
+                shape="rectangular"
+                theme="outline"
+                size="large"
+                width="368px" // Chỉnh độ rộng cho khớp form
+              />
+            </div>
           </div>
 
           {/* OR */}
           <div className="relative text-center">
-            <span className="relative z-10 inline-block px-4 font-medium text-sm bg-white dark:bg-neutral-900">
-              OR
-            </span>
-            <div className="absolute left-0 w-full top-1/2 transform -translate-y-1/2 border border-neutral-200 dark:border-neutral-800"></div>
+            <span className="block w-full border-b border-neutral-100 dark:border-neutral-600"></span>
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white dark:bg-neutral-900 px-7">
+              <span className="text-sm text-neutral-500 dark:text-neutral-400">
+                OR
+              </span>
+            </div>
           </div>
 
-          {/* FORM */}
+          {/* FORM ĐĂNG NHẬP THƯỜNG */}
           <form className="grid grid-cols-1 gap-6" onSubmit={handleSubmit}>
             <label className="block">
               <span className="text-neutral-800 dark:text-neutral-200">
@@ -142,13 +192,16 @@ const PageLogin: FC<PageLoginProps> = ({ className = "" }) => {
               />
             </label>
 
+            {/* Hiển thị lỗi */}
             {error && <p className="text-red-500 text-center text-sm">{error}</p>}
 
             <ButtonPrimary type="submit" disabled={loading}>
-              {loading ? "Đang đăng nhập..." : "Đăng nhập"}
+              {/* Hiển thị loading trên cả 2 nút */}
+              {loading ? "Đang xử lý..." : "Đăng nhập"}
             </ButtonPrimary>
           </form>
 
+          {/* Link to Signup */}
           <span className="block text-center text-neutral-700 dark:text-neutral-300">
             New user? <Link to="/signup">Create an account</Link>
           </span>
@@ -158,4 +211,4 @@ const PageLogin: FC<PageLoginProps> = ({ className = "" }) => {
   );
 };
 
-export default PageLogin;
+export default PageLogin; 

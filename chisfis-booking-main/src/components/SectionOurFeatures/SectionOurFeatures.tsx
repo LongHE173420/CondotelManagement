@@ -2,6 +2,7 @@ import React, { FC } from "react";
 import rightImgPng from "images/our-features.png";
 import NcImage from "shared/NcImage/NcImage";
 import Badge from "shared/Badge/Badge";
+import { useTranslation } from "i18n/LanguageContext";
 
 export interface SectionOurFeaturesProps {
   className?: string;
@@ -14,6 +15,8 @@ const SectionOurFeatures: FC<SectionOurFeaturesProps> = ({
   rightImg = rightImgPng,
   type = "type1",
 }) => {
+  const { t } = useTranslation();
+  
   return (
     <div
       className={`nc-SectionOurFeatures relative flex flex-col items-center ${
@@ -30,39 +33,36 @@ const SectionOurFeatures: FC<SectionOurFeaturesProps> = ({
         }`}
       >
         <span className="uppercase text-sm text-gray-400 tracking-widest">
-          BENnefits
+          {t.home.features.title}
         </span>
-        <h2 className="font-semibold text-4xl mt-5">Happening cities </h2>
+        <h2 className="font-semibold text-4xl mt-5">{t.home.features.subtitle}</h2>
 
         <ul className="space-y-10 mt-16">
           <li className="space-y-4">
-            <Badge name="Advertising" />
+            <Badge name={t.home.features.feature1.badge} />
             <span className="block text-xl font-semibold">
-              Cost-effective advertising
+              {t.home.features.feature1.title}
             </span>
             <span className="block mt-5 text-neutral-500 dark:text-neutral-400">
-              With a free listing, you can advertise your rental with no upfront
-              costs
+              {t.home.features.feature1.desc}
             </span>
           </li>
           <li className="space-y-4">
-            <Badge color="green" name="Exposure " />
+            <Badge color="green" name={t.home.features.feature2.badge} />
             <span className="block text-xl font-semibold">
-              Reach millions with Chisfis
+              {t.home.features.feature2.title}
             </span>
             <span className="block mt-5 text-neutral-500 dark:text-neutral-400">
-              Millions of people are searching for unique places to stay around
-              the world
+              {t.home.features.feature2.desc}
             </span>
           </li>
           <li className="space-y-4">
-            <Badge color="red" name="Secure" />
+            <Badge color="red" name={t.home.features.feature3.badge} />
             <span className="block text-xl font-semibold">
-              Secure and simple
+              {t.home.features.feature3.title}
             </span>
             <span className="block mt-5 text-neutral-500 dark:text-neutral-400">
-              A Holiday Lettings listing gives you a secure and easy way to take
-              bookings and payments online
+              {t.home.features.feature3.desc}
             </span>
           </li>
         </ul>

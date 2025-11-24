@@ -3,6 +3,7 @@ import { FC } from "react";
 import { useEffect } from "react";
 import ClearDataButton from "./ClearDataButton";
 import { useRef } from "react";
+import condotelAPI from "api/condotel";
 
 export interface LocationInputProps {
   defaultValue: string;
@@ -28,9 +29,18 @@ const LocationInput: FC<LocationInputProps> = ({
 
   const [value, setValue] = useState(defaultValue);
   const [showPopover, setShowPopover] = useState(autoFocus);
+  const [locationSuggestions, setLocationSuggestions] = useState<string[]>([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
 
   useEffect(() => {
-    setValue(defaultValue);
+    if (defaultValue !== value) {
+      setValue(defaultValue);
+      // Notify parent component when defaultValue changes
+      if (onChange && defaultValue) {
+        onChange(defaultValue);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [defaultValue]);
 
   useEffect(() => {
@@ -53,6 +63,49 @@ const LocationInput: FC<LocationInputProps> = ({
     }
   }, [showPopover]);
 
+  // Fetch location suggestions from API when user types
+  useEffect(() => {
+    const fetchLocationSuggestions = async () => {
+      if (!value || value.length < 2) {
+        setLocationSuggestions([]);
+        return;
+      }
+
+      try {
+        setLoadingSuggestions(true);
+        // Fetch condotels by location name using public endpoint
+        const condotels = await condotelAPI.getCondotelsByLocationPublic(value);
+        
+        // Extract unique resort names/locations
+        const uniqueLocations = new Set<string>();
+        condotels.forEach((condotel: any) => {
+          if (condotel.resortName) {
+            uniqueLocations.add(condotel.resortName);
+          }
+        });
+        
+        // Also add the search value itself if it matches
+        if (value.trim()) {
+          uniqueLocations.add(value.trim());
+        }
+        
+        setLocationSuggestions(Array.from(uniqueLocations).slice(0, 10));
+      } catch (err) {
+        console.error("Error fetching location suggestions:", err);
+        setLocationSuggestions([]);
+      } finally {
+        setLoadingSuggestions(false);
+      }
+    };
+
+    // Debounce API call
+    const timeoutId = setTimeout(() => {
+      fetchLocationSuggestions();
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [value]);
+
   const eventClickOutsideDiv = (event: MouseEvent) => {
     if (!containerRef.current) return;
     // CLICK IN_SIDE
@@ -71,15 +124,20 @@ const LocationInput: FC<LocationInputProps> = ({
 
   const renderRecentSearches = () => {
     const VN_LOCATIONS = [
-      "Hà Nội (HAN)",
-      "TP. Hồ Chí Minh (SGN)",
-      "Đà Nẵng (DAD)",
-      "Nha Trang (CXR)",
-      "Huế (HUI)",
-      "Cần Thơ (VCA)",
-      "Vinh (VII)",
-      "Phú Quốc (PQC)",
-      "Đà Lạt (DLI)",
+      "Hà Nội",
+      "TP. Hồ Chí Minh",
+      "Đà Nẵng",
+      "Nha Trang",
+      "Huế",
+      "Hạ Long",
+      "Hội An",
+      "Phú Quốc",
+      "Đà Lạt",
+      "Sapa",
+      "Mũi Né",
+      "Vũng Tàu",
+      "Cần Thơ",
+      "Vinh",
     ];
     return (
       <>
@@ -105,7 +163,13 @@ const LocationInput: FC<LocationInputProps> = ({
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={1.5}
-                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                    d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
                   />
                 </svg>
               </span>
@@ -121,22 +185,52 @@ const LocationInput: FC<LocationInputProps> = ({
 
   const renderSearchValue = () => {
     const VN_LOCATIONS = [
-      "Hà Nội (HAN)",
-      "TP. Hồ Chí Minh (SGN)",
-      "Đà Nẵng (DAD)",
-      "Nha Trang (CXR)",
-      "Huế (HUI)",
-      "Cần Thơ (VCA)",
-      "Vinh (VII)",
-      "Phú Quốc (PQC)",
-      "Đà Lạt (DLI)",
+      "Hà Nội",
+      "TP. Hồ Chí Minh",
+      "Đà Nẵng",
+      "Nha Trang",
+      "Huế",
+      "Hạ Long",
+      "Hội An",
+      "Phú Quốc",
+      "Đà Lạt",
+      "Sapa",
+      "Mũi Né",
+      "Vũng Tàu",
+      "Cần Thơ",
+      "Vinh",
     ];
-    const filtered = VN_LOCATIONS.filter((item) =>
+    
+    // Filter hardcoded locations
+    const filteredHardcoded = VN_LOCATIONS.filter((item) =>
       item.toLowerCase().includes(value.toLowerCase())
     );
+    
+    // Combine API suggestions with hardcoded locations
+    const allSuggestions = [
+      ...locationSuggestions,
+      ...filteredHardcoded.filter((item) => !locationSuggestions.includes(item))
+    ].slice(0, 10);
+
+    if (loadingSuggestions && value.length >= 2) {
+      return (
+        <div className="px-4 sm:px-8 py-4 sm:py-5 text-center text-neutral-500">
+          Đang tìm kiếm...
+        </div>
+      );
+    }
+
+    if (allSuggestions.length === 0 && value.length >= 2) {
+      return (
+        <div className="px-4 sm:px-8 py-4 sm:py-5 text-center text-neutral-500">
+          Không tìm thấy địa điểm. Bạn có thể tìm kiếm với tên địa điểm khác.
+        </div>
+      );
+    }
+
     return (
       <>
-        {filtered.map((item) => (
+        {allSuggestions.map((item) => (
           <span
             onClick={() => handleSelectLocation(item)}
             key={item}
