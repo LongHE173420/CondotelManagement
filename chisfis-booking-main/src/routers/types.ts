@@ -66,6 +66,7 @@ export interface LocationStates {
   "/my-bookings"?: {};
   "/booking-history"?: {};
   "/booking-history/:id"?: {};
+  "/request-refund/:id"?: {};
   "/write-review/:id"?: {};
   "/my-reviews"?: {};
   "/manage-blog"?: {};

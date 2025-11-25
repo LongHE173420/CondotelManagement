@@ -218,6 +218,115 @@ export const bookingAPI = {
     await axiosClient.delete(`/booking/${id}`);
   },
 
+  // POST /api/booking/{id}/refund - Yêu cầu hoàn tiền cho booking đã hủy
+  refundBooking: async (
+    id: number, 
+    bankInfo?: { bankName: string; accountNumber: string; accountHolder: string }
+  ): Promise<{ success: boolean; message?: string; data?: any; bankInfo?: any }> => {
+    try {
+      // Nếu có thông tin ngân hàng, gửi kèm trong body
+      // Backend expect: BankCode (không phải BankName), AccountNumber, AccountHolder
+      const payload = bankInfo ? {
+        BankCode: bankInfo.bankName, // bankName từ frontend là mã ngân hàng (VCB, MB, etc.)
+        AccountNumber: bankInfo.accountNumber,
+        AccountHolder: bankInfo.accountHolder,
+      } : {};
+      
+      // Log payload (ẩn thông tin nhạy cảm)
+      console.log("📤 Sending refund request:", {
+        bookingId: id,
+        payload: {
+          BankCode: payload.BankCode,
+          AccountNumber: payload.AccountNumber ? payload.AccountNumber.substring(0, 3) + "***" : undefined,
+          AccountHolder: payload.AccountHolder ? payload.AccountHolder.substring(0, 3) + "***" : undefined,
+        },
+        hasBankInfo: !!bankInfo,
+        bankInfoProvided: {
+          bankName: bankInfo?.bankName,
+          hasAccountNumber: !!bankInfo?.accountNumber,
+          hasAccountHolder: !!bankInfo?.accountHolder,
+        }
+      });
+      
+      // Log full payload để debug (chỉ trong development)
+      if (process.env.NODE_ENV === 'development') {
+        console.log("📤 Full payload (dev only):", JSON.stringify(payload, null, 2));
+      }
+      
+      const response = await axiosClient.post<any>(`/booking/${id}/refund`, payload);
+      const data = response.data;
+      
+      console.log("📥 Refund API response:", data);
+      console.log("📥 Full response data:", JSON.stringify(data, null, 2));
+      
+      // Log để verify bank info có được gửi và backend có nhận được không
+      if (bankInfo) {
+        const responseData = data.Data || data.data || {};
+        // Backend trả về BankInfo object với BankCode, AccountNumber, AccountHolder
+        const receivedBankInfo = responseData.BankInfo || responseData.bankInfo || {};
+        
+        console.log("🔍 Verifying bank info in request:", {
+          sent: {
+            BankCode: payload.BankCode,
+            AccountNumber: payload.AccountNumber ? payload.AccountNumber.substring(0, 3) + "***" : undefined,
+            AccountHolder: payload.AccountHolder ? payload.AccountHolder.substring(0, 3) + "***" : undefined,
+          },
+          received: {
+            BankCode: receivedBankInfo.BankCode || receivedBankInfo.bankCode,
+            AccountNumber: receivedBankInfo.AccountNumber || receivedBankInfo.accountNumber 
+              ? (receivedBankInfo.AccountNumber || receivedBankInfo.accountNumber).substring(0, 3) + "***" 
+              : undefined,
+            AccountHolder: receivedBankInfo.AccountHolder || receivedBankInfo.accountHolder
+              ? (receivedBankInfo.AccountHolder || receivedBankInfo.accountHolder).substring(0, 3) + "***"
+              : undefined,
+          },
+          responseData: responseData,
+          responseSuccess: data.Success !== undefined ? data.Success : data.success,
+          responseMessage: data.Message || data.message,
+        });
+        
+        // Verify bank info được lưu
+        const receivedBankCode = receivedBankInfo.BankCode || receivedBankInfo.bankCode;
+        if (receivedBankCode) {
+          console.log("✅ Bank info đã được lưu vào database và trả về trong response:", {
+            BankCode: receivedBankCode,
+            hasAccountNumber: !!(receivedBankInfo.AccountNumber || receivedBankInfo.accountNumber),
+            hasAccountHolder: !!(receivedBankInfo.AccountHolder || receivedBankInfo.accountHolder),
+          });
+        } else {
+          console.warn("⚠️ Backend response không chứa bank info. Có thể backend chưa lưu vào database.");
+        }
+      }
+      
+      // Backend trả về ServiceResult: { Success: bool, Message: string, Data?: any }
+      // Data có thể chứa BankInfo object với BankCode, AccountNumber, AccountHolder
+      const responseData = data.Data || data.data || {};
+      return {
+        success: data.Success !== undefined ? data.Success : data.success !== undefined ? data.success : true,
+        message: data.Message || data.message,
+        data: responseData,
+        // Thêm bankInfo để dễ truy cập
+        bankInfo: responseData.BankInfo || responseData.bankInfo || null,
+      };
+    } catch (error: any) {
+      console.error("❌ Error in refundBooking API:", error);
+      console.error("❌ Error response:", error.response?.data);
+      
+      // Nếu có response từ server, trả về message từ server
+      if (error.response?.data) {
+        const serverData = error.response.data;
+        return {
+          success: false,
+          message: serverData.Message || serverData.message || serverData.title || "Không thể gửi yêu cầu hoàn tiền",
+          data: serverData.Data || serverData.data,
+        };
+      }
+      
+      // Nếu không có response, throw error để handle ở component
+      throw error;
+    }
+  },
+
   // ========== HOST BOOKING APIs ==========
   // GET /api/host/booking - Lấy tất cả bookings của host hiện tại
   getHostBookings: async (): Promise<BookingDTO[]> => {

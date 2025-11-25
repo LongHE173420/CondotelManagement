@@ -117,6 +117,38 @@ export const adminAPI = {
     const response = await axiosClient.delete<{ message: string }>(`/admin/users/${userId}`);
     return response.data;
   },
+
+  // ========== ADMIN REFUND APIs ==========
+  // GET /api/admin/refunds - Lấy danh sách yêu cầu hoàn tiền với filter
+  getRefundRequests: async (params?: {
+    searchTerm?: string;
+    status?: string;
+    startDate?: string;
+    endDate?: string;
+  }): Promise<{ data: any[]; total?: number }> => {
+    const response = await axiosClient.get<any>("/admin/refunds", { params });
+    // Backend trả về { success: true, data: [...], total: number }
+    const responseData = response.data;
+    return {
+      data: responseData.data || responseData || [],
+      total: responseData.total,
+    };
+  },
+
+  // POST /api/admin/bookings/{bookingId}/refund - Admin hoàn tiền tự động qua Cas Transfer API
+  refundBooking: async (bookingId: number, reason?: string): Promise<any> => {
+    const response = await axiosClient.post<any>(
+      `/admin/bookings/${bookingId}/refund`,
+      reason ? { Reason: reason } : null
+    );
+    return response.data;
+  },
+
+  // POST /api/admin/refunds/{bookingId}/confirm - Xác nhận đã chuyển tiền thủ công
+  confirmRefundManually: async (bookingId: number): Promise<any> => {
+    const response = await axiosClient.post<any>(`/admin/refunds/${bookingId}/confirm`);
+    return response.data;
+  },
 };
 
 export default adminAPI;

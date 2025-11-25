@@ -8,13 +8,14 @@ import PageAccountList from "containers/PageAccountList/PageAccountList";
 import AccountPage from "containers/AccountPage/AccountPage";
 import PageBlogList from "containers/PageManageBlog/PageBlogList";
 import PageManageReviews from "containers/PageManageReviews/PageManageReviews";
+import PageAdminRefund from "containers/PageAdminRefund/PageAdminRefund";
 import { Link } from "react-router-dom";
 
 export interface AdminPageProps {
   className?: string;
 }
 
-type AdminTab = "dashboard" | "accounts" | "profile" | "blog" | "reviews";
+type AdminTab = "dashboard" | "accounts" | "profile" | "blog" | "reviews" | "refunds";
 
 const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
   const { isAdmin, isLoading } = useAuth();
@@ -24,7 +25,7 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
 
   // Sync tab with URL
   useEffect(() => {
-    if (tabParam && ["dashboard", "accounts", "profile", "blog", "reviews"].includes(tabParam)) {
+    if (tabParam && ["dashboard", "accounts", "profile", "blog", "reviews", "refunds"].includes(tabParam)) {
       setActiveTab(tabParam);
     }
   }, [tabParam]);
@@ -217,6 +218,16 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
               Quản lý Review
             </button>
             <button
+              onClick={() => handleTabChange("refunds")}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === "refunds"
+                  ? "border-primary-500 text-primary-600"
+                  : "border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300"
+              }`}
+            >
+              💰 Quản lý Hủy phòng & Hoàn tiền
+            </button>
+            <button
               onClick={() => handleTabChange("profile")}
               className={`py-4 px-1 border-b-2 font-medium text-sm ${
                 activeTab === "profile"
@@ -319,6 +330,10 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
             <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg p-6">
               <PageManageReviews />
             </div>
+          </div>
+        ) : activeTab === "refunds" ? (
+          <div className="space-y-6">
+            <PageAdminRefund />
           </div>
         ) : activeTab === "blog" ? (
           <div className="space-y-6">

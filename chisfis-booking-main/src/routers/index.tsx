@@ -52,6 +52,7 @@ import HostCondotelDashboard from "containers/HostCondotelDashboard";
 import PageEditCondotel from "containers/PageEditCondotel/PageEditCondotel";
 import PageBookingHistory from "containers/PageBookingHistory/PageBookingHistory";
 import PageBookingHistoryDetail from "containers/PageBookingHistory/PageBookingHistoryDetail";
+import PageRequestRefund from "containers/PageRequestRefund/PageRequestRefund";
 import PageWriteReview from "containers/PageWriteReview/PageWriteReview";
 import PageMyReviews from "containers/PageMyReviews/PageMyReviews";
 import PageBlogList from "containers/PageManageBlog/PageBlogList";
@@ -140,6 +141,7 @@ export const pages: Page[] = [
   { path: "/my-bookings", component: PageTenantBookings },
   { path: "/booking-history", component: PageBookingHistory },
   { path: "/booking-history/:id", component: PageBookingHistoryDetail },
+  { path: "/request-refund/:id", component: PageRequestRefund },
   { path: "/write-review/:id", component: PageWriteReview },
   { path: "/my-reviews", component: PageMyReviews },
   //

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import bookingAPI, { BookingDTO } from "api/booking";
 import condotelAPI, { CondotelDetailDTO } from "api/condotel";
 import reviewAPI from "api/review";
@@ -66,11 +66,13 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
 // Component Trang Chi tiết Lịch sử Booking
 const PageBookingHistoryDetail = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [booking, setBooking] = useState<BookingDTO | null>(null);
   const [condotel, setCondotel] = useState<CondotelDetailDTO | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [canReview, setCanReview] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
 
   // Fetch booking và condotel details
   useEffect(() => {
@@ -142,6 +144,82 @@ const PageBookingHistoryDetail = () => {
     return diffDays;
   };
 
+  // Kiểm tra xem booking có thể hủy không
+  const canCancel = (): boolean => {
+    if (!booking) return false;
+    const status = booking.status?.toLowerCase();
+    return status === "pending" || status === "confirmed";
+  };
+
+  // Kiểm tra xem booking có thể hoàn tiền không (hủy trong vòng 2 ngày)
+  const canRefund = (): boolean => {
+    if (!booking || booking.status?.toLowerCase() !== "cancelled") {
+      return false;
+    }
+    
+    // Tính số ngày từ khi tạo booking đến hiện tại
+    if (!booking.createdAt) return false;
+    const createdDate = new Date(booking.createdAt);
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - createdDate.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    // Nếu hủy trong vòng 2 ngày (từ ngày tạo booking)
+    return diffDays <= 2;
+  };
+
+  // Xử lý hủy booking
+  const handleCancel = async () => {
+    if (!booking) return;
+    
+    if (!window.confirm("Bạn có chắc chắn muốn hủy đặt phòng này? Nếu hủy trong vòng 2 ngày, bạn có thể yêu cầu hoàn tiền.")) {
+      return;
+    }
+
+    setCancelling(true);
+    try {
+      const createdAt = booking.createdAt;
+      await bookingAPI.cancelBooking(booking.bookingId);
+      
+      // Kiểm tra xem có trong vòng 2 ngày không để tự động chuyển đến trang refund
+      if (createdAt) {
+        const createdDate = new Date(createdAt);
+        const now = new Date();
+        const diffTime = Math.abs(now.getTime() - createdDate.getTime());
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        if (diffDays <= 2) {
+          // Nếu hủy trong vòng 2 ngày, tự động chuyển đến trang nhập thông tin hoàn tiền
+          if (window.confirm("Đã hủy đặt phòng thành công! Bạn có muốn điền thông tin để yêu cầu hoàn tiền ngay bây giờ không?")) {
+            navigate(`/request-refund/${booking.bookingId}`);
+            return; // Không reload, vì sẽ navigate đi
+          }
+        }
+      }
+      
+      alert("Đã hủy đặt phòng thành công. Nếu hủy trong vòng 2 ngày, bạn có thể yêu cầu hoàn tiền.");
+      
+      // Reload booking để cập nhật trạng thái
+      const updatedBooking = await bookingAPI.getBookingById(booking.bookingId);
+      setBooking(updatedBooking);
+    } catch (err: any) {
+      console.error("Error cancelling booking:", err);
+      alert(
+        err.response?.data?.message || 
+        err.message || 
+        "Không thể hủy đặt phòng. Vui lòng thử lại sau."
+      );
+    } finally {
+      setCancelling(false);
+    }
+  };
+
+  // Navigate to refund form
+  const handleRefund = () => {
+    if (!booking || !canRefund()) return;
+    navigate(`/request-refund/${booking.bookingId}`);
+  };
+
   if (loading) {
     return (
       <div className="p-8 text-center">
@@ -201,6 +279,37 @@ const PageBookingHistoryDetail = () => {
                     <StatusBadge status={booking.status} />
                   </dd>
                 </div>
+                
+                {/* Nút hủy booking - chỉ hiển thị khi booking có thể hủy */}
+                {canCancel() && (
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <button
+                      onClick={handleCancel}
+                      disabled={cancelling}
+                      className="w-full px-4 py-2 bg-red-500 text-white font-semibold rounded-lg hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {cancelling ? "Đang hủy..." : "❌ Hủy đặt phòng"}
+                    </button>
+                    <p className="mt-2 text-xs text-gray-500">
+                      * Nếu hủy trong vòng 2 ngày, bạn có thể yêu cầu hoàn tiền
+                    </p>
+                  </div>
+                )}
+                
+                {/* Nút yêu cầu hoàn tiền - chỉ hiển thị khi booking bị hủy trong vòng 2 ngày */}
+                {canRefund() && (
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <button
+                      onClick={handleRefund}
+                      className="w-full px-4 py-2 bg-orange-500 text-white font-semibold rounded-lg hover:bg-orange-600 transition-colors"
+                    >
+                      💰 Yêu cầu hoàn tiền
+                    </button>
+                    <p className="mt-2 text-xs text-gray-500">
+                      * Booking bị hủy trong vòng 2 ngày có thể yêu cầu hoàn tiền
+                    </p>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <dt className="text-sm font-medium text-gray-500">Ngày đặt</dt>
                   <dd className="text-sm text-gray-700">{formatDate(booking.createdAt)}</dd>

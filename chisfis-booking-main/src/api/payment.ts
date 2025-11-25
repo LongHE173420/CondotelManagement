@@ -199,6 +199,41 @@ export const paymentAPI = {
       throw new Error(response.data.message || "Failed to cancel payment");
     }
   },
+
+  // POST /api/payment/generate-qr - Tạo QR code chuyển tiền
+  generateQR: async (request: {
+    bankCode: string; // Mã ngân hàng (MB, VCB, TCB, etc.)
+    accountNumber: string; // Số tài khoản
+    amount: number; // Số tiền (tối thiểu 1,000 VND)
+    accountHolderName: string; // Tên chủ tài khoản
+    content?: string; // Nội dung chuyển khoản (optional)
+  }): Promise<{
+    compactUrl: string; // QR code URL nhỏ gọn
+    printUrl: string; // QR code URL để in
+  }> => {
+    const payload = {
+      BankCode: request.bankCode,
+      AccountNumber: request.accountNumber,
+      Amount: request.amount,
+      AccountHolderName: request.accountHolderName,
+      Content: request.content,
+    };
+
+    const response = await axiosClient.post<any>("/payment/generate-qr", payload);
+    const responseData = response.data;
+
+    if (!responseData.success) {
+      throw new Error(responseData.message || "Failed to generate QR code");
+    }
+
+    // Backend trả về { success: true, data: { qrCodeUrlCompact, qrCodeUrlPrint, qrCodeUrl } }
+    // Support cả camelCase và PascalCase, và cả qrCodeUrl (fallback)
+    const data = responseData.data || {};
+    return {
+      compactUrl: data.qrCodeUrlCompact || data.compactUrl || data.CompactUrl || data.qrCodeUrl || "",
+      printUrl: data.qrCodeUrlPrint || data.printUrl || data.PrintUrl || data.qrCodeUrl || "",
+    };
+  },
 };
 
 export default paymentAPI;
