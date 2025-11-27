@@ -83,7 +83,7 @@ const PricingPage: React.FC = () => {
     return (
         <div className="container mx-auto p-4 md:p-12">
             <Helmet>
-                <title>Nâng cấp Gói Dịch Vụ || Fiscondotel</title>
+                <title>Nâng cấp Gói Dịch Vụ || Condotel Management</title>
             </Helmet>
             <h1 className="text-3xl font-bold text-center mb-4">
                 Bảng giá Dịch vụ
@@ -112,13 +112,13 @@ const PricingPage: React.FC = () => {
                         <ul className="space-y-3 mb-8 text-sm flex-grow">
                             <li className="flex items-center">
                                 <span className="text-green-500 mr-2">✔</span>
-                                Đăng tối đa  <b> {pkg.maxListings}</b> căn hộ.
+                                Đăng tối đa   <b> {pkg.maxListings}</b> căn hộ.
                             </li>
                             <li className="flex items-center">
                                 <span className={pkg.canUseFeaturedListing ? "text-green-500 mr-2" : "text-red-500 mr-2"}>
                                     {pkg.canUseFeaturedListing ? "✔" : "✘"}
                                 </span>
-                                {pkg.canUseFeaturedListing ? "Được đăng tin nổi bật" : "Không hỗ trợ tin nổi bật"}
+                                {pkg.canUseFeaturedListing ? "Được đăng blog nổi bật" : "Không hỗ trợ blog nổi bật"}
                             </li>
                             {/* Them cac quyen loi khac o day */}
                         </ul>

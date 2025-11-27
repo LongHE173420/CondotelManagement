@@ -25,7 +25,7 @@ import AccountBilling from "containers/AccountPage/AccountBilling";
 import AccountRewards from "containers/AccountPage/AccountRewards";
 import AccountVouchers from "containers/AccountPage/AccountVouchers";
 import AdminPage from "containers/AdminPage/AdminPage";
-import ProtectedRoute from "components/ProtectedRoute/ProtectedRoute"; 
+import ProtectedRoute from "components/ProtectedRoute/ProtectedRoute";
 import PageContact from "containers/PageContact/PageContact";
 import PageAbout from "containers/PageAbout/PageAbout";
 import PageSignUp from "containers/PageSignUp/PageSignUp";
@@ -70,6 +70,7 @@ import PageLocationEdit from "containers/PageManageLocations/PageLocationEdit";
 import BecomeAHostPage from "containers/BecomeAHostPage/BecomeAHostPage";
 import PricingPage from "containers/PagePricing/PricingPage";
 import PaymentSuccess from "containers/PagePaymentSuccess/PaymentSuccess";
+import AdminPackagesPage from "containers/PageAdminPackages/AdminPackagesPage";
 
 // --- Imports được thêm từ code cũ (Refund & Payout) ---
 import PageAdminRefund from "containers/PageAdminRefund/PageAdminRefund";
@@ -162,7 +163,7 @@ export const pages: Page[] = [
   { path: "/manage-locations/edit/:id", component: PageLocationEdit },
   //
   { path: "/become-a-host", component: BecomeAHostPage },
-  
+
   // --- Các routes được bổ sung từ code cũ ---
   { path: "/refund-policy", component: PageRefundPolicy },
   { path: "/admin/refunds", component: PageAdminRefund },
