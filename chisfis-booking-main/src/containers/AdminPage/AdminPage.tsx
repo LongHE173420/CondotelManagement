@@ -9,13 +9,16 @@ import AccountPage from "containers/AccountPage/AccountPage";
 import PageBlogList from "containers/PageManageBlog/PageBlogList";
 import PageManageReviews from "containers/PageManageReviews/PageManageReviews";
 import PageAdminRefund from "containers/PageAdminRefund/PageAdminRefund";
+import AdminPackagesPage from "containers/PageAdminPackages/AdminPackagesPage";
+import { toast } from "react-toastify";
 import { Link } from "react-router-dom";
+
 
 export interface AdminPageProps {
   className?: string;
 }
 
-type AdminTab = "dashboard" | "accounts" | "profile" | "blog" | "reviews" | "refunds";
+type AdminTab = "dashboard" | "accounts" | "profile" | "blog" | "reviews" | "refunds" | "packages";
 
 const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
   const { isAdmin, isLoading } = useAuth();
@@ -25,7 +28,7 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
 
   // Sync tab with URL
   useEffect(() => {
-    if (tabParam && ["dashboard", "accounts", "profile", "blog", "reviews", "refunds"].includes(tabParam)) {
+    if (tabParam && ["dashboard", "accounts", "profile", "blog", "reviews", "refunds", "packages"].includes(tabParam)) {
       setActiveTab(tabParam);
     }
   }, [tabParam]);
@@ -60,7 +63,7 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
             const tenantCount = allUsers.filter(
               (user: any) => user.roleName === "Tenant" && (user.status === "Active" || user.status === "Hoạt động")
             ).length;
-            
+
             if (tenantCount > 0) {
               finalOverview = {
                 ...overviewData,
@@ -75,7 +78,7 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
         } catch (err: any) {
           console.error("Failed to load dashboard:", err);
           let errorMessage = "Không thể tải dashboard. Vui lòng thử lại sau.";
-          
+
           if (err.networkError || err.noResponse) {
             errorMessage = "Không thể kết nối đến server. Vui lòng kiểm tra lại kết nối mạng hoặc đảm bảo backend đang chạy.";
           } else if (err.response?.data?.message) {
@@ -87,9 +90,9 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
           } else if (err.code === "ERR_NETWORK") {
             errorMessage = "Lỗi mạng. Vui lòng kiểm tra kết nối internet.";
           }
-          
+
           setError(errorMessage);
-          
+
           // Set empty data on error
           setOverview({
             totalCondotels: 0,
@@ -179,61 +182,64 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
           <nav className="flex space-x-8" aria-label="Tabs">
             <button
               onClick={() => handleTabChange("dashboard")}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                activeTab === "dashboard"
-                  ? "border-primary-500 text-primary-600"
-                  : "border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300"
-              }`}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === "dashboard"
+                ? "border-primary-500 text-primary-600"
+                : "border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300"
+                }`}
             >
               Dashboard
             </button>
             <button
               onClick={() => handleTabChange("accounts")}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                activeTab === "accounts"
-                  ? "border-primary-500 text-primary-600"
-                  : "border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300"
-              }`}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === "accounts"
+                ? "border-primary-500 text-primary-600"
+                : "border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300"
+                }`}
             >
               Quản lý Tài khoản
             </button>
             <button
               onClick={() => handleTabChange("blog")}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                activeTab === "blog"
-                  ? "border-primary-500 text-primary-600"
-                  : "border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300"
-              }`}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === "blog"
+                ? "border-primary-500 text-primary-600"
+                : "border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300"
+                }`}
             >
               Quản lý Blog
             </button>
             <button
               onClick={() => handleTabChange("reviews")}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                activeTab === "reviews"
-                  ? "border-primary-500 text-primary-600"
-                  : "border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300"
-              }`}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === "reviews"
+                ? "border-primary-500 text-primary-600"
+                : "border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300"
+                }`}
             >
               Quản lý Review
             </button>
             <button
               onClick={() => handleTabChange("refunds")}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                activeTab === "refunds"
-                  ? "border-primary-500 text-primary-600"
-                  : "border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300"
-              }`}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === "refunds"
+                ? "border-primary-500 text-primary-600"
+                : "border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300"
+                }`}
             >
               💰 Quản lý Hủy phòng & Hoàn tiền
             </button>
             <button
+              onClick={() => handleTabChange("packages")}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === "packages"
+                ? "border-primary-500 text-primary-600"
+                : "border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300"
+                }`}
+            >
+              Quản lý Gói Host
+            </button>
+            <button
               onClick={() => handleTabChange("profile")}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                activeTab === "profile"
-                  ? "border-primary-500 text-primary-600"
-                  : "border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300"
-              }`}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === "profile"
+                ? "border-primary-500 text-primary-600"
+                : "border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300"
+                }`}
             >
               Profile
             </button>
@@ -281,7 +287,7 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
                         const tenantCount = allUsers.filter(
                           (user: any) => user.roleName === "Tenant" && (user.status === "Active" || user.status === "Hoạt động")
                         ).length;
-                        
+
                         if (tenantCount > 0) {
                           finalOverview = {
                             ...overviewData,
@@ -295,9 +301,9 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
                       setTenantAnalytics(analyticsData);
                     } catch (err: any) {
                       console.error("Failed to load dashboard:", err);
-                      const errorMessage = 
-                        err.response?.data?.message || 
-                        err.message || 
+                      const errorMessage =
+                        err.response?.data?.message ||
+                        err.message ||
                         "Không thể tải dashboard. Vui lòng thử lại sau.";
                       setError(errorMessage);
                       setOverview({
@@ -323,7 +329,23 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
         )}
 
         {/* Tab Content */}
-        {activeTab === "accounts" ? (
+        {activeTab === "packages" ? (
+          <div className="py-8 lg:py-12 min-h-screen bg-gray-50">
+            <div className="px-4 lg:px-8 xl:px-12">
+              <div className="mb-8">
+                <h2 className="text-4xl font-bold text-neutral-900">
+                  Quản lý Gói Dịch Vụ Host
+                </h2>
+                <p className="text-neutral-600 dark:text-neutral-400 mt-2 text-lg">
+                  Xem danh sách gói đã mua • Kích hoạt thủ công cho Host
+                </p>
+              </div>
+              <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+                <AdminPackagesPage />
+              </div>
+            </div>
+          </div>
+        ) : activeTab === "accounts" ? (
           <PageAccountList />
         ) : activeTab === "reviews" ? (
           <div className="space-y-6">
@@ -388,192 +410,190 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
                 {/* Overview Stats */}
                 {overview && (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <StatCard
-              title="Tổng Condotels"
-              value={overview.totalCondotels}
-              icon={
-                <svg
-                  className="w-6 h-6"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
-                  />
-                </svg>
-              }
-              color="bg-blue-500"
-            />
-            <StatCard
-              title="Tổng Tenants"
-              value={overview.totalTenants}
-              icon={
-                <svg
-                  className="w-6 h-6"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
-                  />
-                </svg>
-              }
-              color="bg-green-500"
-            />
-            <StatCard
-              title="Tổng Bookings"
-              value={overview.totalBookings}
-              icon={
-                <svg
-                  className="w-6 h-6"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
-                  />
-                </svg>
-              }
-              color="bg-purple-500"
-            />
-            <StatCard
-              title="Tổng Doanh Thu"
-              value={formatCurrency(overview.totalRevenue)}
-              icon={
-                <svg
-                  className="w-6 h-6"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-              }
-              color="bg-orange-500"
-            />
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Top Condotels */}
-          <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg p-6">
-            <h2 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100 mb-6">
-              🏆 Top Condotels
-            </h2>
-            {topCondotels.length > 0 ? (
-              <div className="space-y-4">
-                {topCondotels.slice(0, 5).map((condotel, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between p-4 border border-neutral-200 dark:border-neutral-700 rounded-lg hover:shadow-md transition-shadow"
-                  >
-                    <div className="flex items-center space-x-4">
-                      <div
-                        className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white ${
-                          index === 0
-                            ? "bg-yellow-500"
-                            : index === 1
-                            ? "bg-gray-400"
-                            : index === 2
-                            ? "bg-orange-600"
-                            : "bg-blue-500"
-                        }`}
-                      >
-                        {index + 1}
-                      </div>
-                      <div>
-                        <p className="font-medium text-neutral-900 dark:text-neutral-100">
-                          {condotel.condotelName}
-                        </p>
-                        <p className="text-sm text-neutral-500 dark:text-neutral-400">
-                          {condotel.bookingCount} bookings
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-semibold text-green-600 dark:text-green-400">
-                        {formatCurrency(condotel.totalRevenue)}
-                      </p>
-                    </div>
+                    <StatCard
+                      title="Tổng Condotels"
+                      value={overview.totalCondotels}
+                      icon={
+                        <svg
+                          className="w-6 h-6"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+                          />
+                        </svg>
+                      }
+                      color="bg-blue-500"
+                    />
+                    <StatCard
+                      title="Tổng Tenants"
+                      value={overview.totalTenants}
+                      icon={
+                        <svg
+                          className="w-6 h-6"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
+                          />
+                        </svg>
+                      }
+                      color="bg-green-500"
+                    />
+                    <StatCard
+                      title="Tổng Bookings"
+                      value={overview.totalBookings}
+                      icon={
+                        <svg
+                          className="w-6 h-6"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+                          />
+                        </svg>
+                      }
+                      color="bg-purple-500"
+                    />
+                    <StatCard
+                      title="Tổng Doanh Thu"
+                      value={formatCurrency(overview.totalRevenue)}
+                      icon={
+                        <svg
+                          className="w-6 h-6"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                          />
+                        </svg>
+                      }
+                      color="bg-orange-500"
+                    />
                   </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-neutral-500 dark:text-neutral-400">
-                Chưa có dữ liệu
-              </p>
-            )}
-          </div>
+                )}
 
-          {/* Tenant Analytics */}
-          <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg p-6">
-            <h2 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100 mb-6">
-              👥 Top Tenants
-            </h2>
-            {tenantAnalytics.length > 0 ? (
-              <div className="space-y-4">
-                {tenantAnalytics.slice(0, 5).map((tenant, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between p-4 border border-neutral-200 dark:border-neutral-700 rounded-lg hover:shadow-md transition-shadow"
-                  >
-                    <div className="flex items-center space-x-4">
-                      <div
-                        className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white ${
-                          index === 0
-                            ? "bg-blue-500"
-                            : index === 1
-                            ? "bg-green-500"
-                            : index === 2
-                            ? "bg-purple-500"
-                            : "bg-orange-500"
-                        }`}
-                      >
-                        {tenant.tenantName.substring(0, 2).toUpperCase()}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  {/* Top Condotels */}
+                  <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg p-6">
+                    <h2 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100 mb-6">
+                      🏆 Top Condotels
+                    </h2>
+                    {topCondotels.length > 0 ? (
+                      <div className="space-y-4">
+                        {topCondotels.slice(0, 5).map((condotel, index) => (
+                          <div
+                            key={index}
+                            className="flex items-center justify-between p-4 border border-neutral-200 dark:border-neutral-700 rounded-lg hover:shadow-md transition-shadow"
+                          >
+                            <div className="flex items-center space-x-4">
+                              <div
+                                className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white ${index === 0
+                                  ? "bg-yellow-500"
+                                  : index === 1
+                                    ? "bg-gray-400"
+                                    : index === 2
+                                      ? "bg-orange-600"
+                                      : "bg-blue-500"
+                                  }`}
+                              >
+                                {index + 1}
+                              </div>
+                              <div>
+                                <p className="font-medium text-neutral-900 dark:text-neutral-100">
+                                  {condotel.condotelName}
+                                </p>
+                                <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                                  {condotel.bookingCount} bookings
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-semibold text-green-600 dark:text-green-400">
+                                {formatCurrency(condotel.totalRevenue)}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                      <div>
-                        <p className="font-medium text-neutral-900 dark:text-neutral-100">
-                          {tenant.tenantName}
-                        </p>
-                        <p className="text-sm text-neutral-500 dark:text-neutral-400">
-                          {tenant.bookingCount} bookings
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-semibold text-green-600 dark:text-green-400">
-                        {formatCurrency(tenant.totalSpent)}
+                    ) : (
+                      <p className="text-neutral-500 dark:text-neutral-400">
+                        Chưa có dữ liệu
                       </p>
-                    </div>
+                    )}
                   </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-neutral-500 dark:text-neutral-400">
-                Chưa có dữ liệu
-              </p>
+
+                  {/* Tenant Analytics */}
+                  <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg p-6">
+                    <h2 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100 mb-6">
+                      👥 Top Tenants
+                    </h2>
+                    {tenantAnalytics.length > 0 ? (
+                      <div className="space-y-4">
+                        {tenantAnalytics.slice(0, 5).map((tenant, index) => (
+                          <div
+                            key={index}
+                            className="flex items-center justify-between p-4 border border-neutral-200 dark:border-neutral-700 rounded-lg hover:shadow-md transition-shadow"
+                          >
+                            <div className="flex items-center space-x-4">
+                              <div
+                                className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white ${index === 0
+                                  ? "bg-blue-500"
+                                  : index === 1
+                                    ? "bg-green-500"
+                                    : index === 2
+                                      ? "bg-purple-500"
+                                      : "bg-orange-500"
+                                  }`}
+                              >
+                                {tenant.tenantName.substring(0, 2).toUpperCase()}
+                              </div>
+                              <div>
+                                <p className="font-medium text-neutral-900 dark:text-neutral-100">
+                                  {tenant.tenantName}
+                                </p>
+                                <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                                  {tenant.bookingCount} bookings
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-semibold text-green-600 dark:text-green-400">
+                                {formatCurrency(tenant.totalSpent)}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-neutral-500 dark:text-neutral-400">
+                        Chưa có dữ liệu
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </>
             )}
-          </div>
-        </div>
-                </>
-              )}
           </>
         )}
       </div>
