@@ -38,17 +38,14 @@ const PageMyReviews: React.FC = () => {
   const [bookings, setBookings] = useState<Map<number, BookingDTO>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
 
   useEffect(() => {
     const loadReviews = async () => {
       try {
         setLoading(true);
         setError("");
-        const response = await reviewAPI.getMyReviews({ page, pageSize: 10 });
+        const response = await reviewAPI.getMyReviews();
         setReviews(response.data || []);
-        setTotalPages(response.pagination?.totalPages || 1);
 
         // Load booking info for each review
         const bookingIds = response.data?.map((r) => r.bookingId).filter(Boolean) || [];
@@ -73,7 +70,7 @@ const PageMyReviews: React.FC = () => {
     };
 
     loadReviews();
-  }, [page]);
+  }, []);
 
   const handleDelete = async (reviewId: number) => {
     if (!window.confirm("Bạn có chắc chắn muốn xóa đánh giá này?")) {
@@ -222,26 +219,10 @@ const PageMyReviews: React.FC = () => {
           </div>
         )}
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="mt-8 flex justify-center gap-2">
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-              className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-            >
-              Trước
-            </button>
-            <span className="px-4 py-2 text-gray-700">
-              Trang {page} / {totalPages}
-            </span>
-            <button
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
-              className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-            >
-              Sau
-            </button>
+        {/* Review count */}
+        {reviews.length > 0 && (
+          <div className="mt-8 text-center text-gray-600">
+            Tổng cộng {reviews.length} đánh giá
           </div>
         )}
       </div>

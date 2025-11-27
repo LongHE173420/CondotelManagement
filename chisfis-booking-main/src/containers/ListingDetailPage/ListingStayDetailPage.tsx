@@ -157,17 +157,11 @@ const ListingStayDetailPage: FC = () => {
       );
 
       if (completedBooking) {
-        // Kiểm tra xem booking này đã có review chưa
-        // Backend sẽ kiểm tra: user là customer của booking, booking completed, chưa review
-        const canReviewRes = await reviewAPI.canReviewBooking(completedBooking.bookingId);
-        if (canReviewRes.canReview) {
-          setCanWriteReview(true);
-          setReviewableBookingId(completedBooking.bookingId);
-        } else {
-          // Nếu không thể review (đã review rồi hoặc lý do khác), không hiển thị nút
-          setCanWriteReview(false);
-          setReviewableBookingId(null);
-        }
+        // Backend đã xóa endpoint can-review, logic kiểm tra được tích hợp vào CreateReview
+        // Ở đây chỉ cần kiểm tra booking status là "Completed"
+        // Nếu đã review rồi, backend sẽ trả về lỗi khi submit review
+        setCanWriteReview(true);
+        setReviewableBookingId(completedBooking.bookingId);
       } else {
         // Không có booking completed cho condotel này
         setCanWriteReview(false);

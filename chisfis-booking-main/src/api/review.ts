@@ -44,12 +44,13 @@ export interface ReviewResponse {
 export interface ReviewListResponse {
   success: boolean;
   data: ReviewDTO[];
-  pagination: {
+  pagination?: {
     page: number;
     pageSize: number;
     totalCount: number;
     totalPages: number;
   };
+  count?: number; // Backend mới trả về count thay vì pagination
 }
 
 export interface CanReviewResponse {
@@ -99,14 +100,9 @@ export const reviewAPI = {
   },
 
   // GET /api/tenant/reviews - Lấy danh sách review của tôi
-  getMyReviews: async (query?: ReviewQueryDTO): Promise<ReviewListResponse> => {
-    const params: any = {};
-    if (query?.page) params.page = query.page;
-    if (query?.pageSize) params.pageSize = query.pageSize;
-    if (query?.rating) params.rating = query.rating;
-    if (query?.sortBy) params.sortBy = query.sortBy;
-
-    const response = await axiosClient.get<any>("/tenant/reviews", { params });
+  // Backend mới không nhận query params và không trả về pagination
+  getMyReviews: async (): Promise<ReviewListResponse> => {
+    const response = await axiosClient.get<any>("/tenant/reviews");
     const data = response.data;
 
     // Normalize response
@@ -121,14 +117,9 @@ export const reviewAPI = {
     }));
 
     return {
-      success: data.success || true,
+      success: data.success !== undefined ? data.success : true,
       data: reviews,
-      pagination: data.pagination || {
-        page: query?.page || 1,
-        pageSize: query?.pageSize || 10,
-        totalCount: data.pagination?.totalCount || 0,
-        totalPages: data.pagination?.totalPages || 0,
-      },
+      count: data.count || reviews.length,
     };
   },
 
@@ -185,11 +176,17 @@ export const reviewAPI = {
   },
 
   // GET /api/tenant/reviews/can-review/{bookingId} - Kiểm tra có thể review booking không
+  // NOTE: Endpoint này đã bị xóa ở backend, logic kiểm tra được tích hợp vào CreateReview
+  // Giữ lại function này để tương thích với code cũ, nhưng sẽ luôn trả về true
+  // Logic kiểm tra thực tế sẽ được thực hiện khi gọi createReview
   canReviewBooking: async (bookingId: number): Promise<CanReviewResponse> => {
-    const response = await axiosClient.get<CanReviewResponse>(
-      `/tenant/reviews/can-review/${bookingId}`
-    );
-    return response.data;
+    // Backend đã xóa endpoint này, logic kiểm tra được tích hợp vào CreateReview
+    // Trả về true để UI có thể hiển thị nút review
+    // Nếu không thể review, backend sẽ trả về lỗi khi gọi createReview
+    return {
+      canReview: true,
+      message: "Có thể đánh giá",
+    };
   },
 
   // GET /api/tenant/reviews/condotel/{condotelId} - Lấy tất cả reviews của một condotel (public)

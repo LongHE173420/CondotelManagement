@@ -6,6 +6,8 @@ import { useAuth } from "contexts/AuthContext";
 import condotelAPI, { CreateCondotelDTO } from "api/condotel";
 import locationAPI from "api/location";
 import resortAPI, { ResortDTO } from "api/resort";
+import amenityAPI, { AmenityDTO } from "api/amenity";
+import utilityAPI, { UtilityDTO } from "api/utility";
 import uploadAPI from "api/upload";
 import Input from "shared/Input/Input";
 import Select from "shared/Select/Select";
@@ -38,26 +40,19 @@ const PageAddListingSimple: FC = () => {
   const [description, setDescription] = useState(formData.description || "");
   const [status, setStatus] = useState(formData.status || "Pending");
 
-  // Location - chọn từ API
-  const [locations, setLocations] = useState<Array<{ locationId: number; locationName: string; address: string; city?: string; country?: string }>>([]);
-  const [selectedLocationId, setSelectedLocationId] = useState<number | undefined>(formData.locationId as number | undefined);
-  const [loadingLocations, setLoadingLocations] = useState(false);
+  // Location - tự động lấy từ resort (không cần chọn)
+  // Location sẽ được lấy tự động từ resort khi có resortId
 
   // Details
   const [beds, setBeds] = useState<number>(formData.beds ? Number(formData.beds) : 1);
   const [bathrooms, setBathrooms] = useState<number>(formData.bathrooms ? Number(formData.bathrooms) : 1);
   const [pricePerNight, setPricePerNight] = useState<number>(formData.pricePerNight ? Number(formData.pricePerNight) : 0);
 
-  // Amenities & Utilities
-  const demoAmenities = [
-    { amenityId: 1, name: "Pool" },
-    { amenityId: 2, name: "Wifi" },
-    { amenityId: 3, name: "Breakfast" },
-  ];
-  const demoUtilities = [
-    { utilityId: 10, name: "Parking" },
-    { utilityId: 11, name: "Gym" },
-  ];
+  // Amenities & Utilities - Load từ API
+  const [amenities, setAmenities] = useState<AmenityDTO[]>([]);
+  const [utilities, setUtilities] = useState<UtilityDTO[]>([]);
+  const [loadingAmenities, setLoadingAmenities] = useState(false);
+  const [loadingUtilities, setLoadingUtilities] = useState(false);
   const [amenityIds, setAmenityIds] = useState<number[]>(formData.amenityIds || []);
   const [utilityIds, setUtilityIds] = useState<number[]>(formData.utilityIds || []);
 
@@ -96,21 +91,26 @@ const PageAddListingSimple: FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Load locations từ API
+  // Tự động lấy locationId từ resort khi có resortId
   useEffect(() => {
-    const fetchLocations = async () => {
-      setLoadingLocations(true);
-      try {
-        const locationsData = await locationAPI.getAll();
-        setLocations(locationsData);
-      } catch (err) {
-        console.error("Error loading locations:", err);
-      } finally {
-        setLoadingLocations(false);
+    const loadLocationFromResort = async () => {
+      if (resortId) {
+        try {
+          const resort = await resortAPI.getById(resortId);
+          if (resort.locationId) {
+            // Tự động set locationId từ resort vào formData
+            setFormData((prev: Record<string, any>) => ({
+              ...prev,
+              locationId: resort.locationId,
+            }));
+          }
+        } catch (err) {
+          console.error("Error loading location from resort:", err);
+        }
       }
     };
-    fetchLocations();
-  }, []);
+    loadLocationFromResort();
+  }, [resortId]);
 
   // Load resorts từ API
   useEffect(() => {
@@ -129,6 +129,40 @@ const PageAddListingSimple: FC = () => {
     fetchResorts();
   }, []);
 
+  // Load amenities từ API
+  useEffect(() => {
+    const fetchAmenities = async () => {
+      setLoadingAmenities(true);
+      try {
+        const amenitiesData = await amenityAPI.getAll();
+        setAmenities(amenitiesData);
+      } catch (err) {
+        console.error("Error loading amenities:", err);
+        setAmenities([]);
+      } finally {
+        setLoadingAmenities(false);
+      }
+    };
+    fetchAmenities();
+  }, []);
+
+  // Load utilities từ API
+  useEffect(() => {
+    const fetchUtilities = async () => {
+      setLoadingUtilities(true);
+      try {
+        const utilitiesData = await utilityAPI.getAll();
+        setUtilities(utilitiesData);
+      } catch (err) {
+        console.error("Error loading utilities:", err);
+        setUtilities([]);
+      } finally {
+        setLoadingUtilities(false);
+      }
+    };
+    fetchUtilities();
+  }, []);
+
   // Sync formData
   // Check if user is Host
   useEffect(() => {
@@ -143,7 +177,6 @@ const PageAddListingSimple: FC = () => {
       name,
       description,
       status,
-      locationId: selectedLocationId,
       beds,
       bathrooms,
       pricePerNight,
@@ -158,7 +191,6 @@ const PageAddListingSimple: FC = () => {
     name,
     description,
     status,
-    selectedLocationId,
     beds,
     bathrooms,
     pricePerNight,
@@ -349,9 +381,10 @@ const PageAddListingSimple: FC = () => {
 
     setLoading(true);
     try {
-      // Validate location
-      if (!selectedLocationId) {
-        setError("Vui lòng chọn địa điểm!");
+      // Validate location - lấy từ resort
+      const finalLocationId = formData.locationId;
+      if (!finalLocationId) {
+        setError("Không tìm thấy địa điểm từ resort. Vui lòng chọn resort có địa điểm!");
         setLoading(false);
         return;
       }
@@ -487,50 +520,28 @@ const PageAddListingSimple: FC = () => {
               </FormItem>
             </div>
 
-            {/* Location */}
-            <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg p-6 space-y-6">
-              <h2 className="text-xl font-semibold mb-4">Địa điểm</h2>
-
-              <FormItem label="Chọn địa điểm *">
-                {loadingLocations ? (
-                  <div className="flex items-center space-x-2">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary-600"></div>
-                    <span className="text-sm text-neutral-500">Đang tải danh sách địa điểm...</span>
-                  </div>
-                ) : (
-                  <Select
-                    value={selectedLocationId || ""}
-                    onChange={(e) => setSelectedLocationId(e.target.value ? Number(e.target.value) : undefined)}
-                    required
-                  >
-                    <option value="">-- Chọn địa điểm --</option>
-                    {locations.map((location) => (
-                      <option key={location.locationId} value={location.locationId}>
-                        {location.locationName} - {location.address}
-                        {location.city && `, ${location.city}`}
-                        {location.country && `, ${location.country}`}
-                      </option>
-                    ))}
-                  </Select>
-                )}
-                <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
-                  Chọn địa điểm từ danh sách có sẵn
-                </p>
-              </FormItem>
-
-              {selectedLocationId && (() => {
-                const selectedLocation = locations.find(l => l.locationId === selectedLocationId);
-                return selectedLocation ? (
-                  <div className="p-4 bg-neutral-100 dark:bg-neutral-700 rounded-lg">
-                    <h3 className="font-semibold mb-2">Thông tin địa điểm đã chọn:</h3>
-                    <p className="text-sm"><strong>Tên:</strong> {selectedLocation.locationName}</p>
-                    <p className="text-sm"><strong>Địa chỉ:</strong> {selectedLocation.address}</p>
-                    {selectedLocation.city && <p className="text-sm"><strong>Thành phố:</strong> {selectedLocation.city}</p>}
-                    {selectedLocation.country && <p className="text-sm"><strong>Quốc gia:</strong> {selectedLocation.country}</p>}
-                  </div>
-                ) : null;
-              })()}
-            </div>
+            {/* Location - Tự động lấy từ resort */}
+            {formData.locationId && (
+              <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg p-6 space-y-6">
+                <h2 className="text-xl font-semibold mb-4">Địa điểm</h2>
+                <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                  <p className="text-sm text-green-800 dark:text-green-200 mb-2">
+                    ✅ Địa điểm đã được tự động lấy từ resort đã chọn.
+                  </p>
+                  {resortId && (() => {
+                    const selectedResort = resorts.find(r => r.resortId === resortId);
+                    return selectedResort ? (
+                      <div className="text-sm">
+                        <p><strong>Resort:</strong> {selectedResort.name}</p>
+                        {selectedResort.address && <p><strong>Địa chỉ:</strong> {selectedResort.address}</p>}
+                        {selectedResort.city && <p><strong>Thành phố:</strong> {selectedResort.city}</p>}
+                        {selectedResort.country && <p><strong>Quốc gia:</strong> {selectedResort.country}</p>}
+                      </div>
+                    ) : null;
+                  })()}
+                </div>
+              </div>
+            )}
 
             {/* Details */}
             <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg p-6 space-y-6">
@@ -573,36 +584,58 @@ const PageAddListingSimple: FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium mb-2">Tiện ích</label>
-                  <div className="space-y-2">
-                    {demoAmenities.map((a) => (
-                      <label key={a.amenityId} className="flex items-center space-x-2">
-                        <input
-                          type="checkbox"
-                          checked={amenityIds.includes(a.amenityId)}
-                          onChange={() => handleToggleAmenity(a.amenityId)}
-                          className="rounded border-neutral-300 text-primary-600"
-                        />
-                        <span>{a.name}</span>
-                      </label>
-                    ))}
-                  </div>
+                  {loadingAmenities ? (
+                    <div className="flex items-center space-x-2">
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary-600"></div>
+                      <span className="text-sm text-neutral-500">Đang tải danh sách tiện ích...</span>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {amenities.length > 0 ? (
+                        amenities.map((a) => (
+                          <label key={a.amenityId} className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              checked={amenityIds.includes(a.amenityId)}
+                              onChange={() => handleToggleAmenity(a.amenityId)}
+                              className="rounded border-neutral-300 text-primary-600"
+                            />
+                            <span>{a.name}</span>
+                          </label>
+                        ))
+                      ) : (
+                        <p className="text-sm text-neutral-500">Không có tiện ích nào</p>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium mb-2">Tiện nghi</label>
-                  <div className="space-y-2">
-                    {demoUtilities.map((u) => (
-                      <label key={u.utilityId} className="flex items-center space-x-2">
-                        <input
-                          type="checkbox"
-                          checked={utilityIds.includes(u.utilityId)}
-                          onChange={() => handleToggleUtility(u.utilityId)}
-                          className="rounded border-neutral-300 text-primary-600"
-                        />
-                        <span>{u.name}</span>
-                      </label>
-                    ))}
-                  </div>
+                  {loadingUtilities ? (
+                    <div className="flex items-center space-x-2">
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary-600"></div>
+                      <span className="text-sm text-neutral-500">Đang tải danh sách tiện nghi...</span>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {utilities.length > 0 ? (
+                        utilities.map((u) => (
+                          <label key={u.utilityId} className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              checked={utilityIds.includes(u.utilityId)}
+                              onChange={() => handleToggleUtility(u.utilityId)}
+                              className="rounded border-neutral-300 text-primary-600"
+                            />
+                            <span>{u.name}</span>
+                          </label>
+                        ))
+                      ) : (
+                        <p className="text-sm text-neutral-500">Không có tiện nghi nào</p>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

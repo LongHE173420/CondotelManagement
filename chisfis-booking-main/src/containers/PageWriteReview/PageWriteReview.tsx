@@ -77,13 +77,10 @@ const PageWriteReview = () => {
           return;
         }
 
-        // Check if can review (backend sẽ kiểm tra: user là customer, booking completed, chưa review)
-        const canReviewRes = await reviewAPI.canReviewBooking(parseInt(id));
-        setCanReview(canReviewRes.canReview);
-        
-        if (!canReviewRes.canReview) {
-          setError(canReviewRes.message || "Bạn không thể đánh giá đơn đặt phòng này.");
-        }
+        // Backend đã xóa endpoint can-review, logic kiểm tra được tích hợp vào CreateReview
+        // Ở đây chỉ cần kiểm tra booking status là "Completed"
+        // Nếu đã review rồi hoặc không đủ điều kiện, backend sẽ trả về lỗi khi submit review
+        setCanReview(true);
       } catch (err: any) {
         console.error("Error checking can review:", err);
         setError("Không thể kiểm tra quyền đánh giá. Vui lòng thử lại sau.");
@@ -133,17 +130,9 @@ const PageWriteReview = () => {
       const message = err.response?.data?.message || err.response?.data?.error || "Không thể gửi đánh giá. Vui lòng thử lại sau.";
       setError(message);
       
-      // Nếu lỗi là do không đủ điều kiện, refresh lại canReview check
+      // Nếu lỗi là do không đủ điều kiện (400), có thể là đã review rồi hoặc không phải customer
       if (err.response?.status === 400) {
-        try {
-          const canReviewRes = await reviewAPI.canReviewBooking(parseInt(id));
-          setCanReview(canReviewRes.canReview);
-          if (!canReviewRes.canReview) {
-            setError(canReviewRes.message || message);
-          }
-        } catch (checkErr) {
-          console.error("Error re-checking can review:", checkErr);
-        }
+        setCanReview(false);
       }
     } finally {
       setLoading(false);

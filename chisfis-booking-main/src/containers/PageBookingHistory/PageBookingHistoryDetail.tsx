@@ -103,20 +103,12 @@ const PageBookingHistoryDetail = () => {
         }
 
         // Check if can review - CHỈ cho phép khi booking status là "Completed"
-        // Backend sẽ kiểm tra: user phải là customer của booking, booking phải completed, chưa review trước đó
+        // Backend đã xóa endpoint can-review, logic kiểm tra được tích hợp vào CreateReview
+        // Ở đây chỉ cần kiểm tra booking status là "Completed"
+        // Nếu đã review rồi, backend sẽ trả về lỗi khi submit review
         const bookingStatus = bookingData.status?.toLowerCase();
         if (bookingStatus === "completed") {
-          try {
-            const canReviewRes = await reviewAPI.canReviewBooking(bookingData.bookingId);
-            setCanReview(canReviewRes.canReview);
-            if (!canReviewRes.canReview) {
-              console.log("Cannot review:", canReviewRes.message);
-            }
-          } catch (err: any) {
-            console.error("Error checking can review:", err);
-            // Nếu lỗi, mặc định là không thể review
-            setCanReview(false);
-          }
+          setCanReview(true);
         } else {
           // Nếu booking chưa completed, không thể review
           // Chỉ booking với status "Completed" mới được phép review

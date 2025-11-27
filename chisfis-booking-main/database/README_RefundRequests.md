@@ -203,3 +203,6 @@ GROUP BY Status;
 4. **PaymentMethod chỉ có thể là**: Auto, Manual, hoặc NULL
 5. Khi xóa booking, refund request sẽ tự động bị xóa (CASCADE DELETE)
 
+
+
+
