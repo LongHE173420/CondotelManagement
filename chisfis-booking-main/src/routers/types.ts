@@ -85,6 +85,7 @@ export interface LocationStates {
   "/admin/refunds"?: {};
   "/refund-policy"?: {};
   "/admin/payouts"?: {};
+  "/chat"?: {};
 }
 
 export type PathName = keyof LocationStates;

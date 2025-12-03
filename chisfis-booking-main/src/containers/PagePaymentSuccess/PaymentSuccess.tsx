@@ -25,26 +25,39 @@ const PaymentSuccess: React.FC = () => {
             console.log("Gọi API confirm-payment với OrderCode:", orderCode);
 
             axiosClient
+                // Bỏ /api nếu axiosClient đã config baseURL
                 .get(`/Package/confirm-payment?orderCode=${orderCode}`)
                 .then((res) => {
-                    console.log("API thành công:", res.data); // ← res.data mới chứa message
+                    console.log("API thành công:", res.data);
                     setStatus('success');
 
-                    // ← SỬA 2 DÒNG DUY NHẤT TẠI ĐÂY
                     const message = (res.data as any)?.message || "THANH TOÁN THÀNH CÔNG! BẠN ĐÃ LÊN HOST!";
                     toast.success(message);
 
+                    // === SỬA ĐOẠN NÀY ĐỂ BẮT ĐĂNG NHẬP LẠI ===
+                    toast.info("Vui lòng đăng nhập lại để cập nhật quyền hạn mới!", { autoClose: 3000 });
+
                     setTimeout(() => {
-                        navigate("/host-dashboard");
+                        // 1. Xóa Token cũ (Thay 'accessToken' bằng key bạn đang dùng)
+                        localStorage.removeItem("accessToken");
+                        localStorage.removeItem("user");
+                        // Nếu dùng Cookie thì xóa cookie tại đây
+
+                        // 2. Chuyển hướng về trang Login
+                        navigate("/login");
                     }, 3000);
+                    // ===========================================
                 })
                 .catch((err) => {
                     console.error("Lỗi API confirm-payment:", err.response?.data || err);
                     setStatus('error');
-                    toast.warning("Giao dịch đã hoàn tất, đang cập nhật quyền Host...");
+                    toast.warning("Giao dịch hoàn tất, vui lòng đăng nhập lại để kiểm tra quyền Host.");
 
                     setTimeout(() => {
-                        navigate("/host-dashboard");
+                        // Trường hợp lỗi nhưng có thể backend đã active, cũng cho logout để chắc chắn
+                        localStorage.removeItem("accessToken");
+                        localStorage.removeItem("user");
+                        navigate("/login");
                     }, 4000);
                 });
         } else {
@@ -78,9 +91,9 @@ const PaymentSuccess: React.FC = () => {
                             BẠN ĐÃ LÊN HOST!
                         </h1>
                         <p className="text-gray-700 text-xl mb-6">
-                            Chúc mừng! Bạn có thể đăng tin Condotel ngay bây giờ!
+                            Vui lòng đăng nhập lại để hệ thống cập nhật quyền hạn mới.
                         </p>
-                        <div className="text-6xl animate-bounce">Party</div>
+                        <div className="text-6xl animate-bounce">👋</div>
                     </>
                 )}
 
@@ -95,7 +108,7 @@ const PaymentSuccess: React.FC = () => {
                             Đang xử lý...
                         </h1>
                         <p className="text-gray-700">
-                            Thanh toán thành công! Quyền Host sẽ được cập nhật trong giây lát.
+                            Hệ thống cần bạn đăng nhập lại để làm mới dữ liệu.
                         </p>
                     </>
                 )}

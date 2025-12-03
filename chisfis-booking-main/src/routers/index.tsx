@@ -23,7 +23,7 @@ import AccountBilling from "containers/AccountPage/AccountBilling";
 import AccountRewards from "containers/AccountPage/AccountRewards";
 import AccountVouchers from "containers/AccountPage/AccountVouchers";
 import AdminPage from "containers/AdminPage/AdminPage";
-import ProtectedRoute from "components/ProtectedRoute/ProtectedRoute"; 
+import ProtectedRoute from "components/ProtectedRoute/ProtectedRoute";
 import PageContact from "containers/PageContact/PageContact";
 import PageAbout from "containers/PageAbout/PageAbout";
 import PageSignUp from "containers/PageSignUp/PageSignUp";
@@ -68,11 +68,14 @@ import PageLocationEdit from "containers/PageManageLocations/PageLocationEdit";
 import BecomeAHostPage from "containers/BecomeAHostPage/BecomeAHostPage";
 import PricingPage from "containers/PagePricing/PricingPage";
 import PaymentSuccess from "containers/PagePaymentSuccess/PaymentSuccess";
+import AdminPackagesPage from "containers/PageAdminPackages/AdminPackagesPage";
+import ChatButtonFloating from "components/ChatButtonFloating/ChatButtonFloating";
 
 // --- Imports được thêm từ code cũ (Refund & Payout) ---
 import PageAdminRefund from "containers/PageAdminRefund/PageAdminRefund";
 import PageRefundPolicy from "containers/PageRefundPolicy/PageRefundPolicy";
 import PageAdminPayout from "containers/PageAdminOwnerManagement/PageAdminPayout";
+import PageChat from "containers/ChatPage/PageChat";
 
 export const pages: Page[] = [
   { path: "/", exact: true, component: PageHome },
@@ -158,7 +161,8 @@ export const pages: Page[] = [
   { path: "/manage-locations/edit/:id", component: PageLocationEdit },
   //
   { path: "/become-a-host", component: BecomeAHostPage },
-  
+  { path: "/chat", component: PageChat },
+
   // --- Các routes được bổ sung từ code cũ ---
   { path: "/refund-policy", component: PageRefundPolicy },
   { path: "/admin/refunds", component: PageAdminRefund },
@@ -223,6 +227,16 @@ const MyRoutes = () => {
               } />
             );
           }
+          // Bảo vệ trang chat - chỉ user đã login mới vào được
+          if (path === "/chat") {
+            return (
+              <Route key={path} path={path} element={
+                <ProtectedRoute requireAuth={true}>
+                  <PageChat />
+                </ProtectedRoute>
+              } />
+            );
+          }
 
           // Skip add-listing routes (đã được handle ở trên)
           if (path && (path.startsWith("/add-listing") || path.startsWith("/add-condotel"))) {
@@ -247,6 +261,8 @@ const MyRoutes = () => {
 
       {WIN_WIDTH < 768 && <FooterNav />}
       <Footer />
+      {/* NÚT CHAT NỔI - HIỆN Ở MỌI TRANG */}
+      <ChatButtonFloating />
     </BrowserRouter>
   );
 };
