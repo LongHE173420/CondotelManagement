@@ -118,35 +118,37 @@ export const adminAPI = {
     return response.data;
   },
 
-  // ========== ADMIN REFUND APIs ==========
-  // GET /api/admin/refunds - Lấy danh sách yêu cầu hoàn tiền với filter
+  // ========== REFUND REQUESTS APIs ==========
+  // GET /api/admin/refund-requests - Lấy danh sách yêu cầu hoàn tiền
   getRefundRequests: async (params?: {
-    searchTerm?: string;
     status?: string;
+    searchTerm?: string;
     startDate?: string;
     endDate?: string;
-  }): Promise<{ data: any[]; total?: number }> => {
-    const response = await axiosClient.get<any>("/admin/refunds", { params });
-    // Backend trả về { success: true, data: [...], total: number }
-    const responseData = response.data;
-    return {
-      data: responseData.data || responseData || [],
-      total: responseData.total,
-    };
+  }): Promise<{ data: any[] }> => {
+    const response = await axiosClient.get<any>("/admin/refund-requests", { params });
+    return response.data;
   },
 
-  // POST /api/admin/bookings/{bookingId}/refund - Admin hoàn tiền tự động qua Cas Transfer API
-  refundBooking: async (bookingId: number, reason?: string): Promise<any> => {
-    const response = await axiosClient.post<any>(
-      `/admin/bookings/${bookingId}/refund`,
-      reason ? { Reason: reason } : null
+  // POST /api/admin/refund-requests/{bookingId}/refund - Hoàn tiền tự động
+  refundBooking: async (
+    bookingId: number,
+    reason?: string
+  ): Promise<{ success: boolean; message: string }> => {
+    const response = await axiosClient.post<{ success: boolean; message: string }>(
+      `/admin/refund-requests/${bookingId}/refund`,
+      reason ? { reason } : {}
     );
     return response.data;
   },
 
-  // POST /api/admin/refunds/{bookingId}/confirm - Xác nhận đã chuyển tiền thủ công
-  confirmRefundManually: async (bookingId: number): Promise<any> => {
-    const response = await axiosClient.post<any>(`/admin/refunds/${bookingId}/confirm`);
+  // POST /api/admin/refund-requests/{bookingId}/confirm-manual - Xác nhận hoàn tiền thủ công
+  confirmRefundManually: async (
+    bookingId: number
+  ): Promise<{ success: boolean; message: string }> => {
+    const response = await axiosClient.post<{ success: boolean; message: string }>(
+      `/admin/refund-requests/${bookingId}/confirm-manual`
+    );
     return response.data;
   },
 };

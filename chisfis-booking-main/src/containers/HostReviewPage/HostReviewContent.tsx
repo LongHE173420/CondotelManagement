@@ -188,21 +188,21 @@ const HostReviewContent: React.FC = () => {
               <div className="flex justify-between items-start mb-4">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
-                    {review.customerImageUrl ? (
+                    {(review.userImageUrl || review.customerImageUrl) ? (
                       <img
-                        src={review.customerImageUrl}
-                        alt={review.customerName || "Customer"}
-                        className="w-10 h-10 rounded-full"
+                        src={review.userImageUrl || review.customerImageUrl}
+                        alt={review.userName || review.customerName || "Customer"}
+                        className="w-10 h-10 rounded-full object-cover"
                       />
                     ) : (
                       <div className="w-10 h-10 rounded-full bg-primary-500 flex items-center justify-center text-white font-semibold">
-                        {(review.customerName || "C").charAt(0).toUpperCase()}
+                        {(review.userName || review.customerName || "C").charAt(0).toUpperCase()}
                       </div>
                     )}
                     <div className="flex-1">
                       <div className="flex items-center gap-3">
                         <span className="font-medium text-neutral-900 dark:text-neutral-100">
-                          {review.customerName || "Khách hàng"}
+                          {review.userName || review.customerName || "Khách hàng"}
                         </span>
                         <StartRating
                           point={review.rating}
@@ -228,7 +228,21 @@ const HostReviewContent: React.FC = () => {
                     </p>
                   )}
 
-                  <div className="text-sm text-neutral-500 dark:text-neutral-400">
+                  {/* Hiển thị reply nếu có */}
+                  {review.reply && (
+                    <div className="mt-4 p-4 bg-primary-50 dark:bg-primary-900/20 border-l-4 border-primary-500 rounded-r-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-sm font-semibold text-primary-700 dark:text-primary-300">
+                          Phản hồi từ Host:
+                        </span>
+                      </div>
+                      <p className="text-neutral-700 dark:text-neutral-300">
+                        {review.reply}
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="text-sm text-neutral-500 dark:text-neutral-400 mt-3">
                     Booking ID: {review.bookingId}
                   </div>
                 </div>
@@ -268,15 +282,28 @@ const HostReviewContent: React.FC = () => {
                 </div>
               ) : (
                 <div className="mt-4 flex gap-2">
-                  <ButtonPrimary
-                    onClick={() => {
-                      setReplyingId(review.reviewId!);
-                      setReplyText("");
-                    }}
-                    className="text-sm"
-                  >
-                    Trả lời
-                  </ButtonPrimary>
+                  {!review.reply && (
+                    <ButtonPrimary
+                      onClick={() => {
+                        setReplyingId(review.reviewId!);
+                        setReplyText("");
+                      }}
+                      className="text-sm"
+                    >
+                      Trả lời
+                    </ButtonPrimary>
+                  )}
+                  {review.reply && (
+                    <ButtonPrimary
+                      onClick={() => {
+                        setReplyingId(review.reviewId!);
+                        setReplyText(review.reply || "");
+                      }}
+                      className="text-sm"
+                    >
+                      Sửa trả lời
+                    </ButtonPrimary>
+                  )}
                   <ButtonSecondary
                     onClick={() => handleReport(review.reviewId!)}
                     disabled={reportingId === review.reviewId}

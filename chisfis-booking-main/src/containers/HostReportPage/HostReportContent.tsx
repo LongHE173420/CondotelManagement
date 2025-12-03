@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "contexts/AuthContext";
 import reportAPI, { HostReportDTO } from "api/report";
+import RevenueChart from "components/RevenueChart/RevenueChart";
 
 // StatCard Component
 interface StatCardProps {
@@ -37,6 +38,9 @@ const HostReportContent: React.FC = () => {
   const [error, setError] = useState("");
   const [dateFrom, setDateFrom] = useState<string>("");
   const [dateTo, setDateTo] = useState<string>("");
+  const [chartYear, setChartYear] = useState<number | undefined>(new Date().getFullYear());
+  const [chartMonth, setChartMonth] = useState<number | undefined>(undefined);
+  const [chartType, setChartType] = useState<"line" | "bar">("line");
 
   useEffect(() => {
     // Check if user is Host
@@ -222,6 +226,76 @@ const HostReportContent: React.FC = () => {
 
       {report && (
         <>
+          {/* Revenue Chart Section */}
+          <div className="mb-6">
+            <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg p-6 mb-4">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                      Năm
+                    </label>
+                    <select
+                      value={chartYear || ""}
+                      onChange={(e) => {
+                        const year = e.target.value ? parseInt(e.target.value) : undefined;
+                        setChartYear(year);
+                        // Reset month when year changes
+                        if (year) {
+                          setChartMonth(undefined);
+                        }
+                      }}
+                      className="px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-neutral-700 dark:text-neutral-100"
+                    >
+                      <option value="">Tất cả</option>
+                      {Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i).map((year) => (
+                        <option key={year} value={year}>
+                          {year}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {chartYear && (
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                        Tháng
+                      </label>
+                      <select
+                        value={chartMonth || ""}
+                        onChange={(e) => {
+                          const month = e.target.value ? parseInt(e.target.value) : undefined;
+                          setChartMonth(month);
+                        }}
+                        className="px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-neutral-700 dark:text-neutral-100"
+                      >
+                        <option value="">Tất cả tháng</option>
+                        {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => (
+                          <option key={month} value={month}>
+                            Tháng {month}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                      Loại biểu đồ
+                    </label>
+                    <select
+                      value={chartType}
+                      onChange={(e) => setChartType(e.target.value as "line" | "bar")}
+                      className="px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-neutral-700 dark:text-neutral-100"
+                    >
+                      <option value="line">Đường</option>
+                      <option value="bar">Cột</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <RevenueChart year={chartYear} month={chartMonth} chartType={chartType} />
+          </div>
+
           {/* Overview Stats */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
             <StatCard

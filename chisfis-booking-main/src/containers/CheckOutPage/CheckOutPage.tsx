@@ -20,7 +20,7 @@ import { GuestsObject } from "components/HeroSearchForm2Mobile/GuestsInput";
 import { useAuth } from "contexts/AuthContext";
 import bookingAPI, { CreateBookingDTO } from "api/booking";
 import paymentAPI from "api/payment";
-import condotelAPI from "api/condotel";
+import condotelAPI, { PromotionDTO } from "api/condotel";
 
 export interface CheckOutPageProps {
   className?: string;
@@ -46,6 +46,9 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [bookingId, setBookingId] = useState<number | null>(null);
+  const [promotions, setPromotions] = useState<PromotionDTO[]>([]);
+  const [selectedPromotionId, setSelectedPromotionId] = useState<number | null>(null);
+  const [condotelDetail, setCondotelDetail] = useState<any>(null);
 
   // Initialize dates from state or default
   const [rangeDates, setRangeDates] = useState<DateRage>(() => {
@@ -70,6 +73,15 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
     };
   });
 
+  // Initialize selected promotion from state (if passed from detail page)
+  useEffect(() => {
+    if (state && (state as any).activePromotionId) {
+      const promotionId = (state as any).activePromotionId;
+      console.log("🎁 Pre-selecting promotion from state:", promotionId);
+      setSelectedPromotionId(promotionId);
+    }
+  }, [state]);
+
   // Redirect if no state (user came directly to checkout without selecting condotel)
   useEffect(() => {
     if (!state || !state.condotelId) {
@@ -77,6 +89,169 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
       // navigate("/listing-stay");
     }
   }, [state, navigate]);
+
+  // Load condotel detail and promotions
+  useEffect(() => {
+    const loadCondotelDetail = async () => {
+      if (!state?.condotelId) return;
+      
+      try {
+        console.log("🔄 Loading condotel detail for promotions...");
+        const detail = await condotelAPI.getById(state.condotelId);
+        setCondotelDetail(detail);
+        
+        console.log("📦 Condotel detail loaded:", detail);
+        console.log("🎁 Promotions from detail:", detail.promotions);
+        console.log("🎁 ActivePromotion from detail:", detail.activePromotion);
+        
+        // Load promotions from condotel detail
+        let loadedPromotions: PromotionDTO[] = [];
+        
+        if (detail.promotions && Array.isArray(detail.promotions)) {
+          loadedPromotions = detail.promotions;
+          console.log("✅ Loaded promotions from detail.promotions:", loadedPromotions.length);
+        }
+        
+        // Also check activePromotion (single promotion)
+        if (detail.activePromotion) {
+          // Check if it's not already in the list
+          const exists = loadedPromotions.some(p => p.promotionId === detail.activePromotion?.promotionId);
+          if (!exists) {
+            loadedPromotions.push(detail.activePromotion);
+            console.log("✅ Added activePromotion to list");
+          }
+        }
+        
+        setPromotions(loadedPromotions);
+        console.log("🎁 Final promotions list:", loadedPromotions);
+        
+        // Auto-select promotion if passed from detail page
+        if (state && (state as any).activePromotionId) {
+          const promotionId = (state as any).activePromotionId;
+          const promotionExists = loadedPromotions.some(p => p.promotionId === promotionId);
+          if (promotionExists) {
+            console.log("✅ Auto-selecting promotion:", promotionId);
+            setSelectedPromotionId(promotionId);
+          } else {
+            console.log("⚠️ Promotion from state not found in loaded promotions");
+          }
+        }
+      } catch (err) {
+        console.error("❌ Error loading condotel detail:", err);
+      }
+    };
+
+    loadCondotelDetail();
+  }, [state?.condotelId]);
+
+  // Filter available promotions based on booking dates
+  const getAvailablePromotions = (): PromotionDTO[] => {
+    if (!rangeDates.startDate || !rangeDates.endDate) {
+      console.log("⚠️ No booking dates selected");
+      return [];
+    }
+    
+    const startDate = rangeDates.startDate.format("YYYY-MM-DD");
+    const endDate = rangeDates.endDate.format("YYYY-MM-DD");
+    
+    console.log("🔍 Filtering promotions for booking dates:", { startDate, endDate });
+    console.log("🔍 Total promotions to filter:", promotions.length);
+    
+    const available = promotions.filter((promo) => {
+      console.log("🔍 Checking promotion:", {
+        promotionId: promo.promotionId,
+        name: promo.name,
+        status: promo.status,
+        isActive: promo.isActive,
+        startDate: promo.startDate,
+        endDate: promo.endDate,
+      });
+      
+      // Check if booking dates overlap with promotion period
+      // Promotion is available if booking dates overlap with promotion period
+      const promoStart = moment(promo.startDate).format("YYYY-MM-DD");
+      const promoEnd = moment(promo.endDate).format("YYYY-MM-DD");
+      
+      // Check if booking dates overlap with promotion period
+      // Booking overlaps if: bookingStart <= promoEnd && bookingEnd >= promoStart
+      const overlaps = startDate <= promoEnd && endDate >= promoStart;
+      
+      if (!overlaps) {
+        console.log("❌ Promotion dates don't overlap:", promo.promotionId, {
+          bookingStart: startDate,
+          bookingEnd: endDate,
+          promoStart,
+          promoEnd,
+        });
+        return false;
+      }
+      
+      // Priority: If booking dates are within promotion period, consider it active
+      // (Backend might not set isActive/status correctly, but dates are the source of truth)
+      const bookingWithinPromotion = startDate >= promoStart && endDate <= promoEnd;
+      
+      // If booking dates are fully within promotion period, consider it active (regardless of status/isActive)
+      if (bookingWithinPromotion) {
+        console.log("✅ Promotion dates fully contain booking dates - ACCEPTING:", promo.promotionId, {
+          bookingStart: startDate,
+          bookingEnd: endDate,
+          promoStart,
+          promoEnd,
+          status: promo.status,
+          isActive: promo.isActive,
+        });
+        return true;
+      }
+      
+      // If dates overlap (but not fully within), still accept if status is Active or dates are current
+      // This handles cases where backend doesn't set status correctly
+      const today = moment().format("YYYY-MM-DD");
+      const isCurrentlyActive = today >= promoStart && today <= promoEnd;
+      
+      // Accept if:
+      // 1. Status is "Active" OR
+      // 2. isActive is true OR
+      // 3. Status is null/false but dates are current (backend might not set status correctly)
+      const isActive = 
+        promo.status === "Active" || 
+        promo.isActive === true ||
+        (isCurrentlyActive); // Accept if dates are current, even if status is not set
+      
+      if (!isActive) {
+        console.log("❌ Promotion not active:", promo.promotionId, {
+          status: promo.status,
+          isActive: promo.isActive,
+          isCurrentlyActive,
+          today,
+          promoStart,
+          promoEnd,
+          bookingWithinPromotion,
+        });
+        return false;
+      }
+      
+      console.log("✅ Promotion is available (overlap check):", promo.promotionId);
+      
+      console.log("✅ Promotion is available:", promo.promotionId);
+      return true;
+    });
+    
+    console.log("✅ Available promotions:", available.length, available);
+    return available;
+  };
+
+  // Calculate price with promotion
+  const calculatePriceWithPromotion = (basePrice: number, promotion: PromotionDTO | null): number => {
+    if (!promotion) return basePrice;
+    
+    if (promotion.discountPercentage) {
+      return basePrice * (1 - promotion.discountPercentage / 100);
+    } else if (promotion.discountAmount) {
+      return Math.max(0, basePrice - promotion.discountAmount);
+    }
+    
+    return basePrice;
+  };
 
   // Handle payment
   const handlePayment = async () => {
@@ -105,6 +280,9 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
     setLoading(true);
     setError(null);
 
+    // Declare bookingData outside try block so it's accessible in catch block
+    let bookingData: CreateBookingDTO | null = null;
+
     try {
       // Ensure we have condotelName - fetch if missing
       let condotelName = state?.condotelName;
@@ -125,6 +303,16 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
 
       const startDateStr = rangeDates.startDate.format("YYYY-MM-DD");
       const endDateStr = rangeDates.endDate.format("YYYY-MM-DD");
+
+      // Auto-select promotion if available and not already selected
+      const availablePromotions = getAvailablePromotions();
+      let finalPromotionId = selectedPromotionId;
+      
+      if ((!finalPromotionId || finalPromotionId <= 0) && availablePromotions.length > 0) {
+        finalPromotionId = availablePromotions[0].promotionId;
+        console.log("🎁 Auto-selecting first available promotion for booking:", finalPromotionId);
+        setSelectedPromotionId(finalPromotionId);
+      }
 
       // Step 0: Check availability before creating booking
       try {
@@ -147,22 +335,58 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
       }
 
       // Step 1: Tạo booking
-      const bookingData: CreateBookingDTO = {
+      bookingData = {
         condotelId: state.condotelId!,
         startDate: startDateStr,
         endDate: endDateStr,
         status: "Pending", // Default status for new bookings
         condotelName: condotelName, // Required by backend validation
+        promotionId: finalPromotionId && finalPromotionId > 0 ? finalPromotionId : undefined,
       };
 
-      console.log("📤 Creating booking...");
+      console.log("📤 Creating booking with data:", bookingData);
+      console.log("🎁 Available promotions:", availablePromotions.length);
+      console.log("🎁 Selected promotion ID (state):", selectedPromotionId);
+      console.log("🎁 Final promotion ID (to send):", finalPromotionId);
+      console.log("🎁 Promotion will be sent:", bookingData.promotionId);
+      console.log("ℹ️ Backend will automatically validate and apply promotion if valid");
+      
+      if (finalPromotionId) {
+        const promo = availablePromotions.find(p => p.promotionId === finalPromotionId);
+        console.log("🎁 Promotion details being sent:", {
+          promotionId: promo?.promotionId,
+          name: promo?.name,
+          discountPercentage: promo?.discountPercentage,
+          discountAmount: promo?.discountAmount,
+          startDate: promo?.startDate,
+          endDate: promo?.endDate,
+          status: promo?.status,
+          isActive: promo?.isActive,
+        });
+        console.log("ℹ️ Backend validation will check:");
+        console.log("  ✓ Promotion belongs to condotel (CondotelId match)");
+        console.log("  ✓ Promotion is active (Status = 'Active')");
+        console.log("  ✓ Booking dates are within promotion period (StartDate <= booking dates <= EndDate)");
+      }
+      
       let booking = await bookingAPI.createBooking(bookingData);
       console.log("✅ Booking created:", booking);
-      console.log("💰 Booking totalPrice:", booking.totalPrice);
+      console.log("💰 Booking totalPrice (from backend, already includes promotion discount):", booking.totalPrice);
+      console.log("🎁 Booking promotionId:", booking.promotionId);
       
       // Validate bookingId exists
       if (!booking.bookingId) {
         throw new Error("Booking created but BookingId is missing. Please try again.");
+      }
+      
+      // Backend đã tự động validate và áp dụng promotion
+      // totalPrice từ backend đã bao gồm discount nếu promotion hợp lệ
+      if (finalPromotionId && booking.promotionId !== finalPromotionId) {
+        console.warn("⚠️ Promotion ID mismatch:", {
+          sent: finalPromotionId,
+          received: booking.promotionId,
+          message: "Backend có thể đã reject promotion hoặc sử dụng promotion khác"
+        });
       }
       
       // If booking doesn't have totalPrice, try to fetch it again (backend might calculate it asynchronously)
@@ -249,6 +473,19 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
         // Prioritize message field (usually contains user-friendly messages)
         if (errorData?.message) {
           errorMessage = errorData.message;
+          
+          // Check if error is related to promotion
+          const errorMessageLower = errorMessage.toLowerCase();
+          if (errorMessageLower.includes("promotion") || errorMessageLower.includes("khuyến mãi")) {
+            console.warn("⚠️ Promotion validation error from backend:", errorMessage);
+            // Có thể promotion không hợp lệ, thử lại không có promotion
+            const sentPromotionId = bookingData?.promotionId;
+            if (sentPromotionId) {
+              console.log("🔄 Promotion was sent but rejected by backend:", sentPromotionId);
+              // Có thể hiển thị thông báo và cho user chọn tiếp tục không có promotion
+              errorMessage += "\n\nBạn có thể thử lại không sử dụng khuyến mãi.";
+            }
+          }
         } else if (errorData?.errors) {
           // Check for validation errors
           errorMessage = "Có lỗi xảy ra khi tạo đặt phòng:\n";
@@ -291,7 +528,34 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
       ? rangeDates.endDate.diff(rangeDates.startDate, "days")
       : 0);
     const pricePerNight = state?.pricePerNight || 0;
-    const totalPrice = nights * pricePerNight;
+    const baseTotalPrice = nights * pricePerNight;
+    
+    // Get available promotions and selected promotion
+    const availablePromotions = getAvailablePromotions();
+    let selectedPromotion = promotions.find(p => p.promotionId === selectedPromotionId) || null;
+    
+    // If no promotion selected but there's an available one, use the first available
+    if (!selectedPromotion && availablePromotions.length > 0) {
+      selectedPromotion = availablePromotions[0];
+      // Auto-select it in state if not already selected
+      if (!selectedPromotionId || selectedPromotionId !== selectedPromotion.promotionId) {
+        console.log("🎁 Auto-selecting first available promotion for display:", selectedPromotion.promotionId);
+        setSelectedPromotionId(selectedPromotion.promotionId);
+      }
+    }
+    
+    const totalPrice = calculatePriceWithPromotion(baseTotalPrice, selectedPromotion);
+    const discountAmount = baseTotalPrice - totalPrice;
+    
+    console.log("💰 Sidebar price calculation:", {
+      baseTotalPrice,
+      selectedPromotionId,
+      selectedPromotion: selectedPromotion?.promotionId,
+      discountPercentage: selectedPromotion?.discountPercentage,
+      totalPrice,
+      discountAmount,
+      availablePromotionsCount: availablePromotions.length,
+    });
 
     return (
       <div className="w-full flex flex-col sm:rounded-2xl lg:border border-neutral-200 dark:border-neutral-700 space-y-6 sm:space-y-8 px-0 sm:p-6 xl:p-8">
@@ -324,7 +588,19 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
               {nights > 0 && pricePerNight > 0 && (
                 <div className="flex justify-between text-neutral-6000 dark:text-neutral-300">
                   <span>{pricePerNight.toLocaleString()} đ x {nights} đêm</span>
-                  <span>{(pricePerNight * nights).toLocaleString()} đ</span>
+                  <span>{baseTotalPrice.toLocaleString()} đ</span>
+                </div>
+              )}
+              {selectedPromotion && discountAmount > 0 && (
+                <div className="flex justify-between text-red-600 dark:text-red-400">
+                  <span>
+                    Giảm giá {selectedPromotion.discountPercentage 
+                      ? `(${selectedPromotion.discountPercentage}%)`
+                      : selectedPromotion.discountAmount
+                      ? `(${selectedPromotion.discountAmount.toLocaleString()} đ)`
+                      : ""}
+                  </span>
+                  <span>-{discountAmount.toLocaleString()} đ</span>
                 </div>
               )}
               <div className="flex justify-between text-neutral-6000 dark:text-neutral-300">
@@ -335,7 +611,9 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
               <div className="border-b border-neutral-200 dark:border-neutral-700"></div>
               <div className="flex justify-between font-semibold">
                 <span>Tổng cộng</span>
-                <span>{totalPrice > 0 ? totalPrice.toLocaleString() : "0"} đ</span>
+                <span className={selectedPromotion && discountAmount > 0 ? "text-red-600 dark:text-red-400" : ""}>
+                  {totalPrice > 0 ? totalPrice.toLocaleString() : "0"} đ
+                </span>
               </div>
             </div>
           </>
@@ -356,21 +634,90 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
         </h2>
         <div className="border-b border-neutral-200 dark:border-neutral-700"></div>
         <div>
-          <div>
-            <h3 className="text-2xl font-semibold">Your trip</h3>
-            <NcModal
-              renderTrigger={(openModal) => (
-                <span
-                  onClick={() => openModal()}
-                  className="block lg:hidden underline  mt-1 cursor-pointer"
-                >
-                  View booking details
-                </span>
-              )}
-              renderContent={renderSidebar}
-              modalTitle="Booking details"
-            />
-          </div>
+        <div>
+          <h3 className="text-2xl font-semibold">Your trip</h3>
+          <NcModal
+            renderTrigger={(openModal) => (
+              <span
+                onClick={() => openModal()}
+                className="block lg:hidden underline  mt-1 cursor-pointer"
+              >
+                View booking details
+              </span>
+            )}
+            renderContent={renderSidebar}
+            modalTitle="Booking details"
+          />
+        </div>
+
+        {/* Promotion Selection */}
+        {(() => {
+          const availablePromotions = getAvailablePromotions();
+          console.log("🎁 Rendering promotions section. Available:", availablePromotions.length);
+          
+          if (availablePromotions.length === 0) {
+            console.log("⚠️ No available promotions to display");
+            return null;
+          }
+          
+          return (
+            <div className="mt-6">
+              <h3 className="text-2xl font-semibold mb-4">Khuyến mãi</h3>
+              <div className="space-y-3">
+                <label className="flex items-start space-x-3 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="promotion"
+                    checked={selectedPromotionId === null}
+                    onChange={() => setSelectedPromotionId(null)}
+                    className="mt-1 h-4 w-4 text-primary-600 border-neutral-300 rounded focus:ring-primary-500"
+                  />
+                  <div className="flex-1">
+                    <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                      Không sử dụng khuyến mãi
+                    </span>
+                  </div>
+                </label>
+                {availablePromotions.map((promo) => (
+                  <label
+                    key={promo.promotionId}
+                    className="flex items-start space-x-3 cursor-pointer p-4 border border-neutral-200 dark:border-neutral-700 rounded-lg hover:border-primary-500 dark:hover:border-primary-500 transition-colors"
+                  >
+                    <input
+                      type="radio"
+                      name="promotion"
+                      checked={selectedPromotionId === promo.promotionId}
+                      onChange={() => setSelectedPromotionId(promo.promotionId)}
+                      className="mt-1 h-4 w-4 text-primary-600 border-neutral-300 rounded focus:ring-primary-500"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                          {promo.name}
+                        </span>
+                        <span className="px-2 py-1 bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs font-semibold rounded">
+                          {promo.discountPercentage 
+                            ? `-${promo.discountPercentage}%`
+                            : promo.discountAmount
+                            ? `-${promo.discountAmount.toLocaleString()} đ`
+                            : "Khuyến mãi"}
+                        </span>
+                      </div>
+                      {promo.description && (
+                        <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
+                          {promo.description}
+                        </p>
+                      )}
+                      <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-1">
+                        Áp dụng từ {moment(promo.startDate).format("DD/MM/YYYY")} đến {moment(promo.endDate).format("DD/MM/YYYY")}
+                      </p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
           <div className="mt-6 border border-neutral-200 dark:border-neutral-700 rounded-3xl flex flex-col sm:flex-row divide-y sm:divide-x sm:divide-y-0 divide-neutral-200 dark:divide-neutral-700">
             <ModalSelectDate
               defaultValue={rangeDates}

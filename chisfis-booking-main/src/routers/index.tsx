@@ -11,8 +11,6 @@ import ListingExperiencesPage from "containers/ListingExperiencesPage/ListingExp
 import ListingExperiencesMapPage from "containers/ListingExperiencesPage/ListingExperiencesMapPage";
 import ListingStayDetailPage from "containers/ListingDetailPage/ListingStayDetailPage";
 import ListingExperiencesDetailPage from "containers/ListingDetailPage/ListingExperiencesDetailPage";
-import ListingCarPage from "containers/ListingCarPage/ListingCarPage";
-import ListingCarMapPage from "containers/ListingCarPage/ListingCarMapPage";
 import ListingCarDetailPage from "containers/ListingDetailPage/ListingCarDetailPage";
 import CheckOutPage from "containers/CheckOutPage/CheckOutPage";
 import PayPage from "containers/PayPage/PayPage";
@@ -96,8 +94,6 @@ export const pages: Page[] = [
     component: ListingExperiencesDetailPage,
   },
   //
-  { path: "/listing-car", component: ListingCarPage },
-  { path: "/listing-car-map", component: ListingCarMapPage },
   { path: "/listing-car-detail", component: ListingCarDetailPage },
   //
   { path: "/listing-real-estate-map", component: ListingRealEstateMapPage },

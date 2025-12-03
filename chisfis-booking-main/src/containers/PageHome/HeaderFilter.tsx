@@ -13,6 +13,7 @@ export interface HeaderFilterProps {
   heading: ReactNode;
   subHeading?: ReactNode;
   onClickTab: (item: string) => void;
+  onViewAll?: () => void; // Optional callback for "View All" button
 }
 
 const HeaderFilter: FC<HeaderFilterProps> = ({
@@ -21,6 +22,7 @@ const HeaderFilter: FC<HeaderFilterProps> = ({
   subHeading = "",
   heading = "🎈 Latest Articles",
   onClickTab,
+  onViewAll,
 }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -36,7 +38,11 @@ const HeaderFilter: FC<HeaderFilterProps> = ({
   };
 
   const handleViewAll = () => {
-    navigate("/listing-stay");
+    if (onViewAll) {
+      onViewAll();
+    } else {
+      navigate("/listing-stay");
+    }
   };
 
   return (

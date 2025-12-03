@@ -4,11 +4,13 @@ export interface AmenityDTO {
   amenityId: number;
   name: string;
   description?: string;
+  category?: string;
 }
 
 export interface AmenityRequestDTO {
   name: string;
   description?: string;
+  category?: string;
 }
 
 // Helper function to normalize amenity response
@@ -16,6 +18,7 @@ const normalizeAmenity = (item: any): AmenityDTO => ({
   amenityId: item.AmenityId || item.amenityId,
   name: item.Name || item.name,
   description: item.Description || item.description,
+  category: item.Category || item.category,
 });
 
 const amenityAPI = {

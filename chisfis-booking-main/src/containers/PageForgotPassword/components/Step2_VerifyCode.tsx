@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import axiosClient from "api/axiosClient";
+import { useTranslation } from "i18n/LanguageContext";
 
 interface Props {
   email: string;
@@ -13,6 +14,7 @@ interface VerifyOtpResponse {
 }
 
 const Step2_VerifyCode: React.FC<Props> = ({ email, onSuccess }) => {
+  const { t } = useTranslation();
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -83,9 +85,9 @@ const Step2_VerifyCode: React.FC<Props> = ({ email, onSuccess }) => {
 
   return (
     <div className="w-full max-w-md p-8 space-y-6 border border-gray-200 rounded-lg shadow">
-      <h2 className="text-2xl font-bold text-center">Verify Code</h2>
+      <h2 className="text-2xl font-bold text-center">{t.auth.forgotPassword.verifyCode}</h2>
       <p className="text-sm text-center text-gray-600">
-        We've sent a 6-digit code to <b>{email}</b>.
+        {t.auth.forgotPassword.codeInstructions} <b>{email}</b>.
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -107,7 +109,7 @@ const Step2_VerifyCode: React.FC<Props> = ({ email, onSuccess }) => {
           disabled={loading}
           className="w-full px-4 py-2 font-semibold text-white bg-green-500 rounded-md hover:bg-green-600 disabled:bg-gray-400"
         >
-          {loading ? "Verifying..." : "Confirm"}
+          {loading ? t.auth.forgotPassword.verifying : t.auth.forgotPassword.confirm}
         </button>
       </form>
     </div>

@@ -1,6 +1,6 @@
 import SectionHero from "components/SectionHero/SectionHero";
 import SectionSliderNewCategories from "components/SectionSliderNewCategories/SectionSliderNewCategories";
-import React from "react";
+import React, { useState, useEffect } from "react";
 import SectionSubscribe2 from "components/SectionSubscribe2/SectionSubscribe2";
 import SectionOurFeatures from "components/SectionOurFeatures/SectionOurFeatures";
 import SectionGridFeaturePlaces from "./SectionGridFeaturePlaces";
@@ -14,10 +14,65 @@ import SectionBecomeAnAuthor from "components/SectionBecomeAnAuthor/SectionBecom
 import SectionVideos from "./SectionVideos";
 import SectionClientSay from "components/SectionClientSay/SectionClientSay";
 import { useTranslation } from "i18n/LanguageContext";
+import locationAPI, { LocationDTO } from "api/location";
+import condotelAPI from "api/condotel";
 
 function PageHome() {
   const { t } = useTranslation();
+  const [locations, setLocations] = useState<TaxonomyType[]>([]);
+  const [locations2, setLocations2] = useState<TaxonomyType[]>([]);
+  const [loading, setLoading] = useState(true);
 
+  // Load locations from API
+  useEffect(() => {
+    const loadLocations = async () => {
+      try {
+        setLoading(true);
+        const locationsData = await locationAPI.getAllPublic();
+        
+        // Convert LocationDTO to TaxonomyType
+        const convertedLocations: TaxonomyType[] = locationsData.map((loc: LocationDTO, index: number) => ({
+          id: loc.locationId.toString(),
+          href: `/listing-stay?locationId=${loc.locationId}`,
+          name: loc.locationName,
+          taxonomy: "category",
+          count: 0, // Will be updated after fetching condotel count
+          thumbnail: `https://images.unsplash.com/photo-1528181304800-259b08848526?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80&sig=${loc.locationId}`,
+        }));
+
+        // Fetch condotel count for each location
+        const locationsWithCount = await Promise.all(
+          convertedLocations.map(async (loc) => {
+            try {
+              const condotels = await condotelAPI.getCondotelsByLocationId(Number(loc.id));
+              return { ...loc, count: condotels.length };
+            } catch (err) {
+              console.error(`Error fetching count for location ${loc.id}:`, err);
+              return { ...loc, count: 0 };
+            }
+          })
+        );
+
+        // Split into two arrays: first section gets 3 locations, second section gets 2 locations
+        const firstSection = locationsWithCount.slice(0, 3); // Lấy 3 locations đầu tiên
+        const secondSection = locationsWithCount.slice(3, 5); // Lấy 2 locations tiếp theo (từ vị trí 3 đến 5)
+
+        setLocations(firstSection.length > 0 ? firstSection : []);
+        setLocations2(secondSection.length > 0 ? secondSection : []);
+      } catch (err: any) {
+        console.error("Error loading locations:", err);
+        // Fallback to demo data on error
+        setLocations([]);
+        setLocations2([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadLocations();
+  }, []);
+
+  // Fallback demo data if API fails or no locations
   const DEMO_CATS: TaxonomyType[] = [
     {
       id: "1",
@@ -150,9 +205,11 @@ function PageHome() {
         {/* SECTION HERO */}
         <SectionHero className="pt-10 lg:pt-16 lg:pb-16" />
 
-        {/* SECTION 1 */}
+        {/* SECTION 1 - 3 locations */}
         <SectionSliderNewCategories
-          categories={DEMO_CATS}
+          categories={locations.length > 0 ? locations : DEMO_CATS.slice(0, 3)}
+          heading={locations.length > 0 ? "Điểm đến nổi bật" : t.home.popularDestinations}
+          subHeading={locations.length > 0 ? "Khám phá những địa điểm du lịch hấp dẫn nhất" : t.home.popularDestinationsSubtitle}
           uniqueClassName="PageHome_s1"
         />
 
@@ -168,15 +225,15 @@ function PageHome() {
         {/* SECTION */}
         <SectionHowItWork />
 
-        {/* SECTION 1 */}
+        {/* SECTION 2 - 2 locations */}
         <div className="relative py-16">
           <BackgroundSection className="bg-orange-50 dark:bg-black dark:bg-opacity-20 " />
           <SectionSliderNewCategories
-            categories={DEMO_CATS_2}
+            categories={locations2.length > 0 ? locations2 : DEMO_CATS_2.slice(0, 2)}
             categoryCardType="card4"
             itemPerRow={4}
-            heading={t.home.popularDestinations}
-            subHeading={t.home.popularDestinationsSubtitle}
+            heading={locations2.length > 0 ? "Điểm đến được yêu thích" : t.home.popularDestinations}
+            subHeading={locations2.length > 0 ? "Những địa điểm được du khách đánh giá cao" : t.home.popularDestinationsSubtitle}
             sliderStyle="style2"
             uniqueClassName="PageHome_s2"
           />

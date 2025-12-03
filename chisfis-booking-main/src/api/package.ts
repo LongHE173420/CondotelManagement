@@ -24,6 +24,13 @@ export interface HostPackageDetailsDto {
     amount?: number;
 }
 
+export interface CancelPackageResponseDto {
+    success: boolean;
+    message: string;
+    refundAmount?: number;
+    refundUrl?: string;
+}
+
 export interface PurchasePackageRequestDto {
     packageId: number;
 }
@@ -49,6 +56,12 @@ export const packageAPI = {
             "/host/packages/purchase",
             { packageId }
         );
+        return response.data;
+    },
+
+    // POST /api/host/packages/cancel - Hủy package và hoàn tiền
+    cancelPackage: async (): Promise<CancelPackageResponseDto> => {
+        const response = await axiosClient.post<CancelPackageResponseDto>("/host/packages/cancel");
         return response.data;
     },
 };

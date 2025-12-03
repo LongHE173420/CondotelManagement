@@ -47,6 +47,9 @@ const ListingStayDetailPage: FC = () => {
   const [reviewsTotalPages, setReviewsTotalPages] = useState<number>(1);
   const [reviewsTotalCount, setReviewsTotalCount] = useState<number>(0);
   const [sortBy, setSortBy] = useState<string>("newest");
+  const [amenities, setAmenities] = useState<any[]>([]);
+  const [utilities, setUtilities] = useState<any[]>([]);
+  const [amenitiesLoading, setAmenitiesLoading] = useState<boolean>(false);
   const [rangeDates, setRangeDates] = useState<DateRage>({
     startDate: moment().add(1, "day"),
     endDate: moment().add(5, "days"),
@@ -57,56 +60,36 @@ const ListingStayDetailPage: FC = () => {
     guestInfants: 0,
   });
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        setLoading(true);
-        if (!id) {
-          setError("Không tìm thấy ID căn hộ");
-          return;
-        }
-        const condotelId = Number(id);
-        const res = await condotelAPI.getById(condotelId);
-        setData(res);
-        console.log("📦 CondotelDetailDTO response:", res);
-        console.log("👤 Current user:", user);
-        
-        // Luôn ưu tiên hostName từ backend - không dùng tên user đang login
-        if (res.hostName) {
-          console.log("✅ Backend trả về hostName:", res.hostName);
-          setHostName(res.hostName);
-          setHostImageUrl(res.hostImageUrl);
-        } else {
-          // Nếu backend không trả về hostName, chỉ dùng Host ID làm fallback
-          // KHÔNG dùng tên user đang login vì user có thể là tenant, không phải host
-          console.warn("⚠️ Backend chưa trả về hostName, sử dụng Host ID");
-          setHostName(`Host #${res.hostId}`);
-          setHostImageUrl(undefined);
-        }
-
-        // Load reviews cho condotel này
-        await loadReviews(condotelId, reviewsPage, sortBy);
-
-        // Kiểm tra nếu user đã đăng nhập và có booking completed cho condotel này
-        if (user) {
-          await checkCanWriteReview(condotelId);
-        }
-      } catch (e) {
-        setError("Không tìm thấy thông tin căn hộ");
-      } finally {
-        setLoading(false);
+  // Load amenities and utilities from new API endpoints
+  const loadAmenitiesAndUtilities = async (condotelId: number) => {
+    try {
+      setAmenitiesLoading(true);
+      console.log("🔄 Loading amenities and utilities for condotel:", condotelId);
+      
+      // Sử dụng endpoint amenities-utilities để tối ưu (chỉ 1 request)
+      const result = await condotelAPI.getAmenitiesAndUtilitiesByCondotelId(condotelId);
+      
+      console.log("✅ Loaded amenities:", result.amenities);
+      console.log("✅ Loaded utilities:", result.utilities);
+      
+      setAmenities(result.amenities || []);
+      setUtilities(result.utilities || []);
+    } catch (err: any) {
+      console.error("❌ Error loading amenities/utilities:", err);
+      // Nếu lỗi 404, có thể condotel không tồn tại hoặc chưa có amenities/utilities
+      if (err.response?.status === 404) {
+        console.log("ℹ️ No amenities/utilities found for condotel", condotelId);
+        setAmenities([]);
+        setUtilities([]);
+      } else {
+        // Lỗi khác, giữ mảng rỗng
+        setAmenities([]);
+        setUtilities([]);
       }
-    };
-    load();
-  }, [id, user]);
-
-  // Reload reviews when page or sort changes
-  useEffect(() => {
-    if (id) {
-      loadReviews(Number(id), reviewsPage, sortBy);
+    } finally {
+      setAmenitiesLoading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reviewsPage, sortBy]);
+  };
 
   const loadReviews = async (condotelId: number, page: number = 1, sort: string = "newest") => {
     try {
@@ -174,6 +157,64 @@ const ListingStayDetailPage: FC = () => {
       setReviewableBookingId(null);
     }
   };
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        setLoading(true);
+        if (!id) {
+          setError("Không tìm thấy ID căn hộ");
+          return;
+        }
+        const condotelId = Number(id);
+        const res = await condotelAPI.getById(condotelId);
+        setData(res);
+        console.log("📦 CondotelDetailDTO response:", res);
+        console.log("👤 Current user:", user);
+        
+        // Luôn ưu tiên hostName từ backend - không dùng tên user đang login
+        if (res.hostName) {
+          console.log("✅ Backend trả về hostName:", res.hostName);
+          setHostName(res.hostName);
+          setHostImageUrl(res.hostImageUrl);
+        } else {
+          // Nếu backend không trả về hostName, chỉ dùng Host ID làm fallback
+          // KHÔNG dùng tên user đang login vì user có thể là tenant, không phải host
+          console.warn("⚠️ Backend chưa trả về hostName, sử dụng Host ID");
+          setHostName(`Host #${res.hostId}`);
+          setHostImageUrl(undefined);
+        }
+
+        // Load amenities và utilities từ API mới (không block nếu lỗi)
+        loadAmenitiesAndUtilities(condotelId).catch((err) => {
+          console.error("Failed to load amenities/utilities:", err);
+          // Không throw error, chỉ log - amenities/utilities là optional
+        });
+
+        // Load reviews cho condotel này
+        await loadReviews(condotelId, reviewsPage, sortBy);
+
+        // Kiểm tra nếu user đã đăng nhập và có booking completed cho condotel này
+        if (user) {
+          await checkCanWriteReview(condotelId);
+        }
+      } catch (e: any) {
+        console.error("Error loading condotel:", e);
+        setError("Không tìm thấy thông tin căn hộ");
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, [id, user]);
+
+  // Reload reviews when page or sort changes
+  useEffect(() => {
+    if (id && data) {
+      loadReviews(Number(id), reviewsPage, sortBy);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reviewsPage, sortBy]);
 
   const PHOTOS = (data?.images ?? []).map((i: any) => i.imageUrl).filter(Boolean);
 
@@ -306,62 +347,84 @@ const ListingStayDetailPage: FC = () => {
     }
   };
 
-  const renderAmenities = () => (
-    <div className="listingSection__wrap">
-      <h2 className="text-2xl font-semibold">Tiện ích & Tiện nghi</h2>
-      <div className="w-14 border-b border-neutral-200 dark:border-neutral-700"></div>
-      
-      <div className="space-y-8 mt-6">
-        {/* Tiện ích */}
-        <div>
-          <h4 className="text-lg font-semibold mb-4 text-neutral-800 dark:text-neutral-200">
-            Tiện ích
-          </h4>
-          {data.amenities && data.amenities.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {data.amenities.map((amenity: any) => (
-                <div
-                  key={amenity.amenityId}
-                  className="flex items-center space-x-3 p-3 rounded-lg bg-neutral-50 dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
-                >
-                  <i className={`${getAmenityIcon(amenity.name)} text-2xl text-primary-600 dark:text-primary-400`}></i>
-                  <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                    {amenity.name}
-                  </span>
+  const renderAmenities = () => {
+    if (!data) return null;
+    
+    console.log("🎨 Rendering amenities:", amenities);
+    console.log("🎨 Rendering utilities:", utilities);
+    
+    return (
+      <div className="listingSection__wrap">
+        <h2 className="text-2xl font-semibold">Tiện ích & Tiện nghi</h2>
+        <div className="w-14 border-b border-neutral-200 dark:border-neutral-700"></div>
+        
+        {amenitiesLoading ? (
+          <div className="mt-6 py-8 text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto mb-4"></div>
+            <p className="text-neutral-500 dark:text-neutral-400">Đang tải tiện ích và tiện nghi...</p>
+          </div>
+        ) : (
+          <div className="space-y-8 mt-6">
+            {/* Tiện ích */}
+            <div>
+              <h4 className="text-lg font-semibold mb-4 text-neutral-800 dark:text-neutral-200">
+                Tiện ích
+              </h4>
+              {amenities.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {amenities.map((amenity: any) => {
+                    const amenityId = amenity.amenityId || amenity.AmenityId || amenity.Id || amenity.id;
+                    const amenityName = amenity.name || amenity.Name || "";
+                    return (
+                      <div
+                        key={amenityId}
+                        className="flex items-center space-x-3 p-3 rounded-lg bg-neutral-50 dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
+                      >
+                        <i className={`${getAmenityIcon(amenityName)} text-2xl text-primary-600 dark:text-primary-400`}></i>
+                        <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                          {amenityName}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
-              ))}
+              ) : (
+                <p className="text-neutral-500 dark:text-neutral-400">Chưa có thông tin tiện ích</p>
+              )}
             </div>
-          ) : (
-            <p className="text-neutral-500 dark:text-neutral-400">Chưa có thông tin tiện ích</p>
-          )}
-        </div>
 
-        {/* Tiện nghi */}
-        <div>
-          <h4 className="text-lg font-semibold mb-4 text-neutral-800 dark:text-neutral-200">
-            Tiện nghi
-          </h4>
-          {data.utilities && data.utilities.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {data.utilities.map((utility: any) => (
-                <div
-                  key={utility.utilityId}
-                  className="flex items-center space-x-3 p-3 rounded-lg bg-neutral-50 dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
-                >
-                  <i className={`${getUtilityIcon(utility.name)} text-2xl text-primary-600 dark:text-primary-400`}></i>
-                  <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                    {utility.name}
-                  </span>
+            {/* Tiện nghi */}
+            <div>
+              <h4 className="text-lg font-semibold mb-4 text-neutral-800 dark:text-neutral-200">
+                Tiện nghi
+              </h4>
+              {utilities.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {utilities.map((utility: any) => {
+                    const utilityId = utility.utilityId || utility.UtilityId || utility.Id || utility.id;
+                    const utilityName = utility.name || utility.Name || "";
+                    return (
+                      <div
+                        key={utilityId}
+                        className="flex items-center space-x-3 p-3 rounded-lg bg-neutral-50 dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
+                      >
+                        <i className={`${getUtilityIcon(utilityName)} text-2xl text-primary-600 dark:text-primary-400`}></i>
+                        <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                          {utilityName}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
-              ))}
+              ) : (
+                <p className="text-neutral-500 dark:text-neutral-400">Chưa có thông tin tiện nghi</p>
+              )}
             </div>
-          ) : (
-            <p className="text-neutral-500 dark:text-neutral-400">Chưa có thông tin tiện nghi</p>
-          )}
-        </div>
+          </div>
+        )}
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderHost = () => {
     // Luôn ưu tiên hostName từ backend - không dùng tên user đang login
@@ -469,15 +532,15 @@ const ListingStayDetailPage: FC = () => {
                           <Avatar
                             sizeClass="h-12 w-12 text-lg"
                             radius="rounded-full"
-                            userName={review.customerName || "Anonymous"}
-                            imgUrl={review.customerImageUrl}
+                            userName={review.userFullName || review.customerName || "Anonymous"}
+                            imgUrl={review.userImageUrl || review.customerImageUrl}
                           />
                         </div>
                         <div className="flex-grow min-w-0">
                           <div className="flex justify-between items-start space-x-3 mb-2">
                             <div className="flex flex-col min-w-0">
                               <div className="text-base font-semibold text-neutral-900 dark:text-neutral-100">
-                                {review.customerName || "Anonymous"}
+                                {review.userFullName || review.customerName || "Anonymous"}
                               </div>
                               <span className="text-sm text-neutral-500 dark:text-neutral-400 mt-0.5">
                                 {review.createdAt
@@ -509,6 +572,19 @@ const ListingStayDetailPage: FC = () => {
                             <p className="mt-2 text-neutral-700 dark:text-neutral-300 leading-relaxed whitespace-pre-wrap">
                               {review.comment}
                             </p>
+                          )}
+                          {/* Hiển thị reply nếu có */}
+                          {review.reply && (
+                            <div className="mt-4 p-4 bg-primary-50 dark:bg-primary-900/20 border-l-4 border-primary-500 rounded-r-lg">
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className="text-sm font-semibold text-primary-700 dark:text-primary-300">
+                                  Phản hồi từ Host:
+                                </span>
+                              </div>
+                              <p className="text-neutral-700 dark:text-neutral-300">
+                                {review.reply}
+                              </p>
+                            </div>
                           )}
                         </div>
                       </div>
@@ -596,6 +672,9 @@ const ListingStayDetailPage: FC = () => {
       return;
     }
 
+    // Get available promotion for selected dates
+    const availablePromotion = getAvailablePromotion();
+    
     // Navigate đến checkout page với state
     navigate("/checkout", {
       state: {
@@ -607,8 +686,79 @@ const ListingStayDetailPage: FC = () => {
         endDate: rangeDates.endDate.format("YYYY-MM-DD"),
         guests: guests,
         nights: nights,
+        activePromotionId: availablePromotion?.promotionId || null, // Pass promotion ID để pre-select
       },
     });
+  };
+
+  // Calculate price with promotion
+  const calculatePriceWithPromotion = (basePrice: number, promotion: any | null): number => {
+    if (!promotion) return basePrice;
+    
+    if (promotion.discountPercentage) {
+      return basePrice * (1 - promotion.discountPercentage / 100);
+    } else if (promotion.discountAmount) {
+      return Math.max(0, basePrice - promotion.discountAmount);
+    }
+    
+    return basePrice;
+  };
+
+  // Get available promotion for selected dates
+  const getAvailablePromotion = () => {
+    if (!data || !rangeDates.startDate || !rangeDates.endDate) return null;
+    
+    const startDate = rangeDates.startDate.format("YYYY-MM-DD");
+    const endDate = rangeDates.endDate.format("YYYY-MM-DD");
+    
+    // Check activePromotion first
+    if (data.activePromotion) {
+      const promo = data.activePromotion;
+      const promoStart = moment(promo.startDate).format("YYYY-MM-DD");
+      const promoEnd = moment(promo.endDate).format("YYYY-MM-DD");
+      
+      // Check dates overlap
+      if (startDate <= promoEnd && endDate >= promoStart) {
+        return promo;
+      }
+    }
+    
+    // Check promotions list
+    if (data.promotions && Array.isArray(data.promotions)) {
+      for (const promo of data.promotions) {
+        const promoStart = moment(promo.startDate).format("YYYY-MM-DD");
+        const promoEnd = moment(promo.endDate).format("YYYY-MM-DD");
+        
+        // Check dates overlap first
+        if (!(startDate <= promoEnd && endDate >= promoStart)) {
+          continue;
+        }
+        
+        // If booking dates are fully within promotion period, consider it active
+        const bookingWithinPromotion = startDate >= promoStart && endDate <= promoEnd;
+        if (bookingWithinPromotion) {
+          return promo;
+        }
+        
+        // Otherwise, check if promotion is active
+        // If status/isActive is not set, check if current date is within promotion period
+        const today = moment().format("YYYY-MM-DD");
+        const isCurrentlyActive = today >= promoStart && today <= promoEnd;
+        
+        const isActive = 
+          promo.status === "Active" || 
+          promo.isActive === true ||
+          (promo.status === null && promo.isActive === false && isCurrentlyActive); // If backend doesn't set status, check dates
+        
+        if (!isActive) {
+          continue;
+        }
+        
+        return promo;
+      }
+    }
+    
+    return null;
   };
 
   const renderSidebar = () => {
@@ -617,18 +767,46 @@ const ListingStayDetailPage: FC = () => {
       ? rangeDates.endDate.diff(rangeDates.startDate, "days")
       : 0;
     
-    // Tính tổng tiền
-    const totalPrice = nights > 0 && data.pricePerNight
+    // Tính tổng tiền gốc
+    const baseTotalPrice = nights > 0 && data.pricePerNight
       ? nights * data.pricePerNight
       : 0;
+    
+    // Get available promotion
+    const availablePromotion = getAvailablePromotion();
+    const totalPrice = calculatePriceWithPromotion(baseTotalPrice, availablePromotion);
+    const discountAmount = baseTotalPrice - totalPrice;
 
     return (
       <div className="listingSectionSidebar__wrap shadow-xl">
         <div className="flex justify-between">
-          <span className="text-3xl font-semibold">
-            {data.pricePerNight?.toLocaleString()} đ
-            <span className="ml-1 text-base font-normal text-neutral-500 dark:text-neutral-400">/đêm</span>
-          </span>
+          <div className="flex flex-col">
+            {availablePromotion && nights > 0 ? (
+              <>
+                <span className="text-3xl font-semibold text-red-600 dark:text-red-400">
+                  {Math.round(totalPrice / nights).toLocaleString()} đ
+                  <span className="ml-1 text-base font-normal text-neutral-500 dark:text-neutral-400">/đêm</span>
+                </span>
+                <span className="text-sm text-neutral-400 line-through">
+                  {data.pricePerNight?.toLocaleString()} đ/đêm
+                </span>
+              </>
+            ) : (
+              <span className="text-3xl font-semibold">
+                {data.pricePerNight?.toLocaleString()} đ
+                <span className="ml-1 text-base font-normal text-neutral-500 dark:text-neutral-400">/đêm</span>
+              </span>
+            )}
+            {availablePromotion && (
+              <span className="mt-1 px-2 py-0.5 bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs font-semibold rounded inline-block w-fit">
+                {availablePromotion.discountPercentage 
+                  ? `-${availablePromotion.discountPercentage}%`
+                  : availablePromotion.discountAmount
+                  ? `-${availablePromotion.discountAmount.toLocaleString()} đ`
+                  : "Khuyến mãi"}
+              </span>
+            )}
+          </div>
           <StartRating />
         </div>
 
@@ -704,14 +882,26 @@ const ListingStayDetailPage: FC = () => {
                 <span>
                   {data.pricePerNight?.toLocaleString()} đ x {nights} đêm
                 </span>
-                <span>{(data.pricePerNight || 0) * nights} đ</span>
+                <span>{baseTotalPrice.toLocaleString()} đ</span>
               </div>
+              {availablePromotion && discountAmount > 0 && (
+                <div className="flex justify-between text-red-600 dark:text-red-400">
+                  <span>
+                    Giảm giá {availablePromotion.discountPercentage 
+                      ? `(${availablePromotion.discountPercentage}%)`
+                      : availablePromotion.discountAmount
+                      ? `(${availablePromotion.discountAmount.toLocaleString()} đ)`
+                      : ""}
+                  </span>
+                  <span>-{discountAmount.toLocaleString()} đ</span>
+                </div>
+              )}
             </>
           )}
           <div className="border-b border-neutral-200 dark:border-neutral-700"></div>
           <div className="flex justify-between font-semibold">
             <span>Tổng</span>
-            <span>
+            <span className={availablePromotion && discountAmount > 0 ? "text-red-600 dark:text-red-400" : ""}>
               {totalPrice > 0 ? totalPrice.toLocaleString() : data.pricePerNight?.toLocaleString()} đ
             </span>
           </div>

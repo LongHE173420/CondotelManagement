@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import axiosClient from "api/axiosClient";
+import { useTranslation } from "i18n/LanguageContext";
 
 interface Props {
   email: string;
@@ -8,6 +9,7 @@ interface Props {
 }
 
 const Step3_ResetPassword: React.FC<Props> = ({ email, token, onSuccess }) => {
+  const { t } = useTranslation();
   // token đã là OTP từ Step2, không cần nhập lại
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -69,33 +71,33 @@ const Step3_ResetPassword: React.FC<Props> = ({ email, token, onSuccess }) => {
 
   return (
     <div className="w-full max-w-md p-8 space-y-6 border border-gray-200 rounded-lg shadow">
-      <h2 className="text-2xl font-bold text-center">Đặt lại mật khẩu</h2>
+      <h2 className="text-2xl font-bold text-center">{t.auth.forgotPassword.resetPassword}</h2>
       <p className="text-sm text-center text-gray-600">
-        Nhập mật khẩu mới cho tài khoản <b>{email}</b>
+        {t.auth.forgotPassword.resetInstructions} <b>{email}</b>
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700">Mật khẩu mới *</label>
+          <label className="block text-sm font-medium text-gray-700">{t.auth.forgotPassword.newPassword}</label>
           <input
             type="password"
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
             className="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-            placeholder="Nhập mật khẩu mới (tối thiểu 6 ký tự)"
+            placeholder={t.auth.forgotPassword.newPasswordPlaceholder}
             required
             minLength={6}
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">Xác nhận mật khẩu mới *</label>
+          <label className="block text-sm font-medium text-gray-700">{t.auth.forgotPassword.confirmNewPassword}</label>
           <input
             type="password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             className="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-            placeholder="Nhập lại mật khẩu mới"
+            placeholder={t.auth.forgotPassword.confirmPasswordPlaceholder}
             required
             minLength={6}
           />
@@ -112,7 +114,7 @@ const Step3_ResetPassword: React.FC<Props> = ({ email, token, onSuccess }) => {
           disabled={loading}
           className="w-full px-4 py-2 font-semibold text-white bg-green-500 rounded-md hover:bg-green-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
         >
-          {loading ? "Đang cập nhật..." : "Đặt lại mật khẩu"}
+          {loading ? t.auth.forgotPassword.updating : t.auth.forgotPassword.resetButton}
         </button>
       </form>
     </div>

@@ -80,9 +80,14 @@ const SectionGridFilterCard: FC<SectionGridFilterCardProps> = ({
 
   const params = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const searchLocation = params.get("location");
+  const searchLocationId = params.get("locationId");
   const searchFromDate = params.get("startDate");
   const searchToDate = params.get("endDate");
   const searchGuests = params.get("guests");
+  const minPrice = params.get("minPrice");
+  const maxPrice = params.get("maxPrice");
+  const beds = params.get("beds");
+  const bathrooms = params.get("bathrooms");
 
   useEffect(() => {
     const fetchCondotels = async () => {
@@ -92,17 +97,54 @@ const SectionGridFilterCard: FC<SectionGridFilterCardProps> = ({
         
         // Build search query
         const searchQuery: any = {};
-        if (searchLocation) {
+        
+        // Ưu tiên locationId hơn location string
+        if (searchLocationId) {
+          const locationId = Number(searchLocationId);
+          if (!isNaN(locationId)) {
+            searchQuery.locationId = locationId;
+            console.log("🔍 Searching with locationId:", locationId);
+          }
+        } else if (searchLocation) {
           // Trim và decode location để đảm bảo đúng format
           const locationValue = decodeURIComponent(searchLocation.trim());
           searchQuery.location = locationValue;
           console.log("🔍 Searching with location:", locationValue);
         }
+        
         if (searchFromDate) {
           searchQuery.fromDate = searchFromDate;
         }
         if (searchToDate) {
           searchQuery.toDate = searchToDate;
+        }
+        
+        // Add price filters
+        if (minPrice) {
+          const minPriceNum = Number(minPrice);
+          if (!isNaN(minPriceNum) && minPriceNum > 0) {
+            searchQuery.minPrice = minPriceNum;
+          }
+        }
+        if (maxPrice) {
+          const maxPriceNum = Number(maxPrice);
+          if (!isNaN(maxPriceNum) && maxPriceNum > 0) {
+            searchQuery.maxPrice = maxPriceNum;
+          }
+        }
+        
+        // Add beds and bathrooms filters
+        if (beds) {
+          const bedsNum = Number(beds);
+          if (!isNaN(bedsNum) && bedsNum > 0) {
+            searchQuery.beds = bedsNum;
+          }
+        }
+        if (bathrooms) {
+          const bathroomsNum = Number(bathrooms);
+          if (!isNaN(bathroomsNum) && bathroomsNum > 0) {
+            searchQuery.bathrooms = bathroomsNum;
+          }
         }
         
         console.log("📤 Search query:", searchQuery);
@@ -121,7 +163,7 @@ const SectionGridFilterCard: FC<SectionGridFilterCardProps> = ({
     };
 
     fetchCondotels();
-  }, [searchLocation, searchFromDate, searchToDate]);
+  }, [location.search]); // Use location.search to trigger on any URL param change
 
   // Use condotels if available, otherwise use provided data or demo data
   const displayData = condotels.length > 0 
