@@ -32,7 +32,7 @@ const HostPromotionContent: React.FC = () => {
       // Load condotels first
       const condotelsData = await condotelAPI.getAllForHost();
       setCondotels(condotelsData);
-      
+
       // Load all promotions (từ tất cả condotels của host)
       try {
         const promotionsData = await condotelAPI.getPromotions();
@@ -57,8 +57,8 @@ const HostPromotionContent: React.FC = () => {
         const allPromotions: PromotionDTO[] = [];
         for (const condotel of condotelsData) {
           try {
-            const promoList = await condotelAPI.getPromotions(condotel.condotelId);
-            allPromotions.push(...promoList);
+            const allPromotions = await condotelAPI.getPromotions(); // ← Lấy hết luôn
+            setPromotions(allPromotions);
           } catch (e) {
             // Skip if condotel has no promotions
           }
@@ -192,11 +192,10 @@ const HostPromotionContent: React.FC = () => {
                   )}
                 </div>
                 <span
-                  className={`px-3 py-1 rounded-full text-xs font-medium ${
-                    ((promotion.status || "").toLowerCase() === "active" || promotion.isActive === true || (promotion as any).isActive === "true")
+                  className={`px-3 py-1 rounded-full text-xs font-medium ${((promotion.status || "").toLowerCase() === "active" || promotion.isActive === true || (promotion as any).isActive === "true")
                       ? "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400"
                       : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300"
-                  }`}
+                    }`}
                 >
                   {((promotion.status || "").toLowerCase() === "active" || promotion.isActive === true || (promotion as any).isActive === "true") ? "Đang hoạt động" : "Đã tắt"}
                 </span>
@@ -391,7 +390,7 @@ const PromotionModal: React.FC<PromotionModalProps> = ({
     } catch (err: any) {
       console.error("Failed to save promotion:", err);
       let errorMessage = "Không thể lưu promotion. Vui lòng thử lại!";
-      
+
       if (err.response?.data?.message) {
         errorMessage = err.response.data.message;
       } else if (err.response?.data?.errors) {

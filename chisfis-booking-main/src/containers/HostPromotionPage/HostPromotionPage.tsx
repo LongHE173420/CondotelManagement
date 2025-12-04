@@ -41,8 +41,9 @@ const HostPromotionPage: React.FC<HostPromotionPageProps> = ({ className = "" })
         console.log("Try loading promotions from individual condotels...");
         for (const condotel of condotelsData) {
           try {
-            const promoList = await condotelAPI.getPromotions(condotel.condotelId);
-            promotionsData.push(...promoList);
+            const allPromotions = await condotelAPI.getPromotions(); // ← Lấy hết luôn
+            setPromotions(allPromotions);
+
           } catch (e) {
             // Skip if condotel has no promotions
           }
@@ -200,11 +201,10 @@ const HostPromotionPage: React.FC<HostPromotionPageProps> = ({ className = "" })
                     )}
                   </div>
                   <span
-                    className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      ((promotion.status || "").toLowerCase() === "active" || promotion.isActive === true || (promotion as any).isActive === "true")
-                        ? "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400"
-                        : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300"
-                    }`}
+                    className={`px-3 py-1 rounded-full text-xs font-medium ${((promotion.status || "").toLowerCase() === "active" || promotion.isActive === true || (promotion as any).isActive === "true")
+                      ? "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400"
+                      : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300"
+                      }`}
                   >
                     {((promotion.status || "").toLowerCase() === "active" || promotion.isActive === true || (promotion as any).isActive === "true") ? "Đang hoạt động" : "Đã tắt"}
                   </span>
@@ -381,8 +381,8 @@ const PromotionModal: React.FC<PromotionModalProps> = ({
       console.error("Failed to save promotion:", err);
       setError(
         err.response?.data?.message ||
-          err.response?.data?.errors ||
-          "Không thể lưu promotion. Vui lòng thử lại!"
+        err.response?.data?.errors ||
+        "Không thể lưu promotion. Vui lòng thử lại!"
       );
     } finally {
       setLoading(false);
