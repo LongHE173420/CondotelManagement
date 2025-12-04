@@ -8,17 +8,13 @@ import ButtonPrimary from "shared/Button/ButtonPrimary";
 import { Link, useNavigate } from "react-router-dom";
 import { authAPI } from "api/auth";
 
-// Kiểu lỗi Axios
 interface AxiosErrorLike {
   isAxiosError: boolean;
   response?: { status?: number; data?: any };
 }
+
 function isAxiosError(error: unknown): error is AxiosErrorLike {
   return typeof error === "object" && error !== null && "isAxiosError" in error;
-}
-
-export interface PageSignUpProps {
-  className?: string;
 }
 
 const loginSocials = [
@@ -27,8 +23,9 @@ const loginSocials = [
   { name: "Continue with Google", href: "#", icon: googleSvg },
 ];
 
-const PageSignUp: FC<PageSignUpProps> = ({ className = "" }) => {
+const PageSignUp: FC<{ className?: string }> = ({ className = "" }) => {
   const navigate = useNavigate();
+
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -46,19 +43,63 @@ const PageSignUp: FC<PageSignUpProps> = ({ className = "" }) => {
   const [successMessage, setSuccessMessage] = useState("");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [termsError, setTermsError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData(prev => ({ ...prev, [name]: value }));
+    if (fieldErrors[name]) {
+      setFieldErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[name];
+        return newErrors;
+      });
+    }
+    if (error) setError("");
   };
 
-  // Bước 1: Đăng ký tài khoản
+  // ============ VALIDATE CLIENT-SIDE (giống hệt backend) ============
+  const validateForm = (): boolean => {
+    const errors: Record<string, string> = {};
+
+    // Họ và tên
+    if (!formData.fullName.trim()) {
+      errors.fullName = "Họ và tên không được để trống";
+    } else if (formData.fullName.trim().length > 100) {
+      errors.fullName = "Họ và tên không được vượt quá 100 ký tự";
+    }
+
+    // Email
+    if (!formData.email.trim()) {
+      errors.email = "Email không được để trống";
+    } else if (!/^\S+@\S+\.\S+$/.test(formData.email)) {
+      errors.email = "Email không đúng định dạng";
+    }
+
+    // Mật khẩu
+    if (formData.password.length < 8) {
+      errors.password = "Mật khẩu phải từ 8 ký tự trở lên và chứa ít nhất 1 chữ hoa, 1 chữ thường và 1 số.";
+    } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(formData.password)) {
+      errors.password = "Mật khẩu phải chứa ít nhất 1 chữ hoa, 1 chữ thường và 1 số.";
+    }
+
+    // Số điện thoại (nếu có nhập)
+    if (formData.phone && !/^0[3|5|7|8|9]\d{8}$/.test(formData.phone.replace(/\s/g, ""))) {
+      errors.phone = "Số điện thoại không hợp lệ (VD: 0901234567)";
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      return false;
+    }
+    return true;
+  };
+
+  // ============ ĐĂNG KÝ ============
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    setSuccessMessage("");
+    setFieldErrors({});
     setTermsError("");
 
     if (!acceptedTerms) {
@@ -66,324 +107,175 @@ const PageSignUp: FC<PageSignUpProps> = ({ className = "" }) => {
       return;
     }
 
-    if (!formData.email || !formData.password || !formData.fullName) {
-      setError("Vui lòng điền đầy đủ thông tin bắt buộc!");
-      return;
-    }
-
-    if (formData.password.length < 6) {
-      setError("Mật khẩu phải có ít nhất 6 ký tự!");
-      return;
-    }
+    if (!validateForm()) return;
 
     setRegistering(true);
 
     try {
       const payload: any = {
-        email: formData.email,
+        fullName: formData.fullName.trim(),
+        email: formData.email.toLowerCase().trim(),
         password: formData.password,
-        fullName: formData.fullName,
       };
-
-      // Only add optional fields if they have value
-      if (formData.phone) payload.phone = formData.phone;
+      if (formData.phone) payload.phone = formData.phone.trim();
       if (formData.gender) payload.gender = formData.gender;
       if (formData.dateOfBirth) payload.dateOfBirth = formData.dateOfBirth;
-      if (formData.address) payload.address = formData.address;
+      if (formData.address) payload.address = formData.address.trim();
 
       const response = await authAPI.register(payload);
-
-      setSuccessMessage(response.message || "Đăng ký thành công! Vui lòng kiểm tra email để lấy mã OTP.");
+      setSuccessMessage("Đăng ký thành công! Vui lòng kiểm tra email để lấy mã OTP.");
       setStep("verify");
     } catch (error: unknown) {
-      if (isAxiosError(error)) {
-        const status = error.response?.status;
-        const message = error.response?.data?.message || error.response?.data?.error;
-        if (status === 400) {
-          setError(message || "Email đã tồn tại hoặc dữ liệu không hợp lệ!");
-        } else {
-          setError(message || "Không thể đăng ký. Vui lòng thử lại sau.");
+      setFieldErrors({});
+
+      if (isAxiosError(error) && error.response?.status === 400) {
+        const errData = error.response.data;
+
+        if (errData?.errors && typeof errData.errors === "object") {
+          const newErrors: Record<string, string> = {};
+          Object.keys(errData.errors).forEach(field => {
+            const msg = Array.isArray(errData.errors[field]) ? errData.errors[field][0] : errData.errors[field];
+            const key = field.toLowerCase();
+
+            if (key.includes("password")) newErrors.password = msg;
+            else if (key.includes("email")) newErrors.email = msg;
+            else if (key.includes("fullname")) newErrors.fullName = msg;
+            else newErrors[field.toLowerCase()] = msg;
+          });
+          setFieldErrors(newErrors);
+          return;
         }
-      } else {
-        console.error(error);
-        setError("Đã xảy ra lỗi không xác định!");
       }
+
+      setError(isAxiosError(error) ? (error.response?.data?.message || "Đăng ký thất bại.") : "Lỗi mạng!");
     } finally {
       setRegistering(false);
     }
   };
 
-  // Bước 2: Xác thực email với OTP
+  // ============ XÁC THỰC OTP ============
   const handleVerifyEmail = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
-    setSuccessMessage("");
-
-    if (otp.length !== 6) {
-      setError("Mã OTP phải có 6 chữ số.");
+    if (otp.length !== 6 || !/^\d+$/.test(otp)) {
+      setError("Mã OTP phải đúng 6 chữ số");
       return;
     }
-
     setVerifying(true);
-
     try {
-      const response = await authAPI.verifyEmail({
-        email: formData.email,
-        otp: otp,
-      });
-
-      alert("Email đã được xác thực thành công! Bạn có thể đăng nhập ngay bây giờ.");
+      await authAPI.verifyEmail({ email: formData.email, otp });
+      alert("Xác thực thành công! Đăng nhập ngay nhé!");
       navigate("/login");
-    } catch (error: unknown) {
-      if (isAxiosError(error)) {
-        const status = error.response?.status;
-        const message = error.response?.data?.message || error.response?.data?.error;
-        if (status === 400) {
-          setError(message || "Mã OTP không đúng hoặc đã hết hạn. Vui lòng thử lại!");
-        } else {
-          setError(message || "Không thể xác thực email. Vui lòng thử lại sau.");
-        }
-      } else {
-        console.error(error);
-        setError("Đã xảy ra lỗi không xác định!");
-      }
+    } catch (err) {
+      setError(isAxiosError(err) ? (err.response?.data?.message || "OTP sai hoặc hết hạn") : "Lỗi mạng");
     } finally {
       setVerifying(false);
     }
   };
 
-  // Gửi lại OTP
   const handleResendOTP = async () => {
-    setError("");
-    setSuccessMessage("");
-
     try {
-      const payload: any = {
-        email: formData.email,
-        password: formData.password,
-        fullName: formData.fullName,
-      };
-
-      if (formData.phone) payload.phone = formData.phone;
-      if (formData.gender) payload.gender = formData.gender;
-      if (formData.dateOfBirth) payload.dateOfBirth = formData.dateOfBirth;
-      if (formData.address) payload.address = formData.address;
-
+      const payload = { ...formData, fullName: formData.fullName.trim(), email: formData.email.toLowerCase().trim() };
       await authAPI.register(payload);
-      setSuccessMessage("Đã gửi lại mã OTP. Vui lòng kiểm tra email!");
-    } catch (error: unknown) {
-      if (isAxiosError(error)) {
-        const message = error.response?.data?.message || error.response?.data?.error;
-        setError(message || "Không thể gửi lại OTP. Vui lòng thử lại sau.");
-      } else {
-        setError("Đã xảy ra lỗi không xác định!");
-      }
+      setSuccessMessage("Đã gửi lại OTP thành công!");
+    } catch {
+      setError("Gửi lại OTP thất bại");
     }
   };
 
-  // Quay lại form
-  const handleBackToForm = () => {
-    setStep("form");
-    setOtp("");
-    setError("");
-    setSuccessMessage("");
-  };
+  const renderInput = (label: string, name: keyof typeof formData, type = "text", placeholder = "", required = false) => (
+    <div>
+      <Input label={label} type={type} name={name} value={formData[name]} onChange={handleChange} placeholder={placeholder} required={required} />
+      {fieldErrors[name] && <p className="text-red-500 text-xs mt-1 ml-1">{fieldErrors[name]}</p>}
+    </div>
+  );
 
   return (
     <div className={`${className}`} data-nc-id="PageSignUp">
-      <Helmet>
-        <title>Sign up || Fiscondotel</title>
-      </Helmet>
+      <Helmet><title>Đăng ký || Condotel Booking</title></Helmet>
+
       <div className="container mb-24 lg:mb-32">
-        <h2 className="my-20 text-center text-3xl md:text-5xl font-semibold">
-          Create Account
-        </h2>
+        <h2 className="my-20 text-center text-3xl md:text-5xl font-semibold">Tạo tài khoản mới</h2>
+
         <div className="max-w-md mx-auto space-y-6">
-          {/* Social login */}
+          {/* Social */}
           <div className="grid gap-3">
-            {loginSocials.map((item, index) => (
-              <a
-                key={index}
-                href={item.href}
-                className="flex w-full rounded-lg bg-primary-50 dark:bg-neutral-800 px-4 py-3 hover:-translate-y-0.5 transition-transform"
-                onClick={(e) => e.preventDefault()}
-              >
-                <img className="flex-shrink-0" src={item.icon} alt={item.name} />
-                <h3 className="flex-grow text-center text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                  {item.name}
-                </h3>
+            {loginSocials.map((item, i) => (
+              <a key={i} href={item.href} onClick={e => e.preventDefault()} className="flex w-full rounded-lg bg-primary-50 dark:bg-neutral-800 px-4 py-3 hover:-translate-y-0.5 transition">
+                <img src={item.icon} alt={item.name} className="w-6" />
+                <span className="flex-grow text-center text-sm font-medium">{item.name}</span>
               </a>
             ))}
           </div>
 
-          {/* OR */}
           <div className="relative text-center">
-            <span className="relative z-10 px-4 bg-white dark:bg-neutral-900 text-sm text-neutral-500">
-              OR
-            </span>
-            <div className="absolute left-0 top-1/2 w-full border-t border-neutral-300 dark:border-neutral-700"></div>
+            <span className="relative z-10 px-4 bg-white dark:bg-neutral-900 text-sm text-neutral-500">HOẶC</span>
+            <div className="absolute inset-x-0 top-1/2 border-t border-neutral-300 dark:border-neutral-700" />
           </div>
 
           {/* FORM */}
           {step === "form" ? (
-            <form className="grid grid-cols-1 gap-5" onSubmit={handleRegister}>
-              <Input
-                label="Full Name"
-                name="fullName"
-                value={formData.fullName}
-                onChange={handleChange}
-                placeholder="Nguyen Van A"
-                required
-              />
-              <Input
-                label="Email"
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                placeholder="example@example.com"
-                required
-              />
-              <Input
-                label="Password"
-                type="password"
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                placeholder="••••••••"
-                required
-              />
-              <Input
-                label="Phone"
-                name="phone"
-                value={formData.phone}
-                onChange={handleChange}
-                placeholder="0123456789"
-              />
+            <form className="grid gap-5" onSubmit={handleRegister} noValidate>
+              {renderInput("Họ và tên", "fullName", "text", "Nguyễn Văn A", true)}
+              {renderInput("Email", "email", "email", "example@gmail.com", true)}
+
+              <div className="space-y-1">
+                <Input label="Mật khẩu" type="password" name="password" value={formData.password} onChange={handleChange} placeholder="••••••••" required />
+                {fieldErrors.password && <p className="text-red-500 text-xs mt-1 ml-1">{fieldErrors.password}</p>}
+                <p className="text-xs text-neutral-500">Mật khẩu ≥ 8 ký tự, có chữ hoa, chữ thường và số</p>
+              </div>
+
+              {renderInput("Số điện thoại", "phone", "tel", "0901234567")}
               <div>
-                <label className="text-neutral-800 dark:text-neutral-200 font-medium">
-                  Gender
-                </label>
-                <select
-                  name="gender"
-                  value={formData.gender}
-                  onChange={handleChange}
-                  className="w-full border border-neutral-300 rounded-2xl px-4 py-3 mt-1 dark:bg-neutral-800 dark:text-neutral-100"
-                >
-                  <option value="">Select gender</option>
+                <label className="text-neutral-800 dark:text-neutral-200 font-medium">Giới tính</label>
+                <select name="gender" value={formData.gender} onChange={handleChange} className="w-full mt-1 border rounded-2xl px-4 py-3">
+                  <option value="">Chọn giới tính</option>
                   <option value="Male">Nam</option>
                   <option value="Female">Nữ</option>
                   <option value="Other">Khác</option>
                 </select>
+                {fieldErrors.gender && <p className="text-red-500 text-xs mt-1 ml-1">{fieldErrors.gender}</p>}
               </div>
-              <Input
-                label="Date of Birth"
-                type="date"
-                name="dateOfBirth"
-                value={formData.dateOfBirth}
-                onChange={handleChange}
-              />
-              <Input
-                label="Address"
-                name="address"
-                value={formData.address}
-                onChange={handleChange}
-                placeholder="Hanoi, Vietnam"
-              />
 
-              {/* Terms and Conditions */}
+              {renderInput("Ngày sinh", "dateOfBirth", "date")}
+              {renderInput("Địa chỉ", "address", "text", "Hà Nội, Việt Nam")}
+
               <div className="space-y-2">
-                <label className="flex items-start space-x-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={acceptedTerms}
-                    onChange={(e) => {
-                      setAcceptedTerms(e.target.checked);
-                      setTermsError("");
-                    }}
-                    className="mt-1 h-4 w-4 text-primary-600 border-neutral-300 rounded focus:ring-primary-500 focus:ring-2 dark:bg-neutral-800 dark:border-neutral-600"
-                  />
-                  <span className="text-sm text-neutral-600 dark:text-neutral-400">
-                    Tôi đồng ý với{" "}
-                    <Link to="/terms" className="text-primary-600 hover:text-primary-700 underline" target="_blank">
-                      Điều khoản sử dụng
-                    </Link>{" "}
-                    và{" "}
-                    <Link to="/privacy" className="text-primary-600 hover:text-primary-700 underline" target="_blank">
-                      Chính sách bảo mật
-                    </Link>
-                  </span>
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input type="checkbox" checked={acceptedTerms} onChange={e => { setAcceptedTerms(e.target.checked); setTermsError(""); }} className="mt-1" />
+                  <span className="text-sm">Tôi đồng ý với <Link to="/terms" className="text-primary-600 underline">Điều khoản</Link> và <Link to="/privacy" className="text-primary-600 underline">Chính sách bảo mật</Link></span>
                 </label>
                 {termsError && <p className="text-red-500 text-sm ml-7">{termsError}</p>}
               </div>
 
-              {error && <p className="text-red-500 text-center text-sm">{error}</p>}
+              {error && !Object.keys(fieldErrors).length && <p className="text-red-500 text-center text-sm">{error}</p>}
 
-              <ButtonPrimary
-                type="submit"
-                disabled={registering || !acceptedTerms}
-                className={!acceptedTerms ? "opacity-50 cursor-not-allowed" : ""}
-              >
+              <ButtonPrimary type="submit" disabled={registering || !acceptedTerms}>
                 {registering ? "Đang đăng ký..." : "Đăng ký"}
               </ButtonPrimary>
             </form>
           ) : (
-            <form className="grid grid-cols-1 gap-5" onSubmit={handleVerifyEmail}>
+            // OTP FORM
+            <form className="grid gap-5" onSubmit={handleVerifyEmail}>
               <div>
-                <label className="text-neutral-800 dark:text-neutral-200 font-medium">
-                  Xác thực Email
-                </label>
-                <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-2">
-                  Chúng tôi đã gửi mã OTP đến email <strong>{formData.email}</strong>
-                </p>
-                <p className="text-sm text-green-600 dark:text-green-400 mb-3">
-                  {successMessage || "Vui lòng nhập mã OTP để xác thực email của bạn."}
-                </p>
-                <Input
-                  label="Nhập mã OTP"
-                  name="otp"
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value.replace(/[^0-9]/g, ""))}
-                  placeholder="123456"
-                  maxLength={6}
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={handleResendOTP}
-                  className="mt-2 text-sm text-primary-600 hover:text-primary-700 underline"
-                >
-                  Gửi lại mã OTP
-                </button>
+                <label className="font-medium">Xác thực Email</label>
+                <p className="text-sm text-neutral-600 mb-2">OTP đã gửi tới: <strong>{formData.email}</strong></p>
+                {successMessage && <p className="text-green-600 text-sm mb-3">{successMessage}</p>}
+                <Input label="Nhập mã OTP (6 số)" value={otp} onChange={e => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))} maxLength={6} />
+                <button type="button" onClick={handleResendOTP} className="text-sm text-primary-600 hover:underline mt-2">Gửi lại OTP</button>
               </div>
-
               {error && <p className="text-red-500 text-center text-sm">{error}</p>}
-
               <div className="flex gap-3">
-                <ButtonPrimary
-                  type="button"
-                  onClick={handleBackToForm}
-                  className="flex-1 bg-gray-500 hover:bg-gray-600"
-                >
-                  Quay lại
-                </ButtonPrimary>
-                <ButtonPrimary
-                  type="submit"
-                  disabled={verifying || otp.length !== 6}
-                  className="flex-1"
-                >
-                  {verifying ? "Đang xác thực..." : "Xác thực Email"}
+                <ButtonPrimary type="button" onClick={() => setStep("form")} className="flex-1 bg-gray-500">Quay lại</ButtonPrimary>
+                <ButtonPrimary type="submit" disabled={verifying || otp.length !== 6} className="flex-1">
+                  {verifying ? "Đang xác thực..." : "Xác thực"}
                 </ButtonPrimary>
               </div>
             </form>
           )}
 
           {step === "form" && (
-            <p className="text-center text-neutral-700 dark:text-neutral-300">
-              Already have an account?{" "}
-              <Link to="/login" className="text-primary-600 font-medium">
-                Sign in
-              </Link>
+            <p className="text-center text-sm">
+              Đã có tài khoản? <Link to="/login" className="text-primary-600 font-medium">Đăng nhập</Link>
             </p>
           )}
         </div>

@@ -22,6 +22,7 @@ export interface HostPackageDetailsDto {
     paymentUrl?: string;
     orderCode?: number;
     amount?: number;
+    isVerifiedBadgeEnabled: boolean;
 }
 
 export interface PurchasePackageRequestDto {
