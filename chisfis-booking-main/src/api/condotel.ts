@@ -130,13 +130,13 @@ export interface CreateCondotelDTO {
   status: string; // "Pending", "Active", "Inactive", "Available", "Unavailable"
 
   // Liên kết 1-n
-  images?: Array<{ 
-    imageUrl: string; 
+  images?: Array<{
+    imageUrl: string;
     caption?: string;
     // ImageId không cần khi create (sẽ được backend tự tạo)
   }>;
-  
-  prices?: Array<{ 
+
+  prices?: Array<{
     startDate: string; // DateOnly format: YYYY-MM-DD
     endDate: string; // DateOnly format: YYYY-MM-DD
     basePrice: number;
@@ -144,8 +144,8 @@ export interface CreateCondotelDTO {
     description: string; // Required trong backend PriceDTO
     // PriceId không cần khi create (sẽ được backend tự tạo)
   }>;
-  
-  details?: Array<{ 
+
+  details?: Array<{
     buildingName?: string;
     roomNumber?: string;
     beds?: number; // byte in C# - optional
@@ -206,15 +206,15 @@ export const condotelAPI = {
     if (query?.bathrooms !== undefined && query?.bathrooms !== null) {
       params.bathrooms = query.bathrooms;
     }
-    
+
     console.log("🔍 Searching condotels with params:", params);
     console.log("🔍 Full URL will be: /tenant/condotels?" + new URLSearchParams(params).toString());
-    
+
     try {
       const response = await axiosClient.get<any>("/tenant/condotels", { params });
       console.log("✅ Search response:", response.data);
       console.log("✅ Response type:", Array.isArray(response.data) ? "Array" : typeof response.data);
-      
+
       // Normalize response - handle both array and object with data property
       let data: any[] = [];
       if (Array.isArray(response.data)) {
@@ -222,9 +222,9 @@ export const condotelAPI = {
       } else if (response.data && typeof response.data === 'object' && 'data' in response.data) {
         data = Array.isArray(response.data.data) ? response.data.data : [];
       }
-      
+
       console.log("✅ Processed data count:", data.length);
-      
+
       // Helper function to normalize PromotionDTO
       const normalizePromotion = (promo: any): PromotionDTO | null => {
         if (!promo) return null;
@@ -258,7 +258,7 @@ export const condotelAPI = {
         hostName: item.HostName || item.hostName,
         activePromotion: normalizePromotion(item.ActivePromotion || item.activePromotion),
       }));
-      
+
       console.log("✅ Mapped results:", mapped.length, "condotels");
       return mapped;
     } catch (error: any) {
@@ -278,13 +278,13 @@ export const condotelAPI = {
   getById: async (id: number): Promise<CondotelDetailDTO> => {
     const response = await axiosClient.get<any>(`/tenant/condotels/${id}`);
     const data = response.data;
-    
+
     console.log("🔍 Raw API response for condotel:", id, data);
     console.log("🔍 Raw Amenities:", data.Amenities || data.amenities);
     console.log("🔍 Raw Utilities:", data.Utilities || data.utilities);
     console.log("🔍 Raw Promotions:", data.Promotions || data.promotions);
     console.log("🔍 Raw ActivePromotion:", data.ActivePromotion || data.activePromotion);
-    
+
     // Normalize amenities array - handle both PascalCase and camelCase properties
     const normalizeAmenities = (amenities: any[]): AmenityDTO[] => {
       if (!amenities || !Array.isArray(amenities)) return [];
@@ -293,7 +293,7 @@ export const condotelAPI = {
         name: a.Name || a.name,
       }));
     };
-    
+
     // Normalize utilities array - handle both PascalCase and camelCase properties
     const normalizeUtilities = (utilities: any[]): UtilityDTO[] => {
       if (!utilities || !Array.isArray(utilities)) return [];
@@ -342,22 +342,22 @@ export const condotelAPI = {
         updatedAt: promo.UpdatedAt || promo.updatedAt,
       };
     };
-    
+
     const rawAmenities = data.Amenities || data.amenities || [];
     const rawUtilities = data.Utilities || data.utilities || [];
     const rawPromotions = data.Promotions || data.promotions || [];
     const rawActivePromotion = data.ActivePromotion || data.activePromotion;
-    
+
     const normalizedAmenities = normalizeAmenities(rawAmenities);
     const normalizedUtilities = normalizeUtilities(rawUtilities);
     const normalizedPromotions = normalizePromotions(rawPromotions);
     const normalizedActivePromotion = normalizePromotion(rawActivePromotion);
-    
+
     console.log("✅ Normalized Amenities:", normalizedAmenities);
     console.log("✅ Normalized Utilities:", normalizedUtilities);
     console.log("✅ Normalized Promotions:", normalizedPromotions);
     console.log("✅ Normalized ActivePromotion:", normalizedActivePromotion);
-    
+
     // Normalize response - map PascalCase to camelCase
     return {
       condotelId: data.CondotelId || data.condotelId,
@@ -395,10 +395,10 @@ export const condotelAPI = {
   getAmenitiesByCondotelId: async (id: number): Promise<AmenityDTO[]> => {
     const response = await axiosClient.get<any>(`/tenant/condotels/${id}/amenities`);
     const data = response.data;
-    
+
     // Normalize response - handle both array and object with data property
     const amenities = Array.isArray(data) ? data : (data.data || []);
-    
+
     // Normalize amenities - handle both PascalCase and camelCase
     return amenities.map((a: any) => ({
       amenityId: a.AmenityId || a.amenityId || a.Id || a.id,
@@ -410,10 +410,10 @@ export const condotelAPI = {
   getUtilitiesByCondotelId: async (id: number): Promise<UtilityDTO[]> => {
     const response = await axiosClient.get<any>(`/tenant/condotels/${id}/utilities`);
     const data = response.data;
-    
+
     // Normalize response - handle both array and object with data property
     const utilities = Array.isArray(data) ? data : (data.data || []);
-    
+
     // Normalize utilities - handle both PascalCase and camelCase
     return utilities.map((u: any) => ({
       utilityId: u.UtilityId || u.utilityId || u.Id || u.id,
@@ -425,25 +425,25 @@ export const condotelAPI = {
   getAmenitiesAndUtilitiesByCondotelId: async (id: number): Promise<{ amenities: AmenityDTO[]; utilities: UtilityDTO[] }> => {
     const response = await axiosClient.get<any>(`/tenant/condotels/${id}/amenities-utilities`);
     const data = response.data;
-    
+
     // Normalize response structure
     const rawAmenities = data.Amenities || data.amenities || [];
     const rawUtilities = data.Utilities || data.utilities || [];
-    
+
     // Normalize amenities
     const amenities = Array.isArray(rawAmenities) ? rawAmenities : [];
     const normalizedAmenities = amenities.map((a: any) => ({
       amenityId: a.AmenityId || a.amenityId || a.Id || a.id,
       name: a.Name || a.name,
     }));
-    
+
     // Normalize utilities
     const utilities = Array.isArray(rawUtilities) ? rawUtilities : [];
     const normalizedUtilities = utilities.map((u: any) => ({
       utilityId: u.UtilityId || u.utilityId || u.Id || u.id,
       name: u.Name || u.name,
     }));
-    
+
     return {
       amenities: normalizedAmenities,
       utilities: normalizedUtilities,
@@ -460,7 +460,7 @@ export const condotelAPI = {
   getAllForHost: async (): Promise<CondotelDTO[]> => {
     const response = await axiosClient.get<any>("/host/condotel");
     const data = Array.isArray(response.data) ? response.data : (response.data.data || []);
-    
+
     // Helper function to normalize PromotionDTO
     const normalizePromotion = (promo: any): PromotionDTO | null => {
       if (!promo) return null;
@@ -499,7 +499,7 @@ export const condotelAPI = {
   getByIdForHost: async (id: number): Promise<CondotelDetailDTO> => {
     const response = await axiosClient.get<any>(`/host/condotel/${id}`);
     const data = response.data;
-    
+
     // Reuse normalization functions from getById
     const normalizeAmenities = (amenities: any[]): AmenityDTO[] => {
       if (!amenities || !Array.isArray(amenities)) return [];
@@ -508,7 +508,7 @@ export const condotelAPI = {
         name: a.Name || a.name,
       }));
     };
-    
+
     const normalizeUtilities = (utilities: any[]): UtilityDTO[] => {
       if (!utilities || !Array.isArray(utilities)) return [];
       return utilities.map((u: any) => ({
@@ -559,7 +559,7 @@ export const condotelAPI = {
     const rawUtilities = data.Utilities || data.utilities || [];
     const rawPromotions = data.Promotions || data.promotions || [];
     const rawActivePromotion = data.ActivePromotion || data.activePromotion;
-    
+
     return {
       condotelId: data.CondotelId || data.condotelId,
       hostId: data.HostId || data.hostId,
@@ -593,7 +593,7 @@ export const condotelAPI = {
       Bathrooms: condotel.bathrooms,
       Status: condotel.status,
     };
-    
+
     // Optional fields
     if (condotel.resortId !== undefined && condotel.resortId !== null) {
       requestData.ResortId = condotel.resortId;
@@ -601,7 +601,7 @@ export const condotelAPI = {
     if (condotel.description) {
       requestData.Description = condotel.description;
     }
-    
+
     // Images - map sang PascalCase (không gửi ImageId khi create)
     if (condotel.images && condotel.images.length > 0) {
       requestData.Images = condotel.images.map(img => ({
@@ -609,7 +609,7 @@ export const condotelAPI = {
         Caption: img.caption || null,
       }));
     }
-    
+
     // Prices - map sang PascalCase (không gửi PriceId khi create, nhưng Description là required)
     if (condotel.prices && condotel.prices.length > 0) {
       requestData.Prices = condotel.prices.map(p => ({
@@ -620,7 +620,7 @@ export const condotelAPI = {
         Description: p.description || "", // Required trong backend
       }));
     }
-    
+
     // Details - map sang PascalCase
     if (condotel.details && condotel.details.length > 0) {
       requestData.Details = condotel.details.map(d => {
@@ -634,7 +634,7 @@ export const condotelAPI = {
         return detail;
       });
     }
-    
+
     // AmenityIds và UtilityIds
     if (condotel.amenityIds && condotel.amenityIds.length > 0) {
       requestData.AmenityIds = condotel.amenityIds;
@@ -642,13 +642,13 @@ export const condotelAPI = {
     if (condotel.utilityIds && condotel.utilityIds.length > 0) {
       requestData.UtilityIds = condotel.utilityIds;
     }
-    
+
     console.log("📤 Creating condotel with data:", JSON.stringify(requestData, null, 2));
-    
+
     const response = await axiosClient.post<CondotelDetailDTO>("/host/condotel", requestData);
-    
+
     console.log("✅ Condotel created successfully:", response.data);
-    
+
     return response.data;
   },
 
@@ -665,13 +665,13 @@ export const condotelAPI = {
   delete: async (id: number): Promise<CondotelDetailDTO> => {
     // Lấy thông tin condotel hiện tại
     const currentCondotel = await axiosClient.get<CondotelDetailDTO>(`/host/condotel/${id}`).then(res => res.data);
-    
+
     // Cập nhật status thành "Inactive" thay vì xóa thật sự
     const updatedCondotel: CondotelDetailDTO = {
       ...currentCondotel,
       status: "Inactive",
     };
-    
+
     // Gọi API update để thay đổi status
     const response = await axiosClient.put<CondotelDetailDTO>(`/host/condotel/${id}`, updatedCondotel);
     return response.data;
@@ -679,44 +679,32 @@ export const condotelAPI = {
 
   // Promotion APIs - Sử dụng endpoints từ PromotionController
   // GET /api/promotion - Lấy tất cả promotions
-  getPromotions: async (condotelId?: number): Promise<PromotionDTO[]> => {
-    if (condotelId) {
-      // GET /api/promotion/condotel/{condotelId} - Lấy promotions theo condotelId
-      const response = await axiosClient.get<PromotionDTO[]>(`/promotion/condotel/${condotelId}`);
-      return response.data;
-    }
-    // GET /api/promotion - Lấy tất cả promotions
-    const response = await axiosClient.get<PromotionDTO[]>("/promotion");
+  // Promotion APIs - ĐÃ SỬA ĐÚNG THEO BACKEND CỦA BẠN
+  // LẤY TẤT CẢ KHUYẾN MÃI CỦA HOST HIỆN TẠI (dùng cho trang Promotions)
+  getPromotions: async (): Promise<PromotionDTO[]> => {
+    const response = await axiosClient.get<PromotionDTO[]>("/host/promotions");
     return response.data;
   },
 
-  // GET /api/promotion/{id} - Lấy promotion theo ID
-  getPromotionById: async (promotionId: number): Promise<PromotionDTO> => {
-    const response = await axiosClient.get<PromotionDTO>(`/promotion/${promotionId}`);
+  // LẤY KHUYẾN MÃI THEO TỪNG CONDOTEL (nếu vẫn dùng được ở những chỗ khác)
+  getPromotionsByCondotel: async (condotelId: number): Promise<PromotionDTO[]> => {
+    const response = await axiosClient.get<PromotionDTO[]>(`/promotions/condotel/${condotelId}`);
     return response.data;
   },
 
-  // POST /api/promotion - Tạo promotion mới
+  // Các hàm CRUD khác (giữ nguyên route đúng)
   createPromotion: async (promotion: CreatePromotionDTO): Promise<PromotionDTO> => {
-    const response = await axiosClient.post<PromotionDTO>("/promotion", promotion);
-    return response.data;
+    const res = await axiosClient.post<PromotionDTO>("/host/promotion", promotion);
+    return res.data;
   },
 
-  // PUT /api/promotion/{id} - Cập nhật promotion
-  updatePromotion: async (
-    promotionId: number,
-    promotion: UpdatePromotionDTO
-  ): Promise<{ message: string }> => {
-    const response = await axiosClient.put<{ message: string }>(
-      `/promotion/${promotionId}`,
-      promotion
-    );
-    return response.data;
+  updatePromotion: async (promotionId: number, promotion: UpdatePromotionDTO): Promise<any> => {
+    const res = await axiosClient.put(`/host/promotion/${promotionId}`, promotion);
+    return res.data;
   },
 
-  // DELETE /api/promotion/{id} - Xóa promotion
   deletePromotion: async (promotionId: number): Promise<void> => {
-    await axiosClient.delete(`/promotion/${promotionId}`);
+    await axiosClient.delete(`/host/promotion/${promotionId}`);
   },
 };
 
