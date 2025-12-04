@@ -88,7 +88,7 @@ const PaymentSuccess: React.FC = () => {
                             </svg>
                         </div>
                         <h1 className="text-4xl font-bold text-green-600 mb-4">
-                            BẠN ĐÃ LÊN HOST!
+                            BẠN ĐÃ ĐĂNG KÍ HOST THÀNH CÔNG !
                         </h1>
                         <p className="text-gray-700 text-xl mb-6">
                             Vui lòng đăng nhập lại để hệ thống cập nhật quyền hạn mới.

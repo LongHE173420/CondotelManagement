@@ -35,6 +35,7 @@ const PageSignUp: FC<{ className?: string }> = ({ className = "" }) => {
     dateOfBirth: "",
     address: "",
   });
+
   const [step, setStep] = useState<"form" | "verify">("form");
   const [otp, setOtp] = useState("");
   const [registering, setRegistering] = useState(false);

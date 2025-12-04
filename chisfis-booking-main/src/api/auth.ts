@@ -31,6 +31,16 @@ export interface ResetPasswordWithOtpRequest {
   otp: string;
   newPassword: string;
 }
+export interface HostPublicProfile {
+  hostId: number;
+  fullName: string;
+  imageUrl?: string;
+  phone?: string;
+  isVerified: boolean;
+  packageName?: string;
+  priorityLevel: number;
+  displayColorTheme?: string;
+}
 
 // Dành riêng cho Host đăng ký
 export interface HostRegisterRequest {
@@ -106,6 +116,7 @@ export const authAPI = {
       token: response.data.token,
       user: normalizeUser(response.data.user),
     };
+
   },
 
   /**
@@ -239,6 +250,12 @@ export const authAPI = {
   adminCheck: async (): Promise<{ message: string }> => {
     const response = await axiosClient.get<{ message: string }>(
       "/Auth/admin-check"
+    );
+    return response.data;
+  },
+  getHostPublicProfile: async (hostId: number): Promise<HostPublicProfile> => {
+    const response = await axiosClient.get<HostPublicProfile>(
+      `/public-profile/host/${hostId}`
     );
     return response.data;
   },
