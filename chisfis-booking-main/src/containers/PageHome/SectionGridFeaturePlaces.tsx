@@ -1,4 +1,5 @@
 import React, { FC, ReactNode, useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { DEMO_STAY_LISTINGS } from "data/listings";
 import { StayDataType } from "data/types";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
@@ -6,6 +7,7 @@ import HeaderFilter from "./HeaderFilter";
 import StayCard from "components/StayCard/StayCard";
 import CondotelCard from "components/CondotelCard/CondotelCard";
 import condotelAPI, { CondotelDTO } from "api/condotel";
+import locationAPI, { LocationDTO } from "api/location";
 import { useTranslation } from "i18n/LanguageContext";
 
 // OTHER DEMO WILL PASS PROPS
@@ -30,29 +32,94 @@ const SectionGridFeaturePlaces: FC<SectionGridFeaturePlacesProps> = ({
   tabs,
 }) => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [condotels, setCondotels] = useState<CondotelDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [locations, setLocations] = useState<LocationDTO[]>([]);
+  const [locationTabs, setLocationTabs] = useState<string[]>([]);
+  const [locationMap, setLocationMap] = useState<Map<string, number>>(new Map()); // Map location name to locationId
+  const [activeTab, setActiveTab] = useState<string>("");
+  const [loadingLocations, setLoadingLocations] = useState(true);
 
   // Use translations as defaults if not provided
   const displayHeading = heading || t.home.featuredPlaces;
   const displaySubHeading = subHeading || t.home.featuredPlacesSubtitle;
-  const displayTabs = tabs || [
-    t.home.destinations.hanoi,
-    t.home.destinations.hoChiMinh,
-    t.home.destinations.daNang,
-    t.home.destinations.haLong,
-    t.home.destinations.hoiAn,
-    t.home.destinations.nhaTrang,
-  ];
 
-  // Fetch condotels from API
+  // Load locations from API
+  useEffect(() => {
+    const loadLocations = async () => {
+      try {
+        setLoadingLocations(true);
+        const locationsData = await locationAPI.getAllPublic();
+        setLocations(locationsData);
+        
+        // Create tabs from location names
+        const tabsList = locationsData.map(loc => loc.locationName);
+        setLocationTabs(tabsList.length > 0 ? tabsList : (tabs || [
+          t.home.destinations.hanoi,
+          t.home.destinations.hoChiMinh,
+          t.home.destinations.daNang,
+          t.home.destinations.haLong,
+          t.home.destinations.hoiAn,
+          t.home.destinations.nhaTrang,
+        ]));
+        
+        // Create map from location name to locationId
+        const map = new Map<string, number>();
+        locationsData.forEach(loc => {
+          map.set(loc.locationName, loc.locationId);
+        });
+        setLocationMap(map);
+        
+        // Set first tab as active
+        if (tabsList.length > 0) {
+          setActiveTab(tabsList[0]);
+        }
+      } catch (err: any) {
+        console.error("Error loading locations:", err);
+        // Fallback to provided tabs or default translations
+        const fallbackTabs = tabs || [
+          t.home.destinations.hanoi,
+          t.home.destinations.hoChiMinh,
+          t.home.destinations.daNang,
+          t.home.destinations.haLong,
+          t.home.destinations.hoiAn,
+          t.home.destinations.nhaTrang,
+        ];
+        setLocationTabs(fallbackTabs);
+        if (fallbackTabs.length > 0) {
+          setActiveTab(fallbackTabs[0]);
+        }
+      } finally {
+        setLoadingLocations(false);
+      }
+    };
+
+    loadLocations();
+  }, [tabs, t]);
+
+  // Fetch condotels from API based on active tab
   useEffect(() => {
     const fetchCondotels = async () => {
+      if (!activeTab) return;
+      
       try {
         setLoading(true);
         setError("");
-        const data = await condotelAPI.getAll();
+        
+        // Get locationId from map if available
+        const locationId = locationMap.get(activeTab);
+        
+        let data: CondotelDTO[];
+        if (locationId) {
+          // Filter by locationId
+          data = await condotelAPI.getCondotelsByLocationId(locationId);
+        } else {
+          // Filter by location name
+          data = await condotelAPI.getCondotelsByLocation(activeTab);
+        }
+        
         // Limit to 8 condotels for display
         setCondotels(data.slice(0, 8));
       } catch (err: any) {
@@ -66,7 +133,20 @@ const SectionGridFeaturePlaces: FC<SectionGridFeaturePlacesProps> = ({
     };
 
     fetchCondotels();
-  }, []);
+  }, [activeTab, locationMap]);
+
+  const handleTabClick = (tabName: string) => {
+    setActiveTab(tabName);
+  };
+
+  const handleViewAll = () => {
+    const locationId = activeTab ? locationMap.get(activeTab) : null;
+    if (locationId) {
+      navigate(`/listing-stay?locationId=${locationId}`);
+    } else {
+      navigate("/listing-stay");
+    }
+  };
 
   const renderCard = (stay: StayDataType) => {
     return <StayCard key={stay.id} data={stay} />;
@@ -75,11 +155,12 @@ const SectionGridFeaturePlaces: FC<SectionGridFeaturePlacesProps> = ({
   return (
     <div className="nc-SectionGridFeaturePlaces relative">
       <HeaderFilter
-        tabActive={displayTabs[0]}
+        tabActive={activeTab || locationTabs[0] || ""}
         subHeading={displaySubHeading}
-        tabs={displayTabs}
+        tabs={locationTabs}
         heading={displayHeading}
-        onClickTab={() => {}}
+        onClickTab={handleTabClick}
+        onViewAll={handleViewAll}
       />
       
       {error && (
@@ -102,7 +183,7 @@ const SectionGridFeaturePlaces: FC<SectionGridFeaturePlacesProps> = ({
             ))}
           </div>
           <div className="flex mt-16 justify-center items-center">
-            <ButtonPrimary href="/listing-stay">
+            <ButtonPrimary onClick={handleViewAll}>
               {t.condotel.viewMore || "Xem thêm condotel"}
             </ButtonPrimary>
           </div>
@@ -115,7 +196,7 @@ const SectionGridFeaturePlaces: FC<SectionGridFeaturePlacesProps> = ({
             {DEMO_DATA.map((stay) => renderCard(stay))}
           </div>
           <div className="flex mt-16 justify-center items-center">
-            <ButtonPrimary href="/listing-stay">
+            <ButtonPrimary onClick={handleViewAll}>
               {t.condotel.viewMore || "Xem thêm condotel"}
             </ButtonPrimary>
           </div>

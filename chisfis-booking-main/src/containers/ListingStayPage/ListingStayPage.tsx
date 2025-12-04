@@ -10,6 +10,7 @@ import SectionGridFilterCard from "./SectionGridFilterCard";
 import { Helmet } from "react-helmet";
 import { useTranslation } from "i18n/LanguageContext";
 import condotelAPI from "api/condotel";
+import locationAPI from "api/location";
 
 export interface ListingStayPageProps {
   className?: string;
@@ -19,25 +20,88 @@ const ListingStayPage: FC<ListingStayPageProps> = ({ className = "" }) => {
   const { t } = useTranslation();
   const location = useLocation();
   const [propertyCount, setPropertyCount] = useState<number>(0);
+  const [locationName, setLocationName] = useState<string>("");
   
   const params = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const searchLocation = params.get("location");
+  const searchLocationId = params.get("locationId");
   const searchFromDate = params.get("startDate");
   const searchToDate = params.get("endDate");
+  const minPrice = params.get("minPrice");
+  const maxPrice = params.get("maxPrice");
+  const beds = params.get("beds");
+  const bathrooms = params.get("bathrooms");
+
+  // Load location name if locationId is provided
+  useEffect(() => {
+    const loadLocationName = async () => {
+      if (searchLocationId) {
+        try {
+          const locationId = Number(searchLocationId);
+          if (!isNaN(locationId)) {
+            const locationData = await locationAPI.getByIdPublic(locationId);
+            setLocationName(locationData.locationName);
+          }
+        } catch (err) {
+          console.error("Error loading location name:", err);
+          setLocationName("");
+        }
+      } else {
+        setLocationName(searchLocation || "");
+      }
+    };
+    loadLocationName();
+  }, [searchLocationId, searchLocation]);
 
   useEffect(() => {
     const fetchCount = async () => {
       try {
         // Build search query
         const searchQuery: any = {};
-        if (searchLocation) {
+        
+        // Ưu tiên locationId hơn location string
+        if (searchLocationId) {
+          const locationId = Number(searchLocationId);
+          if (!isNaN(locationId)) {
+            searchQuery.locationId = locationId;
+          }
+        } else if (searchLocation) {
           searchQuery.location = searchLocation;
         }
+        
         if (searchFromDate) {
           searchQuery.fromDate = searchFromDate;
         }
         if (searchToDate) {
           searchQuery.toDate = searchToDate;
+        }
+        
+        // Add price filters
+        if (minPrice) {
+          const minPriceNum = Number(minPrice);
+          if (!isNaN(minPriceNum) && minPriceNum > 0) {
+            searchQuery.minPrice = minPriceNum;
+          }
+        }
+        if (maxPrice) {
+          const maxPriceNum = Number(maxPrice);
+          if (!isNaN(maxPriceNum) && maxPriceNum > 0) {
+            searchQuery.maxPrice = maxPriceNum;
+          }
+        }
+        
+        // Add beds and bathrooms filters
+        if (beds) {
+          const bedsNum = Number(beds);
+          if (!isNaN(bedsNum) && bedsNum > 0) {
+            searchQuery.beds = bedsNum;
+          }
+        }
+        if (bathrooms) {
+          const bathroomsNum = Number(bathrooms);
+          if (!isNaN(bathroomsNum) && bathroomsNum > 0) {
+            searchQuery.bathrooms = bathroomsNum;
+          }
         }
         
         // Always fetch all condotels to get count
@@ -49,7 +113,7 @@ const ListingStayPage: FC<ListingStayPageProps> = ({ className = "" }) => {
       }
     };
     fetchCount();
-  }, [searchLocation, searchFromDate, searchToDate]);
+  }, [searchLocation, searchLocationId, searchFromDate, searchToDate, minPrice, maxPrice, beds, bathrooms]);
   
   return (
     <div
@@ -58,8 +122,8 @@ const ListingStayPage: FC<ListingStayPageProps> = ({ className = "" }) => {
     >
       <Helmet>
         <title>
-          {searchLocation 
-            ? `${t.condotel.staysIn || "Stays in"} ${searchLocation}` 
+          {(searchLocationId || searchLocation || locationName)
+            ? `${t.condotel.staysIn || "Stays in"} ${locationName || searchLocation || "Location"}` 
             : (t.condotel.allCondotels || "Tất cả Condotel")} - Fiscondotel
         </title>
       </Helmet>
@@ -71,8 +135,8 @@ const ListingStayPage: FC<ListingStayPageProps> = ({ className = "" }) => {
           currentPage="Stays"
           currentTab="Stays"
           locationName={
-            searchLocation 
-              ? `${t.condotel.staysIn || "Stays in"} ${searchLocation}`
+            (searchLocationId || searchLocation || locationName)
+              ? `${t.condotel.staysIn || "Stays in"} ${locationName || searchLocation || "Location"}`
               : (t.condotel.allCondotels || "Tất cả Condotel")
           }
           propertyCount={propertyCount}

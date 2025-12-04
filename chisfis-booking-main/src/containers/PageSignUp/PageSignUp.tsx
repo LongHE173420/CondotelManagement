@@ -7,6 +7,7 @@ import Input from "shared/Input/Input";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
 import { Link, useNavigate } from "react-router-dom";
 import { authAPI } from "api/auth";
+import { useTranslation } from "i18n/LanguageContext";
 
 // Kiểu lỗi Axios
 interface AxiosErrorLike {
@@ -21,14 +22,11 @@ export interface PageSignUpProps {
   className?: string;
 }
 
-const loginSocials = [
-  { name: "Continue with Facebook", href: "#", icon: facebookSvg },
-  { name: "Continue with Twitter", href: "#", icon: twitterSvg },
-  { name: "Continue with Google", href: "#", icon: googleSvg },
-];
+// loginSocials sẽ được định nghĩa trong component để sử dụng t
 
 const PageSignUp: FC<PageSignUpProps> = ({ className = "" }) => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -62,7 +60,7 @@ const PageSignUp: FC<PageSignUpProps> = ({ className = "" }) => {
     setTermsError("");
 
     if (!acceptedTerms) {
-      setTermsError("Vui lòng chấp nhận điều khoản sử dụng!");
+      setTermsError(t.auth.signup.termsError);
       return;
     }
 
@@ -189,14 +187,20 @@ const PageSignUp: FC<PageSignUpProps> = ({ className = "" }) => {
     setSuccessMessage("");
   };
 
+  const loginSocials = [
+    { name: t.auth.signup.continueWithFacebook, href: "#", icon: facebookSvg },
+    { name: t.auth.signup.continueWithTwitter, href: "#", icon: twitterSvg },
+    { name: t.auth.signup.continueWithGoogle, href: "#", icon: googleSvg },
+  ];
+
   return (
     <div className={`${className}`} data-nc-id="PageSignUp">
       <Helmet>
-        <title>Sign up || Fiscondotel</title>
+        <title>{t.auth.signup.title} || Fiscondotel</title>
       </Helmet>
       <div className="container mb-24 lg:mb-32">
         <h2 className="my-20 text-center text-3xl md:text-5xl font-semibold">
-          Create Account
+          {t.auth.signup.createAccount}
         </h2>
         <div className="max-w-md mx-auto space-y-6">
           {/* Social login */}
@@ -219,7 +223,7 @@ const PageSignUp: FC<PageSignUpProps> = ({ className = "" }) => {
           {/* OR */}
           <div className="relative text-center">
             <span className="relative z-10 px-4 bg-white dark:bg-neutral-900 text-sm text-neutral-500">
-              OR
+              {t.auth.signup.or}
             </span>
             <div className="absolute left-0 top-1/2 w-full border-t border-neutral-300 dark:border-neutral-700"></div>
           </div>
@@ -228,7 +232,7 @@ const PageSignUp: FC<PageSignUpProps> = ({ className = "" }) => {
           {step === "form" ? (
             <form className="grid grid-cols-1 gap-5" onSubmit={handleRegister}>
               <Input
-                label="Full Name"
+                label={t.auth.signup.fullName}
                 name="fullName"
                 value={formData.fullName}
                 onChange={handleChange}
@@ -236,7 +240,7 @@ const PageSignUp: FC<PageSignUpProps> = ({ className = "" }) => {
                 required
               />
               <Input
-                label="Email"
+                label={t.auth.signup.email}
                 type="email"
                 name="email"
                 value={formData.email}
@@ -245,7 +249,7 @@ const PageSignUp: FC<PageSignUpProps> = ({ className = "" }) => {
                 required
               />
               <Input
-                label="Password"
+                label={t.auth.signup.password}
                 type="password"
                 name="password"
                 value={formData.password}
@@ -254,7 +258,7 @@ const PageSignUp: FC<PageSignUpProps> = ({ className = "" }) => {
                 required
               />
               <Input
-                label="Phone"
+                label={t.auth.signup.phone}
                 name="phone"
                 value={formData.phone}
                 onChange={handleChange}
@@ -262,7 +266,7 @@ const PageSignUp: FC<PageSignUpProps> = ({ className = "" }) => {
               />
               <div>
                 <label className="text-neutral-800 dark:text-neutral-200 font-medium">
-                  Gender
+                  {t.auth.signup.gender}
                 </label>
                 <select
                   name="gender"
@@ -270,21 +274,21 @@ const PageSignUp: FC<PageSignUpProps> = ({ className = "" }) => {
                   onChange={handleChange}
                   className="w-full border border-neutral-300 rounded-2xl px-4 py-3 mt-1 dark:bg-neutral-800 dark:text-neutral-100"
                 >
-                  <option value="">Select gender</option>
-                  <option value="Male">Nam</option>
-                  <option value="Female">Nữ</option>
-                  <option value="Other">Khác</option>
+                  <option value="">{t.auth.signup.selectGender}</option>
+                  <option value="Male">{t.auth.signup.male}</option>
+                  <option value="Female">{t.auth.signup.female}</option>
+                  <option value="Other">{t.auth.signup.other}</option>
                 </select>
               </div>
               <Input
-                label="Date of Birth"
+                label={t.auth.signup.dateOfBirth}
                 type="date"
                 name="dateOfBirth"
                 value={formData.dateOfBirth}
                 onChange={handleChange}
               />
               <Input
-                label="Address"
+                label={t.auth.signup.address}
                 name="address"
                 value={formData.address}
                 onChange={handleChange}
@@ -304,13 +308,13 @@ const PageSignUp: FC<PageSignUpProps> = ({ className = "" }) => {
                     className="mt-1 h-4 w-4 text-primary-600 border-neutral-300 rounded focus:ring-primary-500 focus:ring-2 dark:bg-neutral-800 dark:border-neutral-600"
                   />
                   <span className="text-sm text-neutral-600 dark:text-neutral-400">
-                    Tôi đồng ý với{" "}
+                    {t.auth.signup.termsAgree}{" "}
                     <Link to="/terms" className="text-primary-600 hover:text-primary-700 underline" target="_blank">
-                      Điều khoản sử dụng
+                      {t.auth.signup.termsOfService}
                     </Link>{" "}
-                    và{" "}
+                    {t.auth.signup.and}{" "}
                     <Link to="/privacy" className="text-primary-600 hover:text-primary-700 underline" target="_blank">
-                      Chính sách bảo mật
+                      {t.auth.signup.privacyPolicy}
                     </Link>
                   </span>
                 </label>
@@ -324,23 +328,23 @@ const PageSignUp: FC<PageSignUpProps> = ({ className = "" }) => {
                 disabled={registering || !acceptedTerms}
                 className={!acceptedTerms ? "opacity-50 cursor-not-allowed" : ""}
               >
-                {registering ? "Đang đăng ký..." : "Đăng ký"}
+                {registering ? t.auth.signup.registering : t.auth.signup.signupButton}
               </ButtonPrimary>
             </form>
           ) : (
             <form className="grid grid-cols-1 gap-5" onSubmit={handleVerifyEmail}>
               <div>
                 <label className="text-neutral-800 dark:text-neutral-200 font-medium">
-                  Xác thực Email
+                  {t.auth.signup.verifyEmail}
                 </label>
                 <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-2">
-                  Chúng tôi đã gửi mã OTP đến email <strong>{formData.email}</strong>
+                  {t.auth.signup.otpSent} <strong>{formData.email}</strong>
                 </p>
                 <p className="text-sm text-green-600 dark:text-green-400 mb-3">
-                  {successMessage || "Vui lòng nhập mã OTP để xác thực email của bạn."}
+                  {successMessage || t.auth.signup.otpInstructions}
                 </p>
                 <Input
-                  label="Nhập mã OTP"
+                  label={t.auth.signup.otpCode}
                   name="otp"
                   value={otp}
                   onChange={(e) => setOtp(e.target.value.replace(/[^0-9]/g, ""))}
@@ -353,7 +357,7 @@ const PageSignUp: FC<PageSignUpProps> = ({ className = "" }) => {
                   onClick={handleResendOTP}
                   className="mt-2 text-sm text-primary-600 hover:text-primary-700 underline"
                 >
-                  Gửi lại mã OTP
+                  {t.auth.signup.resendOtp}
                 </button>
               </div>
 
@@ -365,14 +369,14 @@ const PageSignUp: FC<PageSignUpProps> = ({ className = "" }) => {
                   onClick={handleBackToForm}
                   className="flex-1 bg-gray-500 hover:bg-gray-600"
                 >
-                  Quay lại
+                  {t.auth.signup.backToForm}
                 </ButtonPrimary>
                 <ButtonPrimary
                   type="submit"
                   disabled={verifying || otp.length !== 6}
                   className="flex-1"
                 >
-                  {verifying ? "Đang xác thực..." : "Xác thực Email"}
+                  {verifying ? t.auth.signup.verifying : t.auth.signup.verifyButton}
                 </ButtonPrimary>
               </div>
             </form>
@@ -380,9 +384,9 @@ const PageSignUp: FC<PageSignUpProps> = ({ className = "" }) => {
 
           {step === "form" && (
             <p className="text-center text-neutral-700 dark:text-neutral-300">
-              Already have an account?{" "}
+              {t.auth.signup.haveAccount}{" "}
               <Link to="/login" className="text-primary-600 font-medium">
-                Sign in
+                {t.auth.signup.loginLink}
               </Link>
             </p>
           )}

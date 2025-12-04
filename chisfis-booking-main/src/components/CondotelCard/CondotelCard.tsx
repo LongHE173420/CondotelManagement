@@ -24,6 +24,7 @@ const CondotelCard: FC<CondotelCardProps> = ({
     status,
     thumbnailUrl,
     resortName,
+    activePromotion,
   } = data;
 
   const formatPrice = (price: number) => {
@@ -32,6 +33,24 @@ const CondotelCard: FC<CondotelCardProps> = ({
       currency: "VND",
     }).format(price);
   };
+
+  // Tính giá sau khi giảm giá (nếu có promotion)
+  const calculateDiscountedPrice = () => {
+    if (!activePromotion) return pricePerNight;
+    
+    if (activePromotion.discountPercentage) {
+      // Giảm theo phần trăm
+      return pricePerNight * (1 - activePromotion.discountPercentage / 100);
+    } else if (activePromotion.discountAmount) {
+      // Giảm theo số tiền cố định
+      return Math.max(0, pricePerNight - activePromotion.discountAmount);
+    }
+    
+    return pricePerNight;
+  };
+
+  const discountedPrice = calculateDiscountedPrice();
+  const hasDiscount = activePromotion && discountedPrice < pricePerNight;
 
   const renderSliderGallery = () => {
     return (
@@ -42,6 +61,18 @@ const CondotelCard: FC<CondotelCardProps> = ({
           className="w-full h-full object-cover"
         />
         <BtnLikeIcon isLiked={false} className="absolute right-3 top-3 z-[1]" />
+        {/* Promotion Badge */}
+        {activePromotion && (
+          <div className="absolute left-3 top-3 z-[1]">
+            <span className="px-3 py-1.5 bg-red-500 text-white text-xs font-bold rounded-full shadow-lg">
+              {activePromotion.discountPercentage 
+                ? `-${activePromotion.discountPercentage}%`
+                : activePromotion.discountAmount
+                ? `-${formatPrice(activePromotion.discountAmount)}`
+                : "Khuyến mãi"}
+            </span>
+          </div>
+        )}
       </div>
     );
   };
@@ -96,14 +127,32 @@ const CondotelCard: FC<CondotelCardProps> = ({
             )}
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-base font-semibold">
-              {formatPrice(pricePerNight)}
-              {size === "default" && (
-                <span className="text-sm text-neutral-500 dark:text-neutral-400 font-normal">
-                  /đêm
+            <div className="flex flex-col">
+              {hasDiscount ? (
+                <>
+                  <span className="text-base font-semibold text-red-600 dark:text-red-400">
+                    {formatPrice(discountedPrice)}
+                    {size === "default" && (
+                      <span className="text-sm text-neutral-500 dark:text-neutral-400 font-normal">
+                        /đêm
+                      </span>
+                    )}
+                  </span>
+                  <span className="text-xs text-neutral-400 dark:text-neutral-500 line-through">
+                    {formatPrice(pricePerNight)}
+                  </span>
+                </>
+              ) : (
+                <span className="text-base font-semibold">
+                  {formatPrice(pricePerNight)}
+                  {size === "default" && (
+                    <span className="text-sm text-neutral-500 dark:text-neutral-400 font-normal">
+                      /đêm
+                    </span>
+                  )}
                 </span>
               )}
-            </span>
+            </div>
             <StartRating reviewCount={12} point={4.8} />
           </div>
         </div>

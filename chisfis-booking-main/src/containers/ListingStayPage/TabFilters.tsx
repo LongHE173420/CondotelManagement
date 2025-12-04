@@ -1,4 +1,5 @@
-import React, { Fragment, useState } from "react";
+import React, { Fragment, useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Dialog, Popover, Transition } from "@headlessui/react";
 import NcInputNumber from "components/NcInputNumber/NcInputNumber";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
@@ -11,64 +12,98 @@ import convertNumbThousand from "utils/convertNumbThousand";
 // DEMO DATA
 const typeOfPaces = [
   {
-    name: "Entire place",
-    description: "Have a place to yourself",
+    name: "Toàn bộ căn hộ",
+    description: "Có không gian riêng cho bạn",
   },
   {
-    name: "Private room",
-    description: "Have your own room and share some common spaces",
+    name: "Phòng riêng",
+    description: "Có phòng riêng và chia sẻ một số không gian chung",
   },
   {
-    name: "Hotel room",
+    name: "Phòng khách sạn",
     description:
-      "Have a private or shared room in a boutique hotel, hostel, and more",
+      "Có phòng riêng hoặc chung trong khách sạn boutique, nhà nghỉ, và nhiều hơn nữa",
   },
   {
-    name: "Shared room",
-    description: "Stay in a shared space, like a common room",
+    name: "Phòng chung",
+    description: "Ở trong không gian chung, như phòng chung",
   },
 ];
 
 const moreFilter1 = [
-  { name: "Kitchen", defaultChecked: true },
-  { name: "Air conditioning", defaultChecked: true },
-  { name: "Heating" },
-  { name: "Dryer" },
-  { name: "Washer" },
+  { name: "Bếp", defaultChecked: true },
+  { name: "Điều hòa", defaultChecked: true },
+  { name: "Sưởi ấm" },
+  { name: "Máy sấy" },
+  { name: "Máy giặt" },
   { name: "Wifi" },
-  { name: "Indoor fireplace" },
-  { name: "Breakfast" },
-  { name: "Hair dryer" },
-  { name: " Dedicated workspace" },
+  { name: "Lò sưởi trong nhà" },
+  { name: "Bữa sáng" },
+  { name: "Máy sấy tóc" },
+  { name: "Không gian làm việc riêng" },
 ];
 
 const moreFilter2 = [
-  { name: " Free parking on premise" },
-  { name: "Hot tub" },
-  { name: "Gym" },
-  { name: " Pool" },
-  { name: " EV charger" },
+  { name: "Bãi đỗ xe miễn phí" },
+  { name: "Bồn tắm nước nóng" },
+  { name: "Phòng gym" },
+  { name: "Hồ bơi" },
+  { name: "Sạc xe điện" },
 ];
 
 const moreFilter3 = [
-  { name: " House" },
-  { name: "Bed and breakfast" },
-  { name: "Apartment", defaultChecked: true },
-  { name: " Boutique hotel" },
-  { name: " Bungalow" },
-  { name: " Chalet", defaultChecked: true },
-  { name: " Condominium", defaultChecked: true },
-  { name: " Cottage" },
-  { name: " Guest suite" },
-  { name: " Guesthouse" },
+  { name: "Nhà" },
+  { name: "Nhà nghỉ có bữa sáng" },
+  { name: "Căn hộ", defaultChecked: true },
+  { name: "Khách sạn boutique" },
+  { name: "Nhà gỗ" },
+  { name: "Nhà gỗ trên núi", defaultChecked: true },
+  { name: "Chung cư", defaultChecked: true },
+  { name: "Nhà nhỏ" },
+  { name: "Phòng khách" },
+  { name: "Nhà khách" },
 ];
 
-const moreFilter4 = [{ name: " Pets allowed" }, { name: "Smoking allowed" }];
+const moreFilter4 = [{ name: "Cho phép thú cưng" }, { name: "Cho phép hút thuốc" }];
 
 const TabFilters = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [isOpenMoreFilter, setisOpenMoreFilter] = useState(false);
   const [isOpenMoreFilterMobile, setisOpenMoreFilterMobile] = useState(false);
-  const [rangePrices, setRangePrices] = useState([0, 1000]);
+  const [rangePrices, setRangePrices] = useState([0, 10000000]);
+  const [beds, setBeds] = useState<number | null>(null);
+  const [bathrooms, setBathrooms] = useState<number | null>(null);
+
+  // Load filter values from URL params on mount
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const minPrice = params.get("minPrice");
+    const maxPrice = params.get("maxPrice");
+    const bedsParam = params.get("beds");
+    const bathroomsParam = params.get("bathrooms");
+
+    if (minPrice || maxPrice) {
+      setRangePrices([
+        minPrice ? Number(minPrice) : 0,
+        maxPrice ? Number(maxPrice) : 10000000,
+      ]);
+    }
+
+    if (bedsParam) {
+      const bedsNum = Number(bedsParam);
+      setBeds(!isNaN(bedsNum) && bedsNum > 0 ? bedsNum : null);
+    } else {
+      setBeds(null);
+    }
+
+    if (bathroomsParam) {
+      const bathroomsNum = Number(bathroomsParam);
+      setBathrooms(!isNaN(bathroomsNum) && bathroomsNum > 0 ? bathroomsNum : null);
+    } else {
+      setBathrooms(null);
+    }
+  }, [location.search]);
 
   //
   const closeModalMoreFilter = () => setisOpenMoreFilter(false);
@@ -77,9 +112,65 @@ const TabFilters = () => {
   const closeModalMoreFilterMobile = () => setisOpenMoreFilterMobile(false);
   const openModalMoreFilterMobile = () => setisOpenMoreFilterMobile(true);
 
-  const renderXClear = () => {
+  // Function to apply filters and update URL
+  const applyFilters = (
+    bedsValue: number | null,
+    bathroomsValue: number | null,
+    minPriceValue: number | null,
+    maxPriceValue: number | null,
+    closeCallback?: () => void
+  ) => {
+    const params = new URLSearchParams(location.search);
+    
+    // Update beds filter
+    if (bedsValue !== null && bedsValue > 0) {
+      params.set("beds", bedsValue.toString());
+    } else {
+      params.delete("beds");
+    }
+    
+    // Update bathrooms filter
+    if (bathroomsValue !== null && bathroomsValue > 0) {
+      params.set("bathrooms", bathroomsValue.toString());
+    } else {
+      params.delete("bathrooms");
+    }
+    
+    // Update price filters
+    if (minPriceValue !== null && minPriceValue > 0) {
+      params.set("minPrice", minPriceValue.toString());
+    } else {
+      params.delete("minPrice");
+    }
+    
+    if (maxPriceValue !== null && maxPriceValue > 0 && maxPriceValue < 10000000) {
+      params.set("maxPrice", maxPriceValue.toString());
+    } else {
+      params.delete("maxPrice");
+    }
+    
+    console.log("🔍 Applying filters, new URL params:", params.toString());
+    
+    // Navigate with updated params
+    const newUrl = params.toString() ? `${location.pathname}?${params.toString()}` : location.pathname;
+    navigate(newUrl, { replace: true });
+    
+    if (closeCallback) {
+      closeCallback();
+    }
+  };
+
+  const renderXClear = (onClear?: () => void) => {
     return (
-      <span className="w-4 h-4 rounded-full bg-primary-500 text-white flex items-center justify-center ml-3 cursor-pointer">
+      <span 
+        className="w-4 h-4 rounded-full bg-primary-500 text-white flex items-center justify-center ml-3 cursor-pointer"
+        onClick={(e) => {
+          e.stopPropagation();
+          if (onClear) {
+            onClear();
+          }
+        }}
+      >
         <svg
           xmlns="http://www.w3.org/2000/svg"
           className="h-3 w-3"
@@ -106,7 +197,7 @@ const TabFilters = () => {
                 open ? "!border-primary-500 " : ""
               }`}
             >
-              <span>Type of place</span>
+              <span>Loại chỗ ở</span>
               <i className="las la-angle-down ml-2"></i>
             </Popover.Button>
             <Transition
@@ -132,14 +223,25 @@ const TabFilters = () => {
                     ))}
                   </div>
                   <div className="p-5 bg-neutral-50 dark:bg-neutral-900 dark:border-t dark:border-neutral-800 flex items-center justify-between">
-                    <ButtonThird onClick={close} sizeClass="px-4 py-2 sm:px-5">
-                      Clear
-                    </ButtonThird>
-                    <ButtonPrimary
-                      onClick={close}
+                    <ButtonThird 
+                      onClick={() => {
+                        setRangePrices([0, 10000000]);
+                        applyFilters(null, null, null, null, close);
+                      }} 
                       sizeClass="px-4 py-2 sm:px-5"
                     >
-                      Apply
+                      Xóa
+                    </ButtonThird>
+                    <ButtonPrimary
+                      onClick={() => {
+                        const minPrice = rangePrices[0] > 0 ? rangePrices[0] : null;
+                        const maxPrice = rangePrices[1] < 10000000 && rangePrices[1] > 0 ? rangePrices[1] : null;
+                        console.log("💰 Applying price filter:", { minPrice, maxPrice, rangePrices });
+                        applyFilters(null, null, minPrice, maxPrice, close);
+                      }}
+                      sizeClass="px-4 py-2 sm:px-5"
+                    >
+                      Áp dụng
                     </ButtonPrimary>
                   </div>
                 </div>
@@ -157,11 +259,18 @@ const TabFilters = () => {
         {({ open, close }) => (
           <>
             <Popover.Button
-              className={`flex items-center justify-center px-4 py-2 text-sm rounded-full border border-neutral-300 dark:border-neutral-700 focus:outline-none ${
-                open ? "!border-primary-500 " : ""
-              }`}
+              className={`flex items-center justify-center px-4 py-2 text-sm rounded-full border ${
+                beds || bathrooms
+                  ? "border-primary-500 bg-primary-50 text-primary-700"
+                  : "border-neutral-300 dark:border-neutral-700"
+              } focus:outline-none ${open ? "!border-primary-500 " : ""}`}
             >
-              <span>Rooms of Beds</span>
+              <span>Giường & Phòng tắm</span>
+              {(beds || bathrooms) && renderXClear(() => {
+                setBeds(null);
+                setBathrooms(null);
+                applyFilters(null, null, null, null);
+              })}
               <i className="las la-angle-down ml-2"></i>
             </Popover.Button>
             <Transition
@@ -176,19 +285,38 @@ const TabFilters = () => {
               <Popover.Panel className="absolute z-10 w-screen max-w-sm px-4 mt-3 left-0 sm:px-0 lg:max-w-md">
                 <div className="overflow-hidden rounded-2xl shadow-xl bg-white dark:bg-neutral-900   border border-neutral-200 dark:border-neutral-700">
                   <div className="relative flex flex-col px-5 py-6 space-y-5">
-                    <NcInputNumber label="Beds" max={10} />
-                    <NcInputNumber label="Bedrooms" max={10} />
-                    <NcInputNumber label="Bathrooms" max={10} />
+                    <NcInputNumber 
+                      label="Số giường" 
+                      max={10} 
+                      defaultValue={beds || 0}
+                      onChange={(value) => setBeds(value > 0 ? value : null)}
+                    />
+                    <NcInputNumber 
+                      label="Số phòng tắm" 
+                      max={10}
+                      defaultValue={bathrooms || 0}
+                      onChange={(value) => setBathrooms(value > 0 ? value : null)}
+                    />
                   </div>
                   <div className="p-5 bg-neutral-50 dark:bg-neutral-900 dark:border-t dark:border-neutral-800 flex items-center justify-between">
-                    <ButtonThird onClick={close} sizeClass="px-4 py-2 sm:px-5">
-                      Clear
-                    </ButtonThird>
-                    <ButtonPrimary
-                      onClick={close}
+                    <ButtonThird 
+                      onClick={() => {
+                        setBeds(null);
+                        setBathrooms(null);
+                        applyFilters(null, null, null, null, close);
+                      }} 
                       sizeClass="px-4 py-2 sm:px-5"
                     >
-                      Apply
+                      Xóa
+                    </ButtonThird>
+                    <ButtonPrimary
+                      onClick={() => {
+                        console.log("🛏️ Applying beds/bathrooms filter:", { beds, bathrooms });
+                        applyFilters(beds, bathrooms, null, null, close);
+                      }}
+                      sizeClass="px-4 py-2 sm:px-5"
+                    >
+                      Áp dụng
                     </ButtonPrimary>
                   </div>
                 </div>
@@ -206,14 +334,21 @@ const TabFilters = () => {
         {({ open, close }) => (
           <>
             <Popover.Button
-              className={`flex items-center justify-center px-4 py-2 text-sm rounded-full border border-primary-500 bg-primary-50 text-primary-700 focus:outline-none `}
+              className={`flex items-center justify-center px-4 py-2 text-sm rounded-full border ${
+                rangePrices[0] > 0 || rangePrices[1] < 10000000
+                  ? "border-primary-500 bg-primary-50 text-primary-700"
+                  : "border-neutral-300 dark:border-neutral-700"
+              } focus:outline-none`}
             >
               <span>
-                {`$${convertNumbThousand(
-                  rangePrices[0]
-                )} - $${convertNumbThousand(rangePrices[1])}`}{" "}
+                {rangePrices[0] > 0 || rangePrices[1] < 10000000
+                  ? `${convertNumbThousand(rangePrices[0])} đ - ${convertNumbThousand(rangePrices[1])} đ`
+                  : "Giá"}
               </span>
-              {renderXClear()}
+              {(rangePrices[0] > 0 || rangePrices[1] < 10000000) && renderXClear(() => {
+                setRangePrices([0, 10000000]);
+                applyFilters(null, null, null, null);
+              })}
             </Popover.Button>
             <Transition
               as={Fragment}
@@ -228,12 +363,12 @@ const TabFilters = () => {
                 <div className="overflow-hidden rounded-2xl shadow-xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700">
                   <div className="relative flex flex-col px-5 py-6 space-y-8">
                     <div className="space-y-5">
-                      <span className="font-medium">Price per day</span>
+                      <span className="font-medium">Giá mỗi đêm (VNĐ)</span>
                       <Slider
                         range
                         className="text-red-400"
                         min={0}
-                        max={2000}
+                        max={10000000}
                         defaultValue={[rangePrices[0], rangePrices[1]]}
                         allowCross={false}
                         onChange={(e) => setRangePrices(e as number[])}
@@ -246,12 +381,12 @@ const TabFilters = () => {
                           htmlFor="minPrice"
                           className="block text-sm font-medium text-neutral-700 dark:text-neutral-300"
                         >
-                          Min price
+                          Giá tối thiểu
                         </label>
                         <div className="mt-1 relative rounded-md">
                           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                             <span className="text-neutral-500 sm:text-sm">
-                              $
+                              đ
                             </span>
                           </div>
                           <input
@@ -260,7 +395,7 @@ const TabFilters = () => {
                             disabled
                             id="minPrice"
                             className="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-7 pr-3 sm:text-sm border-neutral-200 rounded-full text-neutral-900"
-                            value={rangePrices[0]}
+                            value={convertNumbThousand(rangePrices[0])}
                           />
                         </div>
                       </div>
@@ -269,12 +404,12 @@ const TabFilters = () => {
                           htmlFor="maxPrice"
                           className="block text-sm font-medium text-neutral-700 dark:text-neutral-300"
                         >
-                          Max price
+                          Giá tối đa
                         </label>
                         <div className="mt-1 relative rounded-md">
                           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                             <span className="text-neutral-500 sm:text-sm">
-                              $
+                              đ
                             </span>
                           </div>
                           <input
@@ -283,21 +418,32 @@ const TabFilters = () => {
                             name="maxPrice"
                             id="maxPrice"
                             className="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-7 pr-3 sm:text-sm border-neutral-200 rounded-full text-neutral-900"
-                            value={rangePrices[1]}
+                            value={convertNumbThousand(rangePrices[1])}
                           />
                         </div>
                       </div>
                     </div>
                   </div>
                   <div className="p-5 bg-neutral-50 dark:bg-neutral-900 dark:border-t dark:border-neutral-800 flex items-center justify-between">
-                    <ButtonThird onClick={close} sizeClass="px-4 py-2 sm:px-5">
-                      Clear
-                    </ButtonThird>
-                    <ButtonPrimary
-                      onClick={close}
+                    <ButtonThird 
+                      onClick={() => {
+                        setRangePrices([0, 10000000]);
+                        applyFilters(null, null, null, null, close);
+                      }} 
                       sizeClass="px-4 py-2 sm:px-5"
                     >
-                      Apply
+                      Xóa
+                    </ButtonThird>
+                    <ButtonPrimary
+                      onClick={() => {
+                        const minPrice = rangePrices[0] > 0 ? rangePrices[0] : null;
+                        const maxPrice = rangePrices[1] < 10000000 && rangePrices[1] > 0 ? rangePrices[1] : null;
+                        console.log("💰 Applying price filter:", { minPrice, maxPrice, rangePrices });
+                        applyFilters(null, null, minPrice, maxPrice, close);
+                      }}
+                      sizeClass="px-4 py-2 sm:px-5"
+                    >
+                      Áp dụng
                     </ButtonPrimary>
                   </div>
                 </div>
@@ -350,7 +496,7 @@ const TabFilters = () => {
           className={`flex items-center justify-center px-4 py-2 text-sm rounded-full border border-primary-500 bg-primary-50 text-primary-700 focus:outline-none cursor-pointer`}
           onClick={openModalMoreFilter}
         >
-          <span>More filters (3)</span>
+          <span>Bộ lọc khác (3)</span>
           {renderXClear()}
         </div>
 
@@ -395,7 +541,7 @@ const TabFilters = () => {
                       as="h3"
                       className="text-lg font-medium leading-6 text-gray-900"
                     >
-                      More filters
+                      Bộ lọc khác
                     </Dialog.Title>
                     <span className="absolute left-3 top-3">
                       <ButtonClose onClick={closeModalMoreFilter} />
@@ -423,7 +569,7 @@ const TabFilters = () => {
                         </div>
                       </div>
                       <div className="py-7">
-                        <h3 className="text-xl font-medium">House rules</h3>
+                        <h3 className="text-xl font-medium">Quy tắc nhà</h3>
                         <div className="mt-6 relative ">
                           {renderMoreFilterItem(moreFilter4)}
                         </div>
@@ -436,13 +582,13 @@ const TabFilters = () => {
                       onClick={closeModalMoreFilter}
                       sizeClass="px-4 py-2 sm:px-5"
                     >
-                      Clear
+                      Xóa
                     </ButtonThird>
                     <ButtonPrimary
                       onClick={closeModalMoreFilter}
                       sizeClass="px-4 py-2 sm:px-5"
                     >
-                      Apply
+                      Áp dụng
                     </ButtonPrimary>
                   </div>
                 </div>
@@ -461,7 +607,7 @@ const TabFilters = () => {
           className={`flex lg:hidden items-center justify-center px-4 py-2 text-sm rounded-full border border-primary-500 bg-primary-50 text-primary-700 focus:outline-none cursor-pointer`}
           onClick={openModalMoreFilterMobile}
         >
-          <span>More filters (3)</span>
+          <span>Bộ lọc khác (3)</span>
           {renderXClear()}
         </div>
 
@@ -506,7 +652,7 @@ const TabFilters = () => {
                       as="h3"
                       className="text-lg font-medium leading-6 text-gray-900"
                     >
-                      More filters
+                      Bộ lọc khác
                     </Dialog.Title>
                     <span className="absolute left-3 top-3">
                       <ButtonClose onClick={closeModalMoreFilterMobile} />
@@ -628,7 +774,7 @@ const TabFilters = () => {
 
                       {/* ---- */}
                       <div className="py-7">
-                        <h3 className="text-xl font-medium">House rules</h3>
+                        <h3 className="text-xl font-medium">Quy tắc nhà</h3>
                         <div className="mt-6 relative ">
                           {renderMoreFilterItem(moreFilter4)}
                         </div>
@@ -641,13 +787,13 @@ const TabFilters = () => {
                       onClick={closeModalMoreFilterMobile}
                       sizeClass="px-4 py-2 sm:px-5"
                     >
-                      Clear
+                      Xóa
                     </ButtonThird>
                     <ButtonPrimary
                       onClick={closeModalMoreFilterMobile}
                       sizeClass="px-4 py-2 sm:px-5"
                     >
-                      Apply
+                      Áp dụng
                     </ButtonPrimary>
                   </div>
                 </div>

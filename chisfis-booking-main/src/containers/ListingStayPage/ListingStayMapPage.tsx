@@ -23,8 +23,13 @@ const ListingStayMapPage: FC<ListingStayMapPageProps> = ({
   const location = useLocation();
   const params = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const searchLocation = params.get("location");
+  const searchLocationId = params.get("locationId");
   const searchFromDate = params.get("startDate");
   const searchToDate = params.get("endDate");
+  const minPrice = params.get("minPrice");
+  const maxPrice = params.get("maxPrice");
+  const beds = params.get("beds");
+  const bathrooms = params.get("bathrooms");
   const [propertyCount, setPropertyCount] = useState<number>(0);
 
   useEffect(() => {
@@ -32,14 +37,50 @@ const ListingStayMapPage: FC<ListingStayMapPageProps> = ({
       try {
         // Build search query
         const searchQuery: any = {};
-        if (searchLocation) {
+        
+        // Ưu tiên locationId hơn location string
+        if (searchLocationId) {
+          const locationId = Number(searchLocationId);
+          if (!isNaN(locationId)) {
+            searchQuery.locationId = locationId;
+          }
+        } else if (searchLocation) {
           searchQuery.location = searchLocation;
         }
+        
         if (searchFromDate) {
           searchQuery.fromDate = searchFromDate;
         }
         if (searchToDate) {
           searchQuery.toDate = searchToDate;
+        }
+        
+        // Add price filters
+        if (minPrice) {
+          const minPriceNum = Number(minPrice);
+          if (!isNaN(minPriceNum) && minPriceNum > 0) {
+            searchQuery.minPrice = minPriceNum;
+          }
+        }
+        if (maxPrice) {
+          const maxPriceNum = Number(maxPrice);
+          if (!isNaN(maxPriceNum) && maxPriceNum > 0) {
+            searchQuery.maxPrice = maxPriceNum;
+          }
+        }
+        
+        // Add beds and bathrooms filters
+        if (beds) {
+          const bedsNum = Number(beds);
+          if (!isNaN(bedsNum) && bedsNum > 0) {
+            searchQuery.beds = bedsNum;
+          }
+        }
+        if (bathrooms) {
+          const bathroomsNum = Number(bathrooms);
+          if (!isNaN(bathroomsNum) && bathroomsNum > 0) {
+            searchQuery.bathrooms = bathroomsNum;
+          }
         }
         
         const condotels = await condotelAPI.search(searchQuery);
@@ -50,7 +91,7 @@ const ListingStayMapPage: FC<ListingStayMapPageProps> = ({
       }
     };
     fetchCount();
-  }, [searchLocation, searchFromDate, searchToDate]);
+  }, [location.search]); // Use location.search to trigger on any URL param change
 
   return (
     <div

@@ -178,6 +178,19 @@ const PageMyReviews: React.FC = () => {
                       {review.comment && (
                         <p className="text-gray-700 mb-4">{review.comment}</p>
                       )}
+                      {/* Hiển thị reply nếu có */}
+                      {review.reply && (
+                        <div className="mb-4 p-4 bg-primary-50 dark:bg-primary-900/20 border-l-4 border-primary-500 rounded-r-lg">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-sm font-semibold text-primary-700 dark:text-primary-300">
+                              Phản hồi từ Host:
+                            </span>
+                          </div>
+                          <p className="text-gray-700 dark:text-gray-300">
+                            {review.reply}
+                          </p>
+                        </div>
+                      )}
                       {booking && (
                         <div className="flex items-center gap-2 text-sm text-gray-600">
                           <span>Đơn đặt phòng:</span>

@@ -9,9 +9,14 @@ export interface ReviewDTO {
   comment?: string;
   createdAt?: string;
   updatedAt?: string;
-  // Thông tin customer nếu backend trả về
+  // Thông tin customer/user nếu backend trả về
   customerName?: string;
   customerImageUrl?: string;
+  // Mới thêm từ backend
+  userFullName?: string; // Tenant API
+  userName?: string; // Host/Admin API
+  userImageUrl?: string; // Avatar của user
+  reply?: string; // Reply của host
 }
 
 export interface CreateReviewDTO {
@@ -114,6 +119,13 @@ export const reviewAPI = {
       comment: item.Comment || item.comment,
       createdAt: item.CreatedAt || item.createdAt,
       updatedAt: item.UpdatedAt || item.updatedAt,
+      // Tenant API fields
+      userFullName: item.UserFullName || item.userFullName,
+      userImageUrl: item.UserImageUrl || item.userImageUrl,
+      reply: item.Reply || item.reply,
+      // Backward compatibility
+      customerName: item.UserFullName || item.userFullName || item.CustomerName || item.customerName,
+      customerImageUrl: item.UserImageUrl || item.userImageUrl || item.CustomerImageUrl || item.customerImageUrl,
     }));
 
     return {
@@ -212,8 +224,13 @@ export const reviewAPI = {
       comment: item.Comment || item.comment,
       createdAt: item.CreatedAt || item.createdAt,
       updatedAt: item.UpdatedAt || item.updatedAt,
-      customerName: item.CustomerName || item.customerName,
-      customerImageUrl: item.CustomerImageUrl || item.customerImageUrl,
+      // Tenant API fields
+      userFullName: item.UserFullName || item.userFullName,
+      userImageUrl: item.UserImageUrl || item.userImageUrl,
+      reply: item.Reply || item.reply,
+      // Backward compatibility
+      customerName: item.UserFullName || item.userFullName || item.CustomerName || item.customerName,
+      customerImageUrl: item.UserImageUrl || item.userImageUrl || item.CustomerImageUrl || item.customerImageUrl,
     }));
 
     return {
@@ -243,8 +260,13 @@ export const reviewAPI = {
       comment: item.Comment || item.comment,
       createdAt: item.CreatedAt || item.createdAt,
       updatedAt: item.UpdatedAt || item.updatedAt,
-      customerName: item.CustomerName || item.customerName,
-      customerImageUrl: item.CustomerImageUrl || item.customerImageUrl,
+      // Host/Admin API fields
+      userName: item.UserName || item.userName,
+      userImageUrl: item.UserImageUrl || item.userImageUrl,
+      reply: item.Reply || item.reply,
+      // Backward compatibility
+      customerName: item.UserName || item.userName || item.CustomerName || item.customerName,
+      customerImageUrl: item.UserImageUrl || item.userImageUrl || item.CustomerImageUrl || item.customerImageUrl,
       reportCount: item.ReportCount || item.reportCount || 0,
       status: item.Status || item.status || "Active",
     }));
@@ -275,8 +297,13 @@ export const reviewAPI = {
       comment: item.Comment || item.comment,
       createdAt: item.CreatedAt || item.createdAt,
       updatedAt: item.UpdatedAt || item.updatedAt,
-      customerName: item.CustomerName || item.customerName,
-      customerImageUrl: item.CustomerImageUrl || item.customerImageUrl,
+      // Host/Admin API fields
+      userName: item.UserName || item.userName,
+      userImageUrl: item.UserImageUrl || item.userImageUrl,
+      reply: item.Reply || item.reply,
+      // Backward compatibility
+      customerName: item.UserName || item.userName || item.CustomerName || item.customerName,
+      customerImageUrl: item.UserImageUrl || item.userImageUrl || item.CustomerImageUrl || item.customerImageUrl,
     }));
 
     return reviews;

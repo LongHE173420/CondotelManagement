@@ -38,6 +38,7 @@
     "react-use": "^17.4.0",
     "react-with-direction": "^1.4.0",
     "react-with-styles": "^5.0.0",
+    "recharts": "^3.5.1",
     "sass": "^1.54.8",
     "typescript": "^4.7.4",
     "web-vitals": "^3.0.1"

@@ -242,7 +242,7 @@ const RentalCarDatesRangeInput: FC<RentalCarDatesRangeInputProps> = ({
         </div>
 
         <div className="pr-2 relative z-20">
-          <ButtonSubmit href="/listing-car" />
+          <ButtonSubmit href="/listing-stay" />
         </div>
       </div>
     );
