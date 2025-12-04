@@ -4,6 +4,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
 import NcImage from "shared/NcImage/NcImage";
 import bookingAPI, { BookingDTO } from "api/booking";
+import voucherAPI, { VoucherDTO } from "api/voucher";
 import moment from "moment";
 
 export interface PayPageProps {
@@ -16,6 +17,9 @@ const PayPage: FC<PayPageProps> = ({ className = "" }) => {
   const [booking, setBooking] = useState<BookingDTO | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [createdVouchers, setCreatedVouchers] = useState<VoucherDTO[]>([]);
+  const [loadingVouchers, setLoadingVouchers] = useState(false);
+  const [voucherError, setVoucherError] = useState<string | null>(null);
 
   const bookingId = searchParams.get("bookingId");
   const status = searchParams.get("status");
@@ -31,6 +35,11 @@ const PayPage: FC<PayPageProps> = ({ className = "" }) => {
       try {
         const bookingData = await bookingAPI.getBookingById(parseInt(bookingId));
         setBooking(bookingData);
+        
+        // Nếu thanh toán thành công, thử tạo voucher tự động
+        if (status === "success" && bookingData.status === "Confirmed") {
+          createVouchersAfterBooking(parseInt(bookingId));
+        }
       } catch (err: any) {
         console.error("Error fetching booking:", err);
         setError(err.response?.data?.message || err.message || "Không thể tải thông tin booking");
@@ -40,7 +49,31 @@ const PayPage: FC<PayPageProps> = ({ className = "" }) => {
     };
 
     fetchBooking();
-  }, [bookingId]);
+  }, [bookingId, status]);
+
+  const createVouchersAfterBooking = async (bookingId: number) => {
+    setLoadingVouchers(true);
+    setVoucherError(null);
+    try {
+      const result = await voucherAPI.createVoucherAfterBooking(bookingId);
+      console.log("🎁 Voucher creation result:", result);
+      
+      if (result.success && result.data && result.data.length > 0) {
+        setCreatedVouchers(result.data);
+        console.log(`✅ Created ${result.data.length} vouchers for user`);
+      } else {
+        // Không có voucher được tạo (có thể host tắt auto-generate hoặc chưa cấu hình)
+        console.log("ℹ️ No vouchers created:", result.message);
+        setVoucherError(result.message || "Không có voucher được tạo tự động");
+      }
+    } catch (err: any) {
+      console.error("Failed to create vouchers:", err);
+      // Không hiển thị error vì đây là tính năng optional
+      setVoucherError(err.response?.data?.message || "Không thể tạo voucher tự động");
+    } finally {
+      setLoadingVouchers(false);
+    }
+  };
 
   const renderContent = () => {
     if (loading) {
@@ -185,6 +218,96 @@ const PayPage: FC<PayPageProps> = ({ className = "" }) => {
             </div>
           </div>
         </div>
+
+        {/* Vouchers Section - Hiển thị voucher được tạo tự động */}
+        {isSuccess && (
+          <div className="space-y-4">
+            {loadingVouchers ? (
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                <div className="flex items-center space-x-3">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                  <p className="text-sm text-blue-800 dark:text-blue-200">
+                    Đang tạo voucher cho bạn...
+                  </p>
+                </div>
+              </div>
+            ) : createdVouchers.length > 0 ? (
+              <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-6">
+                <div className="flex items-start space-x-3 mb-4">
+                  <svg className="w-6 h-6 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-green-800 dark:text-green-200 mb-1">
+                      🎁 Bạn đã nhận được {createdVouchers.length} voucher!
+                    </h3>
+                    <p className="text-sm text-green-700 dark:text-green-300">
+                      Chúc mừng! Bạn có thể sử dụng các voucher này cho lần đặt phòng tiếp theo.
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-3 mt-4">
+                  {createdVouchers.map((voucher) => (
+                    <div
+                      key={voucher.voucherId}
+                      className="bg-white dark:bg-neutral-800 rounded-lg p-4 border border-green-200 dark:border-green-700"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2 mb-1">
+                            <span className="font-bold text-lg text-green-600 dark:text-green-400">
+                              {voucher.code}
+                            </span>
+                            {voucher.discountPercentage && (
+                              <span className="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 rounded text-xs font-semibold">
+                                -{voucher.discountPercentage}%
+                              </span>
+                            )}
+                            {voucher.discountAmount && (
+                              <span className="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 rounded text-xs font-semibold">
+                                -{voucher.discountAmount.toLocaleString("vi-VN")} đ
+                              </span>
+                            )}
+                          </div>
+                          {voucher.description && (
+                            <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                              {voucher.description}
+                            </p>
+                          )}
+                          <div className="flex items-center space-x-4 mt-2 text-xs text-neutral-500 dark:text-neutral-400">
+                            <span>
+                              HSD: {moment(voucher.endDate).format("DD/MM/YYYY")}
+                            </span>
+                            {voucher.usageLimit && (
+                              <span>
+                                Giới hạn: {voucher.usedCount || 0}/{voucher.usageLimit} lần
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-4">
+                  <ButtonPrimary
+                    onClick={() => navigate("/my-vouchers")}
+                    className="w-full sm:w-auto"
+                  >
+                    Xem tất cả voucher của tôi
+                  </ButtonPrimary>
+                </div>
+              </div>
+            ) : voucherError ? (
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                <p className="text-sm text-blue-800 dark:text-blue-200">
+                  {voucherError}
+                </p>
+              </div>
+            ) : null}
+          </div>
+        )}
+
         <div className="flex flex-col sm:flex-row gap-4">
           <ButtonPrimary onClick={() => navigate("/my-bookings")}>
             Xem booking của tôi

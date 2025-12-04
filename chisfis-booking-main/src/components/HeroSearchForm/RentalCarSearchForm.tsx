@@ -132,7 +132,7 @@ const RentalCarSearchForm: FC<RentalCarSearchFormProps> = ({
               className={` ${
                 dropOffLocationType === "different" ? "flex-1" : "flex-[1.3]"
               }`}
-              buttonSubmitHref="/listing-car"
+              buttonSubmitHref="/listing-stay"
             />
           </div>
         </form>

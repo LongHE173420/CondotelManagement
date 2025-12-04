@@ -7,6 +7,7 @@ import { Link, useNavigate } from "react-router-dom";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
 import { useAuth } from "contexts/AuthContext";
 import { authAPI, LoginResponse } from "api/auth";
+import { useTranslation } from "i18n/LanguageContext";
 
 // Import thư viện Google
 import { GoogleLogin, CredentialResponse } from '@react-oauth/google';
@@ -15,18 +16,19 @@ export interface PageLoginProps {
   className?: string;
 }
 
-const loginSocials = [
-  { name: "Continue with Facebook", href: "#", icon: facebookSvg },
-  { name: "Continue with Twitter", href: "#", icon: twitterSvg },
-];
-
 const PageLogin: FC<PageLoginProps> = ({ className = "" }) => {
   const navigate = useNavigate();
   const { login } = useAuth(); // Hàm login từ AuthContext
+  const { t } = useTranslation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const loginSocials = [
+    { name: t.auth.login.continueWithFacebook, href: "#", icon: facebookSvg },
+    { name: t.auth.login.continueWithTwitter, href: "#", icon: twitterSvg },
+  ];
 
   // Hàm xử lý đăng nhập Email/Password
   const handleSubmit = async (e: React.FormEvent) => {
@@ -114,12 +116,12 @@ const PageLogin: FC<PageLoginProps> = ({ className = "" }) => {
   return (
     <div className={`nc-PageLogin ${className}`} data-nc-id="PageLogin">
       <Helmet>
-        <title>Login || Fiscondotel</title>
+        <title>{t.auth.login.title} || Fiscondotel</title>
       </Helmet>
 
       <div className="container mb-24 lg:mb-32">
         <h2 className="my-20 flex items-center text-3xl md:text-5xl font-semibold justify-center">
-          Login
+          {t.auth.login.title}
         </h2>
 
         <div className="max-w-md mx-auto space-y-6">
@@ -155,7 +157,7 @@ const PageLogin: FC<PageLoginProps> = ({ className = "" }) => {
             <span className="block w-full border-b border-neutral-100 dark:border-neutral-600"></span>
             <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white dark:bg-neutral-900 px-7">
               <span className="text-sm text-neutral-500 dark:text-neutral-400">
-                OR
+                {t.auth.login.or}
               </span>
             </div>
           </div>
@@ -164,7 +166,7 @@ const PageLogin: FC<PageLoginProps> = ({ className = "" }) => {
           <form className="grid grid-cols-1 gap-6" onSubmit={handleSubmit}>
             <label className="block">
               <span className="text-neutral-800 dark:text-neutral-200">
-                Email address
+                {t.auth.login.emailAddress}
               </span>
               <Input
                 type="email"
@@ -178,9 +180,9 @@ const PageLogin: FC<PageLoginProps> = ({ className = "" }) => {
 
             <label className="block">
               <span className="flex justify-between items-center text-neutral-800 dark:text-neutral-200">
-                Password
+                {t.auth.login.password}
                 <Link to="/forgot-pass" className="text-sm">
-                  Forgot password?
+                  {t.auth.login.forgotPassword}
                 </Link>
               </span>
               <Input
@@ -197,13 +199,13 @@ const PageLogin: FC<PageLoginProps> = ({ className = "" }) => {
 
             <ButtonPrimary type="submit" disabled={loading}>
               {/* Hiển thị loading trên cả 2 nút */}
-              {loading ? "Đang xử lý..." : "Đăng nhập"}
+              {loading ? t.auth.login.processing : t.auth.login.loginButton}
             </ButtonPrimary>
           </form>
 
           {/* Link to Signup */}
           <span className="block text-center text-neutral-700 dark:text-neutral-300">
-            New user? <Link to="/signup">Create an account</Link>
+            {t.auth.login.noAccount} <Link to="/signup">{t.auth.login.createAccount}</Link>
           </span>
         </div>
       </div>

@@ -12,6 +12,10 @@ import HostCustomerContent from "containers/HostCustomerPage/HostCustomerContent
 import HostReportContent from "containers/HostReportPage/HostReportContent";
 import HostServicePackageContent from "containers/HostServicePackagePage/HostServicePackageContent";
 import HostReviewContent from "containers/HostReviewPage/HostReviewContent";
+import HostPackageContent from "containers/HostPackagePage/HostPackageContent";
+import HostPayoutContent from "containers/HostPayoutPage/HostPayoutContent";
+import HostWalletContent from "containers/HostWalletPage/HostWalletContent";
+import HostVerificationContent from "containers/HostVerificationPage/HostVerificationContent";
 
 const HostCondotelDashboard = () => {
   const { user, isAuthenticated } = useAuth();
@@ -201,7 +205,7 @@ const HostCondotelDashboard = () => {
   return (
     <div className="px-4 max-w-6xl mx-auto pb-16">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Host Dashboard</h1>
+        <h1 className="text-3xl font-bold mb-2">Bảng điều khiển Host</h1>
         <p className="text-neutral-600 dark:text-neutral-400">
           Quản lý condotel, khuyến mãi, voucher, gói dịch vụ và khách hàng của bạn
         </p>
@@ -218,7 +222,7 @@ const HostCondotelDashboard = () => {
                 : "border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300"
             }`}
           >
-            Condotels
+            Căn hộ
           </button>
           <button
             onClick={() => handleTabChange("promotions")}
@@ -278,7 +282,7 @@ const HostCondotelDashboard = () => {
                 : "border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300"
             }`}
           >
-            Reviews
+            Đánh giá
           </button>
           <button
             onClick={() => handleTabChange("bookings")}
@@ -289,6 +293,36 @@ const HostCondotelDashboard = () => {
             }`}
           >
             Đặt phòng
+          </button>
+          <button
+            onClick={() => handleTabChange("package")}
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === "package"
+                ? "border-primary-500 text-primary-600"
+                : "border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300"
+            }`}
+          >
+            Gói đăng ký
+          </button>
+          <button
+            onClick={() => handleTabChange("wallet")}
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === "wallet"
+                ? "border-primary-500 text-primary-600"
+                : "border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300"
+            }`}
+          >
+            💳 Tài khoản ngân hàng
+          </button>
+          <button
+            onClick={() => handleTabChange("verification")}
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === "verification"
+                ? "border-primary-500 text-primary-600"
+                : "border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300"
+            }`}
+          >
+            🆔 Xác thực CCCD
           </button>
         </nav>
       </div>
@@ -317,6 +351,22 @@ const HostCondotelDashboard = () => {
       ) : activeTab === "reviews" ? (
         <div className="mt-6">
           <HostReviewContent />
+        </div>
+      ) : activeTab === "package" ? (
+        <div className="mt-6">
+          <HostPackageContent />
+        </div>
+      ) : activeTab === "payout" ? (
+        <div className="mt-6">
+          <HostPayoutContent />
+        </div>
+      ) : activeTab === "wallet" ? (
+        <div className="mt-6">
+          <HostWalletContent />
+        </div>
+      ) : activeTab === "verification" ? (
+        <div className="mt-6">
+          <HostVerificationContent />
         </div>
       ) : activeTab === "bookings" ? (
         <div className="mt-6">

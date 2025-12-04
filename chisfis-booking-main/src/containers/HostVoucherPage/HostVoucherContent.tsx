@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "contexts/AuthContext";
-import voucherAPI, { VoucherDTO, VoucherCreateDTO } from "api/voucher";
+import voucherAPI, { VoucherDTO, VoucherCreateDTO, HostVoucherSettingDTO } from "api/voucher";
 import condotelAPI, { CondotelDTO } from "api/condotel";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
 import ButtonSecondary from "shared/Button/ButtonSecondary";
@@ -15,6 +15,10 @@ const HostVoucherContent: React.FC = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingVoucher, setEditingVoucher] = useState<VoucherDTO | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [settings, setSettings] = useState<HostVoucherSettingDTO | null>(null);
+  const [loadingSettings, setLoadingSettings] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
 
   useEffect(() => {
     // Check if user is Host
@@ -73,13 +77,60 @@ const HostVoucherContent: React.FC = () => {
     }).format(amount);
   };
 
+  const loadSettings = async () => {
+    setLoadingSettings(true);
+    try {
+      const settingsData = await voucherAPI.getSettings();
+      setSettings(settingsData);
+    } catch (err: any) {
+      console.error("Failed to load voucher settings:", err);
+      // If settings don't exist yet, set default values
+      setSettings({
+        autoGenerateVouchers: false,
+        defaultDiscountPercentage: undefined,
+        defaultDiscountAmount: undefined,
+        defaultUsageLimit: undefined,
+        defaultMinimumOrderAmount: undefined,
+        voucherPrefix: "",
+        voucherLength: 8,
+      });
+    } finally {
+      setLoadingSettings(false);
+    }
+  };
+
+  const handleSaveSettings = async (settingsData: HostVoucherSettingDTO) => {
+    setSavingSettings(true);
+    try {
+      const savedSettings = await voucherAPI.saveSettings(settingsData);
+      setSettings(savedSettings);
+      setShowSettings(false);
+      alert("Lưu cài đặt thành công!");
+    } catch (err: any) {
+      console.error("Failed to save voucher settings:", err);
+      alert(err.response?.data?.message || "Không thể lưu cài đặt. Vui lòng thử lại!");
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold">Danh sách voucher</h2>
-        <ButtonPrimary onClick={() => setShowAddModal(true)}>
-          + Thêm voucher
-        </ButtonPrimary>
+        <div className="flex gap-3">
+          <ButtonSecondary onClick={() => {
+            setShowSettings(true);
+            if (!settings) {
+              loadSettings();
+            }
+          }}>
+            ⚙️ Cài đặt
+          </ButtonSecondary>
+          <ButtonPrimary onClick={() => setShowAddModal(true)}>
+            + Thêm voucher
+          </ButtonPrimary>
+        </div>
       </div>
 
       {error && (
@@ -238,6 +289,17 @@ const HostVoucherContent: React.FC = () => {
             setEditingVoucher(null);
             loadData();
           }}
+        />
+      )}
+
+      {/* Settings Modal */}
+      {showSettings && (
+        <VoucherSettingsModal
+          settings={settings}
+          loading={loadingSettings}
+          saving={savingSettings}
+          onClose={() => setShowSettings(false)}
+          onSave={handleSaveSettings}
         />
       )}
     </div>
@@ -599,6 +661,225 @@ const VoucherModal: React.FC<VoucherModalProps> = ({
             </form>
           </div>
         </div>
+      </div>
+    </div>
+  );
+};
+
+// Voucher Settings Modal Component
+interface VoucherSettingsModalProps {
+  settings: HostVoucherSettingDTO | null;
+  loading: boolean;
+  saving: boolean;
+  onClose: () => void;
+  onSave: (settings: HostVoucherSettingDTO) => void;
+}
+
+const VoucherSettingsModal: React.FC<VoucherSettingsModalProps> = ({
+  settings,
+  loading,
+  saving,
+  onClose,
+  onSave,
+}) => {
+  const [formData, setFormData] = useState<HostVoucherSettingDTO>({
+    autoGenerateVouchers: false,
+    defaultDiscountPercentage: undefined,
+    defaultDiscountAmount: undefined,
+    defaultUsageLimit: undefined,
+    defaultMinimumOrderAmount: undefined,
+    voucherPrefix: "",
+    voucherLength: 8,
+  });
+
+  useEffect(() => {
+    if (settings) {
+      setFormData(settings);
+    }
+  }, [settings]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    onSave(formData);
+  };
+
+  if (loading) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+        <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-xl p-6 max-w-md w-full mx-4">
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+      <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">
+            Cài đặt Voucher
+          </h3>
+          <button
+            onClick={onClose}
+            className="text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200"
+          >
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Auto Generate Vouchers */}
+          <div>
+            <label className="flex items-center space-x-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.autoGenerateVouchers || false}
+                onChange={(e) =>
+                  setFormData({ ...formData, autoGenerateVouchers: e.target.checked })
+                }
+                className="w-5 h-5 text-primary-600 border-neutral-300 rounded focus:ring-primary-500"
+              />
+              <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                Tự động tạo voucher
+              </span>
+            </label>
+            <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1 ml-8">
+              Tự động tạo voucher mới khi có điều kiện
+            </p>
+          </div>
+
+          {/* Default Discount Percentage */}
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+              Giảm giá mặc định (%)
+            </label>
+            <input
+              type="number"
+              min="0"
+              max="100"
+              value={formData.defaultDiscountPercentage || ""}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  defaultDiscountPercentage: e.target.value ? Number(e.target.value) : undefined,
+                })
+              }
+              className="w-full px-4 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-neutral-700 dark:text-neutral-100"
+              placeholder="Nhập % giảm giá mặc định"
+            />
+          </div>
+
+          {/* Default Discount Amount */}
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+              Giảm giá mặc định (VND)
+            </label>
+            <input
+              type="number"
+              min="0"
+              value={formData.defaultDiscountAmount || ""}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  defaultDiscountAmount: e.target.value ? Number(e.target.value) : undefined,
+                })
+              }
+              className="w-full px-4 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-neutral-700 dark:text-neutral-100"
+              placeholder="Nhập số tiền giảm giá mặc định"
+            />
+          </div>
+
+          {/* Default Usage Limit */}
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+              Giới hạn sử dụng mặc định
+            </label>
+            <input
+              type="number"
+              min="1"
+              value={formData.defaultUsageLimit || ""}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  defaultUsageLimit: e.target.value ? Number(e.target.value) : undefined,
+                })
+              }
+              className="w-full px-4 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-neutral-700 dark:text-neutral-100"
+              placeholder="Nhập số lần sử dụng tối đa"
+            />
+          </div>
+
+          {/* Default Minimum Order Amount */}
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+              Đơn hàng tối thiểu mặc định (VND)
+            </label>
+            <input
+              type="number"
+              min="0"
+              value={formData.defaultMinimumOrderAmount || ""}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  defaultMinimumOrderAmount: e.target.value ? Number(e.target.value) : undefined,
+                })
+              }
+              className="w-full px-4 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-neutral-700 dark:text-neutral-100"
+              placeholder="Nhập giá trị đơn hàng tối thiểu"
+            />
+          </div>
+
+          {/* Voucher Prefix */}
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+              Tiền tố mã voucher
+            </label>
+            <input
+              type="text"
+              value={formData.voucherPrefix || ""}
+              onChange={(e) =>
+                setFormData({ ...formData, voucherPrefix: e.target.value })
+              }
+              className="w-full px-4 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-neutral-700 dark:text-neutral-100"
+              placeholder="VD: SALE, PROMO, etc."
+            />
+          </div>
+
+          {/* Voucher Length */}
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+              Độ dài mã voucher
+            </label>
+            <input
+              type="number"
+              min="4"
+              max="20"
+              value={formData.voucherLength || 8}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  voucherLength: e.target.value ? Number(e.target.value) : 8,
+                })
+              }
+              className="w-full px-4 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-neutral-700 dark:text-neutral-100"
+            />
+          </div>
+
+          {/* Actions */}
+          <div className="flex justify-end space-x-3 pt-4 border-t border-neutral-200 dark:border-neutral-700">
+            <ButtonSecondary onClick={onClose} disabled={saving}>
+              Hủy
+            </ButtonSecondary>
+            <ButtonPrimary type="submit" disabled={saving}>
+              {saving ? "Đang lưu..." : "Lưu cài đặt"}
+            </ButtonPrimary>
+          </div>
+        </form>
       </div>
     </div>
   );

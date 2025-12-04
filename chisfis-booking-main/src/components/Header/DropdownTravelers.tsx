@@ -32,12 +32,6 @@ const solutions: SolutionItem[] = [
     href: "/listing-experiences",
     icon: IconOne,
   },
-  {
-    name: "Cars",
-    description: "Car rental description",
-    href: "/listing-car",
-    icon: IconThree,
-  },
 ];
 
 export default function DropdownTravelers() {

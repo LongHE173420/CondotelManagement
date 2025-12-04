@@ -9,6 +9,9 @@ import AccountPage from "containers/AccountPage/AccountPage";
 import PageBlogList from "containers/PageManageBlog/PageBlogList";
 import PageManageReviews from "containers/PageManageReviews/PageManageReviews";
 import PageAdminRefund from "containers/PageAdminRefund/PageAdminRefund";
+import PageAdminPayoutBooking from "containers/PageAdminPayoutBooking/PageAdminPayoutBooking";
+import PageAdminLocations from "containers/PageAdminLocations/PageAdminLocations";
+import PageAdminResorts from "containers/PageAdminResorts/PageAdminResorts";
 import AdminPackagesPage from "containers/PageAdminPackages/AdminPackagesPage";
 import { toast } from "react-toastify";
 import { Link } from "react-router-dom";
@@ -18,7 +21,7 @@ export interface AdminPageProps {
   className?: string;
 }
 
-type AdminTab = "dashboard" | "accounts" | "profile" | "blog" | "reviews" | "refunds" | "packages";
+type AdminTab = "dashboard" | "accounts" | "profile" | "blog" | "reviews" | "refunds" | "payouts" | "locations" | "resorts" | "packages";
 
 const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
   const { isAdmin, isLoading } = useAuth();
@@ -28,7 +31,7 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
 
   // Sync tab with URL
   useEffect(() => {
-    if (tabParam && ["dashboard", "accounts", "profile", "blog", "reviews", "refunds", "packages"].includes(tabParam)) {
+    if (tabParam && ["dashboard", "accounts", "profile", "blog", "reviews", "refunds", "payouts", "locations", "resorts", "packages"].includes(tabParam)) {
       setActiveTab(tabParam);
     }
   }, [tabParam]);
@@ -226,13 +229,43 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
               💰 Quản lý Hủy phòng & Hoàn tiền
             </button>
             <button
+              onClick={() => handleTabChange("payouts")}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === "payouts"
+                  ? "border-primary-500 text-primary-600"
+                  : "border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300"
+              }`}
+            >
+              💵 Thanh toán cho Host
+            </button>
+            <button
+              onClick={() => handleTabChange("locations")}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === "locations"
+                  ? "border-primary-500 text-primary-600"
+                  : "border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300"
+              }`}
+            >
+              📍 Locations
+            </button>
+            <button
+              onClick={() => handleTabChange("resorts")}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === "resorts"
+                  ? "border-primary-500 text-primary-600"
+                  : "border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300"
+              }`}
+            >
+              🏨 Resorts
+            </button>
+            <button
               onClick={() => handleTabChange("packages")}
               className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === "packages"
                 ? "border-primary-500 text-primary-600"
                 : "border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300"
                 }`}
             >
-              Quản lý Gói Host
+              📦 Quản lý Gói Host
             </button>
             <button
               onClick={() => handleTabChange("profile")}
@@ -356,6 +389,18 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
         ) : activeTab === "refunds" ? (
           <div className="space-y-6">
             <PageAdminRefund />
+          </div>
+        ) : activeTab === "payouts" ? (
+          <div className="space-y-6">
+            <PageAdminPayoutBooking />
+          </div>
+        ) : activeTab === "locations" ? (
+          <div className="space-y-6">
+            <PageAdminLocations />
+          </div>
+        ) : activeTab === "resorts" ? (
+          <div className="space-y-6">
+            <PageAdminResorts />
           </div>
         ) : activeTab === "blog" ? (
           <div className="space-y-6">

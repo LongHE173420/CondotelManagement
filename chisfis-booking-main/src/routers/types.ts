@@ -22,8 +22,6 @@ export interface LocationStates {
   "/listing-real-estate-map"?: {};
   "/listing-real-estate-detail"?: {};
   //
-  "/listing-car"?: {};
-  "/listing-car-map"?: {};
   "/listing-car-detail"?: {};
   //
   "/checkout"?: {};
