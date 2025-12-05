@@ -16,10 +16,12 @@ import voucherAPI, { VoucherDTO } from "api/voucher";
 import bookingAPI from "api/booking";
 
 export default function AvatarDropdown() {
-  const { user, logout, isAdmin, isAuthenticated } = useAuth();
+  const { user, logout, isAdmin, isAuthenticated, hostPackage } = useAuth(); // ← THÊM hostPackage
   const { t } = useTranslation();
   const [myVouchers, setMyVouchers] = useState<VoucherDTO[]>([]);
   const [loadingVouchers, setLoadingVouchers] = useState(false);
+
+  const isVerified = hostPackage?.isVerifiedBadgeEnabled === true; // ← XÁC ĐỊNH VIP
 
   const solutionsFoot = [
     {
@@ -41,10 +43,8 @@ export default function AvatarDropdown() {
   };
 
   const getAccountLink = () => {
-    if (isAdmin) {
-      return "/admin?tab=profile";
-    }
-    return "/account"; // Host, Tenant, Marketer → đều vào /account
+    if (isAdmin) return "/admin?tab=profile";
+    return "/account";
   };
 
   // Load vouchers của user (từ các condotel đã booking completed)
@@ -105,22 +105,15 @@ export default function AvatarDropdown() {
     );
   }
 
-  // === MENU ITEMS DỰA TRÊN ROLE ===
   const getMenuItems = () => {
-    const items: Array<{
-      name: string;
-      href: string;
-      icon: any;
-    }> = [];
+    const items: Array<{ name: string; href: string; icon: any }> = [];
 
-    // TẤT CẢ người dùng đều thấy "Thông tin tài khoản"
     items.push({
       name: t.account.profile,
       href: getAccountLink(),
       icon: UserIcon,
     });
 
-    // Host: thêm Dashboard
     if (user?.roleName === "Host") {
       items.push({
         name: t.header.dashboard,
@@ -129,7 +122,6 @@ export default function AvatarDropdown() {
       });
     }
 
-    // Tenant & các role khác (không phải Admin/Host): chỉ hiện My Bookings
     if (user?.roleName !== "Admin" && user?.roleName !== "Host") {
       items.push({
         name: t.header.myBookings,
@@ -138,7 +130,6 @@ export default function AvatarDropdown() {
       });
     }
 
-    // Tất cả (trừ Admin) đều thấy My Reviews
     if (!isAdmin) {
       items.push({
         name: t.header.myReviews,
@@ -167,18 +158,46 @@ export default function AvatarDropdown() {
         {({ open }) => (
           <>
             <Popover.Button
-              className={`inline-flex items-center space-x-2 px-3 py-2 rounded-full bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-opacity-75`}
+              className={`inline-flex items-center space-x-3 px-3 py-2 rounded-full bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-opacity-75`}
             >
-              <Avatar
-                sizeClass="w-8 h-8 sm:w-9 sm:h-9"
-                imgUrl={user?.imageUrl}
-                userName={user?.fullName || "User"}
-              />
-              <span className="hidden sm:block text-sm font-medium text-neutral-700 dark:text-neutral-100">
-                {user?.fullName || "User"}
-              </span>
+              {/* === AVATAR + TÍCH XANH VIP === */}
+              <div className="relative">
+                <Avatar
+                  sizeClass="w-8 h-8 sm:w-9 sm:h-9"
+                  imgUrl={user?.imageUrl}
+                  userName={user?.fullName || "User"}
+                />
+
+                {/* TÍCH XANH NHỎ XINH – CHỈ HIỆN KHI VIP */}
+                {isVerified && (
+                  <div className="absolute -top-1 -right-1 animate-pulse">
+                    <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full flex items-center justify-center shadow-lg border-2 border-white">
+                      <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path
+                          fillRule="evenodd"
+                          d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* TÊN + BADGE VIP NHỎ */}
+              <div className="hidden sm:flex flex-col items-start">
+                <span className="text-sm font-semibold text-neutral-700 dark:text-neutral-100">
+                  {user?.fullName || "User"}
+                </span>
+                {isVerified && (
+                  <span className="text-xs text-blue-600 dark:text-cyan-400 font-medium mt-0.5">
+                    Chủ nhà VIP
+                  </span>
+                )}
+              </div>
             </Popover.Button>
 
+            {/* === DROPDOWN MENU === */}
             <Transition
               as={Fragment}
               enter="transition ease-out duration-200"
@@ -190,7 +209,6 @@ export default function AvatarDropdown() {
             >
               <Popover.Panel className="absolute z-10 w-screen max-w-[260px] px-4 mt-4 -right-10 sm:right-0 sm:px-0">
                 <div className="overflow-hidden rounded-3xl shadow-lg ring-1 ring-black ring-opacity-5">
-                  {/* === MENU CHÍNH === */}
                   <div className="relative grid gap-6 bg-white dark:bg-neutral-800 p-7">
                     {solutions.map((item, index) => {
                       // Nếu là "Voucher của tôi", hiển thị với badge số lượng
@@ -287,7 +305,6 @@ export default function AvatarDropdown() {
 
                   <hr className="h-[1px] border-t border-neutral-300 dark:border-neutral-700" />
 
-                  {/* === FOOTER: Help + Logout === */}
                   <div className="relative grid gap-6 bg-white dark:bg-neutral-800 p-7">
                     {solutionsFoot.map((item, index) =>
                       item.isLogout ? (

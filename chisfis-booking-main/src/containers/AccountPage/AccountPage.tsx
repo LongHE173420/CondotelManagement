@@ -10,6 +10,8 @@ import { Link } from "react-router-dom";
 import { useAuth } from "contexts/AuthContext";
 import { authAPI } from "api/auth";
 import { uploadAPI } from "api/upload";
+import VerifiedBadge from "shared/Badge/VerifiedBadge";
+import { packageAPI } from "api/package";
 
 export interface AccountPageProps {
   className?: string;
@@ -34,6 +36,7 @@ const AccountPage: FC<AccountPageProps> = ({ className = "", noLayout = false })
   const [error, setError] = useState("");
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isVerified, setIsVerified] = useState(false);
 
   // Đồng bộ dữ liệu từ user
   useEffect(() => {
@@ -60,6 +63,10 @@ const AccountPage: FC<AccountPageProps> = ({ className = "", noLayout = false })
       try {
         const profile = await authAPI.getMe();
         updateUser(profile);
+        if (profile.roleName === "Host") {
+          const pkg = await packageAPI.getMyPackage();
+          setIsVerified(pkg?.isVerifiedBadgeEnabled ?? false);
+        }
       } catch (err) {
         setError("Không thể tải thông tin người dùng");
       }
@@ -216,7 +223,10 @@ const AccountPage: FC<AccountPageProps> = ({ className = "", noLayout = false })
 
           <div>
             <Label>Vai trò</Label>
-            <Input className="mt-1.5" value={user.roleName || "N/A"} disabled />
+            <div className="mt-1.5 flex items-center gap-3">
+              <Input value={user.roleName || "N/A"} disabled className="flex-1" />
+              {isVerified && <VerifiedBadge size="md" />}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
