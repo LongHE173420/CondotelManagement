@@ -10,20 +10,20 @@ export interface Statistic {
 const FOUNDER_DEMO: Statistic[] = [
   {
     id: "1",
-    heading: "10 million",
+    heading: "1000+",
     subHeading:
-      "Articles have been public around the world (as of Sept. 30, 2021)",
+      "Căn hộ condotel chất lượng cao trên toàn quốc",
   },
   {
     id: "2",
-    heading: "100,000",
-    subHeading: "Registered users account (as of Sept. 30, 2021)",
+    heading: "50,000+",
+    subHeading: "Khách hàng đã tin tưởng và sử dụng dịch vụ",
   },
   {
     id: "3",
-    heading: "220+",
+    heading: "100+",
     subHeading:
-      "Countries and regions have our presence (as of Sept. 30, 2021)",
+      "Địa điểm du lịch và thành phố trên khắp Việt Nam",
   },
 ];
 
@@ -35,10 +35,9 @@ const SectionStatistic: FC<SectionStatisticProps> = ({ className = "" }) => {
   return (
     <div className={`nc-SectionStatistic relative ${className}`}>
       <Heading
-        desc=" We’re impartial and independent, and every day we create distinctive,
-          world-class programmes and content"
+        desc="Những con số ấn tượng thể hiện sự phát triển và uy tín của Fiscondotel trong ngành bất động sản du lịch."
       >
-        🚀 Fast Facts
+        🚀 Thống kê nhanh
       </Heading>
       <div className="grid md:grid-cols-2 gap-6 lg:grid-cols-3 xl:gap-8">
         {FOUNDER_DEMO.map((item) => (

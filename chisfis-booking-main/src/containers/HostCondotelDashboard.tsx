@@ -159,6 +159,24 @@ const HostCondotelDashboard = () => {
     setUpdatingStatusId(bookingId);
     try {
       await bookingAPI.updateHostBookingStatus(bookingId, normalizedStatus);
+      
+      // Nếu status mới là "Completed", tự động tạo voucher
+      if (normalizedStatus === "completed") {
+        try {
+          const voucherAPI = (await import("api/voucher")).default;
+          const result = await voucherAPI.autoCreate(bookingId);
+          if (result.success && result.data && result.data.length > 0) {
+            console.log(`✅ Đã tự động tạo ${result.data.length} voucher cho booking ${bookingId}:`, result.data);
+            // Có thể hiển thị thông báo về voucher đã tạo
+          } else {
+            console.log(`ℹ️ Không tạo voucher tự động: ${result.message}`);
+          }
+        } catch (voucherErr: any) {
+          // Không block việc cập nhật status nếu tạo voucher thất bại
+          console.error("Error auto-creating vouchers:", voucherErr);
+        }
+      }
+      
       // Refresh danh sách
       await fetchBookings();
       // Show success message

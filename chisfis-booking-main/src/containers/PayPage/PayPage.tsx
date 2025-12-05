@@ -55,7 +55,7 @@ const PayPage: FC<PayPageProps> = ({ className = "" }) => {
     setLoadingVouchers(true);
     setVoucherError(null);
     try {
-      const result = await voucherAPI.createVoucherAfterBooking(bookingId);
+      const result = await voucherAPI.autoCreate(bookingId);
       console.log("🎁 Voucher creation result:", result);
       
       if (result.success && result.data && result.data.length > 0) {

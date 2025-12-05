@@ -70,25 +70,40 @@ export const voucherAPI = {
     await axiosClient.delete(`/host/vouchers/${id}`);
   },
 
-  // GET /api/vouchers/condotel/{condotelId} - Lấy vouchers theo condotel
+  // GET /api/vouchers/condotel/{condotelId} - Lấy vouchers theo condotel (AllowAnonymous - không cần đăng nhập)
   getByCondotel: async (condotelId: number): Promise<VoucherDTO[]> => {
-    const response = await axiosClient.get<VoucherDTO[]>(`/vouchers/condotel/${condotelId}`);
-    return response.data;
+    const response = await axiosClient.get<any>(`/vouchers/condotel/${condotelId}`);
+    const data = response.data;
+    
+    // Normalize response (handle both array and object with data property)
+    const vouchers = Array.isArray(data) 
+      ? data 
+      : (data.data || []);
+    
+    return vouchers.map((item: any) => ({
+      voucherId: item.VoucherId || item.voucherId,
+      code: item.Code || item.code,
+      description: item.Description || item.description,
+      discountPercentage: item.DiscountPercentage !== undefined ? item.DiscountPercentage : item.discountPercentage,
+      discountAmount: item.DiscountAmount !== undefined ? item.DiscountAmount : item.discountAmount,
+      startDate: item.StartDate || item.startDate,
+      endDate: item.EndDate || item.endDate,
+      isActive: item.IsActive !== undefined ? item.IsActive : item.isActive,
+      usageLimit: item.UsageLimit !== undefined ? item.UsageLimit : item.usageLimit,
+      usedCount: item.UsedCount !== undefined ? item.UsedCount : item.usedCount,
+      minimumOrderAmount: item.MinimumOrderAmount !== undefined ? item.MinimumOrderAmount : item.minimumOrderAmount,
+      createdAt: item.CreatedAt || item.createdAt,
+      updatedAt: item.UpdatedAt || item.updatedAt,
+    }));
   },
 
-  // GET /api/tenant/vouchers - Lấy vouchers available cho tenant
-  getAvailableForTenant: async (): Promise<VoucherDTO[]> => {
-    const response = await axiosClient.get<VoucherDTO[]>(`/tenant/vouchers`);
-    return response.data || [];
-  },
-
-  // POST /api/tenant/vouchers/auto-create/{bookingId} - Tự động tạo voucher sau khi booking thành công
-  createVoucherAfterBooking: async (bookingId: number): Promise<{
+  // POST /api/vouchers/auto-create/{bookingId} - Tự động tạo voucher sau khi booking hoàn thành
+  autoCreate: async (bookingId: number): Promise<{
     success: boolean;
     message: string;
     data?: VoucherDTO[];
   }> => {
-    const response = await axiosClient.post<any>(`/tenant/vouchers/auto-create/${bookingId}`);
+    const response = await axiosClient.post<any>(`/vouchers/auto-create/${bookingId}`);
     const data = response.data;
     
     return {
@@ -110,6 +125,12 @@ export const voucherAPI = {
         updatedAt: item.UpdatedAt || item.updatedAt,
       })) : []) : undefined,
     };
+  },
+
+  // GET /api/tenant/vouchers - Lấy vouchers available cho tenant
+  getAvailableForTenant: async (): Promise<VoucherDTO[]> => {
+    const response = await axiosClient.get<VoucherDTO[]>(`/tenant/vouchers`);
+    return response.data || [];
   },
 
   // ========== VOUCHER SETTINGS APIs ==========

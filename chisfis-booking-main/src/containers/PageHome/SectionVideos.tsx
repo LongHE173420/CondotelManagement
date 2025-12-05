@@ -17,34 +17,24 @@ export interface SectionVideosProps {
 
 const VIDEOS_DEMO: VideoType[] = [
   {
-    id: "Ao7e4iisKMs",
-    title: "Magical Scotland - 4K Scenic Relaxation Film with Calming Music",
-    thumbnail:
-      "https://images.pexels.com/photos/131423/pexels-photo-131423.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=750&w=1260",
+    id: "4ybSOsddFuE",
+    title: "Video về Condotel - Phần 1",
+    thumbnail: "https://img.youtube.com/vi/4ybSOsddFuE/maxresdefault.jpg",
   },
   {
-    id: "a5V6gdu5ih8",
-    title: "Magical Scotland - 4K Scenic Relaxation Film with Calming Music",
-    thumbnail:
-      "https://images.pexels.com/photos/186077/pexels-photo-186077.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=750&w=1260",
+    id: "v4YWwU7l1k8",
+    title: "Video về Condotel - Phần 2",
+    thumbnail: "https://img.youtube.com/vi/v4YWwU7l1k8/maxresdefault.jpg",
   },
   {
-    id: "MuB7HHeuNbc",
-    title: "Magical Scotland - 4K Scenic Relaxation Film with Calming Music",
-    thumbnail:
-      "https://images.pexels.com/photos/1660995/pexels-photo-1660995.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=750&w=1260",
+    id: "V6hYqTmMkUI",
+    title: "Video về Condotel - Phần 3",
+    thumbnail: "https://img.youtube.com/vi/V6hYqTmMkUI/maxresdefault.jpg",
   },
   {
-    id: "eEaZvEZye84",
-    title: "Magical Scotland - 4K Scenic Relaxation Film with Calming Music",
-    thumbnail:
-      "https://images.pexels.com/photos/4983184/pexels-photo-4983184.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=750&w=1260",
-  },
-  {
-    id: "EuDJZDaSP0Q",
-    title: "Magical Scotland - 4K Scenic Relaxation Film with Calming Music",
-    thumbnail:
-      "https://images.pexels.com/photos/2549018/pexels-photo-2549018.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=750&w=1260",
+    id: "baJCHsIsOSo",
+    title: "Video về Condotel - Phần 4",
+    thumbnail: "https://img.youtube.com/vi/baJCHsIsOSo/maxresdefault.jpg",
   },
 ];
 
@@ -120,10 +110,9 @@ const SectionVideos: FC<SectionVideosProps> = ({
   return (
     <div className={`nc-SectionVideos ${className}`}>
       <Heading
-        desc="Check out our hottest videos. View more and share more new
-          perspectives on just about any topic. Everyone’s welcome."
+        desc="Xem những video nổi bật của chúng tôi. Khám phá thêm và chia sẻ những góc nhìn mới về condotel và du lịch. Tất cả mọi người đều được chào đón."
       >
-        🎬 The Videos
+        🎬 Video
       </Heading>
 
       <div className="flex flex-col relative sm:pr-4 sm:py-4 md:pr-6 md:py-6 xl:pr-14 xl:py-14 lg:flex-row">

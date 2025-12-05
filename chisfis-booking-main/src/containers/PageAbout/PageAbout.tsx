@@ -20,7 +20,7 @@ const PageAbout: FC<PageAboutProps> = ({ className = "" }) => {
       data-nc-id="PageAbout"
     >
       <Helmet>
-        <title>About || Fiscondotel</title>
+        <title>Về chúng tôi || Fiscondotel</title>
       </Helmet>
 
       {/* ======== BG GLASS ======== */}
@@ -29,9 +29,9 @@ const PageAbout: FC<PageAboutProps> = ({ className = "" }) => {
       <div className="container py-16 lg:py-28 space-y-16 lg:space-y-28">
         <SectionHero
           rightImg={rightImg}
-          heading="👋 About Us."
+          heading="👋 Về chúng tôi"
           btnText=""
-          subHeading="We’re impartial and independent, and every day we create distinctive, world-class programmes and content which inform, educate and entertain millions of people in the around the world."
+          subHeading="Fiscondotel là nền tảng đặt phòng condotel hàng đầu tại Việt Nam. Chúng tôi cam kết mang đến trải nghiệm tuyệt vời cho khách hàng với dịch vụ chất lượng cao, giá cả hợp lý và hỗ trợ 24/7."
         />
 
         <SectionFounder />

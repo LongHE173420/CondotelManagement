@@ -56,7 +56,7 @@ const PageChat: React.FC = () => {
     // Tham gia lại room khi chọn cuộc trò chuyện
     useEffect(() => {
         if (isConnected && connection && currentConvId) {
-            connection.invoke("JoinConversation", currentConvId).catch(err =>
+            connection.invoke("JoinConversation", currentConvId).catch((err: any) =>
                 console.error("Lỗi JoinConversation:", err)
             );
         }

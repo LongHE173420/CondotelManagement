@@ -4,6 +4,7 @@ import axiosClient from "./axiosClient";
 export interface ServicePackageDTO {
   packageId?: number;
   servicePackageId?: number;
+  serviceId?: number; // ID từ API tenant (có thể khác với servicePackageId)
   name: string;
   title?: string;
   description?: string;
@@ -146,6 +147,29 @@ export const servicePackageAPI = {
   // DELETE /api/host/service-packages/{id} - Xóa service package
   delete: async (id: number): Promise<void> => {
     await axiosClient.delete(`/host/service-packages/${id}`);
+  },
+
+  // GET /api/tenant/condotels/{condotelId}/service-packages - Lấy service packages của condotel (public, cho tenant)
+  getByCondotel: async (condotelId: number): Promise<ServicePackageDTO[]> => {
+    const response = await axiosClient.get<any[]>(`/tenant/condotels/${condotelId}/service-packages`);
+    // Normalize response từ backend (PascalCase -> camelCase)
+    return response.data.map((item: any) => ({
+      packageId: item.PackageId || item.packageId || item.ServiceId || item.serviceId || item.ServicePackageId || item.servicePackageId,
+      servicePackageId: item.ServicePackageId || item.servicePackageId || item.ServiceId || item.serviceId || item.PackageId || item.packageId,
+      serviceId: item.ServiceId || item.serviceId, // ID từ response
+      name: item.Name || item.name || item.Title || item.title,
+      title: item.Title || item.title || item.Name || item.name,
+      description: item.Description || item.description,
+      price: item.Price !== undefined ? item.Price : item.price,
+      duration: item.Duration !== undefined ? item.Duration : item.duration,
+      durationUnit: item.DurationUnit || item.durationUnit,
+      features: item.Features || item.features,
+      featuresList: item.FeaturesList || item.featuresList,
+      isActive: item.IsActive !== undefined ? item.IsActive : item.isActive !== undefined ? item.isActive : true,
+      status: item.Status || item.status || "Active",
+      createdAt: item.CreatedAt || item.createdAt,
+      updatedAt: item.UpdatedAt || item.updatedAt,
+    }));
   },
 };
 

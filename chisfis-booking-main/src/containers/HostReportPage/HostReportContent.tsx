@@ -124,9 +124,31 @@ const HostReportContent: React.FC = () => {
 
   // Quick date range presets
   const quickDateRanges = [
+    { label: "Hôm nay", custom: () => {
+      const today = new Date();
+      const todayStr = today.toISOString().split("T")[0];
+      return { from: todayStr, to: todayStr };
+    }},
     { label: "7 ngày qua", days: 7 },
     { label: "30 ngày qua", days: 30 },
     { label: "90 ngày qua", days: 90 },
+    { label: "Tháng này", custom: () => {
+      const today = new Date();
+      const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+      return {
+        from: monthStart.toISOString().split("T")[0],
+        to: today.toISOString().split("T")[0],
+      };
+    }},
+    { label: "Tháng trước", custom: () => {
+      const today = new Date();
+      const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0);
+      return {
+        from: lastMonth.toISOString().split("T")[0],
+        to: lastMonthEnd.toISOString().split("T")[0],
+      };
+    }},
     { label: "Năm nay", custom: () => {
       const today = new Date();
       const yearStart = new Date(today.getFullYear(), 0, 1);
@@ -135,20 +157,49 @@ const HostReportContent: React.FC = () => {
         to: today.toISOString().split("T")[0],
       };
     }},
+    { label: "Năm trước", custom: () => {
+      const today = new Date();
+      const lastYear = today.getFullYear() - 1;
+      const yearStart = new Date(lastYear, 0, 1);
+      const yearEnd = new Date(lastYear, 11, 31);
+      return {
+        from: yearStart.toISOString().split("T")[0],
+        to: yearEnd.toISOString().split("T")[0],
+      };
+    }},
   ];
 
-  const applyQuickRange = (range: typeof quickDateRanges[0]) => {
+  const applyQuickRange = async (range: typeof quickDateRanges[0]) => {
+    let fromDate = "";
+    let toDate = "";
+    
     if (range.custom) {
       const dates = range.custom();
-      handleDateRangeChange(dates.from, dates.to);
+      fromDate = dates.from;
+      toDate = dates.to;
     } else if (range.days) {
       const today = new Date();
-      const fromDate = new Date(today);
-      fromDate.setDate(today.getDate() - range.days);
-      handleDateRangeChange(
-        fromDate.toISOString().split("T")[0],
-        today.toISOString().split("T")[0]
-      );
+      const from = new Date(today);
+      from.setDate(today.getDate() - range.days);
+      fromDate = from.toISOString().split("T")[0];
+      toDate = today.toISOString().split("T")[0];
+    }
+    
+    setDateFrom(fromDate);
+    setDateTo(toDate);
+    
+    // Auto-load report when quick range is selected
+    setLoading(true);
+    setError("");
+    try {
+      const reportData = await reportAPI.getReport(fromDate, toDate);
+      setReport(reportData);
+    } catch (err: any) {
+      console.error("Failed to load report:", err);
+      setError(err.response?.data?.message || "Không thể tải báo cáo");
+      setReport(null);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -173,47 +224,73 @@ const HostReportContent: React.FC = () => {
 
       {/* Date Range Selector */}
       <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg p-6 mb-6">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div>
-              <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                Từ ngày
-              </label>
-              <input
-                type="date"
-                value={dateFrom}
-                onChange={(e) => handleDateRangeChange(e.target.value, dateTo)}
-                className="px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-neutral-700 dark:text-neutral-100"
-              />
+        <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-4">
+          Lọc theo ngày
+        </h3>
+        <div className="flex flex-col gap-4">
+          {/* Quick Date Ranges */}
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+              Chọn nhanh:
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {quickDateRanges.map((range, index) => (
+                <button
+                  key={index}
+                  onClick={() => applyQuickRange(range)}
+                  disabled={loading}
+                  className="px-4 py-2 text-sm font-medium border border-neutral-300 dark:border-neutral-600 rounded-md hover:bg-primary-50 dark:hover:bg-primary-900/20 hover:border-primary-500 dark:hover:border-primary-500 hover:text-primary-600 dark:hover:text-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {range.label}
+                </button>
+              ))}
             </div>
-            <div>
-              <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                Đến ngày
-              </label>
-              <input
-                type="date"
-                value={dateTo}
-                onChange={(e) => handleDateRangeChange(dateFrom, e.target.value)}
-                className="px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-neutral-700 dark:text-neutral-100"
-              />
-            </div>
-            <button
-              onClick={loadReport}
-              className="mt-6 md:mt-0 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500"
-            >
-              Tải báo cáo
-            </button>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {quickDateRanges.map((range, index) => (
+
+          {/* Custom Date Range */}
+          <div className="border-t border-neutral-200 dark:border-neutral-700 pt-4">
+            <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+              Hoặc chọn khoảng thời gian tùy chỉnh:
+            </label>
+            <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4">
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                  Từ ngày
+                </label>
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => handleDateRangeChange(e.target.value, dateTo)}
+                  max={dateTo || undefined}
+                  className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-neutral-700 dark:text-neutral-100"
+                />
+              </div>
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                  Đến ngày
+                </label>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => handleDateRangeChange(dateFrom, e.target.value)}
+                  min={dateFrom || undefined}
+                  max={new Date().toISOString().split("T")[0]}
+                  className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-neutral-700 dark:text-neutral-100"
+                />
+              </div>
               <button
-                key={index}
-                onClick={() => applyQuickRange(range)}
-                className="px-3 py-1 text-sm border border-neutral-300 dark:border-neutral-600 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                onClick={loadReport}
+                disabled={loading || !dateFrom || !dateTo}
+                className="px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {range.label}
+                {loading ? "Đang tải..." : "Tải báo cáo"}
               </button>
-            ))}
+            </div>
+            {dateFrom && dateTo && (
+              <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
+                Đã chọn: {formatDate(dateFrom)} - {formatDate(dateTo)}
+              </p>
+            )}
           </div>
         </div>
       </div>

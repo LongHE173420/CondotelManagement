@@ -11,47 +11,46 @@ export interface WidgetFooterMenu {
 
 const widgetMenus: WidgetFooterMenu[] = [
   {
-    id: "5",
-    title: "Getting started",
-    menus: [
-      { href: "#", label: "Installation" },
-      { href: "#", label: "Release Notes" },
-      { href: "#", label: "Upgrade Guide" },
-      { href: "#", label: "Browser Support" },
-      { href: "#", label: "Editor Support" },
-    ],
-  },
-  {
     id: "1",
-    title: "Explore",
+    title: "Khám phá",
     menus: [
-      { href: "#", label: "Design features" },
-      { href: "#", label: "Prototyping" },
-      { href: "#", label: "Design systems" },
-      { href: "#", label: "Pricing" },
-      { href: "#", label: "Security" },
+      { href: "/listing-stay", label: "Tìm căn hộ" },
+      { href: "/listing-experiences", label: "Trải nghiệm" },
+      { href: "/about", label: "Về chúng tôi" },
+      { href: "/contact", label: "Liên hệ" },
+      { href: "/blog", label: "Blog" },
     ],
   },
   {
     id: "2",
-    title: "Resources",
+    title: "Hỗ trợ",
     menus: [
-      { href: "#", label: "Best practices" },
-      { href: "#", label: "Support" },
-      { href: "#", label: "Developers" },
-      { href: "#", label: "Learn design" },
-      { href: "#", label: "Releases" },
+      { href: "/contact", label: "Trung tâm trợ giúp" },
+      { href: "/refund-policy", label: "Chính sách hoàn tiền" },
+      { href: "#", label: "Câu hỏi thường gặp" },
+      { href: "#", label: "An toàn & Bảo mật" },
+      { href: "/chat", label: "Hỗ trợ trực tuyến" },
+    ],
+  },
+  {
+    id: "3",
+    title: "Dành cho Host",
+    menus: [
+      { href: "/become-a-host", label: "Trở thành Host" },
+      { href: "/host-dashboard", label: "Bảng điều khiển" },
+      { href: "/pricing", label: "Bảng giá" },
+      { href: "#", label: "Hướng dẫn Host" },
+      { href: "#", label: "Tài nguyên" },
     ],
   },
   {
     id: "4",
-    title: "Community",
+    title: "Pháp lý",
     menus: [
-      { href: "#", label: "Discussion Forums" },
-      { href: "#", label: "Code of Conduct" },
-      { href: "#", label: "Community Resources" },
-      { href: "#", label: "Contributing" },
-      { href: "#", label: "Concurrent Mode" },
+      { href: "#", label: "Điều khoản sử dụng" },
+      { href: "#", label: "Chính sách bảo mật" },
+      { href: "/refund-policy", label: "Chính sách hoàn tiền" },
+      { href: "#", label: "Quy định cộng đồng" },
     ],
   },
 ];
@@ -92,6 +91,28 @@ const Footer: React.FC = () => {
           </div>
         </div>
         {widgetMenus.map(renderWidgetMenuItem)}
+      </div>
+      
+      {/* Copyright Section */}
+      <div className="container border-t border-neutral-200 dark:border-neutral-700 mt-12 pt-8">
+        <div className="flex flex-col md:flex-row justify-between items-center text-sm text-neutral-600 dark:text-neutral-400">
+          <div className="mb-4 md:mb-0">
+            <p>© {new Date().getFullYear()} Fiscondotel. Tất cả quyền được bảo lưu.</p>
+          </div>
+          <div className="flex flex-wrap justify-center gap-4">
+            <a href="/contact" className="hover:text-neutral-900 dark:hover:text-neutral-100">
+              Liên hệ
+            </a>
+            <span className="text-neutral-300 dark:text-neutral-600">|</span>
+            <a href="/refund-policy" className="hover:text-neutral-900 dark:hover:text-neutral-100">
+              Chính sách hoàn tiền
+            </a>
+            <span className="text-neutral-300 dark:text-neutral-600">|</span>
+            <a href="/about" className="hover:text-neutral-900 dark:hover:text-neutral-100">
+              Về chúng tôi
+            </a>
+          </div>
+        </div>
       </div>
     </div>
   );

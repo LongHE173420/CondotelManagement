@@ -1,15 +1,17 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "contexts/AuthContext";
-import condotelAPI, { CondotelDetailDTO } from "api/condotel";
+import condotelAPI, { CondotelDetailDTO, PriceDTO, DetailDTO as CondotelDetailDTOType } from "api/condotel";
 import uploadAPI from "api/upload";
+import resortAPI, { ResortDTO } from "api/resort";
+import amenityAPI, { AmenityDTO } from "api/amenity";
+import utilityAPI, { UtilityDTO } from "api/utility";
 import Input from "shared/Input/Input";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
 import ButtonSecondary from "shared/Button/ButtonSecondary";
 import NcInputNumber from "components/NcInputNumber/NcInputNumber";
 
 interface ImageDTO { imageUrl: string; caption?: string }
-interface DetailDTO { buildingName?: string; roomNumber?: string }
 
 const PageEditCondotel: React.FC = () => {
   const { id } = useParams();
@@ -28,8 +30,17 @@ const PageEditCondotel: React.FC = () => {
   const [beds, setBeds] = useState<number>(1);
   const [bathrooms, setBathrooms] = useState<number>(1);
   const [pricePerNight, setPricePerNight] = useState<number>(0);
+  const [resortId, setResortId] = useState<number | undefined>(undefined);
   const [images, setImages] = useState<ImageDTO[]>([]);
-  const [details, setDetails] = useState<DetailDTO[]>([]);
+  const [prices, setPrices] = useState<PriceDTO[]>([]);
+  const [details, setDetails] = useState<CondotelDetailDTOType[]>([]);
+  const [amenityIds, setAmenityIds] = useState<number[]>([]);
+  const [utilityIds, setUtilityIds] = useState<number[]>([]);
+
+  // Options for dropdowns
+  const [resorts, setResorts] = useState<ResortDTO[]>([]);
+  const [amenities, setAmenities] = useState<AmenityDTO[]>([]);
+  const [utilities, setUtilities] = useState<UtilityDTO[]>([]);
 
   // Upload
   const [imgUrl, setImgUrl] = useState("");
@@ -46,6 +57,7 @@ const PageEditCondotel: React.FC = () => {
       setLoading(true);
       setError("");
       try {
+        // Load condotel data
         const data = await condotelAPI.getByIdForHost(Number(id));
         setName(data.name || "");
         setDescription(data.description || "");
@@ -56,8 +68,37 @@ const PageEditCondotel: React.FC = () => {
         setBeds(data.beds || 1);
         setBathrooms(data.bathrooms || 1);
         setPricePerNight(data.pricePerNight || 0);
+        setResortId(data.resortId);
         setImages((data.images || []).map((it: any) => ({ imageUrl: it.imageUrl, caption: it.caption })));
-        setDetails((data.details || []).map((d: any) => ({ buildingName: d.buildingName, roomNumber: d.roomNumber })));
+        setPrices((data.prices || []).map((p: any) => ({
+          priceId: p.priceId || 0,
+          startDate: p.startDate || "",
+          endDate: p.endDate || "",
+          basePrice: p.basePrice || 0,
+          priceType: p.priceType || "",
+          description: p.description || "",
+        })));
+        setDetails((data.details || []).map((d: any) => ({
+          buildingName: d.buildingName,
+          roomNumber: d.roomNumber,
+          beds: d.beds,
+          bathrooms: d.bathrooms,
+          safetyFeatures: d.safetyFeatures,
+          hygieneStandards: d.hygieneStandards,
+        })));
+        // Extract amenityIds and utilityIds from arrays
+        setAmenityIds((data.amenities || []).map((a: any) => a.amenityId || a.AmenityId));
+        setUtilityIds((data.utilities || []).map((u: any) => u.utilityId || u.UtilityId));
+
+        // Load options for dropdowns
+        const [resortsData, amenitiesData, utilitiesData] = await Promise.all([
+          resortAPI.getAll().catch(() => []),
+          amenityAPI.getAll().catch(() => []),
+          utilityAPI.getAll().catch(() => []),
+        ]);
+        setResorts(resortsData);
+        setAmenities(amenitiesData);
+        setUtilities(utilitiesData);
       } catch (e: any) {
         setError(e?.response?.data?.message || e?.message || "Không thể tải condotel");
       } finally {
@@ -133,6 +174,7 @@ const PageEditCondotel: React.FC = () => {
       const payload: CondotelDetailDTO = {
         condotelId: Number(id),
         hostId: user?.userId || 0,
+        resortId: resortId,
         name: name.trim(),
         description: description.trim() || undefined,
         pricePerNight,
@@ -140,10 +182,21 @@ const PageEditCondotel: React.FC = () => {
         bathrooms,
         status, // Active = còn phòng, Inactive = hết phòng
         images: images.length ? images.map((i, idx) => ({ imageId: idx, imageUrl: i.imageUrl, caption: i.caption })) : undefined,
-        details: details.length ? details.map((d) => ({ ...d, beds, bathrooms })) : undefined,
-      } as unknown as CondotelDetailDTO;
+        prices: prices.length > 0 ? prices : undefined,
+        details: details.length > 0 ? details : undefined,
+        // Note: Backend expects amenityIds and utilityIds, but CondotelDetailDTO has amenities/utilities arrays
+        // We'll need to check the update API to see if it accepts IDs or objects
+      } as CondotelDetailDTO;
 
-      await condotelAPI.update(Number(id), payload);
+      // For update, we need to send amenityIds and utilityIds
+      // But CondotelDetailDTO doesn't have these fields, so we'll add them to the payload
+      const updatePayload: any = {
+        ...payload,
+        amenityIds: amenityIds.length > 0 ? amenityIds : undefined,
+        utilityIds: utilityIds.length > 0 ? utilityIds : undefined,
+      };
+
+      await condotelAPI.update(Number(id), updatePayload);
       alert("Cập nhật condotel thành công!");
       navigate("/host-dashboard?tab=condotels");
     } catch (err: any) {
@@ -300,6 +353,24 @@ const PageEditCondotel: React.FC = () => {
                 </label>
               </div>
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+                Resort
+              </label>
+              <select
+                value={resortId || ""}
+                onChange={(e) => setResortId(e.target.value ? Number(e.target.value) : undefined)}
+                className="w-full px-4 py-3 border border-neutral-300 dark:border-neutral-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-neutral-700 dark:text-neutral-100"
+              >
+                <option value="">-- Chọn Resort --</option>
+                {resorts.map((resort) => (
+                  <option key={resort.resortId} value={resort.resortId}>
+                    {resort.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 
@@ -332,6 +403,316 @@ const PageEditCondotel: React.FC = () => {
                   Giá mỗi đêm (VNĐ) *
                 </label>
                 <NcInputNumber defaultValue={pricePerNight} onChange={setPricePerNight} />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Prices */}
+        <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-lg border border-neutral-200 dark:border-neutral-700 overflow-hidden">
+          <div className="px-6 py-4 border-b border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-900/50">
+            <h2 className="text-xl font-semibold text-neutral-900 dark:text-neutral-100 flex items-center gap-2">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Giá theo thời gian
+            </h2>
+          </div>
+          <div className="p-6 space-y-4">
+            {prices.map((price, index) => (
+              <div key={index} className="p-4 border border-neutral-200 dark:border-neutral-700 rounded-xl space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+                      Ngày bắt đầu
+                    </label>
+                    <Input
+                      type="date"
+                      value={price.startDate}
+                      onChange={(e) => {
+                        const newPrices = [...prices];
+                        newPrices[index].startDate = e.target.value;
+                        setPrices(newPrices);
+                      }}
+                      className="w-full"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+                      Ngày kết thúc
+                    </label>
+                    <Input
+                      type="date"
+                      value={price.endDate}
+                      onChange={(e) => {
+                        const newPrices = [...prices];
+                        newPrices[index].endDate = e.target.value;
+                        setPrices(newPrices);
+                      }}
+                      className="w-full"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+                      Giá cơ bản (VNĐ)
+                    </label>
+                    <NcInputNumber
+                      defaultValue={price.basePrice}
+                      onChange={(val) => {
+                        const newPrices = [...prices];
+                        newPrices[index].basePrice = val;
+                        setPrices(newPrices);
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+                      Loại giá
+                    </label>
+                    <select
+                      value={price.priceType}
+                      onChange={(e) => {
+                        const newPrices = [...prices];
+                        newPrices[index].priceType = e.target.value;
+                        setPrices(newPrices);
+                      }}
+                      className="w-full px-4 py-3 border border-neutral-300 dark:border-neutral-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-neutral-700 dark:text-neutral-100"
+                    >
+                      <option value="Normal">Bình thường</option>
+                      <option value="Peak">Cao điểm</option>
+                      <option value="Low">Thấp điểm</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+                      Mô tả
+                    </label>
+                    <Input
+                      value={price.description}
+                      onChange={(e) => {
+                        const newPrices = [...prices];
+                        newPrices[index].description = e.target.value;
+                        setPrices(newPrices);
+                      }}
+                      className="w-full"
+                      placeholder="Mô tả giá"
+                    />
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPrices(prices.filter((_, i) => i !== index))}
+                  className="text-red-600 hover:text-red-700 text-sm font-medium"
+                >
+                  Xóa giá này
+                </button>
+              </div>
+            ))}
+            <ButtonSecondary
+              type="button"
+              onClick={() => setPrices([...prices, {
+                priceId: 0,
+                startDate: "",
+                endDate: "",
+                basePrice: 0,
+                priceType: "Normal",
+                description: "",
+              }])}
+            >
+              + Thêm giá mới
+            </ButtonSecondary>
+          </div>
+        </div>
+
+        {/* Details với safetyFeatures và hygieneStandards */}
+        <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-lg border border-neutral-200 dark:border-neutral-700 overflow-hidden">
+          <div className="px-6 py-4 border-b border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-900/50">
+            <h2 className="text-xl font-semibold text-neutral-900 dark:text-neutral-100 flex items-center gap-2">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+              Chi tiết phòng
+            </h2>
+          </div>
+          <div className="p-6 space-y-4">
+            {details.map((detail, index) => (
+              <div key={index} className="p-4 border border-neutral-200 dark:border-neutral-700 rounded-xl space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+                      Tên tòa nhà
+                    </label>
+                    <Input
+                      value={detail.buildingName || ""}
+                      onChange={(e) => {
+                        const newDetails = [...details];
+                        newDetails[index].buildingName = e.target.value;
+                        setDetails(newDetails);
+                      }}
+                      className="w-full"
+                      placeholder="Tòa A"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+                      Số phòng
+                    </label>
+                    <Input
+                      value={detail.roomNumber || ""}
+                      onChange={(e) => {
+                        const newDetails = [...details];
+                        newDetails[index].roomNumber = e.target.value;
+                        setDetails(newDetails);
+                      }}
+                      className="w-full"
+                      placeholder="101"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+                      Số giường
+                    </label>
+                    <NcInputNumber
+                      defaultValue={detail.beds || beds}
+                      onChange={(val) => {
+                        const newDetails = [...details];
+                        newDetails[index].beds = val;
+                        setDetails(newDetails);
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+                      Số phòng tắm
+                    </label>
+                    <NcInputNumber
+                      defaultValue={detail.bathrooms || bathrooms}
+                      onChange={(val) => {
+                        const newDetails = [...details];
+                        newDetails[index].bathrooms = val;
+                        setDetails(newDetails);
+                      }}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+                    Tính năng an toàn
+                  </label>
+                  <textarea
+                    value={detail.safetyFeatures || ""}
+                    onChange={(e) => {
+                      const newDetails = [...details];
+                      newDetails[index].safetyFeatures = e.target.value;
+                      setDetails(newDetails);
+                    }}
+                    rows={2}
+                    className="w-full px-4 py-3 border border-neutral-300 dark:border-neutral-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-neutral-700 dark:text-neutral-100 resize-none"
+                    placeholder="Có camera, hệ thống báo cháy..."
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+                    Tiêu chuẩn vệ sinh
+                  </label>
+                  <textarea
+                    value={detail.hygieneStandards || ""}
+                    onChange={(e) => {
+                      const newDetails = [...details];
+                      newDetails[index].hygieneStandards = e.target.value;
+                      setDetails(newDetails);
+                    }}
+                    rows={2}
+                    className="w-full px-4 py-3 border border-neutral-300 dark:border-neutral-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-neutral-700 dark:text-neutral-100 resize-none"
+                    placeholder="Vệ sinh tốt, khử trùng định kỳ..."
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setDetails(details.filter((_, i) => i !== index))}
+                  className="text-red-600 hover:text-red-700 text-sm font-medium"
+                >
+                  Xóa chi tiết này
+                </button>
+              </div>
+            ))}
+            <ButtonSecondary
+              type="button"
+              onClick={() => setDetails([...details, {
+                buildingName: "",
+                roomNumber: "",
+                beds: beds,
+                bathrooms: bathrooms,
+                safetyFeatures: "",
+                hygieneStandards: "",
+              }])}
+            >
+              + Thêm chi tiết phòng
+            </ButtonSecondary>
+          </div>
+        </div>
+
+        {/* Amenities và Utilities */}
+        <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-lg border border-neutral-200 dark:border-neutral-700 overflow-hidden">
+          <div className="px-6 py-4 border-b border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-900/50">
+            <h2 className="text-xl font-semibold text-neutral-900 dark:text-neutral-100 flex items-center gap-2">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+              </svg>
+              Tiện ích & Dịch vụ
+            </h2>
+          </div>
+          <div className="p-6 space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-3">
+                Tiện ích (Amenities)
+              </label>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-h-60 overflow-y-auto p-3 border border-neutral-200 dark:border-neutral-700 rounded-xl">
+                {amenities.map((amenity) => (
+                  <label key={amenity.amenityId} className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={amenityIds.includes(amenity.amenityId)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setAmenityIds([...amenityIds, amenity.amenityId]);
+                        } else {
+                          setAmenityIds(amenityIds.filter(id => id !== amenity.amenityId));
+                        }
+                      }}
+                      className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
+                    />
+                    <span className="text-sm text-neutral-700 dark:text-neutral-300">{amenity.name}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-3">
+                Dịch vụ (Utilities)
+              </label>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-h-60 overflow-y-auto p-3 border border-neutral-200 dark:border-neutral-700 rounded-xl">
+                {utilities.map((utility) => (
+                  <label key={utility.utilityId} className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={utilityIds.includes(utility.utilityId)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setUtilityIds([...utilityIds, utility.utilityId]);
+                        } else {
+                          setUtilityIds(utilityIds.filter(id => id !== utility.utilityId));
+                        }
+                      }}
+                      className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
+                    />
+                    <span className="text-sm text-neutral-700 dark:text-neutral-300">{utility.name}</span>
+                  </label>
+                ))}
               </div>
             </div>
           </div>

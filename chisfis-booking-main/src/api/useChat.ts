@@ -1,6 +1,6 @@
 // src/api/useChat.ts
 import { useEffect, useRef, useState } from 'react';
-import * as signalR from '@microsoft/signalr';
+import { HubConnection, HubConnectionBuilder, HubConnectionState, LogLevel } from '@microsoft/signalr';
 import { ChatConversation, ChatMessageDto } from '../types/chatTypes';
 import axios from 'axios';
 
@@ -17,13 +17,13 @@ interface UseChatReturn {
     loadConversations: () => Promise<void>;
     openChatWithUser: (targetUserId: number) => Promise<void>;
     sendMessage: (conversationId: number, content: string) => void;
-    connection: signalR.HubConnection | null;
+    connection: HubConnection | null;
     isConnected: boolean;
 
 }
 
 export const useChat = (currentUserId: number): UseChatReturn => {
-    const [connection, setConnection] = useState<signalR.HubConnection | null>(null);
+    const [connection, setConnection] = useState<HubConnection | null>(null);
     const [conversations, setConversations] = useState<ChatConversation[]>([]);
     const [messages, setMessages] = useState<ChatMessageDto[]>([]);
     const [currentConvId, setCurrentConvId] = useState<number | null>(null);
@@ -39,12 +39,12 @@ export const useChat = (currentUserId: number): UseChatReturn => {
     useEffect(() => {
         if (currentUserId <= 0) return;
 
-        const newConnection = new signalR.HubConnectionBuilder()
+        const newConnection = new HubConnectionBuilder()
             .withUrl(HUB_URL, {
                 accessTokenFactory: () => localStorage.getItem('token') || '',
             })
             .withAutomaticReconnect()
-            .configureLogging(signalR.LogLevel.Information)
+            .configureLogging(LogLevel.Information)
             .build();
 
         setConnection(newConnection);
@@ -102,16 +102,16 @@ export const useChat = (currentUserId: number): UseChatReturn => {
 
 
 
-        if (connection.state === signalR.HubConnectionState.Disconnected) {
+        if (connection.state === HubConnectionState.Disconnected) {
             // Trường hợp 1: Chưa kết nối -> Thì bắt đầu kết nối
             connection.start()
                 .then(() => {
                     console.log('✅ SignalR Connected!');
                     setIsConnected(true); // Báo ra ngoài là đã xong
                 })
-                .catch(err => console.error('❌ SignalR Connection Failed:', err));
+                .catch((err: any) => console.error('❌ SignalR Connection Failed:', err));
         }
-        else if (connection.state === signalR.HubConnectionState.Connected) {
+        else if (connection.state === HubConnectionState.Connected) {
             // Trường hợp 2: Đã kết nối rồi (do React render lại) -> Báo luôn là true
             setIsConnected(true);
         }
@@ -169,7 +169,7 @@ export const useChat = (currentUserId: number): UseChatReturn => {
         if (!connection || currentUserId <= 0) return;
 
         try {
-            const convId = await connection.invoke<number>('GetOrCreateDirectConversation', targetUserId);
+            const convId = await connection.invoke('GetOrCreateDirectConversation', targetUserId) as number;
 
             setCurrentConvId(convId);
             setUnreadCounts(prev => ({ ...prev, [convId]: 0 }));
@@ -178,7 +178,7 @@ export const useChat = (currentUserId: number): UseChatReturn => {
             await loadMessages(convId);
 
             // 2) Join phòng sau khi load_messages
-            if (connection.state === signalR.HubConnectionState.Connected) {
+            if (connection.state === HubConnectionState.Connected) {
                 await connection.invoke('JoinConversation', convId);
             }
 
@@ -191,7 +191,7 @@ export const useChat = (currentUserId: number): UseChatReturn => {
 
     // 1. SỬA HÀM sendMessage – KHÔNG THÊM TEMP MESSAGE NỮA
     const sendMessage = (conversationId: number, content: string) => {
-        if (!connection || connection.state !== signalR.HubConnectionState.Connected) {
+        if (!connection || connection.state !== HubConnectionState.Connected) {
             console.error("SignalR not connected!");
             return;
         }
@@ -201,7 +201,7 @@ export const useChat = (currentUserId: number): UseChatReturn => {
         // setMessages(prev => [...prev, tempMessage]);
 
         connection.invoke("SendMessage", conversationId, content.trim())
-            .catch(err => {
+            .catch((err: any) => {
                 console.error("Send message error:", err);
                 alert("Gửi tin nhắn thất bại, vui lòng thử lại!");
             });

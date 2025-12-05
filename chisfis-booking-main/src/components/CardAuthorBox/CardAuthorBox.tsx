@@ -43,7 +43,7 @@ const CardAuthorBox: FC<CardAuthorBoxProps> = ({
         <span
           className={`block mt-1.5 text-sm text-neutral-500 dark:text-neutral-400`}
         >
-          New York
+          Host chuyên nghiệp
         </span>
       </div>
       <div className="py-2 px-5 mt-4 bg-neutral-100 dark:bg-neutral-800 rounded-full flex items-center justify-center ">

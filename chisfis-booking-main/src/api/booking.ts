@@ -23,11 +23,18 @@ export interface BookingDTO {
   customerEmail?: string;
 }
 
+export interface ServicePackageBookingItem {
+  serviceId: number;
+  quantity: number;
+}
+
 export interface CreateBookingDTO {
   condotelId: number;
   startDate: string; // YYYY-MM-DD (DateOnly)
   endDate: string; // YYYY-MM-DD (DateOnly)
   promotionId?: number;
+  voucherCode?: string; // Mã voucher để validate và áp dụng
+  servicePackages?: ServicePackageBookingItem[]; // Danh sách service packages với quantity
   isUsingRewardPoints?: boolean;
   status?: string; // "Pending", "Confirmed", "Cancelled", "Completed" - defaults to "Pending"
   condotelName?: string; // Required by backend validation
@@ -133,11 +140,22 @@ export const bookingAPI = {
     if (booking.promotionId !== undefined) {
       requestData.PromotionId = booking.promotionId;
     }
+    if (booking.voucherCode) {
+      requestData.VoucherCode = booking.voucherCode;
+    }
+    if (booking.servicePackages && booking.servicePackages.length > 0) {
+      requestData.ServicePackages = booking.servicePackages.map(sp => ({
+        ServiceId: sp.serviceId,
+        Quantity: sp.quantity,
+      }));
+    }
     if (booking.isUsingRewardPoints !== undefined) {
       requestData.IsUsingRewardPoints = booking.isUsingRewardPoints;
     }
 
     console.log("📤 Creating booking with data:", JSON.stringify(requestData, null, 2));
+    console.log("🎫 Voucher code being sent:", booking.voucherCode || "None");
+    console.log("📦 Service packages being sent:", booking.servicePackages?.length || 0);
 
     const response = await axiosClient.post<any>("/booking", requestData);
     console.log("✅ Booking created successfully:", response.data);

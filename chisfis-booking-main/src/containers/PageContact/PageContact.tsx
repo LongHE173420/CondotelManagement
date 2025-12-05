@@ -16,15 +16,15 @@ export interface PageContactProps {
 const info = [
   {
     title: "🗺 ADDRESS",
-    desc: "Photo booth tattooed prism, portland taiyaki hoodie neutra typewriter",
+    desc: "Hòa Lạc, Thạch Thất, Hà Nội",
   },
   {
     title: "💌 EMAIL",
-    desc: "nc.example@example.com",
+    desc: "fiscondotel23@fiscondotel.com",
   },
   {
     title: "☎ PHONE",
-    desc: "000-123-456-7890",
+    desc: "0397-139-645",
   },
 ];
 
@@ -35,11 +35,11 @@ const PageContact: FC<PageContactProps> = ({ className = "" }) => {
       data-nc-id="PageContact"
     >
       <Helmet>
-        <title>Contact || Fiscondotel</title>
+        <title>Liên hệ || Fiscondotel</title>
       </Helmet>
       <div className="mb-24 lg:mb-32">
         <h2 className="my-16 sm:my-20 flex items-center text-3xl leading-[115%] md:text-5xl md:leading-[115%] font-semibold text-neutral-900 dark:text-neutral-100 justify-center">
-          Contact
+          Liên hệ
         </h2>
         <div className="container max-w-7xl mx-auto">
           <div className="flex-shrink-0 grid grid-cols-1 sm:grid-cols-2 gap-12 ">
@@ -64,16 +64,16 @@ const PageContact: FC<PageContactProps> = ({ className = "" }) => {
             <div>
               <form className="grid grid-cols-1 gap-6" action="#" method="post">
                 <label className="block">
-                  <Label>Full name</Label>
+                  <Label>Họ và tên</Label>
 
                   <Input
-                    placeholder="Example Doe"
+                    placeholder="Nhập họ và tên của bạn"
                     type="text"
                     className="mt-1"
                   />
                 </label>
                 <label className="block">
-                  <Label>Email address</Label>
+                  <Label>Địa chỉ email</Label>
 
                   <Input
                     type="email"
@@ -82,12 +82,12 @@ const PageContact: FC<PageContactProps> = ({ className = "" }) => {
                   />
                 </label>
                 <label className="block">
-                  <Label>Message</Label>
+                  <Label>Tin nhắn</Label>
 
-                  <Textarea className="mt-1" rows={6} />
+                  <Textarea className="mt-1" rows={6} placeholder="Nhập tin nhắn của bạn..." />
                 </label>
                 <div>
-                  <ButtonPrimary type="submit">Send Message</ButtonPrimary>
+                  <ButtonPrimary type="submit">Gửi tin nhắn</ButtonPrimary>
                 </div>
               </form>
             </div>
