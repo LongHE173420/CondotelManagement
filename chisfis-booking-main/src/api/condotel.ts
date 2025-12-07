@@ -180,13 +180,13 @@ export const condotelAPI = {
     if (query?.name) {
       params.name = query.name.trim();
     }
-    if (query?.location) {
-      // Trim location và đảm bảo format đúng
-      params.location = query.location.trim();
-    }
+    // Location Priority: locationId ưu tiên hơn location string
     if (query?.locationId !== undefined && query?.locationId !== null) {
-      // Thêm locationId vào params
+      // Ưu tiên locationId - chỉ thêm locationId, không thêm location string
       params.locationId = query.locationId;
+    } else if (query?.location) {
+      // Chỉ thêm location string nếu không có locationId
+      params.location = query.location.trim();
     }
     if (query?.fromDate) {
       params.fromDate = query.fromDate;
@@ -246,18 +246,30 @@ export const condotelAPI = {
       };
 
       // Map response to CondotelDTO format
-      const mapped = data.map((item: any) => ({
-        condotelId: item.CondotelId || item.condotelId,
-        name: item.Name || item.name,
-        pricePerNight: item.PricePerNight !== undefined ? item.PricePerNight : item.pricePerNight,
-        beds: item.Beds !== undefined ? item.Beds : item.beds,
-        bathrooms: item.Bathrooms !== undefined ? item.Bathrooms : item.bathrooms,
-        status: item.Status || item.status,
-        thumbnailUrl: item.ThumbnailUrl || item.thumbnailUrl,
-        resortName: item.ResortName || item.resortName,
-        hostName: item.HostName || item.hostName,
-        activePromotion: normalizePromotion(item.ActivePromotion || item.activePromotion),
-      }));
+      const mapped = data.map((item: any) => {
+        // Get thumbnailUrl: ưu tiên ThumbnailUrl từ API, nếu không có thì lấy ảnh đầu tiên từ CondotelImages
+        let thumbnailUrl = item.ThumbnailUrl || item.thumbnailUrl;
+        if (!thumbnailUrl) {
+          const images = item.Images || item.images || item.CondotelImages || item.condotelImages || [];
+          if (Array.isArray(images) && images.length > 0) {
+            const firstImage = images[0];
+            thumbnailUrl = firstImage.ImageUrl || firstImage.imageUrl || firstImage.Url || firstImage.url || firstImage;
+          }
+        }
+
+        return {
+          condotelId: item.CondotelId || item.condotelId,
+          name: item.Name || item.name,
+          pricePerNight: item.PricePerNight !== undefined ? item.PricePerNight : item.pricePerNight,
+          beds: item.Beds !== undefined ? item.Beds : item.beds,
+          bathrooms: item.Bathrooms !== undefined ? item.Bathrooms : item.bathrooms,
+          status: item.Status || item.status,
+          thumbnailUrl: thumbnailUrl,
+          resortName: item.ResortName || item.resortName,
+          hostName: item.HostName || item.hostName,
+          activePromotion: normalizePromotion(item.ActivePromotion || item.activePromotion),
+        };
+      });
 
       console.log("✅ Mapped results:", mapped.length, "condotels");
       return mapped;

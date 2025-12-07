@@ -191,26 +191,14 @@ const PageMyReviews: React.FC = () => {
                           </p>
                         </div>
                       )}
-                      {booking && (
+                      {booking && booking.condotelName && (
                         <div className="flex items-center gap-2 text-sm text-gray-600">
-                          <span>Đơn đặt phòng:</span>
                           <Link
-                            to={`/booking-history/${booking.bookingId}`}
-                            className="text-primary-600 hover:text-primary-700 font-medium"
+                            to={`/listing-stay-detail/${booking.condotelId}`}
+                            className="text-primary-600 hover:text-primary-700"
                           >
-                            #{booking.bookingId}
+                            {booking.condotelName}
                           </Link>
-                          {booking.condotelName && (
-                            <>
-                              <span>·</span>
-                              <Link
-                                to={`/listing-stay-detail/${booking.condotelId}`}
-                                className="text-primary-600 hover:text-primary-700"
-                              >
-                                {booking.condotelName}
-                              </Link>
-                            </>
-                          )}
                         </div>
                       )}
                     </div>

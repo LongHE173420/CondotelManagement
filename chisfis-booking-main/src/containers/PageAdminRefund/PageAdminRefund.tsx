@@ -213,6 +213,18 @@ const PageAdminRefund = () => {
     }
   }, [requests]);
 
+  // Prevent body scroll when modals are open
+  useEffect(() => {
+    if (selectedQR || confirmModalOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [selectedQR, confirmModalOpen]);
+
   // --- HÀM MỞ MODAL XÁC NHẬN ---
   const openConfirmModal = async (bookingId: number, type: "auto" | "manual") => {
     // Đảm bảo bookingId là number, không phải string format
@@ -485,27 +497,34 @@ const PageAdminRefund = () => {
   return (
     <div className="p-4 md:p-6 bg-gray-50 min-h-screen">
       <div className="max-w-7xl mx-auto">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-2">Quản lý Yêu cầu Hoàn tiền</h1>
-          <p className="text-gray-600 dark:text-gray-400 text-sm">
+        <div className="mb-8 bg-gradient-to-r from-red-50 to-pink-50 dark:from-red-900/20 dark:to-pink-900/20 rounded-2xl p-6 border border-red-200/50 dark:border-red-800/50">
+          <h1 className="text-2xl font-bold bg-gradient-to-r from-red-600 to-pink-600 bg-clip-text text-transparent mb-2">Quản lý Yêu cầu Hoàn tiền</h1>
+          <p className="text-neutral-600 dark:text-neutral-400">
             Quản lý các yêu cầu hủy phòng và hoàn tiền từ khách hàng
           </p>
         </div>
 
         {error && (
-          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-red-800">{error}</p>
-            <button
-              onClick={loadRefundRequests}
-              className="mt-2 text-sm text-red-600 hover:text-red-800 underline"
-            >
-              Thử lại
-            </button>
+          <div className="mb-6 p-6 bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 border-l-4 border-red-500 text-red-800 dark:text-red-200 rounded-xl shadow-lg backdrop-blur-sm">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>{error}</span>
+              </div>
+              <button
+                onClick={loadRefundRequests}
+                className="ml-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium transition-colors"
+              >
+                Thử lại
+              </button>
+            </div>
           </div>
         )}
 
         {/* THANH CÔNG CỤ TÌM KIẾM & LỌC */}
-        <div className="bg-white p-5 rounded-lg shadow-sm border border-gray-200 mb-6">
+        <div className="bg-white/80 dark:bg-neutral-800/80 backdrop-blur-sm p-6 rounded-2xl shadow-xl border border-red-200/50 dark:border-red-800/50 mb-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             
             <div className="col-span-1 md:col-span-2">
@@ -566,27 +585,31 @@ const PageAdminRefund = () => {
 
         {/* BẢNG DỮ LIỆU */}
         {loading ? (
-          <div className="bg-white rounded-lg shadow p-12 text-center">
-            <p className="text-gray-500">Đang tải dữ liệu...</p>
+          <div className="flex flex-col items-center justify-center py-20 bg-white/80 dark:bg-neutral-800/80 backdrop-blur-sm rounded-2xl shadow-xl border border-red-200/50 dark:border-red-800/50">
+            <div className="relative">
+              <div className="animate-spin rounded-full h-16 w-16 border-4 border-red-200 dark:border-red-800"></div>
+              <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-red-600 absolute top-0 left-0"></div>
+            </div>
+            <p className="mt-4 text-neutral-600 dark:text-neutral-400 font-medium">Đang tải dữ liệu...</p>
           </div>
         ) : (
-        <div className="bg-white rounded-lg shadow overflow-hidden border border-gray-200">
+        <div className="bg-white/80 dark:bg-neutral-800/80 backdrop-blur-sm rounded-2xl shadow-xl overflow-hidden border border-red-200/50 dark:border-red-800/50">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="min-w-full divide-y divide-neutral-200 dark:divide-neutral-700">
+              <thead className="bg-gradient-to-r from-red-50 to-pink-50 dark:from-neutral-700 dark:to-neutral-800">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mã Đơn</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Khách hàng</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Số tiền hoàn</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Thông tin nhận tiền</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quét mã hoàn tiền</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Trạng thái</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Hành động</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wider">Mã Đơn</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wider">Khách hàng</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wider">Số tiền hoàn</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wider">Thông tin nhận tiền</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wider">Quét mã hoàn tiền</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wider">Trạng thái</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wider">Hành động</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white dark:bg-neutral-800 divide-y divide-neutral-200 dark:divide-neutral-700">
                 {filteredRequests.map((req) => (
-                    <tr key={req.bookingId} className="hover:bg-gray-50 transition-colors">
+                    <tr key={req.bookingId} className="hover:bg-gradient-to-r hover:from-red-50/50 hover:to-pink-50/50 dark:hover:from-neutral-700/50 dark:hover:to-neutral-800/50 transition-all duration-200">
                     <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
                         {formatBookingId(req.bookingId, req.bookingIdFormatted)}
                     </td>
@@ -711,11 +734,12 @@ const PageAdminRefund = () => {
       {/* MODAL PHÓNG TO QR */}
       {selectedQR && (
         <div 
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70 backdrop-blur-sm p-4"
+          style={{ position: 'fixed', width: '100%', height: '100%' }}
           onClick={() => setSelectedQR(null)}
         >
           <div 
-            className="bg-white p-6 rounded-xl max-w-md w-full shadow-2xl relative"
+            className="bg-white dark:bg-neutral-800 p-6 rounded-2xl max-w-2xl w-full shadow-2xl relative max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-lg font-bold text-center mb-4 text-gray-800">{selectedQR.title}</h3>
@@ -747,8 +771,8 @@ const PageAdminRefund = () => {
         const selectedRequest = requests.find(req => req.bookingId === selectedBookingId);
 
         return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg mx-4 transform transition-all animate-fadeIn max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm" style={{ position: 'fixed', width: '100%', height: '100%' }}>
+            <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-2xl p-6 w-full max-w-2xl mx-4 transform transition-all animate-fadeIn max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-bold text-gray-900 mb-4">
                 {refundType === "auto" ? "Hoàn tiền tự động?" : "Xác nhận đã chuyển khoản?"}
             </h3>

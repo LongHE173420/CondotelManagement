@@ -59,30 +59,41 @@ const PageRequestRefund = () => {
           lowerCase: status
         });
         
-        // Backend cho phép tạo refund request cho booking có status:
-        // - "Cancelled" (đã hủy)
-        // - "Confirmed" (có thể hủy)
-        // - "Completed" (có thể hoàn tiền)
-        // - "Refunded" (nếu chưa có refund request completed - backend sẽ kiểm tra)
-        // Backend sẽ tự động kiểm tra xem đã có RefundRequest với status "Completed"/"Refunded" chưa
-        const canRequestRefund = status === "cancelled" || 
-                                  status === "pending" || 
-                                  status === "confirmed" ||
-                                  status === "completed" ||
-                                  status === "refunded"; // Backend sẽ kiểm tra xem đã có refund request chưa
+        // Phân biệt Cancel Payment vs Cancel Booking:
+        // - Cancel Payment: Booking chưa thanh toán (status = "Cancelled" và totalPrice = 0/null) → KHÔNG refund
+        // - Cancel Booking: Booking đã thanh toán (status = "Cancelled" và totalPrice > 0) → CÓ refund
         
-        if (!canRequestRefund) {
-          setError(`Booking đang ở trạng thái "${bookingData.status}" không thể hoàn tiền. Chỉ có thể hoàn tiền cho booking đã bị hủy (Cancelled) hoặc đang ở trạng thái Pending/Confirmed/Completed/Refunded (nếu chưa có refund request completed).`);
+        // Kiểm tra nếu là Cancel Payment (không có giá)
+        const isCancelPayment = status === "cancelled" && (!bookingData.totalPrice || bookingData.totalPrice === 0);
+        
+        if (isCancelPayment) {
+          setError("Booking này đã bị hủy thanh toán (chưa thanh toán). Không thể yêu cầu hoàn tiền cho booking chưa thanh toán.");
         } else {
-          // Kiểm tra xem có trong vòng 2 ngày không
-          if (bookingData.createdAt) {
-            const createdDate = new Date(bookingData.createdAt);
-            const now = new Date();
-            const diffTime = Math.abs(now.getTime() - createdDate.getTime());
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-            
-            if (diffDays > 2) {
-              setError("Chỉ có thể yêu cầu hoàn tiền trong vòng 2 ngày kể từ ngày đặt phòng");
+          // Backend cho phép tạo refund request cho booking có status:
+          // - "Cancelled" (đã hủy SAU KHI ĐÃ THANH TOÁN - có totalPrice > 0)
+          // - "Confirmed" (có thể hủy)
+          // - "Completed" (có thể hoàn tiền)
+          // - "Refunded" (nếu chưa có refund request completed - backend sẽ kiểm tra)
+          // Backend sẽ tự động kiểm tra xem đã có RefundRequest với status "Completed"/"Refunded" chưa
+          const canRequestRefund = status === "cancelled" || 
+                                    status === "pending" || 
+                                    status === "confirmed" ||
+                                    status === "completed" ||
+                                    status === "refunded"; // Backend sẽ kiểm tra xem đã có refund request chưa
+          
+          if (!canRequestRefund) {
+            setError(`Booking đang ở trạng thái "${bookingData.status}" không thể hoàn tiền. Chỉ có thể hoàn tiền cho booking đã bị hủy SAU KHI ĐÃ THANH TOÁN (Cancelled với totalPrice > 0) hoặc đang ở trạng thái Pending/Confirmed/Completed/Refunded (nếu chưa có refund request completed).`);
+          } else {
+            // Kiểm tra xem có trong vòng 2 ngày không
+            if (bookingData.createdAt) {
+              const createdDate = new Date(bookingData.createdAt);
+              const now = new Date();
+              const diffTime = Math.abs(now.getTime() - createdDate.getTime());
+              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+              
+              if (diffDays > 2) {
+                setError("Chỉ có thể yêu cầu hoàn tiền trong vòng 2 ngày kể từ ngày đặt phòng");
+              }
             }
           }
         }
@@ -218,9 +229,18 @@ const PageRequestRefund = () => {
           setSubmitting(false);
           return;
         }
+      } else {
+        // Booking đã ở trạng thái Cancelled/Refunded/Completed
+        // Kiểm tra lại: Nếu là Cancelled nhưng không có giá → Cancel Payment → không refund
+        if (isCancelledStatus && (!currentBooking.totalPrice || currentBooking.totalPrice === 0)) {
+          const errorMsg = "Booking này đã bị hủy thanh toán (chưa thanh toán). Không thể yêu cầu hoàn tiền cho booking chưa thanh toán.";
+          setError(errorMsg);
+          setSubmitting(false);
+          return;
+        }
+        
+        console.log("✅ Booking đã được hủy (status = Cancelled hoặc Refunded), có thể gửi yêu cầu hoàn tiền");
       }
-      
-      console.log("✅ Booking đã được hủy (status = Cancelled hoặc Refunded), có thể gửi yêu cầu hoàn tiền");
 
       if (!currentBooking.totalPrice || currentBooking.totalPrice <= 0) {
         throw new Error("Booking không có số tiền hợp lệ để hoàn tiền.");

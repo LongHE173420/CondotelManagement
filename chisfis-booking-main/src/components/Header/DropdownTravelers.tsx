@@ -20,18 +20,6 @@ const solutions: SolutionItem[] = [
     icon: IconFour,
     active: true,
   },
-  {
-    name: "Flights",
-    description: "Flights description",
-    href: "/listing-flights",
-    icon: IconTwo,
-  },
-  {
-    name: "Things to do",
-    description: "Tour and experiences",
-    href: "/listing-experiences",
-    icon: IconOne,
-  },
 ];
 
 export default function DropdownTravelers() {

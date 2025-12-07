@@ -3,31 +3,60 @@ import { useAuth } from "contexts/AuthContext";
 import payoutAPI, { HostPayoutDTO } from "api/payout";
 import moment from "moment";
 
+type PayoutTab = "pending" | "paid";
+
 const HostPayoutContent: React.FC = () => {
-  const { user, isAuthenticated } = useAuth();
+  const [activeTab, setActiveTab] = useState<PayoutTab>("pending");
   const [pendingPayouts, setPendingPayouts] = useState<HostPayoutDTO[]>([]);
+  const [paidPayouts, setPaidPayouts] = useState<HostPayoutDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [filterFromDate, setFilterFromDate] = useState<string>("");
+  const [filterToDate, setFilterToDate] = useState<string>("");
+
+  const loadPendingPayouts = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const data = await payoutAPI.getPendingPayouts();
+      setPendingPayouts(data);
+      console.log("💰 Pending payouts loaded:", data);
+    } catch (err: any) {
+      console.error("Failed to load pending payouts:", err);
+      setError(err.response?.data?.message || "Không thể tải danh sách booking chờ thanh toán");
+      setPendingPayouts([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadPaidPayouts = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const data = await payoutAPI.getPaidPayouts({
+        fromDate: filterFromDate || undefined,
+        toDate: filterToDate || undefined,
+      });
+      setPaidPayouts(data);
+      console.log("💰 Paid payouts loaded:", data, "filters:", { filterFromDate, filterToDate });
+    } catch (err: any) {
+      console.error("Failed to load paid payouts:", err);
+      setError(err.response?.data?.message || "Không thể tải danh sách booking đã thanh toán");
+      setPaidPayouts([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const loadPendingPayouts = async () => {
-      setLoading(true);
-      setError("");
-      try {
-        const data = await payoutAPI.getPendingPayouts();
-        setPendingPayouts(data);
-        console.log("💰 Pending payouts loaded:", data);
-      } catch (err: any) {
-        console.error("Failed to load pending payouts:", err);
-        setError(err.response?.data?.message || "Không thể tải danh sách booking chờ thanh toán");
-        setPendingPayouts([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadPendingPayouts();
-  }, []);
+    if (activeTab === "pending") {
+      loadPendingPayouts();
+    } else {
+      loadPaidPayouts();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, filterFromDate, filterToDate]);
 
   // Format số tiền
   const formatPrice = (price: number | undefined): string => {
@@ -48,8 +77,9 @@ const HostPayoutContent: React.FC = () => {
     }
   };
 
-  // Tính tổng tiền chờ thanh toán
-  const totalPendingAmount = pendingPayouts.reduce((sum, payout) => sum + (payout.totalPrice || 0), 0);
+  // Get current payouts based on active tab
+  const currentPayouts = activeTab === "pending" ? pendingPayouts : paidPayouts;
+  const totalAmount = currentPayouts.reduce((sum, payout) => sum + (payout.amount || payout.totalPrice || 0), 0);
 
   if (loading) {
     return (
@@ -62,26 +92,103 @@ const HostPayoutContent: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold">Thanh toán cho Host</h2>
-        <p className="text-neutral-600 dark:text-neutral-400 mt-1">
-          Danh sách booking đã hoàn thành và chờ thanh toán (sau 15 ngày kể từ ngày kết thúc)
+      <div className="mb-6 bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20 rounded-2xl p-6 border border-orange-200/50 dark:border-orange-800/50">
+        <h2 className="text-2xl font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent mb-2">
+          Quản lý thanh toán
+        </h2>
+        <p className="text-neutral-600 dark:text-neutral-400">
+          {activeTab === "pending" 
+            ? "Danh sách booking đã hoàn thành và chờ thanh toán (sau 15 ngày kể từ ngày kết thúc)"
+            : "Lịch sử các booking đã được thanh toán"}
         </p>
       </div>
 
+      {/* Tabs */}
+      <div className="bg-white/80 dark:bg-neutral-800/80 backdrop-blur-sm rounded-xl shadow-xl border border-orange-200/50 dark:border-orange-800/50 overflow-hidden">
+        <div className="flex border-b border-neutral-200 dark:border-neutral-700">
+          <button
+            onClick={() => setActiveTab("pending")}
+            className={`flex-1 px-6 py-4 text-sm font-semibold transition-all ${
+              activeTab === "pending"
+                ? "bg-gradient-to-r from-orange-500 to-red-600 text-white"
+                : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-700"
+            }`}
+          >
+            Chờ thanh toán ({pendingPayouts.length})
+          </button>
+          <button
+            onClick={() => setActiveTab("paid")}
+            className={`flex-1 px-6 py-4 text-sm font-semibold transition-all ${
+              activeTab === "paid"
+                ? "bg-gradient-to-r from-orange-500 to-red-600 text-white"
+                : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-700"
+            }`}
+          >
+            Đã thanh toán ({paidPayouts.length})
+          </button>
+        </div>
+      </div>
+
+      {/* Date Filters - Only show for Paid tab */}
+      {activeTab === "paid" && (
+        <div className="bg-white/80 dark:bg-neutral-800/80 backdrop-blur-sm rounded-xl shadow-xl p-6 border border-orange-200/50 dark:border-orange-800/50">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+                Từ ngày:
+              </label>
+              <input
+                type="date"
+                value={filterFromDate}
+                onChange={(e) => setFilterFromDate(e.target.value)}
+                className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 dark:bg-neutral-700 dark:text-neutral-100"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+                Đến ngày:
+              </label>
+              <input
+                type="date"
+                value={filterToDate}
+                onChange={(e) => setFilterToDate(e.target.value)}
+                className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 dark:bg-neutral-700 dark:text-neutral-100"
+              />
+            </div>
+            <div className="flex items-end">
+              {(filterFromDate || filterToDate) && (
+                <button
+                  onClick={() => {
+                    setFilterFromDate("");
+                    setFilterToDate("");
+                  }}
+                  className="w-full px-4 py-2 text-sm text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 border border-neutral-300 dark:border-neutral-600 rounded-md hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors"
+                >
+                  Xóa bộ lọc
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Summary Card */}
-      <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg p-6 mb-6">
+      <div className="bg-gradient-to-br from-white to-orange-50/30 dark:from-neutral-800 dark:to-orange-900/10 rounded-2xl shadow-xl p-6 mb-6 border border-orange-200/50 dark:border-orange-800/50">
         <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-neutral-500 dark:text-neutral-400">Tổng tiền chờ thanh toán</p>
-            <p className="text-3xl font-bold text-primary-600 dark:text-primary-400 mt-2">
-              {formatPrice(totalPendingAmount)}
+          <div className="bg-gradient-to-br from-orange-100 to-red-100 dark:from-orange-900/30 dark:to-red-900/30 rounded-xl p-4 flex-1 mr-4">
+            <p className="text-sm font-medium text-orange-600 dark:text-orange-400">
+              {activeTab === "pending" ? "Tổng tiền chờ thanh toán" : "Tổng tiền đã thanh toán"}
+            </p>
+            <p className="text-3xl font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent mt-2">
+              {formatPrice(totalAmount)}
             </p>
           </div>
-          <div className="text-right">
-            <p className="text-sm text-neutral-500 dark:text-neutral-400">Số booking chờ thanh toán</p>
-            <p className="text-3xl font-bold text-neutral-700 dark:text-neutral-300 mt-2">
-              {pendingPayouts.length}
+          <div className="bg-gradient-to-br from-red-100 to-pink-100 dark:from-red-900/30 dark:to-pink-900/30 rounded-xl p-4 flex-1 text-right">
+            <p className="text-sm font-medium text-red-600 dark:text-red-400">
+              {activeTab === "pending" ? "Số booking chờ thanh toán" : "Số booking đã thanh toán"}
+            </p>
+            <p className="text-3xl font-bold bg-gradient-to-r from-red-600 to-pink-600 bg-clip-text text-transparent mt-2">
+              {currentPayouts.length}
             </p>
           </div>
         </div>
@@ -94,66 +201,71 @@ const HostPayoutContent: React.FC = () => {
         </div>
       )}
 
-      {/* Pending Payouts Table */}
-      {pendingPayouts.length === 0 ? (
-        <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg p-12 text-center">
-          <svg
-            className="mx-auto h-12 w-12 text-neutral-400"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-            />
-          </svg>
-          <h3 className="mt-2 text-sm font-medium text-neutral-900 dark:text-neutral-100">
-            Không có booking chờ thanh toán
+      {/* Payouts Table */}
+      {currentPayouts.length === 0 ? (
+        <div className="text-center py-16 bg-gradient-to-br from-white to-orange-50/30 dark:from-neutral-800 dark:to-orange-900/10 rounded-2xl shadow-xl border border-orange-200/50 dark:border-orange-800/50">
+          <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-orange-400 to-red-500 rounded-2xl flex items-center justify-center shadow-lg">
+            <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-2">
+            {activeTab === "pending" 
+              ? "Không có booking chờ thanh toán"
+              : "Không có booking đã thanh toán"}
           </h3>
-          <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
-            Tất cả booking đã hoàn thành đã được thanh toán hoặc chưa đủ 15 ngày kể từ ngày kết thúc.
+          <p className="text-neutral-600 dark:text-neutral-400">
+            {activeTab === "pending"
+              ? "Tất cả booking đã hoàn thành đã được thanh toán hoặc chưa đủ 15 ngày kể từ ngày kết thúc."
+              : "Không có booking nào đã được thanh toán trong khoảng thời gian đã chọn."}
           </p>
         </div>
       ) : (
-        <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg overflow-hidden">
+        <div className="bg-white/80 dark:bg-neutral-800/80 backdrop-blur-sm rounded-2xl shadow-xl overflow-hidden border border-orange-200/50 dark:border-orange-800/50">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-neutral-200 dark:divide-neutral-700">
-              <thead className="bg-neutral-50 dark:bg-neutral-900">
+              <thead className="bg-gradient-to-r from-orange-50 to-red-50 dark:from-neutral-700 dark:to-neutral-800 sticky top-0 z-10">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wider">
                     Booking ID
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wider">
                     Căn hộ
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wider">
                     Khách hàng
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wider">
                     Ngày check-in / check-out
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wider">
                     Tổng tiền
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
-                    Ngày hoàn thành
+                  <th className="px-6 py-4 text-left text-xs font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wider">
+                    {activeTab === "pending" ? "Ngày hoàn thành" : "Ngày thanh toán"}
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
-                    Số ngày chờ
-                  </th>
+                  {activeTab === "pending" && (
+                    <th className="px-6 py-4 text-left text-xs font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wider">
+                      Số ngày chờ
+                    </th>
+                  )}
+                  {activeTab === "paid" && (
+                    <th className="px-6 py-4 text-left text-xs font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wider">
+                      Trạng thái
+                    </th>
+                  )}
                 </tr>
               </thead>
               <tbody className="bg-white dark:bg-neutral-800 divide-y divide-neutral-200 dark:divide-neutral-700">
-                {pendingPayouts.map((payout) => (
-                  <tr key={payout.bookingId} className="hover:bg-neutral-50 dark:hover:bg-neutral-700">
+                {currentPayouts.map((payout) => (
+                  <tr key={payout.bookingId} className="hover:bg-gradient-to-r hover:from-orange-50/50 hover:to-red-50/50 dark:hover:from-neutral-700/50 dark:hover:to-neutral-800/50 transition-all duration-200">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-neutral-900 dark:text-neutral-100">
                       #{payout.bookingId}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500 dark:text-neutral-400">
-                      {payout.condotelName || `Condotel #${payout.condotelId}`}
+                      <div className="font-medium text-neutral-900 dark:text-neutral-100">
+                        {payout.condotelName || `Condotel #${payout.condotelId}`}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500 dark:text-neutral-400">
                       <div>
@@ -171,19 +283,30 @@ const HostPayoutContent: React.FC = () => {
                         <div className="text-xs text-neutral-400">đến {formatDate(payout.endDate)}</div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-neutral-900 dark:text-neutral-100">
-                      {formatPrice(payout.totalPrice)}
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-green-600 dark:text-green-400">
+                      {formatPrice(payout.amount || payout.totalPrice)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500 dark:text-neutral-400">
-                      {formatDate(payout.completedAt || payout.endDate)}
+                      {activeTab === "pending" 
+                        ? formatDate(payout.completedAt || payout.endDate)
+                        : formatDate(payout.paidAt || payout.paidToHostAt)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500 dark:text-neutral-400">
-                      <span className="px-2 py-1 bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-300 rounded-full text-xs font-medium">
-                        {payout.daysSinceCompleted !== undefined
-                          ? `${payout.daysSinceCompleted} ngày`
-                          : "Đang tính"}
-                      </span>
-                    </td>
+                    {activeTab === "pending" && (
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500 dark:text-neutral-400">
+                        <span className="px-2 py-1 bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-300 rounded-full text-xs font-medium">
+                          {payout.daysSinceCompleted !== undefined
+                            ? `${payout.daysSinceCompleted} ngày`
+                            : "Đang tính"}
+                        </span>
+                      </td>
+                    )}
+                    {activeTab === "paid" && (
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500 dark:text-neutral-400">
+                        <span className="px-2 py-1 bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-300 rounded-full text-xs font-medium">
+                          Đã thanh toán
+                        </span>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

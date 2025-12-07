@@ -15,16 +15,16 @@ interface StatCardProps {
 
 const StatCard: React.FC<StatCardProps> = ({ title, value, icon, color, subtitle }) => {
   return (
-    <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg p-6">
+    <div className="bg-gradient-to-br from-white to-blue-50/30 dark:from-neutral-800 dark:to-blue-900/10 rounded-2xl shadow-xl p-6 border border-blue-200/50 dark:border-blue-800/50 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
       <div className="flex items-center justify-between">
         <div className="flex-1">
-          <p className="text-sm font-medium text-neutral-500 dark:text-neutral-400">{title}</p>
-          <p className="mt-2 text-3xl font-bold text-neutral-900 dark:text-neutral-100">{value}</p>
+          <p className="text-sm font-bold text-neutral-500 dark:text-neutral-400 mb-2">{title}</p>
+          <p className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">{value}</p>
           {subtitle && (
-            <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">{subtitle}</p>
+            <p className="mt-2 text-xs font-medium text-neutral-500 dark:text-neutral-400">{subtitle}</p>
           )}
         </div>
-        <div className={`${color} p-3 rounded-lg`}>{icon}</div>
+        <div className={`${color} p-4 rounded-xl shadow-lg`}>{icon}</div>
       </div>
     </div>
   );
@@ -205,32 +205,38 @@ const HostReportContent: React.FC = () => {
 
   if (loading && !report) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      <div className="flex flex-col items-center justify-center py-20">
+        <div className="relative">
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-200 dark:border-blue-800"></div>
+          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-blue-600 absolute top-0 left-0"></div>
+        </div>
+        <p className="mt-4 text-neutral-600 dark:text-neutral-400 font-medium">Đang tải dữ liệu...</p>
       </div>
     );
   }
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-8 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl p-6 border border-blue-200/50 dark:border-blue-800/50">
         <div>
-          <h2 className="text-2xl font-bold">Báo cáo doanh thu</h2>
-          <p className="text-neutral-600 dark:text-neutral-400 mt-1">
+          <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent mb-2">
+            Báo cáo doanh thu
+          </h2>
+          <p className="text-neutral-600 dark:text-neutral-400">
             Thống kê và phân tích doanh thu của bạn
           </p>
         </div>
       </div>
 
       {/* Date Range Selector */}
-      <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg p-6 mb-6">
-        <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-4">
+      <div className="bg-gradient-to-br from-white to-blue-50/30 dark:from-neutral-800 dark:to-blue-900/10 rounded-2xl shadow-xl p-6 mb-6 border border-blue-200/50 dark:border-blue-800/50">
+        <h3 className="text-lg font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent mb-4">
           Lọc theo ngày
         </h3>
         <div className="flex flex-col gap-4">
           {/* Quick Date Ranges */}
           <div>
-            <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+            <label className="block text-sm font-bold text-neutral-700 dark:text-neutral-300 mb-3">
               Chọn nhanh:
             </label>
             <div className="flex flex-wrap gap-2">
@@ -239,7 +245,7 @@ const HostReportContent: React.FC = () => {
                   key={index}
                   onClick={() => applyQuickRange(range)}
                   disabled={loading}
-                  className="px-4 py-2 text-sm font-medium border border-neutral-300 dark:border-neutral-600 rounded-md hover:bg-primary-50 dark:hover:bg-primary-900/20 hover:border-primary-500 dark:hover:border-primary-500 hover:text-primary-600 dark:hover:text-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2 text-sm font-bold bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                 >
                   {range.label}
                 </button>
@@ -281,9 +287,24 @@ const HostReportContent: React.FC = () => {
               <button
                 onClick={loadReport}
                 disabled={loading || !dateFrom || !dateTo}
-                className="px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="px-6 py-2.5 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none font-bold"
               >
-                {loading ? "Đang tải..." : "Tải báo cáo"}
+                {loading ? (
+                  <span className="flex items-center gap-2">
+                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Đang tải...
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-2">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Tải báo cáo
+                  </span>
+                )}
               </button>
             </div>
             {dateFrom && dateTo && (
@@ -296,8 +317,13 @@ const HostReportContent: React.FC = () => {
       </div>
 
       {error && (
-        <div className="mb-6 p-4 bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-200 rounded-lg">
-          {error}
+        <div className="mb-6 p-6 bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 border-l-4 border-red-500 text-red-800 dark:text-red-200 rounded-xl shadow-lg backdrop-blur-sm">
+          <div className="flex items-center">
+            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>{error}</span>
+          </div>
         </div>
       )}
 
@@ -305,7 +331,7 @@ const HostReportContent: React.FC = () => {
         <>
           {/* Revenue Chart Section */}
           <div className="mb-6">
-            <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg p-6 mb-4">
+            <div className="bg-gradient-to-br from-white to-blue-50/30 dark:from-neutral-800 dark:to-blue-900/10 rounded-2xl shadow-xl p-6 mb-4 border border-blue-200/50 dark:border-blue-800/50">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div className="flex items-center gap-4">
                   <div>
@@ -420,53 +446,53 @@ const HostReportContent: React.FC = () => {
 
           {/* Booking Status Breakdown */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-            <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg p-6">
+            <div className="bg-gradient-to-br from-white to-blue-50/30 dark:from-neutral-800 dark:to-blue-900/10 rounded-2xl shadow-xl p-6 border border-blue-200/50 dark:border-blue-800/50 hover:shadow-2xl transition-all duration-300">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Đang xử lý</p>
-                  <p className="mt-2 text-2xl font-bold text-blue-600">{report.pendingBookings || 0}</p>
+                  <p className="text-sm font-bold text-neutral-500 dark:text-neutral-400 mb-2">Đang xử lý</p>
+                  <p className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">{report.pendingBookings || 0}</p>
                 </div>
-                <div className="bg-blue-100 dark:bg-blue-900/20 p-3 rounded-lg">
-                  <svg className="w-6 h-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className="bg-gradient-to-br from-blue-500 to-cyan-500 p-4 rounded-xl shadow-lg">
+                  <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
               </div>
             </div>
-            <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg p-6">
+            <div className="bg-gradient-to-br from-white to-green-50/30 dark:from-neutral-800 dark:to-green-900/10 rounded-2xl shadow-xl p-6 border border-green-200/50 dark:border-green-800/50 hover:shadow-2xl transition-all duration-300">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Đã xác nhận</p>
-                  <p className="mt-2 text-2xl font-bold text-green-600">{report.confirmedBookings || 0}</p>
+                  <p className="text-sm font-bold text-neutral-500 dark:text-neutral-400 mb-2">Đã xác nhận</p>
+                  <p className="text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">{report.confirmedBookings || 0}</p>
                 </div>
-                <div className="bg-green-100 dark:bg-green-900/20 p-3 rounded-lg">
-                  <svg className="w-6 h-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className="bg-gradient-to-br from-green-500 to-emerald-500 p-4 rounded-xl shadow-lg">
+                  <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
               </div>
             </div>
-            <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg p-6">
+            <div className="bg-gradient-to-br from-white to-purple-50/30 dark:from-neutral-800 dark:to-purple-900/10 rounded-2xl shadow-xl p-6 border border-purple-200/50 dark:border-purple-800/50 hover:shadow-2xl transition-all duration-300">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Hoàn thành</p>
-                  <p className="mt-2 text-2xl font-bold text-purple-600">{report.completedBookings || 0}</p>
+                  <p className="text-sm font-bold text-neutral-500 dark:text-neutral-400 mb-2">Hoàn thành</p>
+                  <p className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">{report.completedBookings || 0}</p>
                 </div>
-                <div className="bg-purple-100 dark:bg-purple-900/20 p-3 rounded-lg">
-                  <svg className="w-6 h-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className="bg-gradient-to-br from-purple-500 to-pink-500 p-4 rounded-xl shadow-lg">
+                  <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
                 </div>
               </div>
             </div>
-            <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg p-6">
+            <div className="bg-gradient-to-br from-white to-red-50/30 dark:from-neutral-800 dark:to-red-900/10 rounded-2xl shadow-xl p-6 border border-red-200/50 dark:border-red-800/50 hover:shadow-2xl transition-all duration-300">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Đã hủy</p>
-                  <p className="mt-2 text-2xl font-bold text-red-600">{report.cancelledBookings || 0}</p>
+                  <p className="text-sm font-bold text-neutral-500 dark:text-neutral-400 mb-2">Đã hủy</p>
+                  <p className="text-2xl font-bold bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent">{report.cancelledBookings || 0}</p>
                 </div>
-                <div className="bg-red-100 dark:bg-red-900/20 p-3 rounded-lg">
-                  <svg className="w-6 h-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className="bg-gradient-to-br from-red-500 to-orange-500 p-4 rounded-xl shadow-lg">
+                  <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </div>
@@ -476,8 +502,8 @@ const HostReportContent: React.FC = () => {
 
           {/* Top Condotels */}
           {report.topCondotels && report.topCondotels.length > 0 && (
-            <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg p-6 mb-6">
-              <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-4">
+            <div className="bg-gradient-to-br from-white to-blue-50/30 dark:from-neutral-800 dark:to-blue-900/10 rounded-2xl shadow-xl p-6 mb-6 border border-blue-200/50 dark:border-blue-800/50">
+              <h3 className="text-lg font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent mb-4">
                 Top căn hộ bán chạy
               </h3>
               <div className="overflow-x-auto">

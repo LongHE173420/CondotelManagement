@@ -162,11 +162,11 @@ const CondotelCard: FC<CondotelCardProps> = ({
 
   return (
     <div
-      className={`nc-CondotelCard group relative bg-white dark:bg-neutral-900 border border-neutral-100 dark:border-neutral-800 rounded-2xl overflow-hidden will-change-transform hover:shadow-xl transition-shadow h-full flex flex-col ${className}`}
+      className={`nc-CondotelCard group relative bg-white dark:bg-neutral-900 border border-neutral-100 dark:border-neutral-800 rounded-2xl overflow-hidden will-change-transform hover:shadow-xl transition-shadow w-full flex flex-col ${className}`}
       data-nc-id="CondotelCard"
     >
       {renderSliderGallery()}
-      <Link to={`/listing-stay-detail/${condotelId}`} className="flex-1 flex flex-col">
+      <Link to={`/listing-stay-detail/${condotelId}`} className="flex-1 flex flex-col min-h-0">
         <div className="flex-1 flex flex-col justify-between">
           {renderContent()}
         </div>

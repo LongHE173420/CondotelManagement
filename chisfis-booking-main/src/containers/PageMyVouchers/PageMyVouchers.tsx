@@ -1,8 +1,7 @@
-// 1. IMPORT THÊM useEffect
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-
-// ... (Interface Voucher và Component VoucherCard giữ nguyên) ...
+import voucherAPI, { VoucherDTO } from "api/voucher";
+import moment from "moment";
 
 interface Voucher {
   id: string;
@@ -11,6 +10,7 @@ interface Voucher {
   value: number;
   description: string;
   endDate: string;
+  condotelName?: string;
 }
 const VoucherCard: React.FC<{ voucher: Voucher }> = ({ voucher }) => {
   const isPercentage = voucher.type === "percentage";
@@ -53,26 +53,41 @@ const PageMyVouchers = () => {
     const fetchMyVouchers = async () => {
       setIsLoading(true);
       try {
-        // TODO: Thay thế bằng API thật của bạn
-        // Token xác thực (chứa ID khách hàng) sẽ được gửi tự động
-        // trong header (Authorization) bởi trình duyệt.
+        console.log("🔄 Loading my vouchers...");
+        const vouchersData = await voucherAPI.getMyVouchers();
+        console.log("✅ My vouchers loaded:", vouchersData);
         
-        // const response = await fetch("/api/my-vouchers"); 
-        // const data = await response.json();
+        // Filter: chỉ lấy voucher active và chưa hết hạn
+        const now = new Date();
+        const activeVouchers = vouchersData.filter(v => {
+          if (!v.isActive) return false;
+          const endDate = new Date(v.endDate);
+          const startDate = new Date(v.startDate);
+          return startDate <= now && endDate >= now;
+        });
         
-        // --- Dữ liệu giả lập cho API ---
-        const mockVoucherData: Voucher[] = [
-          { id: "1", code: "SALE30", type: "percentage", value: 30, description: "Giảm 30% cho tất cả các condotel.", endDate: "20/11/2025" },
-          { id: "2", code: "GIAM100K", type: "amount", value: 100000, description: "Giảm 100.000 VNĐ cho các condotel tại Vũng Tàu.", endDate: "30/11/2025" },
-        ];
-        // Giả lập độ trễ mạng
-        await new Promise(resolve => setTimeout(resolve, 500)); 
-        // --- Hết dữ liệu giả lập ---
+        // Map VoucherDTO sang Voucher format cho component
+        const mappedVouchers: Voucher[] = activeVouchers.map((v: VoucherDTO) => {
+          const condotelName = (v as any).condotelName;
+          return {
+            id: v.voucherId.toString(),
+            code: v.code,
+            type: v.discountPercentage ? "percentage" : "amount",
+            value: v.discountPercentage || v.discountAmount || 0,
+            description: v.description || (v.discountPercentage 
+              ? `Giảm ${v.discountPercentage}% cho ${condotelName ? `condotel ${condotelName}` : 'tất cả condotel'}.`
+              : `Giảm ${(v.discountAmount || 0).toLocaleString()} đ cho ${condotelName ? `condotel ${condotelName}` : 'tất cả condotel'}.`),
+            endDate: moment(v.endDate).format("DD/MM/YYYY"),
+            condotelName: condotelName,
+          };
+        });
 
-        setVouchers(mockVoucherData); // Thay `mockVoucherData` bằng `data`
+        setVouchers(mappedVouchers);
+        console.log("✅ Mapped vouchers:", mappedVouchers.length);
       
       } catch (error) {
-        console.error("Lỗi khi tải voucher của bạn:", error);
+        console.error("❌ Lỗi khi tải voucher của bạn:", error);
+        setVouchers([]);
       } finally {
         setIsLoading(false);
       }

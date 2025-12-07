@@ -1,7 +1,4 @@
 import React, { FC, useState } from "react";
-import facebookSvg from "images/Facebook.svg";
-import twitterSvg from "images/Twitter.svg";
-import googleSvg from "images/Google.svg";
 import { Helmet } from "react-helmet";
 import Input from "shared/Input/Input";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
@@ -17,11 +14,6 @@ function isAxiosError(error: unknown): error is AxiosErrorLike {
   return typeof error === "object" && error !== null && "isAxiosError" in error;
 }
 
-const loginSocials = [
-  { name: "Continue with Facebook", href: "#", icon: facebookSvg },
-  { name: "Continue with Twitter", href: "#", icon: twitterSvg },
-  { name: "Continue with Google", href: "#", icon: googleSvg },
-];
 
 const PageSignUp: FC<{ className?: string }> = ({ className = "" }) => {
   const navigate = useNavigate();
@@ -198,20 +190,6 @@ const PageSignUp: FC<{ className?: string }> = ({ className = "" }) => {
         <h2 className="my-20 text-center text-3xl md:text-5xl font-semibold">Tạo tài khoản mới</h2>
 
         <div className="max-w-md mx-auto space-y-6">
-          {/* Social */}
-          <div className="grid gap-3">
-            {loginSocials.map((item, i) => (
-              <a key={i} href={item.href} onClick={e => e.preventDefault()} className="flex w-full rounded-lg bg-primary-50 dark:bg-neutral-800 px-4 py-3 hover:-translate-y-0.5 transition">
-                <img src={item.icon} alt={item.name} className="w-6" />
-                <span className="flex-grow text-center text-sm font-medium">{item.name}</span>
-              </a>
-            ))}
-          </div>
-
-          <div className="relative text-center">
-            <span className="relative z-10 px-4 bg-white dark:bg-neutral-900 text-sm text-neutral-500">HOẶC</span>
-            <div className="absolute inset-x-0 top-1/2 border-t border-neutral-300 dark:border-neutral-700" />
-          </div>
 
           {/* FORM */}
           {step === "form" ? (

@@ -1,6 +1,4 @@
 import React, { FC, useState } from "react";
-import facebookSvg from "images/Facebook.svg";
-import twitterSvg from "images/Twitter.svg";
 import { Helmet } from "react-helmet";
 import Input from "shared/Input/Input";
 import { Link, useNavigate } from "react-router-dom";
@@ -25,10 +23,6 @@ const PageLogin: FC<PageLoginProps> = ({ className = "" }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const loginSocials = [
-    { name: t.auth.login.continueWithFacebook, href: "#", icon: facebookSvg },
-    { name: t.auth.login.continueWithTwitter, href: "#", icon: twitterSvg },
-  ];
 
   // Hàm xử lý đăng nhập Email/Password
   const handleSubmit = async (e: React.FormEvent) => {
@@ -127,16 +121,6 @@ const PageLogin: FC<PageLoginProps> = ({ className = "" }) => {
         <div className="max-w-md mx-auto space-y-6">
           {/* Social Login */}
           <div className="grid gap-3">
-            {/* Render các social cũ (FB, Twitter) */}
-            {loginSocials.map((item, index) => (
-              <a key={index} href={item.href} className="flex w-full rounded-lg bg-primary-50 dark:bg-neutral-800 px-4 py-3 transform transition-transform sm:hover:scale-105 border dark:border-neutral-700">
-                <img className="flex-shrink-0" src={item.icon} alt={item.name} />
-                <h3 className="flex-grow text-center text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                  {item.name}
-                </h3>
-              </a>
-            ))}
-
             {/* NÚT GOOGLE LOGIN THẬT */}
             <div className="flex justify-center">
               <GoogleLogin

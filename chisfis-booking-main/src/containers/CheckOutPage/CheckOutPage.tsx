@@ -1,12 +1,7 @@
-import { Tab } from "@headlessui/react";
 import { PencilSquareIcon } from "@heroicons/react/24/outline";
 import React, { FC, Fragment, useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import visaPng from "images/vis.png";
-import mastercardPng from "images/mastercard.svg";
 import Input from "shared/Input/Input";
-import Label from "components/Label/Label";
-import Textarea from "shared/Textarea/Textarea";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
 import ButtonSecondary from "shared/Button/ButtonSecondary";
 import NcImage from "shared/NcImage/NcImage";
@@ -48,16 +43,18 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [bookingId, setBookingId] = useState<number | null>(null);
   const [promotions, setPromotions] = useState<PromotionDTO[]>([]);
   const [selectedPromotionId, setSelectedPromotionId] = useState<number | null>(null);
   const [vouchers, setVouchers] = useState<VoucherDTO[]>([]);
+  const [myVouchers, setMyVouchers] = useState<VoucherDTO[]>([]); // Vouchers của user
+  const [condotelVouchers, setCondotelVouchers] = useState<VoucherDTO[]>([]); // Vouchers theo condotel
   const [selectedVoucherCode, setSelectedVoucherCode] = useState<string | null>(null);
   const [voucherInput, setVoucherInput] = useState("");
   const [voucherError, setVoucherError] = useState<string | null>(null);
   const [servicePackages, setServicePackages] = useState<ServicePackageDTO[]>([]);
   const [selectedServicePackages, setSelectedServicePackages] = useState<Map<number, number>>(new Map()); // serviceId -> quantity
   const [condotelDetail, setCondotelDetail] = useState<any>(null);
+  const [bookingId, setBookingId] = useState<number | null>(null);
 
   // Initialize dates from state or default
   const [rangeDates, setRangeDates] = useState<DateRage>(() => {
@@ -146,23 +143,67 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
           }
         }
 
-        // Load vouchers available for this condotel
+        // Load vouchers: cả vouchers của user và vouchers theo condotel
         try {
-          console.log("🎫 Loading vouchers for condotel:", state.condotelId);
-          const condotelVouchers = await voucherAPI.getByCondotel(state.condotelId);
-          // Filter: chỉ lấy voucher active và chưa hết hạn
           const now = new Date();
-          const activeVouchers = condotelVouchers.filter(v => {
-            if (!v.isActive) return false;
-            const endDate = new Date(v.endDate);
-            const startDate = new Date(v.startDate);
-            return startDate <= now && endDate >= now;
-          });
-          setVouchers(activeVouchers);
-          console.log("🎫 Available vouchers:", activeVouchers.length);
+          const allVouchers: VoucherDTO[] = [];
+          let myVouchersList: VoucherDTO[] = [];
+          let condotelVouchersList: VoucherDTO[] = [];
+          
+          // 1. Load vouchers của user hiện tại (nếu đã đăng nhập)
+          if (user) {
+            try {
+              console.log("🎫 Loading my vouchers...");
+              const myVouchers = await voucherAPI.getMyVouchers();
+              // Filter: chỉ lấy voucher active và chưa hết hạn
+              const activeMyVouchers = myVouchers.filter(v => {
+                if (!v.isActive) return false;
+                const endDate = new Date(v.endDate);
+                const startDate = new Date(v.startDate);
+                return startDate <= now && endDate >= now;
+              });
+              myVouchersList = activeMyVouchers;
+              allVouchers.push(...activeMyVouchers);
+              console.log("🎫 My vouchers:", activeMyVouchers.length);
+            } catch (myVoucherErr) {
+              console.warn("⚠️ Error loading my vouchers:", myVoucherErr);
+              // Không block nếu không load được my vouchers
+            }
+          }
+          
+          // 2. Load vouchers theo condotel
+          try {
+            console.log("🎫 Loading vouchers for condotel:", state.condotelId);
+            const condotelVouchers = await voucherAPI.getByCondotel(state.condotelId);
+            // Filter: chỉ lấy voucher active và chưa hết hạn
+            const activeCondotelVouchers = condotelVouchers.filter(v => {
+              if (!v.isActive) return false;
+              const endDate = new Date(v.endDate);
+              const startDate = new Date(v.startDate);
+              return startDate <= now && endDate >= now;
+            });
+            condotelVouchersList = activeCondotelVouchers;
+            allVouchers.push(...activeCondotelVouchers);
+            console.log("🎫 Condotel vouchers:", activeCondotelVouchers.length);
+          } catch (condotelVoucherErr) {
+            console.warn("⚠️ Error loading condotel vouchers:", condotelVoucherErr);
+            // Không block nếu không load được condotel vouchers
+          }
+          
+          // 3. Loại bỏ trùng lặp (theo voucherId)
+          const uniqueVouchers = Array.from(
+            new Map(allVouchers.map(v => [v.voucherId, v])).values()
+          );
+          
+          setMyVouchers(myVouchersList);
+          setCondotelVouchers(condotelVouchersList);
+          setVouchers(uniqueVouchers);
+          console.log("🎫 Total available vouchers:", uniqueVouchers.length);
         } catch (voucherErr) {
-          console.error("Error loading vouchers:", voucherErr);
+          console.error("❌ Error loading vouchers:", voucherErr);
           setVouchers([]);
+          setMyVouchers([]);
+          setCondotelVouchers([]);
         }
 
         // Load service packages available for this condotel
@@ -186,6 +227,83 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
 
     loadCondotelDetail();
   }, [state?.condotelId]);
+
+  // Load vouchers when condotelId changes
+  useEffect(() => {
+    const loadVouchers = async () => {
+      if (!state?.condotelId) {
+        setVouchers([]);
+        setMyVouchers([]);
+        setCondotelVouchers([]);
+        return;
+      }
+
+      try {
+        // Chỉ load vouchers theo condotel (backend đã validate và filter)
+        // Backend GetByCondotelAsync chỉ trả về voucher:
+        // - Status = "Active"
+        // - EndDate >= today
+        // - Sắp xếp theo EndDate
+        console.log("🎫 Loading vouchers for condotel:", state.condotelId);
+        const condotelVouchers = await voucherAPI.getByCondotel(state.condotelId);
+        
+        // Filter thêm ở frontend để đảm bảo (backend đã filter rồi nhưng double-check)
+        const now = new Date();
+        const validCondotelVouchers = condotelVouchers.filter(v => {
+          if (!v.isActive) return false;
+          const endDate = new Date(v.endDate);
+          const startDate = new Date(v.startDate);
+          // Validate condotelId phải khớp
+          const voucherCondotelId = (v as any).condotelId;
+          if (!voucherCondotelId || voucherCondotelId !== state.condotelId) return false;
+          return startDate <= now && endDate >= now;
+        });
+        
+        // Load vouchers của user và filter chỉ lấy voucher có condotelId khớp
+        let myVouchersList: VoucherDTO[] = [];
+        if (user) {
+          try {
+            console.log("🎫 Loading my vouchers...");
+            const myVouchers = await voucherAPI.getMyVouchers();
+            // Filter: chỉ lấy voucher active, còn hiệu lực, và có condotelId khớp
+            const activeMyVouchers = myVouchers.filter(v => {
+              if (!v.isActive) return false;
+              const endDate = new Date(v.endDate);
+              const startDate = new Date(v.startDate);
+              if (startDate > now || endDate < now) return false;
+              // Validate condotelId phải khớp với condotel đang booking
+              const voucherCondotelId = (v as any).condotelId;
+              if (!voucherCondotelId || voucherCondotelId !== state.condotelId) return false;
+              return true;
+            });
+            myVouchersList = activeMyVouchers;
+            console.log("🎫 My vouchers for this condotel:", activeMyVouchers.length);
+          } catch (myVoucherErr) {
+            console.warn("⚠️ Error loading my vouchers:", myVoucherErr);
+            // Không block nếu không load được my vouchers
+          }
+        }
+        
+        // Kết hợp và loại bỏ trùng lặp
+        const allVouchers = [...validCondotelVouchers, ...myVouchersList];
+        const uniqueVouchers = Array.from(
+          new Map(allVouchers.map(v => [v.voucherId, v])).values()
+        );
+        
+        setMyVouchers(myVouchersList);
+        setCondotelVouchers(validCondotelVouchers);
+        setVouchers(uniqueVouchers);
+        console.log("🎫 Total available vouchers:", uniqueVouchers.length);
+      } catch (voucherErr) {
+        console.error("❌ Error loading vouchers:", voucherErr);
+        setVouchers([]);
+        setMyVouchers([]);
+        setCondotelVouchers([]);
+      }
+    };
+
+    loadVouchers();
+  }, [state?.condotelId, user]);
 
   // Filter available promotions based on booking dates
   const getAvailablePromotions = (): PromotionDTO[] => {
@@ -346,8 +464,19 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
 
   // Get selected voucher object
   const getSelectedVoucher = (): VoucherDTO | null => {
-    if (!selectedVoucherCode) return null;
-    return vouchers.find(v => v.code === selectedVoucherCode) || null;
+    if (!selectedVoucherCode || !state?.condotelId) return null;
+    const voucher = vouchers.find(v => v.code === selectedVoucherCode);
+    if (!voucher) return null;
+    
+    // Validate: Voucher phải có condotelId và khớp với condotel đang booking
+    const voucherCondotelId = (voucher as any).condotelId;
+    if (voucherCondotelId && voucherCondotelId !== state.condotelId) {
+      setVoucherError("Voucher này không áp dụng cho condotel này");
+      setSelectedVoucherCode(null);
+      return null;
+    }
+    
+    return voucher;
   };
 
   // Handle voucher code input and validation
@@ -357,14 +486,32 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
       return;
     }
 
-    const voucher = vouchers.find(v => v.code.toUpperCase() === voucherInput.trim().toUpperCase());
-    if (voucher) {
-      setSelectedVoucherCode(voucher.code);
-      setVoucherError(null);
-      setVoucherInput("");
-    } else {
-      setVoucherError("Mã voucher không hợp lệ hoặc không áp dụng cho condotel này");
+    if (!state?.condotelId) {
+      setVoucherError("Vui lòng chọn condotel trước");
+      return;
     }
+
+    const voucher = vouchers.find(v => v.code.toUpperCase() === voucherInput.trim().toUpperCase());
+    if (!voucher) {
+      setVoucherError("Mã voucher không hợp lệ hoặc không áp dụng cho condotel này");
+      return;
+    }
+    
+    // Validate: Voucher phải có condotelId và khớp với condotel đang booking
+    const voucherCondotelId = (voucher as any).condotelId;
+    if (!voucherCondotelId || voucherCondotelId <= 0) {
+      setVoucherError("Voucher không hợp lệ (thiếu thông tin condotel)");
+      return;
+    }
+    
+    if (voucherCondotelId !== state.condotelId) {
+      setVoucherError("Voucher này không áp dụng cho condotel này");
+      return;
+    }
+    
+    setSelectedVoucherCode(voucher.code);
+    setVoucherError(null);
+    setVoucherInput("");
   };
 
   // Handle payment
@@ -801,7 +948,6 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
         </h2>
         <div className="border-b border-neutral-200 dark:border-neutral-700"></div>
         <div>
-        <div>
           <h3 className="text-2xl font-semibold">Your trip</h3>
           <NcModal
             renderTrigger={(openModal) => (
@@ -950,49 +1096,98 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
 
           {/* Suggested Vouchers */}
           {vouchers.length > 0 && !getSelectedVoucher() && (
-            <div className="mt-4">
-              <p className="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-                Voucher gợi ý:
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {vouchers.slice(0, 4).map((voucher) => (
-                  <button
-                    key={voucher.voucherId}
-                    type="button"
-                    onClick={() => {
-                      setSelectedVoucherCode(voucher.code);
-                      setVoucherError(null);
-                    }}
-                    className="p-3 border border-neutral-200 dark:border-neutral-700 rounded-lg hover:border-primary-500 dark:hover:border-primary-500 transition-colors text-left"
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-semibold text-sm text-neutral-900 dark:text-neutral-100">
-                        {voucher.code}
-                      </span>
-                      {voucher.discountPercentage ? (
-                        <span className="px-2 py-1 bg-green-100 dark:bg-green-900/20 text-green-600 dark:text-green-400 text-xs font-semibold rounded">
-                          -{voucher.discountPercentage}%
-                        </span>
-                      ) : voucher.discountAmount ? (
-                        <span className="px-2 py-1 bg-green-100 dark:bg-green-900/20 text-green-600 dark:text-green-400 text-xs font-semibold rounded">
-                          -{voucher.discountAmount.toLocaleString()}đ
-                        </span>
-                      ) : null}
-                    </div>
-                    {voucher.description && (
-                      <p className="text-xs text-neutral-500 dark:text-neutral-400 line-clamp-1">
-                        {voucher.description}
-                      </p>
-                    )}
-                    <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-1">
-                      HSD: {moment(voucher.endDate).format("DD/MM/YYYY")}
-                    </p>
-                  </button>
-                ))}
-              </div>
+            <div className="mt-4 space-y-4">
+              {/* Vouchers của tôi */}
+              {myVouchers.length > 0 && (
+                <div>
+                  <p className="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+                    Voucher của tôi:
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {myVouchers.slice(0, 4).map((voucher) => (
+                      <button
+                        key={voucher.voucherId}
+                        type="button"
+                        onClick={() => {
+                          setSelectedVoucherCode(voucher.code);
+                          setVoucherError(null);
+                        }}
+                        className="p-3 border-2 border-primary-500 dark:border-primary-400 rounded-lg hover:border-primary-600 dark:hover:border-primary-300 transition-colors text-left bg-primary-50 dark:bg-primary-900/20"
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-semibold text-sm text-neutral-900 dark:text-neutral-100">
+                            {voucher.code}
+                          </span>
+                          {voucher.discountPercentage ? (
+                            <span className="px-2 py-1 bg-green-100 dark:bg-green-900/20 text-green-600 dark:text-green-400 text-xs font-semibold rounded">
+                              -{voucher.discountPercentage}%
+                            </span>
+                          ) : voucher.discountAmount ? (
+                            <span className="px-2 py-1 bg-green-100 dark:bg-green-900/20 text-green-600 dark:text-green-400 text-xs font-semibold rounded">
+                              -{voucher.discountAmount.toLocaleString()}đ
+                            </span>
+                          ) : null}
+                        </div>
+                        {voucher.description && (
+                          <p className="text-xs text-neutral-500 dark:text-neutral-400 line-clamp-1">
+                            {voucher.description}
+                          </p>
+                        )}
+                        <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-1">
+                          HSD: {moment(voucher.endDate).format("DD/MM/YYYY")}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {/* Voucher gợi ý theo condotel */}
+              {condotelVouchers.length > 0 && (
+                <div>
+                  <p className="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+                    Voucher gợi ý cho condotel này:
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {condotelVouchers.slice(0, 4).map((voucher) => (
+                      <button
+                        key={voucher.voucherId}
+                        type="button"
+                        onClick={() => {
+                          setSelectedVoucherCode(voucher.code);
+                          setVoucherError(null);
+                        }}
+                        className="p-3 border border-neutral-200 dark:border-neutral-700 rounded-lg hover:border-primary-500 dark:hover:border-primary-500 transition-colors text-left"
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-semibold text-sm text-neutral-900 dark:text-neutral-100">
+                            {voucher.code}
+                          </span>
+                          {voucher.discountPercentage ? (
+                            <span className="px-2 py-1 bg-green-100 dark:bg-green-900/20 text-green-600 dark:text-green-400 text-xs font-semibold rounded">
+                              -{voucher.discountPercentage}%
+                            </span>
+                          ) : voucher.discountAmount ? (
+                            <span className="px-2 py-1 bg-green-100 dark:bg-green-900/20 text-green-600 dark:text-green-400 text-xs font-semibold rounded">
+                              -{voucher.discountAmount.toLocaleString()}đ
+                            </span>
+                          ) : null}
+                        </div>
+                        {voucher.description && (
+                          <p className="text-xs text-neutral-500 dark:text-neutral-400 line-clamp-1">
+                            {voucher.description}
+                          </p>
+                        )}
+                        <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-1">
+                          HSD: {moment(voucher.endDate).format("DD/MM/YYYY")}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
-        </div>
 
         {/* Service Packages Section */}
         {servicePackages.length > 0 && (

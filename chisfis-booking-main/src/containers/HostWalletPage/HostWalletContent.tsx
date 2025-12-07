@@ -76,104 +76,137 @@ const HostWalletContent: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      <div className="flex flex-col items-center justify-center py-20">
+        <div className="relative">
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-emerald-200 dark:border-emerald-800"></div>
+          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-emerald-600 absolute top-0 left-0"></div>
+        </div>
+        <p className="mt-4 text-neutral-600 dark:text-neutral-400 font-medium">Đang tải dữ liệu...</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mb-8 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 rounded-2xl p-6 border border-emerald-200/50 dark:border-emerald-800/50">
         <div>
-          <h2 className="text-2xl font-bold">Quản lý Tài khoản Ngân hàng</h2>
-          <p className="text-neutral-600 dark:text-neutral-400 mt-1">
+          <h2 className="text-2xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent mb-2">
+            Quản lý Tài khoản Ngân hàng
+          </h2>
+          <p className="text-neutral-600 dark:text-neutral-400">
             Quản lý các tài khoản ngân hàng để nhận thanh toán từ hệ thống
           </p>
         </div>
-        <ButtonPrimary onClick={() => {
-          setEditingWallet(null);
-          setShowAddModal(true);
-        }}>
-          + Thêm Tài khoản
+        <ButtonPrimary 
+          onClick={() => {
+            setEditingWallet(null);
+            setShowAddModal(true);
+          }}
+          className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
+        >
+          <span className="flex items-center gap-2">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Thêm Tài khoản
+          </span>
         </ButtonPrimary>
       </div>
 
       {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-          <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
-          <button
-            onClick={() => setError("")}
-            className="mt-2 text-sm text-red-600 underline hover:text-red-800"
-          >
-            Đóng
-          </button>
+        <div className="p-6 bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 border-l-4 border-red-500 text-red-800 dark:text-red-200 rounded-xl shadow-lg backdrop-blur-sm">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>{error}</span>
+            </div>
+            <button
+              onClick={() => setError("")}
+              className="ml-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium transition-colors"
+            >
+              Đóng
+            </button>
+          </div>
         </div>
       )}
 
       {success && (
-        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
-          <p className="text-sm text-green-800 dark:text-green-200">{success}</p>
-          <button
-            onClick={() => setSuccess("")}
-            className="mt-2 text-sm text-green-600 underline hover:text-green-800"
-          >
-            Đóng
-          </button>
+        <div className="p-6 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-l-4 border-green-500 text-green-800 dark:text-green-200 rounded-xl shadow-lg backdrop-blur-sm">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>{success}</span>
+            </div>
+            <button
+              onClick={() => setSuccess("")}
+              className="ml-4 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium transition-colors"
+            >
+              Đóng
+            </button>
+          </div>
         </div>
       )}
 
       {wallets.length === 0 ? (
-        <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg p-12 text-center">
-          <svg
-            className="mx-auto h-12 w-12 text-neutral-400"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
-            />
-          </svg>
-          <h3 className="mt-2 text-sm font-medium text-neutral-900 dark:text-neutral-100">
+        <div className="text-center py-16 bg-gradient-to-br from-white to-emerald-50/30 dark:from-neutral-800 dark:to-emerald-900/10 rounded-2xl shadow-xl border border-emerald-200/50 dark:border-emerald-800/50">
+          <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-2xl flex items-center justify-center shadow-lg">
+            <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-2">
             Chưa có tài khoản ngân hàng nào
           </h3>
-          <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+          <p className="text-neutral-600 dark:text-neutral-400 mb-6">
             Thêm tài khoản ngân hàng để nhận thanh toán từ hệ thống.
           </p>
-          <div className="mt-6">
-            <ButtonPrimary onClick={() => setShowAddModal(true)}>
-              + Thêm tài khoản đầu tiên
-            </ButtonPrimary>
-          </div>
+          <ButtonPrimary 
+            onClick={() => setShowAddModal(true)}
+            className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600"
+          >
+            <span className="flex items-center gap-2">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Thêm tài khoản đầu tiên
+            </span>
+          </ButtonPrimary>
         </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {wallets.map((wallet) => (
             <div
               key={wallet.walletId}
-              className={`bg-white dark:bg-neutral-800 rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow border-2 ${
+              className={`bg-gradient-to-br from-white to-emerald-50/30 dark:from-neutral-800 dark:to-emerald-900/10 rounded-2xl shadow-xl p-6 border-2 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 ${
                 wallet.isDefault
-                  ? "border-primary-500 dark:border-primary-400"
-                  : "border-transparent"
+                  ? "border-emerald-500 dark:border-emerald-400 ring-2 ring-emerald-200 dark:ring-emerald-800"
+                  : "border-emerald-200/50 dark:border-emerald-800/50"
               }`}
             >
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">
-                    {wallet.bankName}
-                  </h3>
-                  {wallet.bankCode && (
-                    <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
-                      Mã: {wallet.bankCode}
-                    </p>
-                  )}
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-12 h-12 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-xl flex items-center justify-center text-white font-bold shadow-lg">
+                      {wallet.bankName?.charAt(0)?.toUpperCase() || "B"}
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-neutral-900 dark:text-neutral-100">
+                        {wallet.bankName}
+                      </h3>
+                      {wallet.bankCode && (
+                        <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400">
+                          Mã: {wallet.bankCode}
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 </div>
                 {wallet.isDefault && (
-                  <span className="px-3 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-800 dark:bg-primary-900/20 dark:text-primary-400">
+                  <span className="px-3 py-1.5 rounded-xl text-xs font-bold bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md">
                     Mặc định
                   </span>
                 )}
@@ -194,14 +227,29 @@ const HostWalletContent: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex items-center space-x-2 pt-4 border-t border-neutral-200 dark:border-neutral-700">
+              <div className="flex items-center space-x-2 pt-4 border-t border-emerald-200 dark:border-emerald-800">
                 {!wallet.isDefault && (
                   <button
                     onClick={() => handleSetDefault(wallet.walletId)}
                     disabled={settingDefaultId === wallet.walletId}
-                    className="flex-1 px-3 py-2 text-sm font-medium text-primary-600 hover:text-primary-800 disabled:text-gray-400 disabled:cursor-not-allowed border border-primary-300 rounded-md hover:bg-primary-50 transition-colors"
+                    className="flex-1 px-3 py-2 text-sm font-bold bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white rounded-lg shadow-md hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
-                    {settingDefaultId === wallet.walletId ? "Đang xử lý..." : "Đặt mặc định"}
+                    {settingDefaultId === wallet.walletId ? (
+                      <>
+                        <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Đang xử lý...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        Đặt mặc định
+                      </>
+                    )}
                   </button>
                 )}
                 <ButtonSecondary
@@ -209,17 +257,37 @@ const HostWalletContent: React.FC = () => {
                     setEditingWallet(wallet);
                     setShowAddModal(true);
                   }}
-                  className="flex-1"
+                  className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-md hover:shadow-lg transition-all duration-300"
                 >
-                  Sửa
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    Sửa
+                  </span>
                 </ButtonSecondary>
                 <button
                   onClick={() => handleDelete(wallet.walletId, wallet.bankName)}
                   disabled={deletingId === wallet.walletId || wallet.isDefault}
-                  className="px-3 py-2 text-sm font-medium text-red-600 hover:text-red-800 disabled:text-gray-400 disabled:cursor-not-allowed"
+                  className="px-3 py-2 text-sm font-bold bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-lg shadow-md hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                   title={wallet.isDefault ? "Không thể xóa tài khoản mặc định" : "Xóa"}
                 >
-                  {deletingId === wallet.walletId ? "Đang xóa..." : "Xóa"}
+                  {deletingId === wallet.walletId ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Đang xóa...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                      Xóa
+                    </>
+                  )}
                 </button>
               </div>
             </div>
@@ -266,6 +334,14 @@ const WalletModal: React.FC<WalletModalProps> = ({ wallet, onClose, onSuccess })
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, []);
 
   // Danh sách ngân hàng phổ biến ở Việt Nam
   const commonBanks = [
@@ -348,18 +424,28 @@ const WalletModal: React.FC<WalletModalProps> = ({ wallet, onClose, onSuccess })
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+    <div className="fixed inset-0 z-50 overflow-y-auto" style={{ position: 'fixed', width: '100%', height: '100%' }}>
+      <div className="flex items-center justify-center min-h-screen px-4 py-4">
         <div
-          className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75"
+          className="fixed inset-0 transition-opacity bg-gray-900 bg-opacity-50 backdrop-blur-sm"
           onClick={onClose}
         ></div>
 
-        <div className="inline-block align-bottom bg-white dark:bg-neutral-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-          <div className="px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-            <h3 className="text-lg font-medium text-neutral-900 dark:text-neutral-100 mb-4">
+        <div className="relative bg-white dark:bg-neutral-800 rounded-2xl shadow-2xl transform transition-all w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div className="sticky top-0 bg-white dark:bg-neutral-800 border-b border-neutral-200 dark:border-neutral-700 px-6 py-4 flex items-center justify-between z-10">
+            <h3 className="text-xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
               {wallet ? "Sửa Tài khoản Ngân hàng" : "Thêm Tài khoản Ngân hàng mới"}
             </h3>
+            <button
+              onClick={onClose}
+              className="text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200 transition-colors p-2 hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded-lg"
+            >
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <div className="px-6 py-6">
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>

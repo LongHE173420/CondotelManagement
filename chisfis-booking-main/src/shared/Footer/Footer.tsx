@@ -47,10 +47,10 @@ const widgetMenus: WidgetFooterMenu[] = [
     id: "4",
     title: "Pháp lý",
     menus: [
-      { href: "#", label: "Điều khoản sử dụng" },
-      { href: "#", label: "Chính sách bảo mật" },
+      { href: "/terms", label: "Điều khoản sử dụng" },
+      { href: "/privacy", label: "Chính sách bảo mật" },
       { href: "/refund-policy", label: "Chính sách hoàn tiền" },
-      { href: "#", label: "Quy định cộng đồng" },
+      { href: "/regulations", label: "Quy định cộng đồng" },
     ],
   },
 ];
@@ -104,12 +104,16 @@ const Footer: React.FC = () => {
               Liên hệ
             </a>
             <span className="text-neutral-300 dark:text-neutral-600">|</span>
-            <a href="/refund-policy" className="hover:text-neutral-900 dark:hover:text-neutral-100">
-              Chính sách hoàn tiền
+            <a href="/terms" className="hover:text-neutral-900 dark:hover:text-neutral-100">
+              Điều khoản
             </a>
             <span className="text-neutral-300 dark:text-neutral-600">|</span>
-            <a href="/about" className="hover:text-neutral-900 dark:hover:text-neutral-100">
-              Về chúng tôi
+            <a href="/privacy" className="hover:text-neutral-900 dark:hover:text-neutral-100">
+              Bảo mật
+            </a>
+            <span className="text-neutral-300 dark:text-neutral-600">|</span>
+            <a href="/refund-policy" className="hover:text-neutral-900 dark:hover:text-neutral-100">
+              Hoàn tiền
             </a>
           </div>
         </div>

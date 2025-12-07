@@ -46,8 +46,30 @@ export interface HostVoucherSettingDTO {
 export const voucherAPI = {
   // GET /api/host/vouchers - Lấy tất cả vouchers của host
   getAll: async (): Promise<VoucherDTO[]> => {
-    const response = await axiosClient.get<VoucherDTO[]>("/host/vouchers");
-    return response.data;
+    const response = await axiosClient.get<any>("/host/vouchers");
+    const data = response.data;
+    
+    // Normalize response (handle both array and object with data property)
+    const vouchers = Array.isArray(data) 
+      ? data 
+      : (data.data || []);
+    
+    // Normalize each voucher from PascalCase to camelCase
+    return vouchers.map((item: any) => ({
+      voucherId: item.VoucherId || item.voucherId,
+      code: item.Code || item.code,
+      description: item.Description || item.description,
+      discountPercentage: item.DiscountPercentage !== undefined ? item.DiscountPercentage : item.discountPercentage,
+      discountAmount: item.DiscountAmount !== undefined ? item.DiscountAmount : item.discountAmount,
+      startDate: item.StartDate || item.startDate,
+      endDate: item.EndDate || item.endDate,
+      isActive: item.IsActive !== undefined ? item.IsActive : item.isActive,
+      usageLimit: item.UsageLimit !== undefined ? item.UsageLimit : item.usageLimit,
+      usedCount: item.UsedCount !== undefined ? item.UsedCount : item.usedCount,
+      minimumOrderAmount: item.MinimumOrderAmount !== undefined ? item.MinimumOrderAmount : item.minimumOrderAmount,
+      createdAt: item.CreatedAt || item.createdAt,
+      updatedAt: item.UpdatedAt || item.updatedAt,
+    }));
   },
 
   // POST /api/host/vouchers - Tạo voucher mới
@@ -131,6 +153,58 @@ export const voucherAPI = {
   getAvailableForTenant: async (): Promise<VoucherDTO[]> => {
     const response = await axiosClient.get<VoucherDTO[]>(`/tenant/vouchers`);
     return response.data || [];
+  },
+
+  // GET /api/vouchers/my - Lấy vouchers của user hiện tại (cần đăng nhập)
+  getMyVouchers: async (): Promise<VoucherDTO[]> => {
+    const response = await axiosClient.get<any>("/vouchers/my");
+    const responseData = response.data;
+    
+    // Handle response format: { success: true, data: [...], total: number }
+    let vouchers: any[] = [];
+    if (responseData && typeof responseData === 'object') {
+      if (Array.isArray(responseData)) {
+        vouchers = responseData;
+      } else if (responseData.data && Array.isArray(responseData.data)) {
+        vouchers = responseData.data;
+      } else if (responseData.Data && Array.isArray(responseData.Data)) {
+        vouchers = responseData.Data;
+      }
+    }
+    
+    // Normalize each voucher from backend format to VoucherDTO
+    return vouchers.map((item: any) => {
+      const normalized: any = {
+        voucherId: item.VoucherId || item.voucherId || item.voucherID,
+        code: item.Code || item.code,
+        description: item.Description || item.description,
+        discountPercentage: item.DiscountPercentage !== undefined && item.DiscountPercentage !== null 
+          ? item.DiscountPercentage 
+          : (item.discountPercentage !== undefined && item.discountPercentage !== null ? item.discountPercentage : undefined),
+        discountAmount: item.DiscountAmount !== undefined && item.DiscountAmount !== null
+          ? item.DiscountAmount
+          : (item.discountAmount !== undefined && item.discountAmount !== null ? item.discountAmount : undefined),
+        startDate: item.StartDate || item.startDate,
+        endDate: item.EndDate || item.endDate,
+        // Map status to isActive: "Active" = true, others = false
+        isActive: (item.Status || item.status || "").toLowerCase() === "active",
+        usageLimit: item.UsageLimit !== undefined ? item.UsageLimit : item.usageLimit,
+        usedCount: item.UsedCount !== undefined ? item.UsedCount : item.usedCount,
+        minimumOrderAmount: item.MinimumOrderAmount !== undefined ? item.MinimumOrderAmount : item.minimumOrderAmount,
+        createdAt: item.CreatedAt || item.createdAt,
+        updatedAt: item.UpdatedAt || item.updatedAt,
+      };
+      
+      // Add additional fields from response (condotelName, etc.)
+      if (item.CondotelName || item.condotelName) {
+        normalized.condotelName = item.CondotelName || item.condotelName;
+      }
+      if (item.CondotelID || item.condotelID || item.condotelId) {
+        normalized.condotelId = item.CondotelID || item.condotelID || item.condotelId;
+      }
+      
+      return normalized;
+    });
   },
 
   // ========== VOUCHER SETTINGS APIs ==========

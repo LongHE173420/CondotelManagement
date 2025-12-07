@@ -1,6 +1,5 @@
 import React, { FC, useState, useEffect, useMemo } from "react";
 import { useLocation } from "react-router-dom";
-import StayCard from "components/StayCard/StayCard";
 import { DEMO_STAY_LISTINGS } from "data/listings";
 import { StayDataType } from "data/types";
 import Pagination from "shared/Pagination/Pagination";
@@ -148,10 +147,23 @@ const SectionGridFilterCard: FC<SectionGridFilterCardProps> = ({
         }
         
         console.log("📤 Search query:", searchQuery);
+        console.log("📤 URL params:", {
+          searchLocation,
+          searchLocationId,
+          searchFromDate,
+          searchToDate,
+          minPrice,
+          maxPrice,
+          beds,
+          bathrooms
+        });
         
         // Always fetch condotels - if no search params, get all condotels
         const results = await condotelAPI.search(searchQuery);
         console.log("✅ Search results:", results.length, "condotels found");
+        console.log("✅ Results:", results);
+        
+        // Ensure we only set the results from the search, not all condotels
         setCondotels(results);
       } catch (err: any) {
         console.error("Error fetching condotels:", err);
@@ -163,12 +175,7 @@ const SectionGridFilterCard: FC<SectionGridFilterCardProps> = ({
     };
 
     fetchCondotels();
-  }, [location.search]); // Use location.search to trigger on any URL param change
-
-  // Use condotels if available, otherwise use provided data or demo data
-  const displayData = condotels.length > 0 
-    ? condotels.map(convertCondotelToStay)
-    : (data || DEMO_DATA);
+  }, [searchLocation, searchLocationId, searchFromDate, searchToDate, minPrice, maxPrice, beds, bathrooms]); // Use specific params to trigger on changes
 
   const heading = searchLocation 
     ? `${t.condotel.staysIn || "Stays in"} ${searchLocation}`

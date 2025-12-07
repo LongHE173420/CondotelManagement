@@ -62,7 +62,7 @@ const ExperiencesSearchForm: FC<ExperiencesSearchFormProps> = ({
           defaultValue={guestValue}
           onChange={(data) => setGuestValue(data)}
           className="flex-[1.5]"
-          buttonSubmitHref="/listing-experiences"
+          buttonSubmitHref="/listing-stay"
         />
       </form>
     );

@@ -67,9 +67,26 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
     );
 };
 
-// Kiểm tra xem booking có thể hoàn tiền không (hủy trong vòng 2 ngày)
+// Kiểm tra xem booking có thể hoàn tiền không
+// Chỉ cho phép refund nếu:
+// 1. Booking status = "Cancelled"
+// 2. Booking đã thanh toán trước đó (có totalPrice > 0)
+// 3. Hủy trong vòng 2 ngày
+// KHÔNG cho phép refund nếu booking bị cancel payment (chưa thanh toán)
 const canRefund = (booking: BookingDTO): boolean => {
     if (booking.status?.toLowerCase() !== "cancelled") {
+        return false;
+    }
+    
+    // Phân biệt Cancel Payment vs Cancel Booking:
+    // - Cancel Payment: Booking chưa thanh toán (totalPrice = 0 hoặc null) → không refund
+    // - Cancel Booking: Booking đã thanh toán (totalPrice > 0) → có refund
+    
+    // Kiểm tra xem booking có totalPrice > 0 (có thể đã thanh toán)
+    const hasPrice = booking.totalPrice && booking.totalPrice > 0;
+    
+    // Nếu không có giá, có thể là cancel payment → không refund
+    if (!hasPrice) {
         return false;
     }
     
@@ -80,7 +97,7 @@ const canRefund = (booking: BookingDTO): boolean => {
     const diffTime = Math.abs(now.getTime() - createdDate.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
-    // Nếu hủy trong vòng 2 ngày (từ ngày tạo booking)
+    // Nếu hủy trong vòng 2 ngày (từ ngày tạo booking) VÀ booking có giá (đã thanh toán)
     return diffDays <= 2;
 };
 

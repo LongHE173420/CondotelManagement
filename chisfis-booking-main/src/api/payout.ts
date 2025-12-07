@@ -95,8 +95,33 @@ const normalizeProcessResponse = (data: any): ProcessPayoutResponse => {
 export const payoutAPI = {
   // ========== HOST APIs ==========
   // GET /api/host/payout/pending - Lấy danh sách booking chờ thanh toán (Host chỉ xem được của mình)
+  // Tự động lấy hostId từ token, không cần truyền
   getPendingPayouts: async (): Promise<HostPayoutDTO[]> => {
     const response = await axiosClient.get<any>("/host/payout/pending");
+    const data = response.data;
+    
+    // Normalize response từ backend (PascalCase -> camelCase)
+    const payouts = Array.isArray(data) ? data : (data.data || []);
+    
+    return payouts.map(normalizePayout);
+  },
+
+  // GET /api/host/payout/paid?fromDate=2025-01-01&toDate=2025-12-31 - Lấy danh sách booking đã thanh toán (Host chỉ xem được của mình)
+  // Tự động lấy hostId từ token, không cần truyền
+  // fromDate, toDate (optional): Lọc theo khoảng thời gian (YYYY-MM-DD)
+  getPaidPayouts: async (options?: {
+    fromDate?: string; // YYYY-MM-DD
+    toDate?: string; // YYYY-MM-DD
+  }): Promise<HostPayoutDTO[]> => {
+    const params: any = {};
+    if (options?.fromDate) {
+      params.fromDate = options.fromDate;
+    }
+    if (options?.toDate) {
+      params.toDate = options.toDate;
+    }
+    
+    const response = await axiosClient.get<any>("/host/payout/paid", { params });
     const data = response.data;
     
     // Normalize response từ backend (PascalCase -> camelCase)
@@ -112,8 +137,8 @@ export const payoutAPI = {
   },
 
   // ========== ADMIN APIs ==========
-  // GET /api/admin/payouts/pending - Admin xem danh sách booking chờ thanh toán (tất cả hosts)
-  // Có thể filter theo hostId (optional)
+  // GET /api/admin/payouts/pending?hostId=1 - Admin xem danh sách booking chờ thanh toán (tất cả hosts)
+  // hostId (optional): Lọc theo host cụ thể, nếu null thì lấy tất cả
   getAdminPendingPayouts: async (hostId?: number): Promise<HostPayoutDTO[]> => {
     const params: any = {};
     if (hostId !== undefined && hostId !== null) {
@@ -121,6 +146,34 @@ export const payoutAPI = {
     }
     
     const response = await axiosClient.get<any>("/admin/payouts/pending", { params });
+    const data = response.data;
+    
+    // Normalize response từ backend (PascalCase -> camelCase)
+    const payouts = Array.isArray(data) ? data : (data.data || []);
+    
+    return payouts.map(normalizePayout);
+  },
+
+  // GET /api/admin/payouts/paid?hostId=1&fromDate=2025-01-01&toDate=2025-12-31 - Admin xem danh sách booking đã thanh toán
+  // hostId (optional): Lọc theo host cụ thể
+  // fromDate, toDate (optional): Lọc theo khoảng thời gian (YYYY-MM-DD)
+  getAdminPaidPayouts: async (options?: {
+    hostId?: number;
+    fromDate?: string; // YYYY-MM-DD
+    toDate?: string; // YYYY-MM-DD
+  }): Promise<HostPayoutDTO[]> => {
+    const params: any = {};
+    if (options?.hostId !== undefined && options?.hostId !== null) {
+      params.hostId = options.hostId;
+    }
+    if (options?.fromDate) {
+      params.fromDate = options.fromDate;
+    }
+    if (options?.toDate) {
+      params.toDate = options.toDate;
+    }
+    
+    const response = await axiosClient.get<any>("/admin/payouts/paid", { params });
     const data = response.data;
     
     // Normalize response từ backend (PascalCase -> camelCase)

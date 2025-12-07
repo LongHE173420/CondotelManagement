@@ -36,11 +36,9 @@ const SectionGridFeaturePlaces: FC<SectionGridFeaturePlacesProps> = ({
   const [condotels, setCondotels] = useState<CondotelDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [locations, setLocations] = useState<LocationDTO[]>([]);
   const [locationTabs, setLocationTabs] = useState<string[]>([]);
   const [locationMap, setLocationMap] = useState<Map<string, number>>(new Map()); // Map location name to locationId
   const [activeTab, setActiveTab] = useState<string>("");
-  const [loadingLocations, setLoadingLocations] = useState(true);
 
   // Use translations as defaults if not provided
   const displayHeading = heading || t.home.featuredPlaces;
@@ -50,9 +48,7 @@ const SectionGridFeaturePlaces: FC<SectionGridFeaturePlacesProps> = ({
   useEffect(() => {
     const loadLocations = async () => {
       try {
-        setLoadingLocations(true);
         const locationsData = await locationAPI.getAllPublic();
-        setLocations(locationsData);
         
         // Create tabs from location names
         const tabsList = locationsData.map(loc => loc.locationName);
@@ -91,8 +87,6 @@ const SectionGridFeaturePlaces: FC<SectionGridFeaturePlacesProps> = ({
         if (fallbackTabs.length > 0) {
           setActiveTab(fallbackTabs[0]);
         }
-      } finally {
-        setLoadingLocations(false);
       }
     };
 

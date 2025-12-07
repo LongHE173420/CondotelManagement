@@ -21,22 +21,23 @@ const HostVoucherContent: React.FC = () => {
   const [savingSettings, setSavingSettings] = useState(false);
 
   useEffect(() => {
-    // Check if user is Host
-    if (!isAuthenticated || user?.roleName !== "Host") {
-      navigate("/");
-      return;
-    }
+    // Load data when component mounts
+    // Authentication is already checked by HostCondotelDashboard
     loadData();
-  }, [isAuthenticated, user, navigate]);
+  }, []);
 
   const loadData = async () => {
     setLoading(true);
     setError("");
     try {
+      console.log("🔄 Loading vouchers...");
       const vouchersData = await voucherAPI.getAll();
+      console.log("✅ Vouchers loaded:", vouchersData);
+      console.log("✅ Vouchers count:", vouchersData.length);
       setVouchers(vouchersData);
     } catch (err: any) {
-      console.error("Failed to load vouchers:", err);
+      console.error("❌ Failed to load vouchers:", err);
+      console.error("❌ Error response:", err.response?.data);
       setError(err.response?.data?.message || "Không thể tải danh sách voucher");
       setVouchers([]);
     } finally {
@@ -116,89 +117,122 @@ const HostVoucherContent: React.FC = () => {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold">Danh sách voucher</h2>
+      <div className="flex items-center justify-between mb-8 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-2xl p-6 border border-purple-200/50 dark:border-purple-800/50">
+        <div>
+          <h2 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-2">
+            Danh sách voucher
+          </h2>
+          <p className="text-neutral-600 dark:text-neutral-400">
+            Quản lý các mã giảm giá cho khách hàng của bạn
+          </p>
+        </div>
         <div className="flex gap-3">
-          <ButtonSecondary onClick={() => {
-            setShowSettings(true);
-            if (!settings) {
-              loadSettings();
-            }
-          }}>
-            ⚙️ Cài đặt
+          <ButtonSecondary 
+            onClick={() => {
+              setShowSettings(true);
+              if (!settings) {
+                loadSettings();
+              }
+            }}
+            className="bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white shadow-md hover:shadow-lg transition-all duration-300"
+          >
+            <span className="flex items-center gap-2">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              Cài đặt
+            </span>
           </ButtonSecondary>
-          <ButtonPrimary onClick={() => setShowAddModal(true)}>
-            + Thêm voucher
+          <ButtonPrimary 
+            onClick={() => setShowAddModal(true)}
+            className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
+          >
+            <span className="flex items-center gap-2">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Thêm voucher
+            </span>
           </ButtonPrimary>
         </div>
       </div>
 
       {error && (
-        <div className="mb-6 p-4 bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-200 rounded-lg">
-          {error}
-          <button
-            onClick={loadData}
-            className="ml-4 text-red-600 underline hover:text-red-800"
-          >
-            Thử lại
-          </button>
+        <div className="mb-6 p-6 bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 border-l-4 border-red-500 text-red-800 dark:text-red-200 rounded-xl shadow-lg backdrop-blur-sm">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>{error}</span>
+            </div>
+            <button
+              onClick={loadData}
+              className="ml-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium transition-colors"
+            >
+              Thử lại
+            </button>
+          </div>
         </div>
       )}
 
       {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+        <div className="flex flex-col items-center justify-center py-20">
+          <div className="relative">
+            <div className="animate-spin rounded-full h-16 w-16 border-4 border-purple-200 dark:border-purple-800"></div>
+            <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-purple-600 absolute top-0 left-0"></div>
+          </div>
+          <p className="mt-4 text-neutral-600 dark:text-neutral-400 font-medium">Đang tải dữ liệu...</p>
         </div>
       ) : vouchers.length === 0 ? (
-        <div className="text-center py-12 bg-white dark:bg-neutral-800 rounded-xl shadow-lg">
-          <svg
-            className="mx-auto h-12 w-12 text-neutral-400"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          </svg>
-          <h3 className="mt-2 text-sm font-medium text-neutral-900 dark:text-neutral-100">
+        <div className="text-center py-16 bg-gradient-to-br from-white to-purple-50/30 dark:from-neutral-800 dark:to-purple-900/10 rounded-2xl shadow-xl border border-purple-200/50 dark:border-purple-800/50">
+          <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-purple-400 to-pink-500 rounded-2xl flex items-center justify-center shadow-lg">
+            <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-2">
             Chưa có voucher nào
           </h3>
-          <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+          <p className="text-neutral-600 dark:text-neutral-400 mb-6">
             Bắt đầu bằng cách tạo voucher mới cho khách hàng của bạn.
           </p>
-          <div className="mt-6">
-            <ButtonPrimary onClick={() => setShowAddModal(true)}>
-              + Thêm voucher đầu tiên
-            </ButtonPrimary>
-          </div>
+          <ButtonPrimary 
+            onClick={() => setShowAddModal(true)}
+            className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+          >
+            <span className="flex items-center gap-2">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Thêm voucher đầu tiên
+            </span>
+          </ButtonPrimary>
         </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {vouchers.map((voucher) => (
             <div
               key={voucher.voucherId}
-              className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow"
+              className="bg-gradient-to-br from-white to-purple-50/30 dark:from-neutral-800 dark:to-purple-900/10 rounded-2xl shadow-xl p-6 border border-purple-200/50 dark:border-purple-800/50 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1"
             >
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">
+                  <h3 className="text-lg font-bold text-neutral-900 dark:text-neutral-100 mb-1 font-mono bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
                     {voucher.code}
                   </h3>
                   {voucher.description && (
-                    <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">
+                    <p className="text-sm text-neutral-500 dark:text-neutral-400 line-clamp-2">
                       {voucher.description}
                     </p>
                   )}
                 </div>
                 <span
-                  className={`px-3 py-1 rounded-full text-xs font-medium ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold shadow-md ${
                     voucher.isActive
-                      ? "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400"
-                      : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300"
+                      ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white"
+                      : "bg-gradient-to-r from-gray-400 to-gray-500 text-white"
                   }`}
                 >
                   {voucher.isActive ? "Đang hoạt động" : "Đã tắt"}
@@ -256,19 +290,39 @@ const HostVoucherContent: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex items-center space-x-2 pt-4 border-t border-neutral-200 dark:border-neutral-700">
+              <div className="flex items-center space-x-2 pt-4 border-t border-purple-200 dark:border-purple-800">
                 <ButtonSecondary
                   onClick={() => setEditingVoucher(voucher)}
-                  className="flex-1"
+                  className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-md hover:shadow-lg transition-all duration-300"
                 >
-                  Sửa
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    Sửa
+                  </span>
                 </ButtonSecondary>
                 <button
                   onClick={() => handleDelete(voucher.voucherId, voucher.code)}
                   disabled={deletingId === voucher.voucherId}
-                  className="px-4 py-2 text-sm font-medium text-red-600 hover:text-red-800 disabled:text-gray-400 disabled:cursor-not-allowed"
+                  className="px-4 py-2 text-sm font-bold bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-lg shadow-md hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
-                  {deletingId === voucher.voucherId ? "Đang xóa..." : "Xóa"}
+                  {deletingId === voucher.voucherId ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Đang xóa...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                      Xóa
+                    </>
+                  )}
                 </button>
               </div>
             </div>
@@ -339,6 +393,14 @@ const VoucherModal: React.FC<VoucherModalProps> = ({
   const [condotels, setCondotels] = useState<CondotelDTO[]>([]);
   const [loadingCondotels, setLoadingCondotels] = useState(false);
 
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, []);
+
   // Fetch condotels của host khi mở modal (chỉ khi tạo mới)
   useEffect(() => {
     if (!voucher) {
@@ -380,6 +442,11 @@ const VoucherModal: React.FC<VoucherModalProps> = ({
       setError("Vui lòng nhập phần trăm giảm giá hoặc số tiền giảm giá!");
       return;
     }
+    // Bắt buộc chọn condotel khi tạo voucher mới
+    if (!voucher && (!formData.condotelId || formData.condotelId <= 0)) {
+      setError("Vui lòng chọn condotel để áp dụng voucher!");
+      return;
+    }
 
     setLoading(true);
     try {
@@ -393,8 +460,16 @@ const VoucherModal: React.FC<VoucherModalProps> = ({
         isActive: formData.isActive,
         usageLimit: formData.usageLimit,
         minimumOrderAmount: formData.minimumOrderAmount,
-        condotelId: formData.condotelId || undefined,
+        // Bắt buộc có condotelId khi tạo mới, giữ nguyên khi update
+        condotelId: formData.condotelId && formData.condotelId > 0 ? formData.condotelId : (voucher ? (voucher as any).condotelId : undefined),
       };
+      
+      // Validate condotelId bắt buộc khi tạo mới
+      if (!voucher && (!voucherData.condotelId || voucherData.condotelId <= 0)) {
+        setError("Vui lòng chọn condotel để áp dụng voucher!");
+        setLoading(false);
+        return;
+      }
 
       if (voucher) {
         // Update voucher
@@ -432,18 +507,28 @@ const VoucherModal: React.FC<VoucherModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+    <div className="fixed inset-0 z-50 overflow-y-auto" style={{ position: 'fixed', width: '100%', height: '100%' }}>
+      <div className="flex items-center justify-center min-h-screen px-4 py-4">
         <div
-          className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75"
+          className="fixed inset-0 transition-opacity bg-gray-900 bg-opacity-50 backdrop-blur-sm"
           onClick={onClose}
         ></div>
 
-        <div className="inline-block align-bottom bg-white dark:bg-neutral-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-          <div className="px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-            <h3 className="text-lg font-medium text-neutral-900 dark:text-neutral-100 mb-4">
+        <div className="relative bg-white dark:bg-neutral-800 rounded-2xl shadow-2xl transform transition-all w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div className="sticky top-0 bg-white dark:bg-neutral-800 border-b border-neutral-200 dark:border-neutral-700 px-6 py-4 flex items-center justify-between z-10">
+            <h3 className="text-xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
               {voucher ? "Sửa Voucher" : "Thêm Voucher mới"}
             </h3>
+            <button
+              onClick={onClose}
+              className="text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200 transition-colors p-2 hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded-lg"
+            >
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <div className="px-6 py-6">
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
@@ -480,11 +565,11 @@ const VoucherModal: React.FC<VoucherModalProps> = ({
                 />
               </div>
 
-              {/* Dropdown chọn Condotel - chỉ hiển thị khi tạo mới */}
+              {/* Dropdown chọn Condotel - chỉ hiển thị khi tạo mới, bắt buộc */}
               {!voucher && (
                 <div>
                   <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                    Áp dụng cho Condotel (Tùy chọn)
+                    Áp dụng cho Condotel <span className="text-red-500">*</span>
                   </label>
                   {loadingCondotels ? (
                     <div className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-md bg-neutral-50 dark:bg-neutral-700">
@@ -499,9 +584,10 @@ const VoucherModal: React.FC<VoucherModalProps> = ({
                           condotelId: e.target.value ? Number(e.target.value) : undefined,
                         }))
                       }
+                      required
                       className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-neutral-700 dark:text-neutral-100"
                     >
-                      <option value="">-- Chọn Condotel (Để trống nếu áp dụng cho tất cả) --</option>
+                      <option value="">-- Chọn Condotel (Bắt buộc) --</option>
                       {condotels.map((condotel) => (
                         <option key={condotel.condotelId} value={condotel.condotelId}>
                           {condotel.name}
@@ -698,6 +784,14 @@ const VoucherSettingsModal: React.FC<VoucherSettingsModalProps> = ({
     }
   }, [settings]);
 
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     onSave(formData);
@@ -705,8 +799,8 @@ const VoucherSettingsModal: React.FC<VoucherSettingsModalProps> = ({
 
   if (loading) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-        <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-xl p-6 max-w-md w-full mx-4">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" style={{ position: 'fixed', width: '100%', height: '100%' }}>
+        <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-2xl p-6 max-w-md w-full mx-4">
           <div className="flex items-center justify-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
           </div>
@@ -716,21 +810,27 @@ const VoucherSettingsModal: React.FC<VoucherSettingsModalProps> = ({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-      <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">
-            Cài đặt Voucher
-          </h3>
-          <button
-            onClick={onClose}
-            className="text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200"
-          >
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
+    <div className="fixed inset-0 z-50 overflow-y-auto" style={{ position: 'fixed', width: '100%', height: '100%' }}>
+      <div className="flex items-center justify-center min-h-screen px-4 py-4">
+        <div
+          className="fixed inset-0 transition-opacity bg-gray-900 bg-opacity-50 backdrop-blur-sm"
+          onClick={onClose}
+        ></div>
+        <div className="relative bg-white dark:bg-neutral-800 rounded-2xl shadow-2xl transform transition-all w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div className="sticky top-0 bg-white dark:bg-neutral-800 border-b border-neutral-200 dark:border-neutral-700 px-6 py-4 flex items-center justify-between z-10">
+            <h3 className="text-xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+              Cài đặt Voucher
+            </h3>
+            <button
+              onClick={onClose}
+              className="text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200 transition-colors p-2 hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded-lg"
+            >
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <div className="px-6 py-6">
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Auto Generate Vouchers */}
@@ -880,6 +980,8 @@ const VoucherSettingsModal: React.FC<VoucherSettingsModalProps> = ({
             </ButtonPrimary>
           </div>
         </form>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -143,9 +143,27 @@ const PageBookingHistoryDetail = () => {
     return status === "pending" || status === "confirmed";
   };
 
-  // Kiểm tra xem booking có thể hoàn tiền không (hủy trong vòng 2 ngày)
+  // Kiểm tra xem booking có thể hoàn tiền không
+  // Chỉ cho phép refund nếu:
+  // 1. Booking status = "Cancelled"
+  // 2. Booking đã thanh toán trước đó (status trước đó là "Confirmed" hoặc "Completed")
+  // 3. Hủy trong vòng 2 ngày
+  // KHÔNG cho phép refund nếu booking bị cancel payment (status = "Pending" trước đó)
   const canRefund = (): boolean => {
     if (!booking || booking.status?.toLowerCase() !== "cancelled") {
+      return false;
+    }
+    
+    // Phân biệt Cancel Payment vs Cancel Booking:
+    // - Cancel Payment: Booking chưa thanh toán (status ban đầu = "Pending") → không refund
+    // - Cancel Booking: Booking đã thanh toán (status ban đầu = "Confirmed" hoặc "Completed") → có refund
+    
+    // Kiểm tra xem booking có totalPrice > 0 (có thể đã thanh toán)
+    // Nếu totalPrice = 0 hoặc null, có thể là booking chưa thanh toán → không refund
+    const hasPrice = booking.totalPrice && booking.totalPrice > 0;
+    
+    // Nếu không có giá, có thể là cancel payment → không refund
+    if (!hasPrice) {
       return false;
     }
     
@@ -156,7 +174,7 @@ const PageBookingHistoryDetail = () => {
     const diffTime = Math.abs(now.getTime() - createdDate.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
-    // Nếu hủy trong vòng 2 ngày (từ ngày tạo booking)
+    // Nếu hủy trong vòng 2 ngày (từ ngày tạo booking) VÀ booking có giá (đã thanh toán)
     return diffDays <= 2;
   };
 

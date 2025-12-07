@@ -2,17 +2,15 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { adminAPI, AdminUserDTO, AdminUpdateUserDTO, AdminUserResponse } from "api/admin";
 
-// === 1. ĐỊNH NGHĨA LOẠI VAI TRÒ & TRẠNG THÁI ===
 type UserRole = "Owner" | "Tenant" | "Admin" | "Marketer" | "";
 type UserStatus = "Active" | "Inactive" | "Pending";
 
-// === 2. HÀM CHUYỂN ĐỔI GIỮA FE & BE ===
 const roleNameToId = (roleName?: string): number | undefined => {
   switch (roleName) {
     case "Admin": return 1;
-    case "Owner": return 2;        // BE: Host
-    case "Tenant": return 3;       // BE: User
-    case "Marketer": return 4;     // BE: ContentManager
+    case "Owner": return 2;
+    case "Tenant": return 3;
+    case "Marketer": return 4;
     default: return undefined;
   }
 };
@@ -27,7 +25,6 @@ const roleIdToName = (roleNameBE?: string): UserRole => {
   }
 };
 
-// === 3. COMPONENT FORM INPUT ===
 interface FormInputProps {
   label: string;
   value: string;
@@ -44,20 +41,20 @@ const FormInput: React.FC<FormInputProps> = ({
   type = "text",
 }) => (
   <div>
-    <label className="block text-sm font-medium text-gray-700">{label}</label>
+    <label className="block text-sm font-bold text-neutral-700 dark:text-neutral-300 mb-2">{label}</label>
     <input
       type={type}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       disabled={disabled}
-      className={`mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm 
-                 focus:outline-none focus:ring-blue-500 focus:border-blue-500
-                 disabled:bg-gray-100 disabled:text-gray-500`}
+      className={`w-full px-4 py-3 border border-neutral-300 dark:border-neutral-600 rounded-xl shadow-sm 
+                 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-slate-500
+                 disabled:bg-neutral-100 dark:disabled:bg-neutral-700 disabled:text-neutral-500
+                 dark:bg-neutral-700 dark:text-neutral-100 transition-all duration-300`}
     />
   </div>
 );
 
-// === 4. COMPONENT FORM SELECT ===
 interface FormSelectProps {
   label: string;
   value: string;
@@ -74,21 +71,21 @@ const FormSelect: React.FC<FormSelectProps> = ({
   disabled,
 }) => (
   <div>
-    <label className="block text-sm font-medium text-gray-700">{label}</label>
+    <label className="block text-sm font-bold text-neutral-700 dark:text-neutral-300 mb-2">{label}</label>
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
       disabled={disabled}
-      className={`mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm 
-                 focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white
-                 disabled:bg-gray-100 disabled:text-gray-500`}
+      className={`w-full px-4 py-3 border border-neutral-300 dark:border-neutral-600 rounded-xl shadow-sm 
+                 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-slate-500 
+                 bg-white dark:bg-neutral-700 dark:text-neutral-100
+                 disabled:bg-neutral-100 dark:disabled:bg-neutral-700 disabled:text-neutral-500 transition-all duration-300`}
     >
       {children}
     </select>
   </div>
 );
 
-// === 5. MAIN COMPONENT ===
 const PageAccountDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -99,7 +96,6 @@ const PageAccountDetail: React.FC = () => {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  // === LOAD USER DATA ===
   useEffect(() => {
     if (!id) {
       setError("Không tìm thấy ID người dùng");
@@ -137,12 +133,10 @@ const PageAccountDetail: React.FC = () => {
     loadUser();
   }, [id]);
 
-  // === HANDLE CHANGE ===
   const handleChange = (field: keyof AdminUserDTO, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  // === HANDLE SUBMIT ===
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!id) return;
@@ -155,7 +149,6 @@ const PageAccountDetail: React.FC = () => {
       const userId = parseInt(id, 10);
       if (isNaN(userId)) throw new Error("ID không hợp lệ");
 
-      // Validate required fields
       if (!formData.fullName?.trim() || !formData.email?.trim()) {
         throw new Error("Vui lòng điền đầy đủ Tên và Email");
       }
@@ -165,7 +158,6 @@ const PageAccountDetail: React.FC = () => {
         throw new Error("Email không đúng định dạng");
       }
 
-      // Build update data
       const updateData: AdminUpdateUserDTO = {
         fullName: formData.fullName.trim(),
         email: formData.email.trim(),
@@ -176,19 +168,16 @@ const PageAccountDetail: React.FC = () => {
       if (formData.dateOfBirth?.trim()) updateData.dateOfBirth = formData.dateOfBirth.trim();
       if (formData.address?.trim()) updateData.address = formData.address.trim();
 
-      // Handle Role (chỉ gửi roleId nếu không phải Admin)
       if (formData.roleName && formData.roleName !== "Admin") {
         const roleId = roleNameToId(formData.roleName as UserRole);
         if (!roleId) throw new Error("Vai trò không hợp lệ");
         updateData.roleId = roleId;
       }
 
-      // Update Status (nếu thay đổi)
       if (formData.status && formData.status !== formData.originalStatus) {
         await adminAPI.updateUserStatus(userId, formData.status as UserStatus);
       }
 
-      // Update User
       const response: AdminUserResponse = await adminAPI.updateUser(userId, updateData);
 
       setSuccess(response.message || "Cập nhật thành công!");
@@ -210,23 +199,25 @@ const PageAccountDetail: React.FC = () => {
 
   const isAdmin = formData.roleName === "Admin";
 
-  // === RENDER ===
   if (loading) {
     return (
-      <div className="p-8 flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        <span className="ml-4 text-gray-600">Đang tải dữ liệu...</span>
+      <div className="flex flex-col items-center justify-center py-20">
+        <div className="relative">
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-slate-200 dark:border-slate-800"></div>
+          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-slate-600 absolute top-0 left-0"></div>
+        </div>
+        <p className="mt-4 text-neutral-600 dark:text-neutral-400 font-medium">Đang tải dữ liệu...</p>
       </div>
     );
   }
 
   if (error && !formData.userId) {
     return (
-      <div className="p-8 bg-red-100 text-red-800 rounded-lg max-w-2xl mx-auto">
-        <p>{error}</p>
+      <div className="p-8 bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 border-l-4 border-red-500 text-red-800 dark:text-red-200 rounded-xl max-w-2xl mx-auto shadow-xl">
+        <p className="mb-4">{error}</p>
         <button
           onClick={() => navigate("/admin?tab=accounts")}
-          className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+          className="px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 font-bold"
         >
           Quay lại
         </button>
@@ -235,130 +226,141 @@ const PageAccountDetail: React.FC = () => {
   }
 
   return (
-    <div className="p-4 md:p-8 bg-gray-50 min-h-screen">
-      <div className="max-w-2xl mx-auto bg-white p-6 md:p-8 rounded-lg shadow-md">
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-8">
-          Chi tiết tài khoản
-        </h1>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-slate-50/30 to-gray-50 dark:from-neutral-900 dark:via-slate-900/30 dark:to-neutral-900 p-4 md:p-8">
+      <div className="max-w-4xl mx-auto">
+        <div className="mb-8 bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-900/20 dark:to-gray-900/20 rounded-2xl p-6 border border-slate-200/50 dark:border-slate-800/50">
+          <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-slate-600 to-gray-600 bg-clip-text text-transparent mb-2">
+            Chi tiết tài khoản
+          </h1>
+          <p className="text-neutral-600 dark:text-neutral-400">
+            Xem và chỉnh sửa thông tin tài khoản người dùng
+          </p>
+        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <FormInput
-            label="User ID"
-            value={formData.userId?.toString() || ""}
-            onChange={() => { }}
-            disabled
-          />
+        <div className="bg-white/80 dark:bg-neutral-800/80 backdrop-blur-sm rounded-2xl shadow-xl p-6 md:p-8 border border-slate-200/50 dark:border-slate-800/50">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <FormInput
+                label="User ID"
+                value={formData.userId?.toString() || ""}
+                onChange={() => { }}
+                disabled
+              />
 
-          <FormInput
-            label="Tên người dùng *"
-            value={formData.fullName || ""}
-            onChange={(val) => handleChange("fullName", val)}
-            disabled={isAdmin}
-          />
+              <FormInput
+                label="Tên người dùng *"
+                value={formData.fullName || ""}
+                onChange={(val) => handleChange("fullName", val)}
+                disabled={isAdmin}
+              />
 
-          <FormInput
-            label="Email *"
-            value={formData.email || ""}
-            onChange={(val) => handleChange("email", val)}
-            disabled={isAdmin}
-          />
+              <FormInput
+                label="Email *"
+                value={formData.email || ""}
+                onChange={(val) => handleChange("email", val)}
+                disabled={isAdmin}
+              />
 
-          <FormSelect
-            label="Vai trò"
-            value={formData.roleName || ""}
-            onChange={(val) => handleChange("roleName", val)}
-            disabled={isAdmin}
-          >
-            <option value="">-- Chọn vai trò --</option>
-            <option value="Tenant">Khách hàng (User)</option>
-            <option value="Owner">Chủ condotel (Host)</option>
-            <option value="Marketer">Nhân viên tiếp thị</option>
-            {isAdmin && <option value="Admin">Quản trị viên (Không thể thay đổi)</option>}
-          </FormSelect>
+              <FormSelect
+                label="Vai trò"
+                value={formData.roleName || ""}
+                onChange={(val) => handleChange("roleName", val)}
+                disabled={isAdmin}
+              >
+                <option value="">-- Chọn vai trò --</option>
+                <option value="Tenant">Khách hàng (User)</option>
+                <option value="Owner">Chủ condotel (Host)</option>
+                <option value="Marketer">Nhân viên tiếp thị</option>
+                {isAdmin && <option value="Admin">Quản trị viên (Không thể thay đổi)</option>}
+              </FormSelect>
 
-          <FormInput
-            label="Số điện thoại"
-            value={formData.phone || ""}
-            onChange={(val) => handleChange("phone", val)}
-            disabled={isAdmin}
-          />
+              <FormInput
+                label="Số điện thoại"
+                value={formData.phone || ""}
+                onChange={(val) => handleChange("phone", val)}
+                disabled={isAdmin}
+              />
 
-          <FormSelect
-            label="Giới tính"
-            value={formData.gender || ""}
-            onChange={(val) => handleChange("gender", val)}
-            disabled={isAdmin}
-          >
-            <option value="">-- Chọn giới tính --</option>
-            <option value="Male">Nam</option>
-            <option value="Female">Nữ</option>
-            <option value="Other">Khác</option>
-          </FormSelect>
+              <FormSelect
+                label="Giới tính"
+                value={formData.gender || ""}
+                onChange={(val) => handleChange("gender", val)}
+                disabled={isAdmin}
+              >
+                <option value="">-- Chọn giới tính --</option>
+                <option value="Male">Nam</option>
+                <option value="Female">Nữ</option>
+                <option value="Other">Khác</option>
+              </FormSelect>
 
-          <FormInput
-            label="Ngày sinh"
-            type="date"
-            value={formData.dateOfBirth || ""}
-            onChange={(val) => handleChange("dateOfBirth", val)}
-            disabled={isAdmin}
-          />
+              <FormInput
+                label="Ngày sinh"
+                type="date"
+                value={formData.dateOfBirth || ""}
+                onChange={(val) => handleChange("dateOfBirth", val)}
+                disabled={isAdmin}
+              />
 
-          <FormInput
-            label="Địa chỉ"
-            value={formData.address || ""}
-            onChange={(val) => handleChange("address", val)}
-            disabled={isAdmin}
-          />
-
-          <FormSelect
-            label="Trạng thái"
-            value={formData.status || ""}
-            onChange={(val) => handleChange("status", val)}
-            disabled={isAdmin}
-          >
-            <option value="Active">Hoạt động</option>
-            <option value="Inactive">Không hoạt động</option>
-            <option value="Pending">Chờ kích hoạt</option>
-          </FormSelect>
-
-          {formData.createdAt && (
-            <div className="text-sm text-gray-500">
-              <p>Ngày tạo: {new Date(formData.createdAt).toLocaleDateString("vi-VN")}</p>
+              <FormSelect
+                label="Trạng thái"
+                value={formData.status || ""}
+                onChange={(val) => handleChange("status", val)}
+                disabled={isAdmin}
+              >
+                <option value="Active">Hoạt động</option>
+                <option value="Inactive">Không hoạt động</option>
+                <option value="Pending">Chờ kích hoạt</option>
+              </FormSelect>
             </div>
-          )}
 
-          {/* Thông báo */}
-          {success && (
-            <div className="p-4 bg-green-100 text-green-800 rounded-lg text-sm">
-              {success}
-            </div>
-          )}
-          {error && (
-            <div className="p-4 bg-red-100 text-red-800 rounded-lg text-sm whitespace-pre-line">
-              {error}
-            </div>
-          )}
+            <FormInput
+              label="Địa chỉ"
+              value={formData.address || ""}
+              onChange={(val) => handleChange("address", val)}
+              disabled={isAdmin}
+            />
 
-          <div className="flex justify-end gap-4 pt-4">
-            <button
-              type="button"
-              onClick={handleCancel}
-              className="px-6 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition"
-            >
-              Hủy
-            </button>
-            <button
-              type="submit"
-              disabled={saving || isAdmin}
-              className={`px-6 py-2 rounded-md text-white font-medium transition ${isAdmin
-                  ? "bg-gray-400 cursor-not-allowed"
-                  : "bg-blue-600 hover:bg-blue-700"
+            {formData.createdAt && (
+              <div className="p-4 bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 rounded-xl border border-blue-200/50 dark:border-blue-800/50">
+                <p className="text-sm font-medium text-blue-600 dark:text-blue-400">
+                  Ngày tạo: {new Date(formData.createdAt).toLocaleDateString("vi-VN")}
+                </p>
+              </div>
+            )}
+
+            {success && (
+              <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-l-4 border-green-500 text-green-800 dark:text-green-200 rounded-xl">
+                {success}
+              </div>
+            )}
+            {error && (
+              <div className="p-4 bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 border-l-4 border-red-500 text-red-800 dark:text-red-200 rounded-xl whitespace-pre-line">
+                {error}
+              </div>
+            )}
+
+            <div className="flex justify-end gap-4 pt-4 border-t border-neutral-200 dark:border-neutral-700">
+              <button
+                type="button"
+                onClick={handleCancel}
+                className="px-6 py-3 bg-gradient-to-r from-gray-100 to-slate-100 hover:from-gray-200 hover:to-slate-200 text-gray-700 dark:text-gray-300 rounded-xl shadow-md hover:shadow-lg transition-all duration-300 font-bold"
+              >
+                Hủy
+              </button>
+              <button
+                type="submit"
+                disabled={saving || isAdmin}
+                className={`px-6 py-3 rounded-xl font-bold shadow-md hover:shadow-lg transition-all duration-300 ${
+                  isAdmin
+                    ? "bg-gray-400 cursor-not-allowed text-white"
+                    : "bg-gradient-to-r from-slate-500 to-gray-500 hover:from-slate-600 hover:to-gray-600 text-white"
                 }`}
-            >
-              {saving ? "Đang lưu..." : isAdmin ? "Không thể sửa Admin" : "Lưu thay đổi"}
-            </button>
-          </div>
-        </form>
+              >
+                {saving ? "Đang lưu..." : isAdmin ? "Không thể sửa Admin" : "Lưu thay đổi"}
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );

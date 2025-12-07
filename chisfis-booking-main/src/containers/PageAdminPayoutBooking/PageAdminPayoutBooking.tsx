@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from "react";
-import payoutAPI, { HostPayoutDTO, ProcessPayoutResponse } from "api/payout";
+import payoutAPI, { HostPayoutDTO } from "api/payout";
 import { adminAPI, AdminUserDTO } from "api/admin";
+import paymentAPI from "api/payment";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
+import ButtonSecondary from "shared/Button/ButtonSecondary";
 import moment from "moment";
 
 interface HostOption {
@@ -10,16 +12,27 @@ interface HostOption {
   email: string;
 }
 
+type PayoutTab = "pending" | "paid";
+
 const PageAdminPayoutBooking: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<PayoutTab>("pending");
   const [pendingPayouts, setPendingPayouts] = useState<HostPayoutDTO[]>([]);
+  const [paidPayouts, setPaidPayouts] = useState<HostPayoutDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [processingAll, setProcessingAll] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [filterHostId, setFilterHostId] = useState<number | undefined>(undefined);
+  const [filterFromDate, setFilterFromDate] = useState<string>("");
+  const [filterToDate, setFilterToDate] = useState<string>("");
   const [hosts, setHosts] = useState<HostOption[]>([]);
   const [loadingHosts, setLoadingHosts] = useState(false);
+  const [selectedPayout, setSelectedPayout] = useState<HostPayoutDTO | null>(null);
+  const [showQRModal, setShowQRModal] = useState(false);
+  const [qrUrl, setQrUrl] = useState<string>("");
+  const [loadingQR, setLoadingQR] = useState(false);
+  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
 
   const loadPendingPayouts = async () => {
     setLoading(true);
@@ -33,6 +46,27 @@ const PageAdminPayoutBooking: React.FC = () => {
       console.error("Failed to load pending payouts:", err);
       setError(err.response?.data?.message || "Không thể tải danh sách booking chờ thanh toán");
       setPendingPayouts([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadPaidPayouts = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      // Admin API - xem tất cả booking đã thanh toán (có thể filter theo hostId, fromDate, toDate)
+      const data = await payoutAPI.getAdminPaidPayouts({
+        hostId: filterHostId,
+        fromDate: filterFromDate || undefined,
+        toDate: filterToDate || undefined,
+      });
+      setPaidPayouts(data);
+      console.log("💰 Admin paid payouts loaded:", data, "filters:", { filterHostId, filterFromDate, filterToDate });
+    } catch (err: any) {
+      console.error("Failed to load paid payouts:", err);
+      setError(err.response?.data?.message || "Không thể tải danh sách booking đã thanh toán");
+      setPaidPayouts([]);
     } finally {
       setLoading(false);
     }
@@ -63,12 +97,113 @@ const PageAdminPayoutBooking: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    loadPendingPayouts();
+    if (activeTab === "pending") {
+      loadPendingPayouts();
+    } else {
+      loadPaidPayouts();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterHostId]);
+  }, [activeTab, filterHostId, filterFromDate, filterToDate]);
 
-  const handleProcessPayout = async (bookingId: number) => {
-    if (!window.confirm(`Xác nhận xử lý thanh toán cho booking #${bookingId}?`)) {
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    if (showQRModal) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [showQRModal]);
+
+  const handleProcessPayout = async (payout: HostPayoutDTO) => {
+    // Kiểm tra thông tin ngân hàng
+    if (!payout.bankName || !payout.accountNumber || !payout.accountHolderName) {
+      alert("Thông tin ngân hàng của host chưa đầy đủ. Vui lòng yêu cầu host cập nhật thông tin ngân hàng trước khi thanh toán.");
+      return;
+    }
+
+    // Lưu payout được chọn và hiển thị modal QR
+    setSelectedPayout(payout);
+    setShowQRModal(true);
+    setQrUrl("");
+    setError("");
+    setSuccess("");
+
+    // Tạo QR code
+    await generateQRCode(payout);
+  };
+
+  const generateQRCode = async (payout: HostPayoutDTO) => {
+    if (!payout.bankName || !payout.accountNumber || !payout.accountHolderName) {
+      return;
+    }
+
+    setLoadingQR(true);
+    try {
+      // Map bank name to bank code (có thể cần điều chỉnh theo backend)
+      const bankCode = mapBankNameToCode(payout.bankName);
+      const content = `Thanh toan booking #${payout.bookingId}`;
+
+      const qrData = await paymentAPI.generateQR({
+        bankCode: bankCode,
+        accountNumber: payout.accountNumber,
+        amount: payout.amount || payout.totalPrice || 0,
+        accountHolderName: payout.accountHolderName,
+        content: content,
+      });
+
+      setQrUrl(qrData.compactUrl || qrData.printUrl || "");
+    } catch (err: any) {
+      console.error("Error generating QR code:", err);
+      // Fallback: tạo URL trực tiếp nếu API fail
+      const bankCode = mapBankNameToCode(payout.bankName);
+      const amount = payout.amount || payout.totalPrice || 0;
+      const content = `Thanh toan booking #${payout.bookingId}`;
+      const accountName = payout.accountHolderName;
+
+      const fallbackUrl = `https://img.vietqr.io/image/${bankCode}-${payout.accountNumber}-compact.jpg?amount=${amount}&addInfo=${encodeURIComponent(content)}&accountName=${encodeURIComponent(accountName)}`;
+      setQrUrl(fallbackUrl);
+    } finally {
+      setLoadingQR(false);
+    }
+  };
+
+  // Map bank name to bank code (có thể cần điều chỉnh)
+  const mapBankNameToCode = (bankName: string): string => {
+    const bankMap: { [key: string]: string } = {
+      "Vietcombank": "VCB",
+      "Vietinbank": "CTG",
+      "BIDV": "BID",
+      "Agribank": "VBA",
+      "Techcombank": "TCB",
+      "MBBank": "MB",
+      "ACB": "ACB",
+      "VPBank": "VPB",
+      "TPBank": "TPB",
+      "Sacombank": "STB",
+      "HDBank": "HDB",
+      "SHB": "SHB",
+      "VIB": "VIB",
+      "MSB": "MSB",
+    };
+
+    // Tìm bank code từ tên ngân hàng
+    for (const [name, code] of Object.entries(bankMap)) {
+      if (bankName.toLowerCase().includes(name.toLowerCase())) {
+        return code;
+      }
+    }
+
+    // Nếu không tìm thấy, thử lấy 3 ký tự đầu hoặc trả về tên gốc
+    return bankName.substring(0, 3).toUpperCase();
+  };
+
+  const handleConfirmTransfer = async () => {
+    if (!selectedPayout) return;
+
+    if (!window.confirm(`Xác nhận đã chuyển khoản ${formatPrice(selectedPayout.amount || selectedPayout.totalPrice)} cho booking #${selectedPayout.bookingId}?`)) {
       return;
     }
 
@@ -78,12 +213,15 @@ const PageAdminPayoutBooking: React.FC = () => {
 
     try {
       // Admin API - xác nhận và xử lý payout
-      const result = await payoutAPI.confirmPayout(bookingId);
+      const result = await payoutAPI.confirmPayout(selectedPayout.bookingId);
       console.log("✅ Payout confirmed and processed:", result);
       
       if (result.success) {
-        setSuccess(result.message || `Đã xác nhận và xử lý thanh toán cho booking #${bookingId} thành công`);
-        // Reload danh sách
+        setSuccess(result.message || `Đã xác nhận và xử lý thanh toán cho booking #${selectedPayout.bookingId} thành công`);
+        // Đóng modal và reload danh sách
+        setShowQRModal(false);
+        setSelectedPayout(null);
+        setQrUrl("");
         await loadPendingPayouts();
       } else {
         setError(result.message || "Không thể xử lý thanh toán");
@@ -147,13 +285,29 @@ const PageAdminPayoutBooking: React.FC = () => {
     }
   };
 
-  // Tính tổng tiền chờ thanh toán
-  const totalPendingAmount = pendingPayouts.reduce((sum, payout) => sum + (payout.amount || payout.totalPrice || 0), 0);
+  // Toggle expand row
+  const toggleExpand = (bookingId: number) => {
+    const newExpanded = new Set(expandedRows);
+    if (newExpanded.has(bookingId)) {
+      newExpanded.delete(bookingId);
+    } else {
+      newExpanded.add(bookingId);
+    }
+    setExpandedRows(newExpanded);
+  };
+
+  // Get current payouts based on active tab
+  const currentPayouts = activeTab === "pending" ? pendingPayouts : paidPayouts;
+  const totalAmount = currentPayouts.reduce((sum, payout) => sum + (payout.amount || payout.totalPrice || 0), 0);
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      <div className="flex flex-col items-center justify-center py-20">
+        <div className="relative">
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-indigo-200 dark:border-indigo-800"></div>
+          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-indigo-600 absolute top-0 left-0"></div>
+        </div>
+        <p className="mt-4 text-neutral-600 dark:text-neutral-400 font-medium">Đang tải dữ liệu...</p>
       </div>
     );
   }
@@ -161,243 +315,671 @@ const PageAdminPayoutBooking: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold">Xử lý thanh toán cho Host</h2>
-        <p className="text-neutral-600 dark:text-neutral-400 mt-1">
-          Xử lý thanh toán cho các booking đã hoàn thành và đủ 15 ngày kể từ ngày kết thúc
+      <div className="mb-8 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-2xl p-6 border border-indigo-200/50 dark:border-indigo-800/50">
+        <h2 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">
+          Quản lý thanh toán cho Host
+        </h2>
+        <p className="text-neutral-600 dark:text-neutral-400">
+          {activeTab === "pending" 
+            ? "Xử lý thanh toán cho các booking đã hoàn thành và đủ 15 ngày kể từ ngày kết thúc"
+            : "Xem lịch sử các booking đã được thanh toán cho host"}
         </p>
       </div>
 
-      {/* Filter by Host */}
-      <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg p-4 mb-6">
-        <div className="flex items-center gap-4">
-          <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300 whitespace-nowrap">
-            Lọc theo Host:
-          </label>
-          {loadingHosts ? (
-            <div className="px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-md bg-neutral-50 dark:bg-neutral-700 w-64">
-              <span className="text-sm text-neutral-500">Đang tải danh sách host...</span>
-            </div>
-          ) : (
-            <select
-              value={filterHostId || ""}
-              onChange={(e) => {
-                const value = e.target.value;
-                setFilterHostId(value ? parseInt(value) : undefined);
-              }}
-              className="px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-neutral-700 dark:text-neutral-100 w-64"
-            >
-              <option value="">-- Tất cả Host --</option>
-              {hosts.map((host) => (
-                <option key={host.hostId} value={host.hostId}>
-                  {host.fullName} {host.email ? `(${host.email})` : ""}
-                </option>
-              ))}
-            </select>
+      {/* Tabs */}
+      <div className="bg-white/80 dark:bg-neutral-800/80 backdrop-blur-sm rounded-xl shadow-xl border border-indigo-200/50 dark:border-indigo-800/50 overflow-hidden">
+        <div className="flex border-b border-neutral-200 dark:border-neutral-700">
+          <button
+            onClick={() => setActiveTab("pending")}
+            className={`flex-1 px-6 py-4 text-sm font-semibold transition-all ${
+              activeTab === "pending"
+                ? "bg-gradient-to-r from-indigo-500 to-purple-600 text-white"
+                : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-700"
+            }`}
+          >
+            Chờ thanh toán ({pendingPayouts.length})
+          </button>
+          <button
+            onClick={() => setActiveTab("paid")}
+            className={`flex-1 px-6 py-4 text-sm font-semibold transition-all ${
+              activeTab === "paid"
+                ? "bg-gradient-to-r from-indigo-500 to-purple-600 text-white"
+                : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-700"
+            }`}
+          >
+            Đã thanh toán ({paidPayouts.length})
+          </button>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="bg-white/80 dark:bg-neutral-800/80 backdrop-blur-sm rounded-xl shadow-xl p-6 mb-6 border border-indigo-200/50 dark:border-indigo-800/50">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Host Filter */}
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+              Lọc theo Host:
+            </label>
+            {loadingHosts ? (
+              <div className="px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-md bg-neutral-50 dark:bg-neutral-700">
+                <span className="text-sm text-neutral-500">Đang tải...</span>
+              </div>
+            ) : (
+              <select
+                value={filterHostId || ""}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setFilterHostId(value ? parseInt(value) : undefined);
+                }}
+                className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-neutral-700 dark:text-neutral-100"
+              >
+                <option value="">-- Tất cả Host --</option>
+                {hosts.map((host) => (
+                  <option key={host.hostId} value={host.hostId}>
+                    {host.fullName} {host.email ? `(${host.email})` : ""}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+
+          {/* Date Filters - Only show for Paid tab */}
+          {activeTab === "paid" && (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+                  Từ ngày:
+                </label>
+                <input
+                  type="date"
+                  value={filterFromDate}
+                  onChange={(e) => setFilterFromDate(e.target.value)}
+                  className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-neutral-700 dark:text-neutral-100"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+                  Đến ngày:
+                </label>
+                <input
+                  type="date"
+                  value={filterToDate}
+                  onChange={(e) => setFilterToDate(e.target.value)}
+                  className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-neutral-700 dark:text-neutral-100"
+                />
+              </div>
+            </>
           )}
-          {filterHostId && (
-            <button
-              onClick={() => setFilterHostId(undefined)}
-              className="px-3 py-2 text-sm text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 border border-neutral-300 dark:border-neutral-600 rounded-md hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors"
-            >
-              Xóa bộ lọc
-            </button>
-          )}
+
+          {/* Clear Filters Button */}
+          <div className="flex items-end">
+            {(filterHostId || filterFromDate || filterToDate) && (
+              <button
+                onClick={() => {
+                  setFilterHostId(undefined);
+                  setFilterFromDate("");
+                  setFilterToDate("");
+                }}
+                className="w-full px-4 py-2 text-sm text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 border border-neutral-300 dark:border-neutral-600 rounded-md hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors"
+              >
+                Xóa bộ lọc
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Summary Card */}
-      <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg p-6 mb-6">
+      <div className="bg-gradient-to-br from-white to-indigo-50/30 dark:from-neutral-800 dark:to-indigo-900/10 rounded-2xl shadow-xl p-6 mb-6 border border-indigo-200/50 dark:border-indigo-800/50">
         <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-neutral-500 dark:text-neutral-400">Tổng tiền chờ thanh toán</p>
-            <p className="text-3xl font-bold text-primary-600 dark:text-primary-400 mt-2">
-              {formatPrice(totalPendingAmount)}
+          <div className="bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900/30 dark:to-purple-900/30 rounded-xl p-4 flex-1 mr-4">
+            <p className="text-sm font-medium text-indigo-600 dark:text-indigo-400">
+              {activeTab === "pending" ? "Tổng tiền chờ thanh toán" : "Tổng tiền đã thanh toán"}
+            </p>
+            <p className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mt-2">
+              {formatPrice(totalAmount)}
             </p>
           </div>
-          <div className="text-right">
-            <p className="text-sm text-neutral-500 dark:text-neutral-400">Số booking chờ thanh toán</p>
-            <p className="text-3xl font-bold text-neutral-700 dark:text-neutral-300 mt-2">
-              {pendingPayouts.length}
+          <div className="bg-gradient-to-br from-purple-100 to-pink-100 dark:from-purple-900/30 dark:to-pink-900/30 rounded-xl p-4 flex-1 mr-4 text-right">
+            <p className="text-sm font-medium text-purple-600 dark:text-purple-400">
+              {activeTab === "pending" ? "Số booking chờ thanh toán" : "Số booking đã thanh toán"}
+            </p>
+            <p className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mt-2">
+              {currentPayouts.length}
             </p>
           </div>
-          <div className="text-right">
-            <ButtonPrimary
-              onClick={handleProcessAll}
-              disabled={processingAll || pendingPayouts.length === 0}
-              className="min-w-[200px]"
-            >
-              {processingAll ? (
-                <span className="flex items-center justify-center">
-                  <svg
-                    className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    ></circle>
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
-                  </svg>
-                  Đang xử lý...
-                </span>
-              ) : (
-                "Xử lý tất cả"
-              )}
-            </ButtonPrimary>
-          </div>
+          {activeTab === "pending" && (
+            <div className="text-right">
+              <ButtonPrimary
+                onClick={handleProcessAll}
+                disabled={processingAll || pendingPayouts.length === 0}
+                className="min-w-[200px]"
+              >
+                {processingAll ? (
+                  <span className="flex items-center justify-center">
+                    <svg
+                      className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                    Đang xử lý...
+                  </span>
+                ) : (
+                  "Xử lý tất cả"
+                )}
+              </ButtonPrimary>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Success/Error Messages */}
       {success && (
-        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
-          <p className="text-sm text-green-800 dark:text-green-200">{success}</p>
+        <div className="p-6 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-l-4 border-green-500 text-green-800 dark:text-green-200 rounded-xl shadow-lg backdrop-blur-sm">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>{success}</span>
+            </div>
+            <button
+              onClick={() => setSuccess("")}
+              className="ml-4 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium transition-colors"
+            >
+              Đóng
+            </button>
+          </div>
         </div>
       )}
 
       {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-          <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
+        <div className="p-6 bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 border-l-4 border-red-500 text-red-800 dark:text-red-200 rounded-xl shadow-lg backdrop-blur-sm">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>{error}</span>
+            </div>
+            <button
+              onClick={() => setError("")}
+              className="ml-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium transition-colors"
+            >
+              Đóng
+            </button>
+          </div>
         </div>
       )}
 
-      {/* Pending Payouts Table */}
-      {pendingPayouts.length === 0 ? (
-        <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg p-12 text-center">
-          <svg
-            className="mx-auto h-12 w-12 text-neutral-400"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-            />
-          </svg>
-          <h3 className="mt-2 text-sm font-medium text-neutral-900 dark:text-neutral-100">
-            Không có booking chờ thanh toán
+      {/* Payouts Table */}
+      {currentPayouts.length === 0 ? (
+        <div className="text-center py-16 bg-gradient-to-br from-white to-indigo-50/30 dark:from-neutral-800 dark:to-indigo-900/10 rounded-2xl shadow-xl border border-indigo-200/50 dark:border-indigo-800/50">
+          <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-2xl flex items-center justify-center shadow-lg">
+            <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-2">
+            {activeTab === "pending" 
+              ? "Không có booking chờ thanh toán"
+              : "Không có booking đã thanh toán"}
           </h3>
-          <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
-            Tất cả booking đã hoàn thành đã được thanh toán hoặc chưa đủ 15 ngày kể từ ngày kết thúc.
+          <p className="text-neutral-600 dark:text-neutral-400">
+            {activeTab === "pending"
+              ? "Tất cả booking đã hoàn thành đã được thanh toán hoặc chưa đủ 15 ngày kể từ ngày kết thúc."
+              : "Không có booking nào đã được thanh toán trong khoảng thời gian đã chọn."}
           </p>
         </div>
       ) : (
-        <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg overflow-hidden">
+        <div className="bg-white/80 dark:bg-neutral-800/80 backdrop-blur-sm rounded-2xl shadow-xl overflow-hidden border border-indigo-200/50 dark:border-indigo-800/50">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-neutral-200 dark:divide-neutral-700">
-              <thead className="bg-neutral-50 dark:bg-neutral-900">
+              <thead className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-neutral-700 dark:to-neutral-800 sticky top-0 z-10">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
+                  <th className="px-4 py-4 w-12"></th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wider">
                     Booking ID
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wider">
                     Host
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wider">
                     Căn hộ
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wider">
                     Khách hàng
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wider">
                     Ngày hoàn thành
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wider">
                     Số tiền
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wider">
                     Số ngày chờ
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
-                    Thông tin ngân hàng
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wider">
                     Hành động
                   </th>
                 </tr>
               </thead>
               <tbody className="bg-white dark:bg-neutral-800 divide-y divide-neutral-200 dark:divide-neutral-700">
-                {pendingPayouts.map((payout) => (
-                  <tr key={payout.bookingId} className="hover:bg-neutral-50 dark:hover:bg-neutral-700">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-neutral-900 dark:text-neutral-100">
-                      #{payout.bookingId}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500 dark:text-neutral-400">
-                      <div>
-                        <div className="font-medium text-neutral-900 dark:text-neutral-100">
-                          {payout.hostName || `Host #${payout.hostId || 'N/A'}`}
-                        </div>
-                        {payout.hostId && (
-                          <div className="text-xs text-neutral-400">ID: {payout.hostId}</div>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500 dark:text-neutral-400">
-                      {payout.condotelName || `Condotel #${payout.condotelId}`}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500 dark:text-neutral-400">
-                      <div>
-                        <div className="font-medium text-neutral-900 dark:text-neutral-100">
-                          {payout.customerName || `Customer #${payout.customerId}`}
-                        </div>
-                        {payout.customerEmail && (
-                          <div className="text-xs text-neutral-400">{payout.customerEmail}</div>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500 dark:text-neutral-400">
-                      {formatDate(payout.completedAt || payout.endDate)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-green-600 dark:text-green-400">
-                      {formatPrice(payout.amount || payout.totalPrice)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500 dark:text-neutral-400">
-                      <span className="px-2 py-1 bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-300 rounded-full text-xs font-medium">
-                        {payout.daysSinceCompleted !== undefined
-                          ? `${payout.daysSinceCompleted} ngày`
-                          : "Đang tính"}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-neutral-500 dark:text-neutral-400">
-                      {payout.bankName && payout.accountNumber ? (
-                        <div className="space-y-1">
-                          <div><span className="font-semibold">NH:</span> {payout.bankName}</div>
-                          <div><span className="font-semibold">STK:</span> {payout.accountNumber}</div>
-                          {payout.accountHolderName && (
-                            <div><span className="font-semibold">Tên:</span> {payout.accountHolderName}</div>
+                {currentPayouts.map((payout) => {
+                  const isExpanded = expandedRows.has(payout.bookingId);
+                  return (
+                    <>
+                      <tr key={payout.bookingId} className="hover:bg-gradient-to-r hover:from-indigo-50/50 hover:to-purple-50/50 dark:hover:from-neutral-700/50 dark:hover:to-neutral-800/50 transition-all duration-200">
+                        <td className="px-4 py-4">
+                          <button
+                            onClick={() => toggleExpand(payout.bookingId)}
+                            className="p-1 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
+                          >
+                            <svg
+                              className={`w-5 h-5 text-neutral-500 dark:text-neutral-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </button>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                          #{payout.bookingId}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500 dark:text-neutral-400">
+                          <div>
+                            <div className="font-medium text-neutral-900 dark:text-neutral-100">
+                              {payout.hostName || `Host #${payout.hostId || 'N/A'}`}
+                            </div>
+                            {payout.hostId && (
+                              <div className="text-xs text-neutral-400">ID: {payout.hostId}</div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500 dark:text-neutral-400">
+                          <div className="font-medium text-neutral-900 dark:text-neutral-100">
+                            {payout.condotelName || `Condotel #${payout.condotelId}`}
+                          </div>
+                          {payout.condotelId && (
+                            <div className="text-xs text-neutral-400">ID: {payout.condotelId}</div>
                           )}
-                        </div>
-                      ) : (
-                        <span className="text-xs text-neutral-400 italic">Chưa có thông tin</span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500 dark:text-neutral-400">
+                          <div>
+                            <div className="font-medium text-neutral-900 dark:text-neutral-100">
+                              {payout.customerName || `Customer #${payout.customerId}`}
+                            </div>
+                            {payout.customerEmail && (
+                              <div className="text-xs text-neutral-400">{payout.customerEmail}</div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500 dark:text-neutral-400">
+                          {formatDate(payout.completedAt || payout.endDate)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-green-600 dark:text-green-400">
+                          {formatPrice(payout.amount || payout.totalPrice)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500 dark:text-neutral-400">
+                          <span className="px-2 py-1 bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-300 rounded-full text-xs font-medium">
+                            {payout.daysSinceCompleted !== undefined
+                              ? `${payout.daysSinceCompleted} ngày`
+                              : "Đang tính"}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          {activeTab === "pending" ? (
+                            <ButtonPrimary
+                              onClick={() => handleProcessPayout(payout)}
+                              disabled={processing}
+                              className="min-w-[120px]"
+                            >
+                              Xử lý
+                            </ButtonPrimary>
+                          ) : (
+                            <span className="px-3 py-1 bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-300 rounded-full text-xs font-medium">
+                              Đã thanh toán
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                      {isExpanded && (
+                        <tr className="bg-gradient-to-r from-indigo-50/30 to-purple-50/30 dark:from-neutral-700/30 dark:to-neutral-800/30">
+                          <td colSpan={9} className="px-6 py-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                              {/* Thông tin Host */}
+                              <div className="bg-white dark:bg-neutral-800 rounded-xl p-4 shadow-lg border border-indigo-200 dark:border-indigo-800">
+                                <h4 className="text-sm font-bold text-indigo-600 dark:text-indigo-400 mb-3 flex items-center">
+                                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                  </svg>
+                                  Thông tin Host
+                                </h4>
+                                <div className="space-y-2 text-sm">
+                                  <div>
+                                    <span className="text-neutral-500 dark:text-neutral-400">Tên:</span>
+                                    <span className="ml-2 font-medium text-neutral-900 dark:text-neutral-100">
+                                      {payout.hostName || `Host #${payout.hostId || 'N/A'}`}
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <span className="text-neutral-500 dark:text-neutral-400">Host ID:</span>
+                                    <span className="ml-2 font-medium text-neutral-900 dark:text-neutral-100">
+                                      {payout.hostId || 'N/A'}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Thông tin Ngân hàng */}
+                              <div className="bg-white dark:bg-neutral-800 rounded-xl p-4 shadow-lg border border-green-200 dark:border-green-800">
+                                <h4 className="text-sm font-bold text-green-600 dark:text-green-400 mb-3 flex items-center">
+                                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v4a3 3 0 003 3z" />
+                                  </svg>
+                                  Thông tin Ngân hàng
+                                </h4>
+                                {payout.bankName && payout.accountNumber ? (
+                                  <div className="space-y-2 text-sm">
+                                    <div>
+                                      <span className="text-neutral-500 dark:text-neutral-400">Ngân hàng:</span>
+                                      <span className="ml-2 font-medium text-neutral-900 dark:text-neutral-100">
+                                        {payout.bankName}
+                                      </span>
+                                    </div>
+                                    <div>
+                                      <span className="text-neutral-500 dark:text-neutral-400">Số tài khoản:</span>
+                                      <span className="ml-2 font-medium text-neutral-900 dark:text-neutral-100 font-mono">
+                                        {payout.accountNumber}
+                                      </span>
+                                    </div>
+                                    {payout.accountHolderName && (
+                                      <div>
+                                        <span className="text-neutral-500 dark:text-neutral-400">Tên chủ TK:</span>
+                                        <span className="ml-2 font-medium text-neutral-900 dark:text-neutral-100">
+                                          {payout.accountHolderName}
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <div className="text-sm text-neutral-400 italic">
+                                    Chưa có thông tin ngân hàng
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Thông tin Booking */}
+                              <div className="bg-white dark:bg-neutral-800 rounded-xl p-4 shadow-lg border border-purple-200 dark:border-purple-800">
+                                <h4 className="text-sm font-bold text-purple-600 dark:text-purple-400 mb-3 flex items-center">
+                                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                  </svg>
+                                  Thông tin Booking
+                                </h4>
+                                <div className="space-y-2 text-sm">
+                                  <div>
+                                    <span className="text-neutral-500 dark:text-neutral-400">Booking ID:</span>
+                                    <span className="ml-2 font-medium text-neutral-900 dark:text-neutral-100">
+                                      #{payout.bookingId}
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <span className="text-neutral-500 dark:text-neutral-400">Căn hộ:</span>
+                                    <span className="ml-2 font-medium text-neutral-900 dark:text-neutral-100">
+                                      {payout.condotelName || `Condotel #${payout.condotelId}`}
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <span className="text-neutral-500 dark:text-neutral-400">Ngày hoàn thành:</span>
+                                    <span className="ml-2 font-medium text-neutral-900 dark:text-neutral-100">
+                                      {formatDate(payout.completedAt || payout.endDate)}
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <span className="text-neutral-500 dark:text-neutral-400">Số ngày chờ:</span>
+                                    <span className="ml-2 font-medium text-neutral-900 dark:text-neutral-100">
+                                      {payout.daysSinceCompleted !== undefined
+                                        ? `${payout.daysSinceCompleted} ngày`
+                                        : "Đang tính"}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Thông tin Khách hàng */}
+                              <div className="bg-white dark:bg-neutral-800 rounded-xl p-4 shadow-lg border border-blue-200 dark:border-blue-800">
+                                <h4 className="text-sm font-bold text-blue-600 dark:text-blue-400 mb-3 flex items-center">
+                                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                  </svg>
+                                  Thông tin Khách hàng
+                                </h4>
+                                <div className="space-y-2 text-sm">
+                                  <div>
+                                    <span className="text-neutral-500 dark:text-neutral-400">Tên:</span>
+                                    <span className="ml-2 font-medium text-neutral-900 dark:text-neutral-100">
+                                      {payout.customerName || `Customer #${payout.customerId}`}
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <span className="text-neutral-500 dark:text-neutral-400">Customer ID:</span>
+                                    <span className="ml-2 font-medium text-neutral-900 dark:text-neutral-100">
+                                      {payout.customerId || 'N/A'}
+                                    </span>
+                                  </div>
+                                  {payout.customerEmail && (
+                                    <div>
+                                      <span className="text-neutral-500 dark:text-neutral-400">Email:</span>
+                                      <span className="ml-2 font-medium text-neutral-900 dark:text-neutral-100">
+                                        {payout.customerEmail}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Thông tin Thanh toán */}
+                              <div className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl p-4 shadow-lg border border-green-200 dark:border-green-800">
+                                <h4 className="text-sm font-bold text-green-600 dark:text-green-400 mb-3 flex items-center">
+                                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                  Thông tin Thanh toán
+                                </h4>
+                                <div className="space-y-2 text-sm">
+                                  <div>
+                                    <span className="text-neutral-500 dark:text-neutral-400">Số tiền:</span>
+                                    <span className="ml-2 text-lg font-bold text-green-600 dark:text-green-400">
+                                      {formatPrice(payout.amount || payout.totalPrice)}
+                                    </span>
+                                  </div>
+                                  {payout.paidAt && (
+                                    <div>
+                                      <span className="text-neutral-500 dark:text-neutral-400">Đã thanh toán:</span>
+                                      <span className="ml-2 font-medium text-neutral-900 dark:text-neutral-100">
+                                        {formatDate(payout.paidAt)}
+                                      </span>
+                                    </div>
+                                  )}
+                                  <div>
+                                    <span className="text-neutral-500 dark:text-neutral-400">Trạng thái:</span>
+                                    <span className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${
+                                      payout.isPaid 
+                                        ? 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-300'
+                                        : 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-300'
+                                    }`}>
+                                      {payout.isPaid ? 'Đã thanh toán' : 'Chờ thanh toán'}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
                       )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <ButtonPrimary
-                        onClick={() => handleProcessPayout(payout.bookingId)}
-                        disabled={processing}
-                        className="min-w-[120px]"
-                      >
-                        {processing ? "Đang xử lý..." : "Xử lý"}
-                      </ButtonPrimary>
-                    </td>
-                  </tr>
-                ))}
+                    </>
+                  );
+                })}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* QR Code Modal */}
+      {showQRModal && selectedPayout && (
+        <div className="fixed inset-0 z-50 overflow-y-auto" style={{ position: 'fixed', width: '100%', height: '100%' }}>
+          <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            {/* Backdrop */}
+            <div
+              className="fixed inset-0 transition-opacity bg-black bg-opacity-50 backdrop-blur-sm"
+              onClick={() => {
+                if (!processing) {
+                  setShowQRModal(false);
+                  setSelectedPayout(null);
+                  setQrUrl("");
+                }
+              }}
+            ></div>
+
+            {/* Modal */}
+            <div className="inline-block align-bottom bg-white dark:bg-neutral-800 rounded-2xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl w-full">
+              {/* Header */}
+              <div className="bg-gradient-to-r from-indigo-500 to-purple-600 px-6 py-4 sticky top-0 z-10">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-bold text-white">
+                    QR Code Chuyển Khoản
+                  </h3>
+                  <button
+                    onClick={() => {
+                      if (!processing) {
+                        setShowQRModal(false);
+                        setSelectedPayout(null);
+                        setQrUrl("");
+                      }
+                    }}
+                    className="text-white hover:text-gray-200 transition-colors"
+                    disabled={processing}
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              {/* Content */}
+              <div className="px-6 py-6 bg-white dark:bg-neutral-800 max-h-[80vh] overflow-y-auto">
+                {/* Thông tin chuyển khoản */}
+                <div className="mb-6 space-y-4">
+                  <div className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-xl p-4 border border-indigo-200 dark:border-indigo-800">
+                    <h4 className="text-sm font-semibold text-indigo-600 dark:text-indigo-400 mb-3">Thông tin chuyển khoản</h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-neutral-600 dark:text-neutral-400">Booking ID:</span>
+                        <span className="font-semibold text-neutral-900 dark:text-neutral-100">#{selectedPayout.bookingId}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-neutral-600 dark:text-neutral-400">Số tiền:</span>
+                        <span className="font-bold text-green-600 dark:text-green-400 text-lg">
+                          {formatPrice(selectedPayout.amount || selectedPayout.totalPrice)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-neutral-600 dark:text-neutral-400">Ngân hàng:</span>
+                        <span className="font-semibold text-neutral-900 dark:text-neutral-100">{selectedPayout.bankName}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-neutral-600 dark:text-neutral-400">Số tài khoản:</span>
+                        <span className="font-mono font-semibold text-neutral-900 dark:text-neutral-100">{selectedPayout.accountNumber}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-neutral-600 dark:text-neutral-400">Tên chủ TK:</span>
+                        <span className="font-semibold text-neutral-900 dark:text-neutral-100">{selectedPayout.accountHolderName}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-neutral-600 dark:text-neutral-400">Host:</span>
+                        <span className="font-semibold text-neutral-900 dark:text-neutral-100">{selectedPayout.hostName || `Host #${selectedPayout.hostId}`}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* QR Code */}
+                <div className="mb-6">
+                  <h4 className="text-sm font-semibold text-neutral-700 dark:text-neutral-300 mb-3 text-center">
+                    Quét mã QR để chuyển khoản
+                  </h4>
+                  <div className="flex justify-center">
+                    {loadingQR ? (
+                      <div className="w-64 h-64 flex items-center justify-center bg-neutral-100 dark:bg-neutral-700 rounded-xl">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+                      </div>
+                    ) : qrUrl ? (
+                      <div className="bg-white p-4 rounded-xl shadow-lg">
+                        <img src={qrUrl} alt="QR Code" className="w-64 h-64" />
+                      </div>
+                    ) : (
+                      <div className="w-64 h-64 flex items-center justify-center bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-200 dark:border-red-800">
+                        <p className="text-red-600 dark:text-red-400 text-sm">Không thể tạo QR code</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-3">
+                  <ButtonSecondary
+                    onClick={() => {
+                      if (!processing) {
+                        setShowQRModal(false);
+                        setSelectedPayout(null);
+                        setQrUrl("");
+                      }
+                    }}
+                    disabled={processing}
+                    className="flex-1"
+                  >
+                    Hủy
+                  </ButtonSecondary>
+                  <ButtonPrimary
+                    onClick={handleConfirmTransfer}
+                    disabled={processing || loadingQR}
+                    className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
+                  >
+                    {processing ? (
+                      <span className="flex items-center justify-center">
+                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Đang xử lý...
+                      </span>
+                    ) : (
+                      "Xác nhận đã chuyển khoản"
+                    )}
+                  </ButtonPrimary>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -440,4 +1022,5 @@ const PageAdminPayoutBooking: React.FC = () => {
 };
 
 export default PageAdminPayoutBooking;
+
 

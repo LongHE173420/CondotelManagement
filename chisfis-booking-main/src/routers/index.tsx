@@ -1,5 +1,5 @@
 import React from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { Page } from "./types";
 import ScrollToTop from "./ScrollToTop";
 import Footer from "shared/Footer/Footer";
@@ -7,11 +7,7 @@ import PageHome from "containers/PageHome/PageHome";
 import Page404 from "containers/Page404/Page404";
 import ListingStayPage from "containers/ListingStayPage/ListingStayPage";
 import ListingStayMapPage from "containers/ListingStayPage/ListingStayMapPage";
-import ListingExperiencesPage from "containers/ListingExperiencesPage/ListingExperiencesPage";
-import ListingExperiencesMapPage from "containers/ListingExperiencesPage/ListingExperiencesMapPage";
 import ListingStayDetailPage from "containers/ListingDetailPage/ListingStayDetailPage";
-import ListingExperiencesDetailPage from "containers/ListingDetailPage/ListingExperiencesDetailPage";
-import ListingCarDetailPage from "containers/ListingDetailPage/ListingCarDetailPage";
 import CheckOutPage from "containers/CheckOutPage/CheckOutPage";
 import PayPage from "containers/PayPage/PayPage";
 import PaymentCancelPage from "containers/PaymentCancelPage/PaymentCancelPage";
@@ -23,6 +19,8 @@ import AccountBilling from "containers/AccountPage/AccountBilling";
 import AccountRewards from "containers/AccountPage/AccountRewards";
 import AccountVouchers from "containers/AccountPage/AccountVouchers";
 import AdminPage from "containers/AdminPage/AdminPage";
+import AdminLayout from "containers/AdminPage/AdminLayout";
+import HostLayout from "containers/HostCondotelDashboard/HostLayout";
 import ProtectedRoute from "components/ProtectedRoute/ProtectedRoute";
 import PageContact from "containers/PageContact/PageContact";
 import PageAbout from "containers/PageAbout/PageAbout";
@@ -41,7 +39,6 @@ import PageHome2 from "containers/PageHome/PageHome2";
 import ListingRealEstateMapPage from "containers/ListingRealEstatePage/ListingRealEstateMapPage";
 import ListingRealEstatePage from "containers/ListingRealEstatePage/ListingRealEstatePage";
 import SiteHeader from "containers/SiteHeader";
-import ListingFlightsPage from "containers/ListingFlightsPage/ListingFlightsPage";
 import FooterNav from "components/FooterNav";
 import useWindowSize from "hooks/useWindowResize";
 import PageHome3 from "containers/PageHome/PageHome3";
@@ -57,7 +54,6 @@ import PageBlogList from "containers/PageManageBlog/PageBlogList";
 import PageBlogAdd from "containers/PageManageBlog/PageBlogAdd";
 import PageBlogEdit from "containers/PageManageBlog/PageBlogEdit";
 import PageBlogCategory from "containers/PageManageBlog/PageBlogCategory";
-import PageCreateBlogExperience from "containers/PageCreateBlogExperience/PageCreateBlogExperience";
 import PageVoucherList from "containers/PageManageVouchers/PageVoucherList";
 import PageVoucherAdd from "containers/PageManageVouchers/PageVoucherAdd";
 import PageVoucherEdit from "containers/PageManageVouchers/PageVoucherEdit";
@@ -68,7 +64,6 @@ import PageLocationEdit from "containers/PageManageLocations/PageLocationEdit";
 import BecomeAHostPage from "containers/BecomeAHostPage/BecomeAHostPage";
 import PricingPage from "containers/PagePricing/PricingPage";
 import PaymentSuccess from "containers/PagePaymentSuccess/PaymentSuccess";
-import AdminPackagesPage from "containers/PageAdminPackages/AdminPackagesPage";
 import ChatButtonFloating from "components/ChatButtonFloating/ChatButtonFloating";
 
 // --- Imports được thêm từ code cũ (Refund & Payout) ---
@@ -76,6 +71,9 @@ import PageAdminRefund from "containers/PageAdminRefund/PageAdminRefund";
 import PageRefundPolicy from "containers/PageRefundPolicy/PageRefundPolicy";
 import PageAdminPayout from "containers/PageAdminOwnerManagement/PageAdminPayout";
 import PageChat from "containers/ChatPage/PageChat";
+import PageTerms from "containers/PageTerms/PageTerms";
+import PagePrivacy from "containers/PagePrivacy/PagePrivacy";
+import PageRegulations from "containers/PageRegulations/PageRegulations";
 
 export const pages: Page[] = [
   { path: "/", exact: true, component: PageHome },
@@ -84,32 +82,14 @@ export const pages: Page[] = [
   { path: "/home-2", component: PageHome2 },
   { path: "/home-3", component: PageHome3 },
   //
-  {
-    path: "/listing-experiences",
-    component: ListingExperiencesPage,
-  },
-  {
-    path: "/listing-experiences-map",
-    component: ListingExperiencesMapPage,
-  },
-  {
-    path: "/listing-experiences-detail",
-    component: ListingExperiencesDetailPage,
-  },
-  //
-  { path: "/listing-car-detail", component: ListingCarDetailPage },
-  //
   { path: "/listing-real-estate-map", component: ListingRealEstateMapPage },
   { path: "/listing-real-estate", component: ListingRealEstatePage },
-  //
-  { path: "/listing-flights", component: ListingFlightsPage },
   //
   { path: "/author", component: AuthorPage },
   //
   { path: "/blog", component: BlogPage },
   { path: "/blog-single", component: BlogSingle },
   { path: "/blog-single/:slug", component: BlogSingle },
-  { path: "/create-blog-experience", component: PageCreateBlogExperience },
   //
   { path: "/contact", component: PageContact },
   { path: "/about", component: PageAbout },
@@ -167,14 +147,22 @@ export const pages: Page[] = [
   { path: "/refund-policy", component: PageRefundPolicy },
   { path: "/admin/refunds", component: PageAdminRefund },
   { path: "/admin/payouts", component: PageAdminPayout },
+  //
+  { path: "/terms", component: PageTerms },
+  { path: "/privacy", component: PagePrivacy },
+  { path: "/regulations", component: PageRegulations },
 ];
 
-const MyRoutes = () => {
+const RoutesContent = () => {
+  const location = useLocation();
   const WIN_WIDTH = useWindowSize().width || window.innerWidth;
+  const isAdminRoute = location.pathname.startsWith("/admin");
+  const isHostRoute = location.pathname.startsWith("/host-dashboard");
+
   return (
-    <BrowserRouter>
+    <>
+      {!isAdminRoute && !isHostRoute && <SiteHeader />}
       <ScrollToTop />
-      <SiteHeader />
 
       <Routes>
         {/* Add Listing Route - Wrapped with AddCondotelProvider - Only Host can access */}
@@ -221,9 +209,11 @@ const MyRoutes = () => {
           if (path === "/host-dashboard") {
             return (
               <Route key={path} path={path} element={
-                <ProtectedRoute requireAuth={true} requireHost={true}>
-                  <HostCondotelDashboard />
-                </ProtectedRoute>
+                <HostLayout>
+                  <ProtectedRoute requireAuth={true} requireHost={true}>
+                    <HostCondotelDashboard />
+                  </ProtectedRoute>
+                </HostLayout>
               } />
             );
           }
@@ -250,19 +240,32 @@ const MyRoutes = () => {
         <Route
           path="/admin/*"
           element={
-            <ProtectedRoute requireAuth={true} requireAdmin={true}>
-              <AdminPage />
-            </ProtectedRoute>
+            <AdminLayout>
+              <ProtectedRoute requireAuth={true} requireAdmin={true}>
+                <AdminPage />
+              </ProtectedRoute>
+            </AdminLayout>
           }
         />
 
         <Route path="*" element={<Page404 />} />
       </Routes>
 
-      {WIN_WIDTH < 768 && <FooterNav />}
-      <Footer />
-      {/* NÚT CHAT NỔI - HIỆN Ở MỌI TRANG */}
-      <ChatButtonFloating />
+      {!isAdminRoute && !isHostRoute && (
+        <>
+          {WIN_WIDTH < 768 && <FooterNav />}
+          <Footer />
+        </>
+      )}
+      {!isAdminRoute && !isHostRoute && <ChatButtonFloating />}
+    </>
+  );
+};
+
+const MyRoutes = () => {
+  return (
+    <BrowserRouter>
+      <RoutesContent />
     </BrowserRouter>
   );
 };
