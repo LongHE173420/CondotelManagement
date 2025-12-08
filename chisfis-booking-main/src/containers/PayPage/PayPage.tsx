@@ -51,6 +51,41 @@ const PayPage: FC<PayPageProps> = ({ className = "" }) => {
     fetchBooking();
   }, [bookingId, status]);
 
+  // Tự động refresh booking status nếu booking vẫn ở "Pending" (đang chờ xác nhận thanh toán)
+  useEffect(() => {
+    if (!bookingId || !booking || booking.status === "Confirmed" || booking.status === "Cancelled") {
+      return;
+    }
+
+    // Chỉ refresh nếu booking đang ở "Pending" và user đã quay lại từ PayOS
+    if (booking.status === "Pending" && status === "success") {
+      const refreshInterval = setInterval(async () => {
+        try {
+          const bookingData = await bookingAPI.getBookingById(parseInt(bookingId));
+          setBooking(bookingData);
+          
+          // Nếu booking đã được xác nhận, dừng refresh và tạo voucher
+          if (bookingData.status === "Confirmed") {
+            clearInterval(refreshInterval);
+            createVouchersAfterBooking(parseInt(bookingId));
+          }
+        } catch (err: any) {
+          console.error("Error refreshing booking:", err);
+        }
+      }, 3000); // Refresh mỗi 3 giây
+
+      // Dừng refresh sau 30 giây (đủ thời gian cho webhook xử lý)
+      const timeout = setTimeout(() => {
+        clearInterval(refreshInterval);
+      }, 30000);
+
+      return () => {
+        clearInterval(refreshInterval);
+        clearTimeout(timeout);
+      };
+    }
+  }, [bookingId, booking, status]);
+
   const createVouchersAfterBooking = async (bookingId: number) => {
     setLoadingVouchers(true);
     setVoucherError(null);
@@ -114,8 +149,19 @@ const PayPage: FC<PayPageProps> = ({ className = "" }) => {
         {!isSuccess && (
           <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
             <p className="text-sm text-yellow-800 dark:text-yellow-200">
-              <strong>Lưu ý:</strong> Booking của bạn đang ở trạng thái "{booking.status}". 
-              {booking.status === "Pending" && " Vui lòng hoàn tất thanh toán để xác nhận đặt phòng."}
+              <strong>Lưu ý:</strong> Booking của bạn đang ở trạng thái "{booking.status === "Pending" ? "Đang xử lý" : booking.status}".
+              {booking.status === "Pending" && (
+                <>
+                  <br />
+                  <br />
+                  Hệ thống đang xác nhận thanh toán của bạn. Nếu bạn đã hoàn tất thanh toán, vui lòng đợi vài giây để hệ thống cập nhật trạng thái.
+                  <br />
+                  <br />
+                  <span className="text-xs italic">
+                    💡 Nếu bạn đã thanh toán thành công nhưng trạng thái vẫn chưa cập nhật, vui lòng liên hệ hỗ trợ với mã booking #{booking.bookingId}
+                  </span>
+                </>
+              )}
             </p>
           </div>
         )}

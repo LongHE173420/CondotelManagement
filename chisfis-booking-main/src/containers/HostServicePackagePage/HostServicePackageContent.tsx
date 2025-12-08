@@ -39,8 +39,14 @@ const HostServicePackageContent: React.FC = () => {
     }
   };
 
-  const handleDelete = async (packageId: number, name: string) => {
+  const handleDelete = async (packageId: number | string, name: string) => {
     if (!window.confirm(`Bạn có chắc chắn muốn xóa gói dịch vụ "${name}"?`)) {
+      return;
+    }
+
+    // Chỉ cho phép xóa nếu có ID hợp lệ (number)
+    if (typeof packageId === 'string') {
+      alert("Không thể xóa gói dịch vụ chưa có ID hợp lệ");
       return;
     }
 
@@ -65,8 +71,8 @@ const HostServicePackageContent: React.FC = () => {
     }).format(amount);
   };
 
-  const getPackageId = (pkg: ServicePackageDTO): number => {
-    return pkg.packageId || pkg.servicePackageId || 0;
+  const getPackageId = (pkg: ServicePackageDTO, index: number): number | string => {
+    return pkg.packageId || pkg.servicePackageId || `temp-${index}`;
   };
 
   return (
@@ -147,8 +153,8 @@ const HostServicePackageContent: React.FC = () => {
         </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {servicePackages.map((pkg) => {
-            const packageId = getPackageId(pkg);
+          {servicePackages.map((pkg, index) => {
+            const packageId = getPackageId(pkg, index);
             return (
               <div
                 key={packageId}
@@ -197,8 +203,8 @@ const HostServicePackageContent: React.FC = () => {
                         Tính năng:
                       </p>
                       <ul className="space-y-1">
-                        {pkg.features.slice(0, 3).map((feature, index) => (
-                          <li key={index} className="text-xs text-neutral-600 dark:text-neutral-400 flex items-start">
+                        {pkg.features.slice(0, 3).map((feature, featureIndex) => (
+                          <li key={`${packageId}-feature-${featureIndex}`} className="text-xs text-neutral-600 dark:text-neutral-400 flex items-start">
                             <svg
                               className="w-4 h-4 text-green-500 mr-1 mt-0.5 flex-shrink-0"
                               fill="currentColor"
@@ -236,9 +242,14 @@ const HostServicePackageContent: React.FC = () => {
                     </span>
                   </ButtonSecondary>
                   <button
-                    onClick={() => handleDelete(packageId, pkg.name || pkg.title || "")}
-                    disabled={deletingId === packageId}
+                    onClick={() => {
+                      if (typeof packageId === 'number') {
+                        handleDelete(packageId, pkg.name || pkg.title || "");
+                      }
+                    }}
+                    disabled={deletingId === packageId || typeof packageId === 'string'}
                     className="px-4 py-2 text-sm font-bold bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-lg shadow-md hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    title={typeof packageId === 'string' ? 'Không thể xóa gói dịch vụ chưa có ID hợp lệ' : undefined}
                   >
                     {deletingId === packageId ? (
                       <>
@@ -349,7 +360,12 @@ const ServicePackageModal: React.FC<ServicePackageModalProps> = ({
 
       if (servicePackage) {
         // Update service package
-        const packageId = servicePackage.packageId || servicePackage.servicePackageId || 0;
+        const packageId = servicePackage.packageId || servicePackage.servicePackageId;
+        if (!packageId || packageId <= 0) {
+          setError("Không tìm thấy ID gói dịch vụ để cập nhật");
+          setLoading(false);
+          return;
+        }
         await servicePackageAPI.update(packageId, packageData);
         alert("Cập nhật gói dịch vụ thành công!");
       } else {

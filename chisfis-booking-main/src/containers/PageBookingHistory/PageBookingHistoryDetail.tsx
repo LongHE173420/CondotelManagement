@@ -140,20 +140,38 @@ const PageBookingHistoryDetail = () => {
   const canCancel = (): boolean => {
     if (!booking) return false;
     const status = booking.status?.toLowerCase();
-    return status === "pending" || status === "confirmed";
+    // Chỉ cho phép hủy nếu status là Confirmed (không cho phép hủy khi đang xử lý - Pending)
+    return status === "confirmed";
   };
 
   // Kiểm tra xem booking có thể hoàn tiền không
-  // Chỉ cho phép refund nếu:
-  // 1. Booking status = "Cancelled"
-  // 2. Booking đã thanh toán trước đó (status trước đó là "Confirmed" hoặc "Completed")
-  // 3. Hủy trong vòng 2 ngày
-  // KHÔNG cho phép refund nếu booking bị cancel payment (status = "Pending" trước đó)
+  // Sử dụng field canRefund từ API response (Option 1)
+  // Fallback về logic cũ nếu canRefund không có trong response
   const canRefund = (): boolean => {
-    if (!booking || booking.status?.toLowerCase() !== "cancelled") {
+    if (!booking) {
       return false;
     }
     
+    // Chỉ cho phép yêu cầu hoàn tiền nếu:
+    // 1. Booking status = "Cancelled"
+    // 2. refundStatus = null (chưa có refund request)
+    // 3. canRefund = true (từ backend)
+    
+    if (booking.status?.toLowerCase() !== "cancelled") {
+      return false;
+    }
+    
+    // Nếu đã có refund request (refundStatus không null), không cho phép tạo request mới
+    if (booking.refundStatus !== null && booking.refundStatus !== undefined) {
+      return false;
+    }
+    
+    // Ưu tiên sử dụng field canRefund từ backend
+    if (booking.canRefund !== undefined) {
+      return booking.canRefund;
+    }
+    
+    // Fallback: Logic cũ nếu backend chưa trả về canRefund
     // Phân biệt Cancel Payment vs Cancel Booking:
     // - Cancel Payment: Booking chưa thanh toán (status ban đầu = "Pending") → không refund
     // - Cancel Booking: Booking đã thanh toán (status ban đầu = "Confirmed" hoặc "Completed") → có refund
@@ -290,6 +308,21 @@ const PageBookingHistoryDetail = () => {
                   </dd>
                 </div>
                 
+                {/* Nút thanh toán lại - chỉ hiển thị khi booking ở trạng thái Pending */}
+                {booking.status?.toLowerCase() === "pending" && (
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <button
+                      onClick={() => navigate(`/checkout?bookingId=${booking.bookingId}&retry=true`)}
+                      className="w-full px-4 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors"
+                    >
+                      💳 Thanh toán lại
+                    </button>
+                    <p className="mt-2 text-xs text-gray-500">
+                      * Nếu thanh toán chưa thành công, bạn có thể thanh toán lại
+                    </p>
+                  </div>
+                )}
+                
                 {/* Nút hủy booking - chỉ hiển thị khi booking có thể hủy */}
                 {canCancel() && (
                   <div className="mt-4 pt-4 border-t border-gray-200">
@@ -306,7 +339,29 @@ const PageBookingHistoryDetail = () => {
                   </div>
                 )}
                 
-                {/* Nút yêu cầu hoàn tiền - chỉ hiển thị khi booking bị hủy trong vòng 2 ngày */}
+                {/* Hiển thị refund status nếu booking đã bị hủy và có refund request */}
+                {booking.status?.toLowerCase() === "cancelled" && booking.refundStatus && (
+                  <div className={`mt-4 pt-4 border-t border-gray-200 rounded-lg p-3 ${
+                    booking.refundStatus === "Pending" ? "bg-yellow-50 border-yellow-200" :
+                    booking.refundStatus === "Refunded" || booking.refundStatus === "Completed" ? "bg-green-50 border-green-200" :
+                    "bg-gray-50 border-gray-200"
+                  }`}>
+                    <p className={`text-sm font-medium ${
+                      booking.refundStatus === "Pending" ? "text-yellow-800" :
+                      booking.refundStatus === "Refunded" || booking.refundStatus === "Completed" ? "text-green-800" :
+                      "text-gray-800"
+                    }`}>
+                      <strong>Trạng thái hoàn tiền:</strong> {
+                        booking.refundStatus === "Pending" ? "Đang chờ hoàn tiền" :
+                        booking.refundStatus === "Refunded" ? "Đã hoàn tiền thành công (PayOS)" :
+                        booking.refundStatus === "Completed" ? "Đã hoàn tiền thủ công" :
+                        booking.refundStatus
+                      }
+                    </p>
+                  </div>
+                )}
+                
+                {/* Nút yêu cầu hoàn tiền - chỉ hiển thị khi booking bị hủy trong vòng 2 ngày và chưa có refund request */}
                 {canRefund() && (
                   <div className="mt-4 pt-4 border-t border-gray-200">
                     <button
@@ -339,6 +394,18 @@ const PageBookingHistoryDetail = () => {
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">
                   Chi tiết thanh toán
                 </h3>
+                
+                {/* Thông báo khi booking đang ở trạng thái Pending */}
+                {booking.status?.toLowerCase() === "pending" && (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+                    <p className="text-sm text-yellow-800">
+                      <strong>Lưu ý:</strong> Booking đang ở trạng thái "{mapStatusToVN(booking.status)}". 
+                      Hệ thống đang xác nhận thanh toán của bạn. 
+                      Nếu bạn đã hoàn tất thanh toán, vui lòng đợi vài giây để hệ thống cập nhật trạng thái.
+                    </p>
+                  </div>
+                )}
+                
                 <dl className="space-y-3">
                   {condotel && (
                     <div className="flex justify-between">
@@ -350,6 +417,19 @@ const PageBookingHistoryDetail = () => {
                       </dd>
                     </div>
                   )}
+                  
+                  {booking.promotionId && (
+                    <div className="flex justify-between">
+                      <dt className="text-sm text-gray-500">Khuyến mãi</dt>
+                      <dd className="text-sm text-green-600">Đã áp dụng</dd>
+                    </div>
+                  )}
+                  
+                  <div className="flex justify-between">
+                    <dt className="text-sm text-gray-500">Phương thức thanh toán</dt>
+                    <dd className="text-sm text-gray-700">PayOS</dd>
+                  </div>
+                  
                   <div className="flex justify-between font-bold text-gray-900 text-base pt-3 border-t border-gray-200">
                     <dt>Tổng cộng</dt>
                     <dd>{formatPrice(booking.totalPrice)}</dd>

@@ -1,6 +1,6 @@
 import { PencilSquareIcon } from "@heroicons/react/24/outline";
 import React, { FC, Fragment, useState, useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import Input from "shared/Input/Input";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
 import ButtonSecondary from "shared/Button/ButtonSecondary";
@@ -38,8 +38,13 @@ interface CheckoutState {
 const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
   const location = useLocation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const state = location.state as CheckoutState | null;
+  
+  // Get bookingId and retry from query params (for retry payment)
+  const retryBookingId = searchParams.get("bookingId");
+  const isRetry = searchParams.get("retry") === "true";
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -78,6 +83,82 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
       guestInfants: 1,
     };
   });
+
+  // Handle retry payment: if retry=true and bookingId exists, automatically create payment link
+  useEffect(() => {
+    const handleRetryPayment = async () => {
+      if (!isRetry || !retryBookingId || !user) {
+        return;
+      }
+
+      const bookingIdNum = parseInt(retryBookingId);
+      if (isNaN(bookingIdNum)) {
+        setError("Booking ID không hợp lệ");
+        return;
+      }
+
+      setLoading(true);
+      setError(null);
+
+      try {
+        console.log("🔄 Retrying payment for booking:", bookingIdNum);
+        
+        // Fetch booking details
+        const booking = await bookingAPI.getBookingById(bookingIdNum);
+        
+        // Validate booking has totalPrice
+        if (!booking.totalPrice || booking.totalPrice <= 0) {
+          throw new Error("Booking không có tổng tiền hợp lệ để thanh toán");
+        }
+
+        // Create payment link
+        const returnUrl = `${window.location.origin}/pay-done?bookingId=${booking.bookingId}&status=success`;
+        const cancelUrl = `${window.location.origin}/payment/cancel?bookingId=${booking.bookingId}&status=cancelled`;
+
+        const bookingIdStr = String(booking.bookingId);
+        let description: string;
+        const bookingPrefix = "Booking #";
+        if (bookingPrefix.length + bookingIdStr.length <= 25) {
+          description = `${bookingPrefix}${bookingIdStr}`;
+        } else {
+          const hashPrefix = "#";
+          if (hashPrefix.length + bookingIdStr.length <= 25) {
+            description = `${hashPrefix}${bookingIdStr}`;
+          } else {
+            const maxIdLength = 25 - hashPrefix.length;
+            description = `${hashPrefix}${bookingIdStr.substring(0, maxIdLength)}`;
+          }
+        }
+        description = description.substring(0, 25);
+
+        console.log("📤 Creating payment link for retry payment...");
+        const paymentResponse = await paymentAPI.createPayment({
+          bookingId: booking.bookingId,
+          description: description,
+          returnUrl: returnUrl,
+          cancelUrl: cancelUrl,
+        });
+
+        if (paymentResponse.data?.checkoutUrl) {
+          console.log("✅ Payment link created, redirecting to PayOS...");
+          // Redirect to PayOS checkout
+          window.location.href = paymentResponse.data.checkoutUrl;
+        } else {
+          throw new Error(paymentResponse.desc || "Không thể tạo link thanh toán");
+        }
+      } catch (err: any) {
+        console.error("❌ Retry payment error:", err);
+        setError(
+          err.response?.data?.message ||
+          err.message ||
+          "Không thể tạo link thanh toán. Vui lòng thử lại."
+        );
+        setLoading(false);
+      }
+    };
+
+    handleRetryPayment();
+  }, [isRetry, retryBookingId, user]);
 
   // Initialize selected promotion from state (if passed from detail page)
   useEffect(() => {

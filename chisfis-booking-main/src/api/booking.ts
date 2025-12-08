@@ -12,6 +12,8 @@ export interface BookingDTO {
   promotionId?: number; // int? in C#
   isUsingRewardPoints: boolean;
   createdAt: string; // DateTime in C#
+  canRefund?: boolean; // Field từ backend để check xem booking có thể hoàn tiền không
+  refundStatus?: string | null; // "Pending", "Refunded", "Completed", hoặc null (chưa có refund request)
   
   // Thông tin condotel (nếu backend trả về khi join)
   condotelName?: string;
@@ -73,6 +75,8 @@ export const bookingAPI = {
       promotionId: item.PromotionId !== undefined ? item.PromotionId : item.promotionId,
       isUsingRewardPoints: item.IsUsingRewardPoints !== undefined ? item.IsUsingRewardPoints : item.isUsingRewardPoints,
       createdAt: item.CreatedAt || item.createdAt,
+      canRefund: item.CanRefund !== undefined ? item.CanRefund : item.canRefund,
+      refundStatus: item.RefundStatus !== undefined ? (item.RefundStatus || null) : (item.refundStatus !== undefined ? (item.refundStatus || null) : null),
       // Thông tin condotel nếu có
       condotelName: item.CondotelName || item.condotelName,
       condotelImageUrl: item.CondotelImageUrl || item.condotelImageUrl,
@@ -96,6 +100,8 @@ export const bookingAPI = {
       promotionId: data.PromotionId !== undefined ? data.PromotionId : data.promotionId,
       isUsingRewardPoints: data.IsUsingRewardPoints !== undefined ? data.IsUsingRewardPoints : data.isUsingRewardPoints,
       createdAt: data.CreatedAt || data.createdAt,
+      canRefund: data.CanRefund !== undefined ? data.CanRefund : data.canRefund,
+      refundStatus: data.RefundStatus !== undefined ? (data.RefundStatus || null) : (data.refundStatus !== undefined ? (data.refundStatus || null) : null),
       // Thông tin condotel nếu có
       condotelName: data.CondotelName || data.condotelName,
       condotelImageUrl: data.CondotelImageUrl || data.condotelImageUrl,
@@ -188,6 +194,8 @@ export const bookingAPI = {
       promotionId: data.PromotionId !== undefined ? data.PromotionId : data.promotionId,
       isUsingRewardPoints: data.IsUsingRewardPoints !== undefined ? data.IsUsingRewardPoints : data.isUsingRewardPoints,
       createdAt: data.CreatedAt || data.createdAt,
+      canRefund: data.CanRefund !== undefined ? data.CanRefund : data.canRefund,
+      refundStatus: data.RefundStatus !== undefined ? (data.RefundStatus || null) : (data.refundStatus !== undefined ? (data.refundStatus || null) : null),
     };
   },
 
@@ -228,6 +236,8 @@ export const bookingAPI = {
       promotionId: data.PromotionId !== undefined ? data.PromotionId : data.promotionId,
       isUsingRewardPoints: data.IsUsingRewardPoints !== undefined ? data.IsUsingRewardPoints : data.isUsingRewardPoints,
       createdAt: data.CreatedAt || data.createdAt,
+      canRefund: data.CanRefund !== undefined ? data.CanRefund : data.canRefund,
+      refundStatus: data.RefundStatus !== undefined ? (data.RefundStatus || null) : (data.refundStatus !== undefined ? (data.refundStatus || null) : null),
     };
   },
 
@@ -361,6 +371,8 @@ export const bookingAPI = {
       promotionId: item.PromotionId !== undefined ? item.PromotionId : item.promotionId,
       isUsingRewardPoints: item.IsUsingRewardPoints !== undefined ? item.IsUsingRewardPoints : item.isUsingRewardPoints,
       createdAt: item.CreatedAt || item.createdAt,
+      canRefund: item.CanRefund !== undefined ? item.CanRefund : item.canRefund,
+      refundStatus: item.RefundStatus !== undefined ? (item.RefundStatus || null) : (item.refundStatus !== undefined ? (item.refundStatus || null) : null),
       // Thông tin condotel và customer nếu có
       condotelName: item.CondotelName || item.condotelName,
       condotelImageUrl: item.CondotelImageUrl || item.condotelImageUrl,
@@ -385,6 +397,7 @@ export const bookingAPI = {
       promotionId: item.PromotionId !== undefined ? item.PromotionId : item.promotionId,
       isUsingRewardPoints: item.IsUsingRewardPoints !== undefined ? item.IsUsingRewardPoints : item.isUsingRewardPoints,
       createdAt: item.CreatedAt || item.createdAt,
+      canRefund: item.CanRefund !== undefined ? item.CanRefund : item.canRefund,
       condotelName: item.CondotelName || item.condotelName,
       condotelImageUrl: item.CondotelImageUrl || item.condotelImageUrl,
       condotelPricePerNight: item.CondotelPricePerNight !== undefined ? item.CondotelPricePerNight : item.condotelPricePerNight,
@@ -414,11 +427,24 @@ export const bookingAPI = {
       promotionId: data.PromotionId !== undefined ? data.PromotionId : data.promotionId,
       isUsingRewardPoints: data.IsUsingRewardPoints !== undefined ? data.IsUsingRewardPoints : data.isUsingRewardPoints,
       createdAt: data.CreatedAt || data.createdAt,
+      canRefund: data.CanRefund !== undefined ? data.CanRefund : data.canRefund,
+      refundStatus: data.RefundStatus !== undefined ? (data.RefundStatus || null) : (data.refundStatus !== undefined ? (data.refundStatus || null) : null),
       condotelName: data.CondotelName || data.condotelName,
       condotelImageUrl: data.CondotelImageUrl || data.condotelImageUrl,
       condotelPricePerNight: data.CondotelPricePerNight !== undefined ? data.CondotelPricePerNight : data.condotelPricePerNight,
       customerName: data.CustomerName || data.customerName,
       customerEmail: data.CustomerEmail || data.customerEmail,
+    };
+  },
+
+  // GET /api/booking/{id}/can-refund - Check xem booking có thể hoàn tiền không (Option 2)
+  checkCanRefund: async (id: number): Promise<{ canRefund: boolean; message?: string }> => {
+    const response = await axiosClient.get<any>(`/booking/${id}/can-refund`);
+    const data = response.data;
+    // Normalize response từ backend (PascalCase -> camelCase)
+    return {
+      canRefund: data.CanRefund !== undefined ? data.CanRefund : data.canRefund,
+      message: data.Message || data.message,
     };
   },
 };
