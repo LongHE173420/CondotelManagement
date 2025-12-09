@@ -20,17 +20,7 @@ const CommonLayout: FC<CommonLayoutProps> = ({ children }) => {
                 }`
               }
             >
-              Account info
-            </NavLink>
-            <NavLink
-              to="/account-savelists"
-              className={({ isActive }) =>
-                `block py-5 md:py-8 border-b-2 flex-shrink-0 ${
-                  isActive ? "border-transparent" : "border-primary-500"
-                }`
-              }
-            >
-              Save lists
+              Thông tin tài khoản
             </NavLink>
             <NavLink
               to="/account-password"
@@ -40,27 +30,7 @@ const CommonLayout: FC<CommonLayoutProps> = ({ children }) => {
                 }`
               }
             >
-              Change password
-            </NavLink>
-            <NavLink
-              to="/account-billing"
-              className={({ isActive }) =>
-                `block py-5 md:py-8 border-b-2 flex-shrink-0 ${
-                  isActive ? "border-transparent" : "border-primary-500"
-                }`
-              }
-            >
-              Change Billing
-            </NavLink>
-            <NavLink
-              to="/account-rewards"
-              className={({ isActive }) =>
-                `block py-5 md:py-8 border-b-2 flex-shrink-0 ${
-                  isActive ? "border-transparent" : "border-primary-500"
-                }`
-              }
-            >
-              Điểm thưởng
+              Đổi Mật Khẩu
             </NavLink>
             <NavLink
               to="/account-vouchers"
