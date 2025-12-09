@@ -1,0 +1,121 @@
+@startuml Package Diagram - Chisfis Booking System
+
+skinparam packageStyle rectangle
+skinparam linetype ortho
+
+' ============================================
+' CÁC PACKAGE CHÍNH
+' ============================================
+
+package "api" {
+}
+
+package "components" {
+}
+
+package "containers" {
+}
+
+package "contains" {
+}
+
+package "contexts" {
+}
+
+package "data" {
+}
+
+package "hooks" {
+}
+
+package "i18n" {
+}
+
+package "routers" {
+}
+
+package "shared" {
+}
+
+package "styles" {
+}
+
+package "fonts" {
+}
+
+package "types" {
+}
+
+package "utils" {
+}
+
+' ============================================
+' CÁC FILE ENTRY POINT
+' ============================================
+
+[index.tsx]
+[App.tsx]
+[type.d.ts]
+[custom.d.ts]
+
+' ============================================
+' DEPENDENCIES - ĐƯỜNG NÉT ĐỨT
+' ============================================
+
+' Entry Point Dependencies
+[index.tsx] ..> [App.tsx]
+[index.tsx] ..> styles
+[index.tsx] ..> fonts
+
+[App.tsx] ..> routers
+[App.tsx] ..> contexts
+[App.tsx] ..> i18n
+
+' Routers Dependencies
+routers ..> containers
+routers ..> components
+routers ..> shared
+routers ..> hooks
+
+' Containers Dependencies
+containers ..> api
+containers ..> components
+containers ..> shared
+containers ..> contexts
+containers ..> hooks
+containers ..> utils
+containers ..> types
+containers ..> data
+containers ..> i18n
+
+' Components Dependencies
+components ..> shared
+components ..> hooks
+components ..> utils
+components ..> types
+components ..> contexts
+components ..> api
+
+' Contexts Dependencies
+contexts ..> api
+contexts ..> types
+
+' API Dependencies
+api ..> utils
+api ..> types
+
+' Shared Dependencies
+shared ..> utils
+shared ..> types
+
+' Data Dependencies
+data ..> utils
+data ..> types
+data ..> shared
+data ..> i18n
+
+' Hooks Dependencies (có thể dùng utils/types)
+hooks ..> utils
+hooks ..> types
+
+@enduml
