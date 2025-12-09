@@ -358,9 +358,25 @@ export const bookingAPI = {
   // ========== HOST BOOKING APIs ==========
   // GET /api/host/booking - Lấy tất cả bookings của host hiện tại
   getHostBookings: async (): Promise<BookingDTO[]> => {
-    const response = await axiosClient.get<any[]>("/host/booking");
+    const response = await axiosClient.get<any>("/host/booking");
     // Normalize response từ backend (PascalCase -> camelCase)
-    return response.data.map((item: any) => ({
+    // Handle both array and object with data property
+    let data: any[] = [];
+    if (Array.isArray(response.data)) {
+      data = response.data;
+    } else if (response.data && Array.isArray(response.data.data)) {
+      data = response.data.data;
+    } else if (response.data && typeof response.data === 'object') {
+      // If response.data is a single object, wrap it in array
+      data = [response.data];
+    }
+    
+    if (!Array.isArray(data)) {
+      console.warn("getHostBookings: response.data is not an array:", response.data);
+      return [];
+    }
+    
+    return data.map((item: any) => ({
       bookingId: item.BookingId || item.bookingId,
       condotelId: item.CondotelId || item.condotelId,
       customerId: item.CustomerId || item.customerId,
@@ -384,9 +400,25 @@ export const bookingAPI = {
 
   // GET /api/host/booking/customer/{customerId} - Lấy bookings theo customer
   getHostBookingsByCustomer: async (customerId: number): Promise<BookingDTO[]> => {
-    const response = await axiosClient.get<any[]>(`/host/booking/customer/${customerId}`);
+    const response = await axiosClient.get<any>(`/host/booking/customer/${customerId}`);
     // Normalize response từ backend (PascalCase -> camelCase)
-    return response.data.map((item: any) => ({
+    // Handle both array and object with data property
+    let data: any[] = [];
+    if (Array.isArray(response.data)) {
+      data = response.data;
+    } else if (response.data && Array.isArray(response.data.data)) {
+      data = response.data.data;
+    } else if (response.data && typeof response.data === 'object') {
+      // If response.data is a single object, wrap it in array
+      data = [response.data];
+    }
+    
+    if (!Array.isArray(data)) {
+      console.warn("getHostBookingsByCustomer: response.data is not an array:", response.data);
+      return [];
+    }
+    
+    return data.map((item: any) => ({
       bookingId: item.BookingId || item.bookingId,
       condotelId: item.CondotelId || item.condotelId,
       customerId: item.CustomerId || item.customerId,

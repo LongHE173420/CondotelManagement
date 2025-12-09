@@ -193,6 +193,18 @@ export const payoutAPI = {
     const response = await axiosClient.post<any>(`/admin/payouts/${bookingId}/confirm`);
     return normalizeProcessResponse(response.data);
   },
+
+  // POST /api/admin/payouts/{bookingId}/reject - Admin từ chối payout cho một booking cụ thể
+  rejectPayout: async (
+    bookingId: number,
+    reason: string
+  ): Promise<{ success: boolean; message: string }> => {
+    const response = await axiosClient.post<{ success: boolean; message: string }>(
+      `/admin/payouts/${bookingId}/reject`,
+      { reason }
+    );
+    return response.data;
+  },
 };
 
 export default payoutAPI;

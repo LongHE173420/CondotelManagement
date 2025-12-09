@@ -15,7 +15,7 @@ interface RefundRequest {
     accountNumber: string;
     accountHolder: string;
   };
-  status: "Pending" | "Completed" | "Refunded"; // Backend map: "Cancelled" → "Pending", "Refunded" → "Completed"
+  status: "Pending" | "Completed" | "Refunded" | "Rejected"; // "Pending", "Completed" (thủ công), "Refunded" (PayOS), "Rejected"
   cancelDate?: string;
   createdAt?: string;
   reason?: string;
@@ -24,16 +24,30 @@ interface RefundRequest {
 // --- Component hiển thị Badge trạng thái ---
 const RefundStatusBadge: React.FC<{ status: string }> = ({ status }) => {
   const statusLower = status?.toLowerCase();
-  if (statusLower === "completed" || statusLower === "refunded") {
+  if (statusLower === "completed") {
     return (
       <span className="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">
-        ✅ Đã hoàn tiền
+        ✅ Đã hoàn tiền (Thủ công)
+      </span>
+    );
+  }
+  if (statusLower === "refunded") {
+    return (
+      <span className="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">
+        ✅ Đã hoàn tiền (PayOS)
+      </span>
+    );
+  }
+  if (statusLower === "rejected") {
+    return (
+      <span className="px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700 border border-red-200">
+        ❌ Đã từ chối
       </span>
     );
   }
   return (
     <span className="px-3 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-700 border border-yellow-200">
-      ⏳ Chưa hoàn tiền
+      ⏳ Đang chờ
     </span>
   );
 };
@@ -55,6 +69,10 @@ const PageAdminRefund = () => {
   const [refundType, setRefundType] = useState<"auto" | "manual">("auto");
   const [refundReason, setRefundReason] = useState("");
   const [processing, setProcessing] = useState(false);
+
+  // STATE CHO MODAL TỪ CHỐI
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
 
   // STATE CHO MODAL QR
   const [selectedQR, setSelectedQR] = useState<{ url: string; title: string; amount: number; content: string } | null>(null);
@@ -307,24 +325,33 @@ const PageAdminRefund = () => {
     if (!selectedBookingId) return;
 
     // Đảm bảo bookingId là number
-    let numericId: number;
+    let numericBookingId: number;
     if (typeof selectedBookingId === 'number') {
-      numericId = selectedBookingId;
+      numericBookingId = selectedBookingId;
     } else if (typeof selectedBookingId === 'string') {
-      numericId = parseInt(String(selectedBookingId).replace(/BOOK-/gi, ''), 10);
+      numericBookingId = parseInt(String(selectedBookingId).replace(/BOOK-/gi, ''), 10);
     } else {
-      numericId = selectedBookingId as number;
+      numericBookingId = selectedBookingId as number;
     }
-    
-    console.log("💰 Confirming manual refund for bookingId:", numericId);
+
+    // Kiểm tra refund request có tồn tại không
+    const selectedRequest = requests.find(req => req.bookingId === numericBookingId);
+    if (!selectedRequest) {
+      alert("Không tìm thấy thông tin yêu cầu hoàn tiền. Vui lòng thử lại.");
+      return;
+    }
+
+    console.log("💰 Confirming manual refund for bookingId:", numericBookingId);
 
     setProcessing(true);
     try {
-      const result = await adminAPI.confirmRefundManually(numericId);
+      // Backend expect bookingId, không phải refundRequestId
+      // Endpoint: POST /api/admin/refund-requests/{bookingId}/confirm
+      const result = await adminAPI.confirmRefundRequest(numericBookingId);
       
       if (result.success) {
         alert(result.message || "Đã xác nhận chuyển tiền thủ công thành công!");
-      setConfirmModalOpen(false);
+        setConfirmModalOpen(false);
         setSelectedBookingId(null);
         loadRefundRequests(); // Reload danh sách
       } else {
@@ -333,6 +360,46 @@ const PageAdminRefund = () => {
     } catch (err: any) {
       console.error("Error confirming manual refund:", err);
       alert(err.response?.data?.message || err.message || "Đã có lỗi xảy ra khi xác nhận");
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  // --- HÀM TỪ CHỐI YÊU CẦU HOÀN TIỀN ---
+  const handleRejectRefund = async () => {
+    if (!selectedBookingId || !rejectReason.trim()) {
+      alert("Vui lòng nhập lý do từ chối.");
+      return;
+    }
+
+    // Đảm bảo bookingId là number
+    let numericBookingId: number;
+    if (typeof selectedBookingId === 'number') {
+      numericBookingId = selectedBookingId;
+    } else if (typeof selectedBookingId === 'string') {
+      numericBookingId = parseInt(String(selectedBookingId).replace(/BOOK-/gi, ''), 10);
+    } else {
+      numericBookingId = selectedBookingId as number;
+    }
+
+    console.log("❌ Rejecting refund request for bookingId:", numericBookingId, "reason:", rejectReason);
+
+    setProcessing(true);
+    try {
+      const result = await adminAPI.rejectRefundRequest(numericBookingId, rejectReason.trim());
+      
+      if (result.success) {
+        alert(result.message || "Đã từ chối yêu cầu hoàn tiền thành công!");
+        setRejectModalOpen(false);
+        setSelectedBookingId(null);
+        setRejectReason("");
+        loadRefundRequests(); // Reload danh sách
+      } else {
+        alert(result.message || "Không thể từ chối. Vui lòng thử lại.");
+      }
+    } catch (err: any) {
+      console.error("Error rejecting refund request:", err);
+      alert(err.response?.data?.message || err.message || "Đã có lỗi xảy ra khi từ chối");
     } finally {
       setProcessing(false);
     }
@@ -703,6 +770,17 @@ const PageAdminRefund = () => {
                         >
                               ✅ Xác nhận thủ công
                         </button>
+                        <button
+                              onClick={() => {
+                                setSelectedBookingId(req.bookingId);
+                                setRejectReason("");
+                                setRejectModalOpen(true);
+                              }}
+                              className="bg-red-600 text-white px-3 py-1.5 rounded-md text-xs hover:bg-red-700 shadow-sm transition-colors font-medium"
+                              title="Từ chối yêu cầu hoàn tiền"
+                        >
+                              ❌ Từ chối
+                        </button>
                           </div>
                       ) : (
                         <span className="text-sm text-gray-400 italic">
@@ -885,6 +963,55 @@ const PageAdminRefund = () => {
         </div>
         );
       })()}
+
+      {/* MODAL TỪ CHỐI */}
+      {rejectModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm" style={{ position: 'fixed', width: '100%', height: '100%' }}>
+          <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-2xl p-6 w-full max-w-md mx-4 transform transition-all animate-fadeIn">
+            <h3 className="text-lg font-bold text-red-600 mb-4">
+              ❌ Từ chối yêu cầu hoàn tiền
+            </h3>
+            <p className="text-gray-600 mb-4">
+              Bạn có chắc chắn muốn từ chối yêu cầu hoàn tiền này? Vui lòng nhập lý do từ chối.
+            </p>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Lý do từ chối <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                placeholder="Ví dụ: Booking đã quá thời hạn hoàn tiền, Khách hàng vi phạm chính sách..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent dark:bg-neutral-700 dark:border-neutral-600 dark:text-white"
+                rows={4}
+                required
+              />
+            </div>
+
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => {
+                  setRejectModalOpen(false);
+                  setSelectedBookingId(null);
+                  setRejectReason("");
+                }}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
+                disabled={processing}
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleRejectRefund}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={processing || !rejectReason.trim()}
+              >
+                {processing ? "Đang xử lý..." : "Xác nhận từ chối"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

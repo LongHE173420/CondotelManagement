@@ -30,9 +30,20 @@ const amenityAPI = {
     const data = response.data;
     
     // Normalize response (handle both array and object with data property)
-    const amenities = Array.isArray(data) 
-      ? data 
-      : (data.data || []);
+    let amenities: any[] = [];
+    if (Array.isArray(data)) {
+      amenities = data;
+    } else if (data && Array.isArray(data.data)) {
+      amenities = data.data;
+    } else if (data && typeof data === 'object') {
+      // If response.data is a single object, wrap it in array
+      amenities = [data];
+    }
+    
+    if (!Array.isArray(amenities)) {
+      console.warn("getAllPublic amenities: response.data is not an array:", data);
+      return [];
+    }
     
     return amenities.map(normalizeAmenity);
   },
@@ -51,9 +62,20 @@ const amenityAPI = {
     const data = response.data;
     
     // Normalize response (handle both array and object with data property)
-    const amenities = Array.isArray(data) 
-      ? data 
-      : (data.data || []);
+    let amenities: any[] = [];
+    if (Array.isArray(data)) {
+      amenities = data;
+    } else if (data && Array.isArray(data.data)) {
+      amenities = data.data;
+    } else if (data && typeof data === 'object') {
+      // If response.data is a single object, wrap it in array
+      amenities = [data];
+    }
+    
+    if (!Array.isArray(amenities)) {
+      console.warn("getAll amenities: response.data is not an array:", data);
+      return [];
+    }
     
     return amenities.map(normalizeAmenity);
   },
@@ -70,9 +92,20 @@ const amenityAPI = {
     const data = response.data;
     
     // Normalize response (handle both array and object with data property)
-    const amenities = Array.isArray(data) 
-      ? data 
-      : (data.data || []);
+    let amenities: any[] = [];
+    if (Array.isArray(data)) {
+      amenities = data;
+    } else if (data && Array.isArray(data.data)) {
+      amenities = data.data;
+    } else if (data && typeof data === 'object') {
+      // If response.data is a single object, wrap it in array
+      amenities = [data];
+    }
+    
+    if (!Array.isArray(amenities)) {
+      console.warn("getByCategory amenities: response.data is not an array:", data);
+      return [];
+    }
     
     return amenities.map(normalizeAmenity);
   },

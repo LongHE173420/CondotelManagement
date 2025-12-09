@@ -495,3 +495,4 @@ const AmenityModal: React.FC<AmenityModalProps> = ({
 
 export default HostAmenityContent;
 
+

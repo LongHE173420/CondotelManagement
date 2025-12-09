@@ -327,10 +327,8 @@ const HostReportContent: React.FC = () => {
         </div>
       )}
 
-      {report && (
-        <>
-          {/* Revenue Chart Section */}
-          <div className="mb-6">
+      {/* Revenue Chart Section - Always show, independent of report */}
+      <div className="mb-6">
             <div className="bg-gradient-to-br from-white to-blue-50/30 dark:from-neutral-800 dark:to-blue-900/10 rounded-2xl shadow-xl p-6 mb-4 border border-blue-200/50 dark:border-blue-800/50">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div className="flex items-center gap-4">
@@ -397,8 +395,10 @@ const HostReportContent: React.FC = () => {
               </div>
             </div>
             <RevenueChart year={chartYear} month={chartMonth} chartType={chartType} />
-          </div>
+      </div>
 
+      {report && (
+        <>
           {/* Overview Stats */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
             <StatCard

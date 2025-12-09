@@ -33,6 +33,8 @@ const PageAdminPayoutBooking: React.FC = () => {
   const [qrUrl, setQrUrl] = useState<string>("");
   const [loadingQR, setLoadingQR] = useState(false);
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
 
   const loadPendingPayouts = async () => {
     setLoading(true);
@@ -229,6 +231,37 @@ const PageAdminPayoutBooking: React.FC = () => {
     } catch (err: any) {
       console.error("Failed to confirm payout:", err);
       setError(err.response?.data?.message || "Không thể xử lý thanh toán");
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleRejectPayout = async () => {
+    if (!selectedPayout || !rejectReason.trim()) {
+      setError("Vui lòng nhập lý do từ chối.");
+      return;
+    }
+
+    setProcessing(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      const result = await payoutAPI.rejectPayout(selectedPayout.bookingId, rejectReason.trim());
+      console.log("❌ Payout rejected:", result);
+      
+      if (result.success) {
+        setSuccess(result.message || `Đã từ chối thanh toán cho booking #${selectedPayout.bookingId} thành công`);
+        setRejectModalOpen(false);
+        setSelectedPayout(null);
+        setRejectReason("");
+        await loadPendingPayouts();
+      } else {
+        setError(result.message || "Không thể từ chối thanh toán");
+      }
+    } catch (err: any) {
+      console.error("Failed to reject payout:", err);
+      setError(err.response?.data?.message || "Không thể từ chối thanh toán");
     } finally {
       setProcessing(false);
     }
@@ -646,13 +679,27 @@ const PageAdminPayoutBooking: React.FC = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
                           {activeTab === "pending" ? (
-                            <ButtonPrimary
-                              onClick={() => handleProcessPayout(payout)}
-                              disabled={processing}
-                              className="min-w-[120px]"
-                            >
-                              Xử lý
-                            </ButtonPrimary>
+                            <div className="flex gap-2">
+                              <ButtonPrimary
+                                onClick={() => handleProcessPayout(payout)}
+                                disabled={processing}
+                                className="min-w-[100px]"
+                              >
+                                Xử lý
+                              </ButtonPrimary>
+                              <button
+                                onClick={() => {
+                                  setSelectedPayout(payout);
+                                  setRejectReason("");
+                                  setRejectModalOpen(true);
+                                }}
+                                className="px-3 py-1.5 bg-red-600 text-white rounded-md hover:bg-red-700 shadow-sm transition-colors font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                disabled={processing}
+                                title="Từ chối thanh toán"
+                              >
+                                ❌ Từ chối
+                              </button>
+                            </div>
                           ) : (
                             <span className="px-3 py-1 bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-300 rounded-full text-xs font-medium">
                               Đã thanh toán
@@ -1017,6 +1064,54 @@ const PageAdminPayoutBooking: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* MODAL TỪ CHỐI PAYOUT */}
+      {rejectModalOpen && selectedPayout && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm" style={{ position: 'fixed', width: '100%', height: '100%' }}>
+          <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-2xl p-6 w-full max-w-md mx-4 transform transition-all animate-fadeIn">
+            <h3 className="text-lg font-bold text-red-600 mb-4">
+              ❌ Từ chối thanh toán cho Host
+            </h3>
+            <p className="text-gray-600 mb-4">
+              Bạn có chắc chắn muốn từ chối thanh toán cho booking #{selectedPayout.bookingId}? Vui lòng nhập lý do từ chối.
+            </p>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Lý do từ chối <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                placeholder="Ví dụ: Booking có vấn đề về chất lượng dịch vụ, Khách hàng khiếu nại..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent dark:bg-neutral-700 dark:border-neutral-600 dark:text-white"
+                rows={4}
+                required
+              />
+            </div>
+
+            <div className="flex gap-3 justify-end">
+              <ButtonSecondary
+                onClick={() => {
+                  setRejectModalOpen(false);
+                  setSelectedPayout(null);
+                  setRejectReason("");
+                }}
+                disabled={processing}
+              >
+                Hủy
+              </ButtonSecondary>
+              <button
+                onClick={handleRejectPayout}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={processing || !rejectReason.trim()}
+              >
+                {processing ? "Đang xử lý..." : "Xác nhận từ chối"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

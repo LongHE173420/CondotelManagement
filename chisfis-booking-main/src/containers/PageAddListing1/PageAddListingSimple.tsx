@@ -38,7 +38,7 @@ const PageAddListingSimple: FC = () => {
   // Basic Info
   const [name, setName] = useState(formData.name || "");
   const [description, setDescription] = useState(formData.description || "");
-  const [status, setStatus] = useState(formData.status || "Pending");
+  const [status, setStatus] = useState(formData.status || "Active");
 
   // Location - tự động lấy từ resort (không cần chọn)
   // Location sẽ được lấy tự động từ resort khi có resortId
@@ -80,7 +80,7 @@ const PageAddListingSimple: FC = () => {
   const [priceStartDate, setPriceStartDate] = useState("");
   const [priceEndDate, setPriceEndDate] = useState("");
   const [basePrice, setBasePrice] = useState<number>(0);
-  const [priceType, setPriceType] = useState("Regular");
+  const [priceType, setPriceType] = useState("Default");
   const [priceDescription, setPriceDescription] = useState("");
 
   // ResortId
@@ -308,7 +308,7 @@ const PageAddListingSimple: FC = () => {
       setPriceStartDate("");
       setPriceEndDate("");
       setBasePrice(0);
-      setPriceType("Regular");
+      setPriceType("Default");
       setPriceDescription("");
     }
   };
@@ -396,7 +396,7 @@ const PageAddListingSimple: FC = () => {
         pricePerNight: Number(pricePerNight),
         beds: Number(beds),
         bathrooms: Number(bathrooms),
-        status: status, // "Pending", "Active", "Inactive", "Available", "Unavailable"
+        status: status, // "Active" hoặc "Inactive"
         ...(description.trim() && { description: description.trim() }),
         // Images - chỉ cần imageUrl và caption (không cần imageId khi create)
         ...(images.length > 0 && { 
@@ -513,9 +513,8 @@ const PageAddListingSimple: FC = () => {
 
               <FormItem label="Trạng thái">
                 <Select value={status} onChange={(e) => setStatus(e.target.value)}>
-                  <option value="Pending">Pending</option>
-                  <option value="Available">Available</option>
-                  <option value="Unavailable">Unavailable</option>
+                  <option value="Active">Active (Hoạt động)</option>
+                  <option value="Inactive">Inactive (Không hoạt động)</option>
                 </Select>
               </FormItem>
             </div>
@@ -790,10 +789,10 @@ const PageAddListingSimple: FC = () => {
 
                 <FormItem label="Loại giá">
                   <Select value={priceType} onChange={(e) => setPriceType(e.target.value)}>
-                    <option value="Regular">Thường</option>
-                    <option value="Weekend">Cuối tuần</option>
+                    <option value="Default">Mặc định</option>
+                    <option value="Seasonal">Theo mùa</option>
                     <option value="Holiday">Ngày lễ</option>
-                    <option value="Peak">Cao điểm</option>
+                    <option value="Weekend">Cuối tuần</option>
                   </Select>
                 </FormItem>
 

@@ -89,11 +89,55 @@ export const adminPackageAPI = {
     },
 
     // ============ THÊM PHẦN CATALOG ============
+    // Helper function to normalize CatalogPackage (handle missing columns gracefully)
+    normalizeCatalogPackage: (item: any): CatalogPackage => {
+        return {
+            packageId: item.PackageId || item.packageId || 0,
+            name: item.Name || item.name || "",
+            price: item.Price !== undefined ? item.Price : item.price,
+            durationDays: item.DurationDays !== undefined ? item.DurationDays : (item.durationDays !== undefined ? item.durationDays : null),
+            description: item.Description || item.description || null,
+            isActive: item.IsActive !== undefined ? item.IsActive : (item.isActive !== undefined ? item.isActive : false),
+            // Handle missing columns with default values
+            maxListingCount: item.MaxListingCount !== undefined ? item.MaxListingCount : (item.maxListingCount !== undefined ? item.maxListingCount : 0),
+            canUseFeaturedListing: item.CanUseFeaturedListing !== undefined ? item.CanUseFeaturedListing : (item.canUseFeaturedListing !== undefined ? item.canUseFeaturedListing : false),
+            maxBlogRequestsPerMonth: item.MaxBlogRequestsPerMonth !== undefined ? item.MaxBlogRequestsPerMonth : (item.maxBlogRequestsPerMonth !== undefined ? item.maxBlogRequestsPerMonth : 0),
+            isVerifiedBadgeEnabled: item.IsVerifiedBadgeEnabled !== undefined ? item.IsVerifiedBadgeEnabled : (item.isVerifiedBadgeEnabled !== undefined ? item.isVerifiedBadgeEnabled : false),
+            displayColorTheme: item.DisplayColorTheme || item.displayColorTheme || "default",
+            priorityLevel: item.PriorityLevel !== undefined ? item.PriorityLevel : (item.priorityLevel !== undefined ? item.priorityLevel : 0),
+        };
+    },
+
     getCatalog: async (): Promise<CatalogPackage[]> => {
-        const response = await axiosClient.get<CatalogPackage[]>(
-            "/admin/packages/catalog"
-        );
-        return response.data;
+        try {
+            const response = await axiosClient.get<any>(
+                "/admin/packages/catalog"
+            );
+            const data = Array.isArray(response.data) ? response.data : (response.data?.data || []);
+            if (!Array.isArray(data)) {
+                console.warn("AdminPackageAPI.getCatalog: Expected an array, but received:", response.data);
+                return [];
+            }
+            return data.map(adminPackageAPI.normalizeCatalogPackage);
+        } catch (error: any) {
+            // Check if error is related to missing database columns
+            const errorMessage = error.response?.data?.message || error.message || "";
+            if (errorMessage.includes("Invalid column name") || 
+                errorMessage.includes("CanUseFeaturedListing") || 
+                errorMessage.includes("DisplayColorTheme") ||
+                errorMessage.includes("IsVerifiedBadgeEnabled") ||
+                errorMessage.includes("MaxBlogRequestsPerMonth") ||
+                errorMessage.includes("MaxListingCount") ||
+                errorMessage.includes("PriorityLevel")) {
+                console.warn("⚠️ Backend database missing columns. Returning empty array. Backend needs to add columns or fix query.");
+                console.warn("Error details:", errorMessage);
+                // Return empty array to prevent crashes - backend needs to fix this
+                return [];
+            }
+            console.error("Error fetching catalog packages:", error);
+            // Return empty array on error to prevent crashes
+            return [];
+        }
     },
 
     createCatalog: async (data: CreatePackageDto): Promise<any> => {

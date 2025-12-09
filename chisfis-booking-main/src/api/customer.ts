@@ -39,9 +39,11 @@ export interface CustomerBookingInfo {
 export const customerAPI = {
   // GET /api/host/Customer - Lấy tất cả customers đã đặt phòng của host
   getCustomers: async (): Promise<CustomerDTO[]> => {
-    const response = await axiosClient.get<any[]>("/host/Customer");
+    const response = await axiosClient.get<any>("/host/Customer");
     // Normalize response từ backend (PascalCase -> camelCase)
-    return response.data.map((item: any) => ({
+    // Handle both array and object with data property
+    const data = Array.isArray(response.data) ? response.data : (response.data?.data || []);
+    return data.map((item: any) => ({
       userId: item.UserId || item.userId,
       fullName: item.FullName || item.fullName,
       email: item.Email || item.email,
