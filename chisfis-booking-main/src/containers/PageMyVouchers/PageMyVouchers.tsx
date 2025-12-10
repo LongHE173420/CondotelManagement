@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import voucherAPI, { VoucherDTO } from "api/voucher";
 import moment from "moment";
+import { useAuth } from "contexts/AuthContext";
 
 interface Voucher {
   id: string;
@@ -44,18 +45,45 @@ const VoucherCard: React.FC<{ voucher: Voucher }> = ({ voucher }) => {
 
 // --- Component Trang Ví Voucher (Tenant) ---
 const PageMyVouchers = () => {
+  const navigate = useNavigate();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   // 2. KHỞI TẠO STATE RỖNG VÀ THÊM LOADING
   const [vouchers, setVouchers] = useState<Voucher[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // 3. DÙNG useEffect ĐỂ GỌI API KHI TRANG TẢI
   useEffect(() => {
     const fetchMyVouchers = async () => {
+      // Wait for auth to finish loading
+      if (authLoading) {
+        return; // Don't proceed until auth is initialized
+      }
+
+      // Check authentication
+      if (!isAuthenticated || !user) {
+        setError("Vui lòng đăng nhập để xem voucher của bạn");
+        setIsLoading(false);
+        // Redirect to login after 2 seconds
+        setTimeout(() => {
+          navigate("/login");
+        }, 2000);
+        return;
+      }
+
       setIsLoading(true);
+      setError(null);
       try {
         console.log("🔄 Loading my vouchers...");
         const vouchersData = await voucherAPI.getMyVouchers();
         console.log("✅ My vouchers loaded:", vouchersData);
+        
+        // Check if vouchersData is valid
+        if (!vouchersData || !Array.isArray(vouchersData)) {
+          console.warn("⚠️ Invalid vouchers data format:", vouchersData);
+          setVouchers([]);
+          return;
+        }
         
         // Filter: chỉ lấy voucher active và chưa hết hạn
         const now = new Date();
@@ -85,8 +113,9 @@ const PageMyVouchers = () => {
         setVouchers(mappedVouchers);
         console.log("✅ Mapped vouchers:", mappedVouchers.length);
       
-      } catch (error) {
+      } catch (error: any) {
         console.error("❌ Lỗi khi tải voucher của bạn:", error);
+        setError(error.response?.data?.message || error.message || "Không thể tải voucher. Vui lòng thử lại sau.");
         setVouchers([]);
       } finally {
         setIsLoading(false);
@@ -94,7 +123,7 @@ const PageMyVouchers = () => {
     };
 
     fetchMyVouchers();
-  }, []); // Mảng rỗng `[]` nghĩa là chỉ chạy 1 lần khi component mount
+  }, [user, isAuthenticated, authLoading, navigate]); // Re-run when auth state changes
 
   return (
     <div className="p-4 md:p-8 bg-gray-100 min-h-screen">
@@ -108,13 +137,31 @@ const PageMyVouchers = () => {
       </div>
 
       {/* --- 4. XỬ LÝ TRẠNG THÁI LOADING VÀ RỖNG --- */}
-      {isLoading ? (
+      {authLoading || isLoading ? (
         <div className="max-w-7xl mx-auto text-center py-10">
-          <p>Đang tải voucher...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">
+            {authLoading ? "Đang kiểm tra đăng nhập..." : "Đang tải voucher..."}
+          </p>
+        </div>
+      ) : error ? (
+        <div className="max-w-7xl mx-auto text-center py-10">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md mx-auto">
+            <p className="text-red-800 font-semibold mb-2">Lỗi</p>
+            <p className="text-red-600">{error}</p>
+          </div>
         </div>
       ) : vouchers.length === 0 ? (
         <div className="max-w-7xl mx-auto text-center py-10">
-          <p>Bạn chưa có voucher nào.</p>
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 max-w-md mx-auto">
+            <p className="text-gray-600 text-lg">Bạn chưa có voucher nào.</p>
+            <Link 
+              to="/listing-stay"
+              className="mt-4 inline-block px-6 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 transition-colors"
+            >
+              Khám phá condotel
+            </Link>
+          </div>
         </div>
       ) : (
         <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

@@ -40,7 +40,7 @@ const ListingStayPage: FC<ListingStayPageProps> = ({ className = "" }) => {
           const locationId = Number(searchLocationId);
           if (!isNaN(locationId)) {
             const locationData = await locationAPI.getByIdPublic(locationId);
-            setLocationName(locationData.locationName);
+            setLocationName(locationData.name);
           }
         } catch (err) {
           console.error("Error loading location name:", err);

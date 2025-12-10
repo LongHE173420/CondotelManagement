@@ -11,6 +11,29 @@ export interface ResortDTO {
   country?: string;
 }
 
+// Resort Utility Request DTO - Dùng khi thêm utility vào resort
+export interface ResortUtilityRequestDTO {
+  utilityId: number;
+  status?: string; // Active, Inactive
+  operatingHours?: string; // "8:00 - 22:00"
+  cost?: number; // Chi phí sử dụng
+  descriptionDetail?: string; // Mô tả chi tiết
+  maximumCapacity?: number; // Sức chứa tối đa
+}
+
+// Resort Utility DTO - Utility với thông tin bổ sung khi đã được thêm vào resort
+export interface ResortUtilityDTO {
+  utilityId: number;
+  name: string;
+  description?: string;
+  category?: string;
+  status?: string;
+  operatingHours?: string;
+  cost?: number;
+  descriptionDetail?: string;
+  maximumCapacity?: number;
+}
+
 // API Calls
 export const resortAPI = {
   // GET /api/host/resorts - Lấy tất cả resorts
@@ -171,6 +194,64 @@ export const resortAPI = {
   // DELETE /api/admin/resorts/{id} - Xóa resort (admin only)
   deleteAdmin: async (id: number): Promise<void> => {
     await axiosClient.delete(`/admin/resorts/${id}`);
+  },
+
+  // POST /api/admin/resorts/{resortId}/utilities - Thêm utility vào resort (admin only)
+  addUtility: async (resortId: number, utility: ResortUtilityRequestDTO): Promise<void> => {
+    const requestData: any = {
+      utilityId: utility.utilityId,
+    };
+    
+    if (utility.status) {
+      requestData.status = utility.status;
+    }
+    
+    if (utility.operatingHours) {
+      requestData.operatingHours = utility.operatingHours;
+    }
+    
+    if (utility.cost !== undefined) {
+      requestData.cost = utility.cost;
+    }
+    
+    if (utility.descriptionDetail) {
+      requestData.descriptionDetail = utility.descriptionDetail;
+    }
+    
+    if (utility.maximumCapacity !== undefined) {
+      requestData.maximumCapacity = utility.maximumCapacity;
+    }
+    
+    await axiosClient.post(`/admin/resorts/${resortId}/utilities`, requestData);
+  },
+
+  // GET /api/admin/resorts/{resortId}/utilities - Lấy danh sách utilities của resort (admin only)
+  getUtilitiesByResortAdmin: async (resortId: number): Promise<ResortUtilityDTO[]> => {
+    const response = await axiosClient.get<any>(`/admin/resorts/${resortId}/utilities`);
+    const data = response.data;
+    
+    // Backend có thể trả về { success, data, message } hoặc array trực tiếp
+    const utilities = data.success && data.data 
+      ? data.data 
+      : (Array.isArray(data) ? data : (data.data || []));
+    
+    // Normalize utilities - có thể có thêm thông tin như status, operatingHours, cost, etc.
+    return utilities.map((item: any): ResortUtilityDTO => ({
+      utilityId: item.UtilityId || item.utilityId,
+      name: item.Name || item.name,
+      description: item.Description || item.description,
+      category: item.Category || item.category,
+      status: item.Status || item.status,
+      operatingHours: item.OperatingHours || item.operatingHours,
+      cost: item.Cost !== undefined ? item.Cost : item.cost,
+      descriptionDetail: item.DescriptionDetail || item.descriptionDetail,
+      maximumCapacity: item.MaximumCapacity !== undefined ? item.MaximumCapacity : item.maximumCapacity,
+    }));
+  },
+
+  // DELETE /api/admin/resorts/{resortId}/utilities/{utilityId} - Xóa utility khỏi resort (admin only)
+  removeUtility: async (resortId: number, utilityId: number): Promise<void> => {
+    await axiosClient.delete(`/admin/resorts/${resortId}/utilities/${utilityId}`);
   },
 };
 

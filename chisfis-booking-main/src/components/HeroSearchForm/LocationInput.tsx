@@ -36,7 +36,7 @@ const LocationInput: FC<LocationInputProps> = ({
     if (defaultValue !== value) {
       setValue(defaultValue);
       // Notify parent component when defaultValue changes
-      if (onChange && defaultValue) {
+      if (onChange) {
         onChange(defaultValue);
       }
     }
@@ -66,7 +66,7 @@ const LocationInput: FC<LocationInputProps> = ({
   // Fetch location suggestions from API when user types
   useEffect(() => {
     const fetchLocationSuggestions = async () => {
-      if (!value || value.length < 2) {
+      if (!value || value.length < 1) {
         setLocationSuggestions([]);
         return;
       }
@@ -78,11 +78,17 @@ const LocationInput: FC<LocationInputProps> = ({
         
         // Extract unique resort names/locations
         const uniqueLocations = new Set<string>();
-        condotels.forEach((condotel: any) => {
-          if (condotel.resortName) {
-            uniqueLocations.add(condotel.resortName);
-          }
-        });
+        if (Array.isArray(condotels)) {
+          condotels.forEach((condotel: any) => {
+            if (condotel.resortName) {
+              uniqueLocations.add(condotel.resortName);
+            }
+            // Also check location name if available
+            if (condotel.locationName) {
+              uniqueLocations.add(condotel.locationName);
+            }
+          });
+        }
         
         // Also add the search value itself if it matches
         if (value.trim()) {
@@ -92,18 +98,23 @@ const LocationInput: FC<LocationInputProps> = ({
         setLocationSuggestions(Array.from(uniqueLocations).slice(0, 10));
       } catch (err) {
         console.error("Error fetching location suggestions:", err);
+        // Don't set empty array on error - let hardcoded locations show
         setLocationSuggestions([]);
       } finally {
         setLoadingSuggestions(false);
       }
     };
 
-    // Debounce API call
-    const timeoutId = setTimeout(() => {
-      fetchLocationSuggestions();
-    }, 300);
+    // Debounce API call - only call if value length >= 2
+    if (value.length >= 2) {
+      const timeoutId = setTimeout(() => {
+        fetchLocationSuggestions();
+      }, 300);
 
-    return () => clearTimeout(timeoutId);
+      return () => clearTimeout(timeoutId);
+    } else {
+      setLocationSuggestions([]);
+    }
   }, [value]);
 
   const eventClickOutsideDiv = (event: MouseEvent) => {
@@ -117,9 +128,41 @@ const LocationInput: FC<LocationInputProps> = ({
   };
 
   const handleSelectLocation = (item: string) => {
-    setValue(item);
-    onInputDone && onInputDone(item);
+    const selectedLocation = item.trim();
+    console.log("🔍 LocationInput - Location selected:", selectedLocation);
+    
+    // Update local state
+    setValue(selectedLocation);
+    
+    // Update parent component immediately - call onChange first
+    if (onChange) {
+      onChange(selectedLocation);
+    }
+    
+    // Then call onInputDone
+    if (onInputDone) {
+      onInputDone(selectedLocation);
+    }
+    
     setShowPopover(false);
+    
+    // Trigger form submit after a short delay to ensure state is updated in parent
+    setTimeout(() => {
+      // Find the form element and submit it
+      const form = containerRef.current?.closest('form');
+      if (form) {
+        console.log("🔍 LocationInput - Auto-submitting form with location:", selectedLocation);
+        // Use requestSubmit to trigger form validation and submit
+        const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
+        form.dispatchEvent(submitEvent);
+        // Also try direct submit as fallback
+        if (form.requestSubmit) {
+          form.requestSubmit();
+        } else {
+          (form as HTMLFormElement).submit();
+        }
+      }
+    }, 150);
   };
 
   const renderRecentSearches = () => {
@@ -223,7 +266,8 @@ const LocationInput: FC<LocationInputProps> = ({
     if (allSuggestions.length === 0 && value.length >= 2) {
       return (
         <div className="px-4 sm:px-8 py-4 sm:py-5 text-center text-neutral-500">
-          Không tìm thấy địa điểm. Bạn có thể tìm kiếm với tên địa điểm khác.
+          <p>Không tìm thấy địa điểm gợi ý.</p>
+          <p className="mt-2 text-sm">Bạn vẫn có thể tìm kiếm với keyword "{value.trim()}"</p>
         </div>
       );
     }
@@ -267,11 +311,19 @@ const LocationInput: FC<LocationInputProps> = ({
     );
   };
 
+  const handleInputFocus = () => {
+    setShowPopover(true);
+  };
+
+  const handleInputClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowPopover(true);
+  };
+
   return (
     <div className={`relative flex ${className}`} ref={containerRef}>
       <div
-        onClick={() => setShowPopover(true)}
-        className={`flex flex-1 relative [ nc-hero-field-padding ] flex-shrink-0 items-center space-x-3 cursor-pointer focus:outline-none text-left  ${
+        className={`flex flex-1 relative [ nc-hero-field-padding ] flex-shrink-0 items-center space-x-3 text-left  ${
           showPopover ? "nc-hero-field-focused" : ""
         }`}
       >
@@ -303,9 +355,26 @@ const LocationInput: FC<LocationInputProps> = ({
             placeholder={placeHolder}
             value={value}
             autoFocus={showPopover}
+            onFocus={handleInputFocus}
+            onClick={handleInputClick}
             onChange={(e) => {
-              setValue(e.currentTarget.value);
-              onChange && onChange(e.currentTarget.value);
+              const newValue = e.currentTarget.value;
+              setValue(newValue);
+              setShowPopover(true); // Show suggestions when typing
+              if (onChange) {
+                onChange(newValue);
+              }
+            }}
+            onKeyDown={(e) => {
+              // Allow Enter key to submit form without closing popover
+              if (e.key === "Enter") {
+                // Let form handle submit
+                return;
+              }
+              // Close popover on Escape
+              if (e.key === "Escape") {
+                setShowPopover(false);
+              }
             }}
             ref={inputRef}
           />
@@ -316,7 +385,9 @@ const LocationInput: FC<LocationInputProps> = ({
             <ClearDataButton
               onClick={() => {
                 setValue("");
-                onChange && onChange("");
+                if (onChange) {
+                  onChange("");
+                }
               }}
             />
           )}
@@ -324,7 +395,44 @@ const LocationInput: FC<LocationInputProps> = ({
       </div>
       {showPopover && (
         <div className="absolute left-0 z-40 w-full min-w-[300px] sm:min-w-[500px] bg-white dark:bg-neutral-800 top-full mt-3 py-3 sm:py-6 rounded-3xl shadow-xl max-h-96 overflow-y-auto">
-          {value ? renderSearchValue() : renderRecentSearches()}
+          {value ? (
+            <>
+              {renderSearchValue()}
+              {/* Show option to search with current keyword */}
+              {value.trim().length > 0 && (
+                <div className="border-t border-neutral-200 dark:border-neutral-700 mt-2 pt-2">
+                  <div
+                    onClick={() => {
+                      setShowPopover(false);
+                    }}
+                    className="flex px-4 sm:px-8 items-center space-x-3 sm:space-x-4 py-4 sm:py-5 hover:bg-neutral-100 dark:hover:bg-neutral-700 cursor-pointer bg-primary-50 dark:bg-primary-900/20"
+                  >
+                    <span className="block text-primary-600 dark:text-primary-400">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-5 w-5"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                        />
+                      </svg>
+                    </span>
+                    <span className="block font-medium text-primary-600 dark:text-primary-400">
+                      Tìm kiếm với "{value.trim()}"
+                    </span>
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            renderRecentSearches()
+          )}
         </div>
       )}
     </div>

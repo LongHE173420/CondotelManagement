@@ -51,7 +51,7 @@ const SectionGridFeaturePlaces: FC<SectionGridFeaturePlacesProps> = ({
         const locationsData = await locationAPI.getAllPublic();
         
         // Create tabs from location names
-        const tabsList = locationsData.map(loc => loc.locationName);
+        const tabsList = locationsData.map(loc => loc.name || `Location ${loc.locationId}`).filter(name => name);
         setLocationTabs(tabsList.length > 0 ? tabsList : (tabs || [
           t.home.destinations.hanoi,
           t.home.destinations.hoChiMinh,
@@ -64,7 +64,10 @@ const SectionGridFeaturePlaces: FC<SectionGridFeaturePlacesProps> = ({
         // Create map from location name to locationId
         const map = new Map<string, number>();
         locationsData.forEach(loc => {
-          map.set(loc.locationName, loc.locationId);
+          const locationName = loc.name || `Location ${loc.locationId}`;
+          if (locationName) {
+            map.set(locationName, loc.locationId);
+          }
         });
         setLocationMap(map);
         

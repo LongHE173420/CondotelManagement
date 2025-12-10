@@ -3,6 +3,8 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import bookingAPI, { BookingDTO } from "api/booking";
 import condotelAPI, { CondotelDetailDTO } from "api/condotel";
 import reviewAPI from "api/review";
+import { useAuth } from "contexts/AuthContext";
+import { validateBookingOwnership } from "utils/bookingSecurity";
 
 // Format số tiền
 const formatPrice = (price: number | undefined): string => {
@@ -67,12 +69,14 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
 const PageBookingHistoryDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
   const [booking, setBooking] = useState<BookingDTO | null>(null);
   const [condotel, setCondotel] = useState<CondotelDetailDTO | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [canReview, setCanReview] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [unauthorized, setUnauthorized] = useState(false);
 
   // Fetch booking và condotel details
   useEffect(() => {
@@ -83,13 +87,37 @@ const PageBookingHistoryDetail = () => {
         return;
       }
 
+      // Check authentication first
+      if (!isAuthenticated || !user) {
+        setError("Vui lòng đăng nhập để xem thông tin booking");
+        setUnauthorized(true);
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
         setError("");
 
         // Fetch booking detail
         const bookingData = await bookingAPI.getBookingById(parseInt(id));
-        setBooking(bookingData);
+        
+        // SECURITY CHECK: Verify user owns this booking
+        try {
+          validateBookingOwnership(bookingData, user);
+          setBooking(bookingData);
+          setUnauthorized(false);
+        } catch (securityError: any) {
+          console.error("Security error:", securityError);
+          setError(securityError.message || "Bạn không có quyền truy cập booking này");
+          setUnauthorized(true);
+          setBooking(null);
+          // Redirect to home after 3 seconds
+          setTimeout(() => {
+            navigate("/");
+          }, 3000);
+          return;
+        }
 
         // Fetch condotel detail
         if (bookingData.condotelId) {
@@ -117,14 +145,19 @@ const PageBookingHistoryDetail = () => {
         }
       } catch (err: any) {
         console.error("Error fetching booking detail:", err);
-        setError("Không thể tải chi tiết đặt phòng. Vui lòng thử lại sau.");
+        if (err.response?.status === 403 || err.response?.status === 401) {
+          setError("Bạn không có quyền truy cập booking này");
+          setUnauthorized(true);
+        } else {
+          setError("Không thể tải chi tiết đặt phòng. Vui lòng thử lại sau.");
+        }
       } finally {
         setLoading(false);
       }
     };
 
     fetchData();
-  }, [id]);
+  }, [id, user, isAuthenticated, navigate]);
 
   // Tính số đêm
   const calculateNights = (): number => {

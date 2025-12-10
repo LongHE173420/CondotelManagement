@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import StartRating from "components/StartRating/StartRating";
 import BtnLikeIcon from "components/BtnLikeIcon/BtnLikeIcon";
 import { CondotelDTO } from "api/condotel";
+import { calculateFinalPrice } from "utils/priceCalculator";
 
 export interface CondotelCardProps {
   className?: string;
@@ -25,6 +26,7 @@ const CondotelCard: FC<CondotelCardProps> = ({
     thumbnailUrl,
     resortName,
     activePromotion,
+    activePrice,
   } = data;
 
   const formatPrice = (price: number) => {
@@ -34,23 +36,14 @@ const CondotelCard: FC<CondotelCardProps> = ({
     }).format(price);
   };
 
-  // Tính giá sau khi giảm giá (nếu có promotion)
-  const calculateDiscountedPrice = () => {
-    if (!activePromotion) return pricePerNight;
-    
-    if (activePromotion.discountPercentage) {
-      // Giảm theo phần trăm
-      return pricePerNight * (1 - activePromotion.discountPercentage / 100);
-    } else if (activePromotion.discountAmount) {
-      // Giảm theo số tiền cố định
-      return Math.max(0, pricePerNight - activePromotion.discountAmount);
-    }
-    
-    return pricePerNight;
-  };
+  // Tính giá cuối cùng: basePrice (từ activePrice hoặc pricePerNight) + promotion
+  const { basePrice, finalPrice, discountAmount } = calculateFinalPrice(
+    pricePerNight,
+    activePrice,
+    activePromotion
+  );
 
-  const discountedPrice = calculateDiscountedPrice();
-  const hasDiscount = activePromotion && discountedPrice < pricePerNight;
+  const hasDiscount = discountAmount > 0;
 
   const renderSliderGallery = () => {
     return (
@@ -131,7 +124,7 @@ const CondotelCard: FC<CondotelCardProps> = ({
               {hasDiscount ? (
                 <>
                   <span className="text-base font-semibold text-red-600 dark:text-red-400">
-                    {formatPrice(discountedPrice)}
+                    {formatPrice(finalPrice)}
                     {size === "default" && (
                       <span className="text-sm text-neutral-500 dark:text-neutral-400 font-normal">
                         /đêm
@@ -139,12 +132,12 @@ const CondotelCard: FC<CondotelCardProps> = ({
                     )}
                   </span>
                   <span className="text-xs text-neutral-400 dark:text-neutral-500 line-through">
-                    {formatPrice(pricePerNight)}
+                    {formatPrice(basePrice)}
                   </span>
                 </>
               ) : (
                 <span className="text-base font-semibold">
-                  {formatPrice(pricePerNight)}
+                  {formatPrice(basePrice)}
                   {size === "default" && (
                     <span className="text-sm text-neutral-500 dark:text-neutral-400 font-normal">
                       /đêm

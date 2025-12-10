@@ -7,7 +7,7 @@ import SectionSubscribe2 from "components/SectionSubscribe2/SectionSubscribe2";
 import BgGlassmorphism from "components/BgGlassmorphism/BgGlassmorphism";
 import BackgroundSection from "components/BackgroundSection/BackgroundSection";
 import SectionHero from "./SectionHero";
-import SectionClientSay from "components/SectionClientSay/SectionClientSay";
+import SectionOurFeatures from "components/SectionOurFeatures/SectionOurFeatures";
 
 export interface PageAboutProps {
   className?: string;
@@ -37,7 +37,7 @@ const PageAbout: FC<PageAboutProps> = ({ className = "" }) => {
         <SectionFounder />
         <div className="relative py-16">
           <BackgroundSection />
-          <SectionClientSay uniqueClassName="PageAbout_" />
+          <SectionOurFeatures type="type2" />
         </div>
 
         <SectionStatistic />

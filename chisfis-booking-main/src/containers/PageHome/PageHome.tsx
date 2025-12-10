@@ -12,7 +12,6 @@ import SectionGridAuthorBox from "components/SectionGridAuthorBox/SectionGridAut
 import SectionGridCategoryBox from "components/SectionGridCategoryBox/SectionGridCategoryBox";
 import SectionBecomeAnAuthor from "components/SectionBecomeAnAuthor/SectionBecomeAnAuthor";
 import SectionVideos from "./SectionVideos";
-import SectionClientSay from "components/SectionClientSay/SectionClientSay";
 import { useTranslation } from "i18n/LanguageContext";
 import locationAPI, { LocationDTO } from "api/location";
 import condotelAPI from "api/condotel";
@@ -34,10 +33,10 @@ function PageHome() {
         const convertedLocations: TaxonomyType[] = locationsData.map((loc: LocationDTO, index: number) => ({
           id: loc.locationId.toString(),
           href: `/listing-stay?locationId=${loc.locationId}`,
-          name: loc.locationName,
+          name: loc.name || `Location ${loc.locationId}`,
           taxonomy: "category",
           count: 0, // Will be updated after fetching condotel count
-          thumbnail: `https://images.unsplash.com/photo-1528181304800-259b08848526?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80&sig=${loc.locationId}`,
+          thumbnail: loc.imageUrl || `https://images.unsplash.com/photo-1528181304800-259b08848526?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80&sig=${loc.locationId}`,
         }));
 
         // Fetch condotel count for each location
@@ -272,7 +271,7 @@ function PageHome() {
         {/* SECTION */}
         <div className="relative py-16">
           <BackgroundSection />
-          <SectionClientSay uniqueClassName="PageHome_" />
+          <SectionOurFeatures type="type2" />
         </div>
       </div>
     </div>

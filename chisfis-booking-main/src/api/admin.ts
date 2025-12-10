@@ -163,13 +163,14 @@ export const adminAPI = {
     return response.data;
   },
 
-  // POST /api/admin/refund-requests/{bookingId}/reject - Từ chối yêu cầu hoàn tiền
+  // POST /api/admin/refund-requests/{refundRequestId}/reject - Từ chối yêu cầu hoàn tiền
+  // Lưu ý: Backend expect refundRequestId, không phải bookingId
   rejectRefundRequest: async (
-    bookingId: number,
+    refundRequestId: number,
     reason: string
   ): Promise<{ success: boolean; message: string }> => {
     const response = await axiosClient.post<{ success: boolean; message: string }>(
-      `/admin/refund-requests/${bookingId}/reject`,
+      `/admin/refund-requests/${refundRequestId}/reject`,
       { reason }
     );
     return response.data;

@@ -8,7 +8,7 @@ import Input from "shared/Input/Input";
 import Select from "shared/Select/Select";
 import CommonLayout from "./CommonLayout";
 import FormItem from "./FormItem";
-import locationAPI from "api/location";
+import locationAPI, { LocationDTO } from "api/location";
 import resortAPI from "api/resort";
 import { useAddCondotel } from "./_context";
 
@@ -16,7 +16,7 @@ export interface PageAddListing2Props {}
 
 const PageAddListing2: FC<PageAddListing2Props> = () => {
   const { formData, setFormData } = useAddCondotel();
-  const [location, setLocation] = React.useState<{ locationId: number; locationName: string; address: string; city?: string; country?: string } | null>(null);
+  const [location, setLocation] = React.useState<LocationDTO | null>(null);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState("");
 
@@ -34,10 +34,7 @@ const PageAddListing2: FC<PageAddListing2Props> = () => {
               ...prev,
               locationId: foundLocation.locationId,
               location: foundLocation,
-              locationName: foundLocation.locationName,
-              address: foundLocation.address,
-              city: foundLocation.city || "",
-              country: foundLocation.country || "Viet Nam",
+              locationName: foundLocation.name || "",
             }));
             return;
           }
@@ -55,10 +52,7 @@ const PageAddListing2: FC<PageAddListing2Props> = () => {
                 ...prev,
                 locationId: foundLocation.locationId,
                 location: foundLocation,
-                locationName: foundLocation.locationName,
-                address: foundLocation.address,
-                city: foundLocation.city || "",
-                country: foundLocation.country || "Viet Nam",
+                locationName: foundLocation.name || "",
               }));
               return;
             }
@@ -120,10 +114,13 @@ const PageAddListing2: FC<PageAddListing2Props> = () => {
                 Địa điểm đã được tự động lấy từ resort đã chọn.
               </p>
               <div className="space-y-1 text-sm">
-                <p><strong>Tên:</strong> {location.locationName}</p>
-                <p><strong>Địa chỉ:</strong> {location.address}</p>
-                {location.city && <p><strong>Thành phố:</strong> {location.city}</p>}
-                {location.country && <p><strong>Quốc gia:</strong> {location.country}</p>}
+                <p><strong>Tên:</strong> {location.name}</p>
+                {location.description && <p><strong>Mô tả:</strong> {location.description}</p>}
+                {location.imageUrl && (
+                  <div className="mt-2">
+                    <img src={location.imageUrl} alt={location.name} className="w-full h-32 object-cover rounded-lg" />
+                  </div>
+                )}
               </div>
             </div>
           ) : formData.locationId ? (

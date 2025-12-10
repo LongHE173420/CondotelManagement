@@ -88,6 +88,7 @@ export interface CondotelDTO {
   resortName?: string;
   hostName?: string;
   activePromotion?: PromotionDTO | null; // Promotion đang active (nếu có)
+  activePrice?: PriceDTO | null; // Price đang active (nếu có)
 }
 
 // CondotelDetailDTO - Full details for detail/update
@@ -106,6 +107,10 @@ export interface CondotelDetailDTO {
   hostName?: string;
   hostImageUrl?: string;
 
+  // Resort info (nếu backend trả về)
+  resortName?: string;
+  resortAddress?: string;
+
   // Liên kết 1-n
   images?: ImageDTO[];
   prices?: PriceDTO[];
@@ -116,6 +121,7 @@ export interface CondotelDetailDTO {
   utilities?: UtilityDTO[];
   promotions?: PromotionDTO[]; // Danh sách tất cả promotions (không chỉ active)
   activePromotion?: PromotionDTO | null; // Promotion đang active (nếu có)
+  activePrice?: PriceDTO | null; // Price đang active (nếu có)
 }
 
 // CreateCondotelDTO - For creating new condotel (matches CondotelCreateDTO from backend)
@@ -270,12 +276,19 @@ export const condotelAPI = {
       console.log("✅ Search response:", response.data);
       console.log("✅ Response type:", Array.isArray(response.data) ? "Array" : typeof response.data);
 
-      // Normalize response - handle both array and object with data property
+      // Normalize response - handle both array, object with data property, and success wrapper
       let data: any[] = [];
       if (Array.isArray(response.data)) {
         data = response.data;
-      } else if (response.data && typeof response.data === 'object' && 'data' in response.data) {
-        data = Array.isArray(response.data.data) ? response.data.data : [];
+      } else if (response.data && typeof response.data === 'object') {
+        // Handle { success: true, data: [...] } wrapper
+        if ('data' in response.data) {
+          if (Array.isArray(response.data.data)) {
+            data = response.data.data;
+          } else {
+            data = [];
+          }
+        }
       }
 
       console.log("✅ Processed data count:", data.length);
@@ -292,17 +305,29 @@ export const condotelAPI = {
           }
         }
 
+        // Normalize activePrice
+        const rawActivePrice = item.ActivePrice || item.activePrice;
+        const normalizedActivePrice = rawActivePrice ? {
+          priceId: rawActivePrice.PriceId || rawActivePrice.priceId,
+          startDate: rawActivePrice.StartDate || rawActivePrice.startDate,
+          endDate: rawActivePrice.EndDate || rawActivePrice.endDate,
+          basePrice: rawActivePrice.BasePrice !== undefined ? rawActivePrice.BasePrice : rawActivePrice.basePrice,
+          priceType: rawActivePrice.PriceType || rawActivePrice.priceType,
+          description: rawActivePrice.Description || rawActivePrice.description,
+        } : null;
+
         return {
-          condotelId: item.CondotelId || item.condotelId,
-          name: item.Name || item.name,
-          pricePerNight: item.PricePerNight !== undefined ? item.PricePerNight : item.pricePerNight,
-          beds: item.Beds !== undefined ? item.Beds : item.beds,
-          bathrooms: item.Bathrooms !== undefined ? item.Bathrooms : item.bathrooms,
-          status: item.Status || item.status,
+        condotelId: item.CondotelId || item.condotelId,
+        name: item.Name || item.name,
+        pricePerNight: item.PricePerNight !== undefined ? item.PricePerNight : item.pricePerNight,
+        beds: item.Beds !== undefined ? item.Beds : item.beds,
+        bathrooms: item.Bathrooms !== undefined ? item.Bathrooms : item.bathrooms,
+        status: item.Status || item.status,
           thumbnailUrl: thumbnailUrl,
-          resortName: item.ResortName || item.resortName,
-          hostName: item.HostName || item.hostName,
-          activePromotion: normalizePromotion(item.ActivePromotion || item.activePromotion),
+        resortName: item.ResortName || item.resortName,
+        hostName: item.HostName || item.hostName,
+        activePromotion: normalizePromotion(item.ActivePromotion || item.activePromotion),
+          activePrice: normalizedActivePrice,
         };
       });
 
@@ -331,21 +356,39 @@ export const condotelAPI = {
     console.log("🔍 Raw Utilities:", data.Utilities || data.utilities);
     console.log("🔍 Raw Promotions:", data.Promotions || data.promotions);
     console.log("🔍 Raw ActivePromotion:", data.ActivePromotion || data.activePromotion);
+    console.log("🔍 Raw ActivePrice:", data.ActivePrice || data.activePrice);
+    console.log("🔍 Raw Resort:", data.Resort || data.resort);
 
     const rawAmenities = data.Amenities || data.amenities || [];
     const rawUtilities = data.Utilities || data.utilities || [];
     const rawPromotions = data.Promotions || data.promotions || [];
     const rawActivePromotion = data.ActivePromotion || data.activePromotion;
+    const rawActivePrice = data.ActivePrice || data.activePrice;
 
     const normalizedAmenities = normalizeAmenities(rawAmenities);
     const normalizedUtilities = normalizeUtilities(rawUtilities);
     const normalizedPromotions = normalizePromotions(rawPromotions);
     const normalizedActivePromotion = normalizePromotion(rawActivePromotion);
+    
+    // Normalize activePrice
+    const normalizedActivePrice = rawActivePrice ? {
+      priceId: rawActivePrice.PriceId || rawActivePrice.priceId,
+      startDate: rawActivePrice.StartDate || rawActivePrice.startDate,
+      endDate: rawActivePrice.EndDate || rawActivePrice.endDate,
+      basePrice: rawActivePrice.BasePrice !== undefined ? rawActivePrice.BasePrice : rawActivePrice.basePrice,
+      priceType: rawActivePrice.PriceType || rawActivePrice.priceType,
+      description: rawActivePrice.Description || rawActivePrice.description,
+    } : null;
 
     console.log("✅ Normalized Amenities:", normalizedAmenities);
     console.log("✅ Normalized Utilities:", normalizedUtilities);
     console.log("✅ Normalized Promotions:", normalizedPromotions);
     console.log("✅ Normalized ActivePromotion:", normalizedActivePromotion);
+    console.log("✅ Normalized ActivePrice:", normalizedActivePrice);
+
+    // Normalize Resort object nếu có
+    const resort = data.Resort || data.resort;
+    const resortAddress = resort?.Address || resort?.address || data.ResortAddress || data.resortAddress || "";
 
     // Normalize response - map PascalCase to camelCase
     return {
@@ -360,6 +403,8 @@ export const condotelAPI = {
       status: data.Status || data.status,
       hostName: data.HostName || data.hostName,
       hostImageUrl: data.HostImageUrl || data.hostImageUrl,
+      resortName: resort?.Name || resort?.name || data.ResortName || data.resortName,
+      resortAddress: resortAddress,
       images: data.Images || data.images || [],
       prices: data.Prices || data.prices || [],
       details: data.Details || data.details || [],
@@ -367,6 +412,7 @@ export const condotelAPI = {
       utilities: normalizedUtilities,
       promotions: normalizedPromotions,
       activePromotion: normalizedActivePromotion,
+      activePrice: normalizedActivePrice,
     };
   },
 
@@ -470,7 +516,19 @@ export const condotelAPI = {
       };
     };
 
-    return data.map((item: any) => ({
+    return data.map((item: any) => {
+      // Normalize activePrice
+      const rawActivePrice = item.ActivePrice || item.activePrice;
+      const normalizedActivePrice = rawActivePrice ? {
+        priceId: rawActivePrice.PriceId || rawActivePrice.priceId,
+        startDate: rawActivePrice.StartDate || rawActivePrice.startDate,
+        endDate: rawActivePrice.EndDate || rawActivePrice.endDate,
+        basePrice: rawActivePrice.BasePrice !== undefined ? rawActivePrice.BasePrice : rawActivePrice.basePrice,
+        priceType: rawActivePrice.PriceType || rawActivePrice.priceType,
+        description: rawActivePrice.Description || rawActivePrice.description,
+      } : null;
+
+      return {
       condotelId: item.CondotelId || item.condotelId,
       name: item.Name || item.name,
       pricePerNight: item.PricePerNight !== undefined ? item.PricePerNight : item.pricePerNight,
@@ -481,7 +539,9 @@ export const condotelAPI = {
       resortName: item.ResortName || item.resortName,
       hostName: item.HostName || item.hostName,
       activePromotion: normalizePromotion(item.ActivePromotion || item.activePromotion),
-    }));
+        activePrice: normalizedActivePrice,
+      };
+    });
   },
 
   // GET /api/host/condotel/{id} - Lấy condotel theo ID của host (cần đăng nhập)
@@ -493,6 +553,17 @@ export const condotelAPI = {
     const rawUtilities = data.Utilities || data.utilities || [];
     const rawPromotions = data.Promotions || data.promotions || [];
     const rawActivePromotion = data.ActivePromotion || data.activePromotion;
+    const rawActivePrice = data.ActivePrice || data.activePrice;
+
+    // Normalize activePrice
+    const normalizedActivePrice = rawActivePrice ? {
+      priceId: rawActivePrice.PriceId || rawActivePrice.priceId,
+      startDate: rawActivePrice.StartDate || rawActivePrice.startDate,
+      endDate: rawActivePrice.EndDate || rawActivePrice.endDate,
+      basePrice: rawActivePrice.BasePrice !== undefined ? rawActivePrice.BasePrice : rawActivePrice.basePrice,
+      priceType: rawActivePrice.PriceType || rawActivePrice.priceType,
+      description: rawActivePrice.Description || rawActivePrice.description,
+    } : null;
 
     return {
       condotelId: data.CondotelId || data.condotelId,
@@ -513,6 +584,7 @@ export const condotelAPI = {
       utilities: normalizeUtilities(rawUtilities),
       promotions: normalizePromotions(rawPromotions),
       activePromotion: normalizePromotion(rawActivePromotion),
+      activePrice: normalizedActivePrice,
     };
   },
 

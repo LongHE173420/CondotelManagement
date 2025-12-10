@@ -3,6 +3,8 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import bookingAPI, { BookingDTO } from "api/booking";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
 import ButtonSecondary from "shared/Button/ButtonSecondary";
+import { useAuth } from "contexts/AuthContext";
+import { validateBookingOwnership } from "utils/bookingSecurity";
 
 // Danh sách ngân hàng phổ biến ở Việt Nam
 const BANKS = [
@@ -26,8 +28,10 @@ const BANKS = [
 const PageRequestRefund = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
   const [booking, setBooking] = useState<BookingDTO | null>(null);
   const [loading, setLoading] = useState(true);
+  const [unauthorized, setUnauthorized] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
@@ -46,11 +50,35 @@ const PageRequestRefund = () => {
         return;
       }
 
+      // Check authentication first
+      if (!isAuthenticated || !user) {
+        setError("Vui lòng đăng nhập để xem thông tin booking");
+        setUnauthorized(true);
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
         setError("");
         const bookingData = await bookingAPI.getBookingById(parseInt(id));
-        setBooking(bookingData);
+        
+        // SECURITY CHECK: Verify user owns this booking
+        try {
+          validateBookingOwnership(bookingData, user);
+          setBooking(bookingData);
+          setUnauthorized(false);
+        } catch (securityError: any) {
+          console.error("Security error:", securityError);
+          setError(securityError.message || "Bạn không có quyền truy cập booking này");
+          setUnauthorized(true);
+          setBooking(null);
+          // Redirect to home after 3 seconds
+          setTimeout(() => {
+            navigate("/");
+          }, 3000);
+          return;
+        }
 
         // Kiểm tra điều kiện hoàn tiền
         const status = bookingData.status?.toLowerCase()?.trim();

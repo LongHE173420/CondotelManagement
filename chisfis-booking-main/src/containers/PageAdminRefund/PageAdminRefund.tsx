@@ -72,6 +72,7 @@ const PageAdminRefund = () => {
 
   // STATE CHO MODAL TỪ CHỐI
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [selectedRefundRequestId, setSelectedRefundRequestId] = useState<number | null>(null);
   const [rejectReason, setRejectReason] = useState("");
 
   // STATE CHO MODAL QR
@@ -367,31 +368,31 @@ const PageAdminRefund = () => {
 
   // --- HÀM TỪ CHỐI YÊU CẦU HOÀN TIỀN ---
   const handleRejectRefund = async () => {
-    if (!selectedBookingId || !rejectReason.trim()) {
+    if (!selectedRefundRequestId || !rejectReason.trim()) {
       alert("Vui lòng nhập lý do từ chối.");
       return;
     }
 
-    // Đảm bảo bookingId là number
-    let numericBookingId: number;
-    if (typeof selectedBookingId === 'number') {
-      numericBookingId = selectedBookingId;
-    } else if (typeof selectedBookingId === 'string') {
-      numericBookingId = parseInt(String(selectedBookingId).replace(/BOOK-/gi, ''), 10);
+    // Đảm bảo refundRequestId là number
+    let numericRefundRequestId: number;
+    if (typeof selectedRefundRequestId === 'number') {
+      numericRefundRequestId = selectedRefundRequestId;
+    } else if (typeof selectedRefundRequestId === 'string') {
+      numericRefundRequestId = parseInt(String(selectedRefundRequestId), 10);
     } else {
-      numericBookingId = selectedBookingId as number;
+      numericRefundRequestId = selectedRefundRequestId as number;
     }
 
-    console.log("❌ Rejecting refund request for bookingId:", numericBookingId, "reason:", rejectReason);
+    console.log("❌ Rejecting refund request for refundRequestId:", numericRefundRequestId, "reason:", rejectReason);
 
     setProcessing(true);
     try {
-      const result = await adminAPI.rejectRefundRequest(numericBookingId, rejectReason.trim());
+      const result = await adminAPI.rejectRefundRequest(numericRefundRequestId, rejectReason.trim());
       
       if (result.success) {
         alert(result.message || "Đã từ chối yêu cầu hoàn tiền thành công!");
         setRejectModalOpen(false);
-        setSelectedBookingId(null);
+        setSelectedRefundRequestId(null);
         setRejectReason("");
         loadRefundRequests(); // Reload danh sách
       } else {
@@ -772,9 +773,14 @@ const PageAdminRefund = () => {
                         </button>
                         <button
                               onClick={() => {
-                                setSelectedBookingId(req.bookingId);
-                                setRejectReason("");
-                                setRejectModalOpen(true);
+                                // Sử dụng refundRequestId thay vì bookingId
+                                if (req.id) {
+                                  setSelectedRefundRequestId(req.id);
+                                  setRejectReason("");
+                                  setRejectModalOpen(true);
+                                } else {
+                                  alert("Không tìm thấy ID của refund request. Vui lòng thử lại.");
+                                }
                               }}
                               className="bg-red-600 text-white px-3 py-1.5 rounded-md text-xs hover:bg-red-700 shadow-sm transition-colors font-medium"
                               title="Từ chối yêu cầu hoàn tiền"
@@ -993,7 +999,7 @@ const PageAdminRefund = () => {
               <button
                 onClick={() => {
                   setRejectModalOpen(false);
-                  setSelectedBookingId(null);
+                  setSelectedRefundRequestId(null);
                   setRejectReason("");
                 }}
                 className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"

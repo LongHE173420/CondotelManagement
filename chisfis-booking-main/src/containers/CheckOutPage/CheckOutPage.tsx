@@ -19,6 +19,7 @@ import paymentAPI from "api/payment";
 import condotelAPI, { PromotionDTO } from "api/condotel";
 import voucherAPI, { VoucherDTO } from "api/voucher";
 import servicePackageAPI, { ServicePackageDTO } from "api/servicePackage";
+import { calculateFinalPrice } from "utils/priceCalculator";
 
 export interface CheckOutPageProps {
   className?: string;
@@ -889,8 +890,22 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
     const nights = state?.nights || (rangeDates.startDate && rangeDates.endDate
       ? rangeDates.endDate.diff(rangeDates.startDate, "days")
       : 0);
+    
+    // Get base price per night: từ activePrice nếu có và nằm trong thời gian, nếu không thì từ pricePerNight
     const pricePerNight = state?.pricePerNight || 0;
-    const baseTotalPrice = nights * pricePerNight;
+    const checkInDate = rangeDates.startDate;
+    const checkOutDate = rangeDates.endDate;
+    
+    // Tính giá cơ bản cho 1 đêm (có thể từ activePrice hoặc pricePerNight)
+    const { basePrice: basePricePerNight } = calculateFinalPrice(
+      pricePerNight,
+      condotelDetail?.activePrice || null,
+      null, // Chưa áp dụng promotion ở đây, sẽ áp dụng sau
+      checkInDate || undefined,
+      checkOutDate || undefined
+    );
+    
+    const baseTotalPrice = nights * basePricePerNight;
     
     // Get available promotions and selected promotion
     const availablePromotions = getAvailablePromotions();
@@ -923,6 +938,12 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
     const totalDiscount = promotionDiscount + voucherDiscount;
     
     console.log("💰 Sidebar price calculation:", {
+      pricePerNight: state?.pricePerNight,
+      activePrice: condotelDetail?.activePrice,
+      basePricePerNight,
+      checkInDate: checkInDate?.format("YYYY-MM-DD"),
+      checkOutDate: checkOutDate?.format("YYYY-MM-DD"),
+      nights,
       baseTotalPrice,
       selectedPromotionId,
       selectedPromotion: selectedPromotion?.promotionId,
@@ -962,9 +983,9 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
             </div>
             <div className="flex flex-col space-y-4">
               <h3 className="text-2xl font-semibold">Chi tiết giá</h3>
-              {nights > 0 && pricePerNight > 0 && (
+              {nights > 0 && basePricePerNight > 0 && (
                 <div className="flex justify-between text-neutral-6000 dark:text-neutral-300">
-                  <span>{pricePerNight.toLocaleString()} đ x {nights} đêm</span>
+                  <span>{Math.round(basePricePerNight).toLocaleString()} đ x {nights} đêm</span>
                   <span>{baseTotalPrice.toLocaleString()} đ</span>
                 </div>
               )}

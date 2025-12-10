@@ -5,6 +5,8 @@ import ButtonSecondary from "shared/Button/ButtonSecondary";
 import bookingAPI, { BookingDTO } from "api/booking";
 import moment from "moment";
 import { useTranslation } from "i18n/LanguageContext";
+import { useAuth } from "contexts/AuthContext";
+import { validateBookingOwnership } from "utils/bookingSecurity";
 
 export interface PaymentCancelPageProps {
   className?: string;
@@ -14,9 +16,11 @@ const PaymentCancelPage: FC<PaymentCancelPageProps> = ({ className = "" }) => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const [booking, setBooking] = useState<BookingDTO | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [unauthorized, setUnauthorized] = useState(false);
 
   const bookingId = searchParams.get("bookingId");
   const status = searchParams.get("status");
@@ -30,19 +34,55 @@ const PaymentCancelPage: FC<PaymentCancelPageProps> = ({ className = "" }) => {
         return;
       }
 
+      // Wait for auth to finish loading
+      if (authLoading) {
+        return; // Don't proceed until auth is initialized
+      }
+
+      // Check authentication first
+      if (!isAuthenticated || !user) {
+        setError("Vui lòng đăng nhập để xem thông tin booking");
+        setLoading(false);
+        setUnauthorized(true);
+        return;
+      }
+
       try {
         const bookingData = await bookingAPI.getBookingById(parseInt(bookingId));
-        setBooking(bookingData);
+        
+        // SECURITY CHECK: Verify user owns this booking
+        try {
+          validateBookingOwnership(bookingData, user);
+          setBooking(bookingData);
+          setUnauthorized(false);
+        } catch (securityError: any) {
+          console.error("Security error:", securityError);
+          setError(securityError.message || "Bạn không có quyền truy cập booking này");
+          setUnauthorized(true);
+          setBooking(null);
+          // Redirect to home after 3 seconds
+          setTimeout(() => {
+            navigate("/");
+          }, 3000);
+          return;
+        }
       } catch (err: any) {
         console.error("Error fetching booking:", err);
-        // Không set error, vì có thể booking chưa được tạo hoặc đã bị xóa
+        if (err.response?.status === 403 || err.response?.status === 401) {
+          setError("Bạn không có quyền truy cập booking này");
+          setUnauthorized(true);
+        } else if (err.response?.status === 404) {
+          setError("Không tìm thấy booking này");
+        } else {
+          setError("Không thể tải thông tin booking. Vui lòng thử lại sau.");
+        }
       } finally {
         setLoading(false);
       }
     };
 
     fetchBooking();
-  }, [bookingId]);
+  }, [bookingId, user, isAuthenticated, authLoading, navigate]);
 
   const handleRetryPayment = () => {
     if (bookingId) {
@@ -53,11 +93,56 @@ const PaymentCancelPage: FC<PaymentCancelPageProps> = ({ className = "" }) => {
   };
 
   const renderContent = () => {
-    if (loading) {
+    // Show loading if auth is still initializing or booking is loading
+    if (authLoading || loading) {
       return (
         <div className="w-full flex flex-col items-center justify-center py-12">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-6000 mb-4"></div>
-          <p className="text-neutral-600 dark:text-neutral-400">Đang tải thông tin...</p>
+          <p className="text-neutral-600 dark:text-neutral-400">
+            {authLoading ? "Đang kiểm tra đăng nhập..." : "Đang tải thông tin..."}
+          </p>
+        </div>
+      );
+    }
+
+    // Show error if unauthorized or error occurred
+    if (error || unauthorized) {
+      return (
+        <div className="w-full flex flex-col items-center justify-center py-12 space-y-4">
+          <div className="w-20 h-20 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center">
+            <svg
+              className="w-10 h-10 text-red-600 dark:text-red-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+              />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-semibold text-red-600 dark:text-red-400">
+            {unauthorized ? "Không có quyền truy cập" : "Lỗi"}
+          </h2>
+          <p className="text-neutral-600 dark:text-neutral-400 max-w-md text-center">
+            {error || "Bạn không có quyền truy cập booking này"}
+          </p>
+          {unauthorized && (
+            <p className="text-sm text-neutral-500 dark:text-neutral-500">
+              Đang chuyển về trang chủ...
+            </p>
+          )}
+          <div className="flex gap-4 mt-4">
+            <ButtonSecondary onClick={() => navigate("/my-bookings")}>
+              Xem booking của tôi
+            </ButtonSecondary>
+            <ButtonSecondary onClick={() => navigate("/")}>
+              Về trang chủ
+            </ButtonSecondary>
+          </div>
         </div>
       );
     }
@@ -190,6 +275,7 @@ const PaymentCancelPage: FC<PaymentCancelPageProps> = ({ className = "" }) => {
 };
 
 export default PaymentCancelPage;
+
 
 
 
