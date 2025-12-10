@@ -22,6 +22,12 @@ const SectionGridAuthorBox: FC<SectionGridAuthorBoxProps> = ({
   boxCard = "box1",
   gridClassName = "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 ",
 }) => {
+  // Use provided authors or fallback to demo data
+  const displayAuthors = authors && authors.length > 0 ? authors : DEMO_DATA;
+  
+  console.log("🏆 SectionGridAuthorBox - authors prop:", authors);
+  console.log("🏆 SectionGridAuthorBox - displayAuthors:", displayAuthors);
+  
   return (
     <div
       className={`nc-SectionGridAuthorBox relative ${className}`}
@@ -30,19 +36,25 @@ const SectionGridAuthorBox: FC<SectionGridAuthorBoxProps> = ({
       <Heading desc="Dựa trên đánh giá và phản hồi từ khách hàng" isCenter>
         Top 10 Host xuất sắc nhất
       </Heading>
-      <div className={`grid gap-6 md:gap-8 ${gridClassName}`}>
-        {authors.map((author, index) =>
-          boxCard === "box2" ? (
-            <CardAuthorBox2 key={author.id} author={author} />
-          ) : (
-            <CardAuthorBox
-              index={index < 3 ? index + 1 : undefined}
-              key={author.id}
-              author={author}
-            />
-          )
-        )}
-      </div>
+      {displayAuthors.length === 0 ? (
+        <div className="text-center py-10">
+          <p className="text-neutral-500 dark:text-neutral-400">Đang tải danh sách host...</p>
+        </div>
+      ) : (
+        <div className={`grid gap-6 md:gap-8 ${gridClassName}`}>
+          {displayAuthors.map((author, index) =>
+            boxCard === "box2" ? (
+              <CardAuthorBox2 key={author.id} author={author} />
+            ) : (
+              <CardAuthorBox
+                index={index < 3 ? index + 1 : undefined}
+                key={author.id}
+                author={author}
+              />
+            )
+          )}
+        </div>
+      )}
       <div className="mt-16 flex flex-col sm:flex-row justify-center space-y-3 sm:space-y-0 sm:space-x-5">
         <ButtonSecondary href="/listing-stay">Xem thêm Host</ButtonSecondary>
         <ButtonPrimary href="/become-a-host">Trở thành Host</ButtonPrimary>

@@ -123,6 +123,7 @@ const SectionGridHasMap: FC<SectionGridHasMapProps> = () => {
   }
   
   const searchLocationId = params.get("locationId");
+  const searchHostId = params.get("hostId");
   const searchFromDate = params.get("startDate");
   const searchToDate = params.get("endDate");
   const searchGuests = params.get("guests");
@@ -134,6 +135,7 @@ const SectionGridHasMap: FC<SectionGridHasMapProps> = () => {
   console.log("🔍 SectionGridHasMap - Parsed values:", {
     searchLocation,
     searchLocationId,
+    searchHostId,
     searchFromDate,
     searchToDate,
     searchGuests,
@@ -156,18 +158,27 @@ const SectionGridHasMap: FC<SectionGridHasMapProps> = () => {
         // Build search query
         const searchQuery: any = {};
         
-        // Ưu tiên locationId hơn location string
-        if (searchLocationId) {
-          const locationId = Number(searchLocationId);
-          if (!isNaN(locationId)) {
-            searchQuery.locationId = locationId;
-            console.log("🔍 Using locationId:", locationId);
+        // Host ID filter (ưu tiên cao nhất)
+        if (searchHostId) {
+          const hostId = Number(searchHostId);
+          if (!isNaN(hostId)) {
+            searchQuery.hostId = hostId;
+            console.log("🔍 Using hostId:", hostId);
           }
-        } else if (searchLocation) {
-          searchQuery.location = searchLocation;
-          console.log("🔍 Using location:", searchLocation);
-        } else {
-          console.log("⚠️ No location or locationId in URL params");
+        }
+        
+        // Ưu tiên locationId hơn location string (chỉ nếu không có hostId)
+        if (!searchHostId) {
+          if (searchLocationId) {
+            const locationId = Number(searchLocationId);
+            if (!isNaN(locationId)) {
+              searchQuery.locationId = locationId;
+              console.log("🔍 Using locationId:", locationId);
+            }
+          } else if (searchLocation) {
+            searchQuery.location = searchLocation;
+            console.log("🔍 Using location:", searchLocation);
+          }
         }
         
         if (searchFromDate) {
@@ -207,8 +218,21 @@ const SectionGridHasMap: FC<SectionGridHasMapProps> = () => {
         
         // Use new search API with all parameters
         console.log("🔍 SectionGridHasMap - Final searchQuery:", searchQuery);
-        const results = await condotelAPI.search(searchQuery);
-        console.log("🔍 SectionGridHasMap - Results count:", results.length);
+        
+        // Nếu có hostId, sử dụng API riêng để lấy condotels của host
+        let results: CondotelDTO[] = [];
+        if (searchHostId) {
+          const hostId = Number(searchHostId);
+          if (!isNaN(hostId)) {
+            console.log("🏠 Fetching condotels for host:", hostId);
+            results = await condotelAPI.getCondotelsByHostId(hostId);
+            console.log("✅ Loaded condotels for host:", results.length);
+          }
+        } else {
+          results = await condotelAPI.search(searchQuery);
+          console.log("🔍 SectionGridHasMap - Results count:", results.length);
+        }
+        
         setCondotels(results);
       } catch (err: any) {
         console.error("Error fetching condotels:", err);
@@ -220,7 +244,7 @@ const SectionGridHasMap: FC<SectionGridHasMapProps> = () => {
     };
 
     fetchCondotels();
-  }, [location.search, searchLocation, searchLocationId, searchFromDate, searchToDate, minPrice, maxPrice, beds, bathrooms]); // Trigger when any search param changes
+  }, [location.search, searchLocation, searchLocationId, searchHostId, searchFromDate, searchToDate, minPrice, maxPrice, beds, bathrooms]); // Trigger when any search param changes
 
   // Convert condotels to StayDataType for display
   const stayListings: StayDataType[] = condotels.map(convertCondotelToStay);

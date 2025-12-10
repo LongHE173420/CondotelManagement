@@ -509,7 +509,11 @@ const PageTenantBookings = () => {
                                         </td>
                                         <td className="px-5 py-4 whitespace-nowrap align-middle">
                                             <img 
-                                                src={booking.condotelImageUrl || "https://via.placeholder.com/96x64?text=No+Image"} 
+                                                src={booking.condotelImageUrl || ""}
+                                                onError={(e) => {
+                                                  console.error("❌ Image load error");
+                                                  (e.target as HTMLImageElement).style.display = "none";
+                                                }} 
                                                 alt={booking.condotelName || "Condotel"} 
                                                 className="w-24 h-16 object-cover rounded-lg shadow-sm" 
                                             />

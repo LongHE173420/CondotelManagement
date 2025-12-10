@@ -479,7 +479,11 @@ const PageBookingHistoryDetail = () => {
               {condotel ? (
                 <>
                   <img 
-                    src={condotel.images?.[0]?.imageUrl || booking.condotelImageUrl || "https://via.placeholder.com/400?text=No+Image"} 
+                    src={condotel.images?.[0]?.imageUrl || booking.condotelImageUrl || ""}
+                    onError={(e) => {
+                      console.error("❌ Image load error");
+                      (e.target as HTMLImageElement).style.display = "none";
+                    }} 
                     alt={condotel.name}
                     className="w-full h-40 object-cover rounded-lg shadow-md mb-4" 
                   />

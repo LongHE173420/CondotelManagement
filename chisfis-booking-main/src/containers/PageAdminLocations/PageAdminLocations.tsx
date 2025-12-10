@@ -195,7 +195,8 @@ const PageAdminLocations: React.FC = () => {
                           alt={location.name}
                           className="w-16 h-16 object-cover rounded-lg border border-neutral-200 dark:border-neutral-700"
                           onError={(e) => {
-                            (e.target as HTMLImageElement).src = "https://via.placeholder.com/64?text=No+Image";
+                            console.error("❌ Image load error:", location.imageUrl);
+                            (e.target as HTMLImageElement).style.display = "none";
                           }}
                         />
                       ) : (
@@ -440,7 +441,8 @@ const LocationModal: React.FC<LocationModalProps> = ({ location, onClose, onSucc
                         alt="Preview"
                         className="w-full h-48 object-cover rounded-lg border border-neutral-300 dark:border-neutral-600"
                         onError={(e) => {
-                          (e.target as HTMLImageElement).src = "https://via.placeholder.com/400x200?text=Invalid+Image";
+                          console.error("❌ Image preview error");
+                          (e.target as HTMLImageElement).style.display = "none";
                         }}
                       />
                       <button

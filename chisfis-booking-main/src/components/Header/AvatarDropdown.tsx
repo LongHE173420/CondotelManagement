@@ -142,7 +142,7 @@ export default function AvatarDropdown() {
     if (user?.roleName !== "Admin" && user?.roleName !== "Host") {
       items.push({
         name: "Voucher của tôi",
-        href: "#vouchers",
+        href: "/my-vouchers",
         icon: TicketIcon,
       });
     }
@@ -211,13 +211,13 @@ export default function AvatarDropdown() {
                 <div className="overflow-hidden rounded-3xl shadow-lg ring-1 ring-black ring-opacity-5">
                   <div className="relative grid gap-6 bg-white dark:bg-neutral-800 p-7">
                     {solutions.map((item, index) => {
-                      // Nếu là "Voucher của tôi", hiển thị với badge số lượng
-                      if (item.href === "#vouchers") {
+                      // Nếu là "Voucher của tôi", hiển thị với badge số lượng và link đến /my-vouchers
+                      if (item.href === "/my-vouchers") {
                         return (
-                          <Popover.Button
+                          <Link
                             key={index}
-                            as="div"
-                            className="flex items-center p-2 -m-3 transition duration-150 ease-in-out rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus-visible:ring focus-visible:ring-orange-500 focus-visible:ring-opacity-50 cursor-pointer"
+                            to={item.href}
+                            className="flex items-center p-2 -m-3 transition duration-150 ease-in-out rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus-visible:ring focus-visible:ring-orange-500 focus-visible:ring-opacity-50"
                           >
                             <div className="flex items-center justify-center flex-shrink-0 text-neutral-500 dark:text-neutral-300">
                               <item.icon aria-hidden="true" className="w-6 h-6" />
@@ -234,7 +234,7 @@ export default function AvatarDropdown() {
                                 <p className="text-xs text-neutral-400">Chưa có voucher</p>
                               )}
                             </div>
-                          </Popover.Button>
+                          </Link>
                         );
                       }
                       

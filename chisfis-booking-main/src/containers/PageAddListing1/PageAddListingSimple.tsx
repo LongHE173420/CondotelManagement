@@ -731,7 +731,8 @@ const PageAddListingSimple: FC = () => {
                           alt={`${index + 1}`}
                           className="w-full h-32 object-cover rounded-lg border-2 border-neutral-200 dark:border-neutral-700"
                           onError={(e) => {
-                            (e.target as HTMLImageElement).src = "https://via.placeholder.com/300x200?text=Image+Error";
+                            console.error("❌ Image load error:", img.imageUrl);
+                            (e.target as HTMLImageElement).style.display = "none";
                           }}
                         />
                         <button

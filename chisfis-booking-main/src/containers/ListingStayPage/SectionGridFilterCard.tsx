@@ -80,6 +80,7 @@ const SectionGridFilterCard: FC<SectionGridFilterCardProps> = ({
   const params = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const searchLocation = params.get("location");
   const searchLocationId = params.get("locationId");
+  const searchHostId = params.get("hostId");
   const searchFromDate = params.get("startDate");
   const searchToDate = params.get("endDate");
   const searchGuests = params.get("guests");
@@ -97,18 +98,29 @@ const SectionGridFilterCard: FC<SectionGridFilterCardProps> = ({
         // Build search query
         const searchQuery: any = {};
         
-        // Ưu tiên locationId hơn location string
-        if (searchLocationId) {
-          const locationId = Number(searchLocationId);
-          if (!isNaN(locationId)) {
-            searchQuery.locationId = locationId;
-            console.log("🔍 Searching with locationId:", locationId);
+        // Host ID filter (ưu tiên cao nhất)
+        if (searchHostId) {
+          const hostId = Number(searchHostId);
+          if (!isNaN(hostId)) {
+            searchQuery.hostId = hostId;
+            console.log("🔍 Searching with hostId:", hostId);
           }
-        } else if (searchLocation) {
-          // Trim và decode location để đảm bảo đúng format
-          const locationValue = decodeURIComponent(searchLocation.trim());
-          searchQuery.location = locationValue;
-          console.log("🔍 Searching with location:", locationValue);
+        }
+        
+        // Ưu tiên locationId hơn location string (chỉ nếu không có hostId)
+        if (!searchHostId) {
+          if (searchLocationId) {
+            const locationId = Number(searchLocationId);
+            if (!isNaN(locationId)) {
+              searchQuery.locationId = locationId;
+              console.log("🔍 Searching with locationId:", locationId);
+            }
+          } else if (searchLocation) {
+            // Trim và decode location để đảm bảo đúng format
+            const locationValue = decodeURIComponent(searchLocation.trim());
+            searchQuery.location = locationValue;
+            console.log("🔍 Searching with location:", locationValue);
+          }
         }
         
         if (searchFromDate) {
@@ -150,6 +162,7 @@ const SectionGridFilterCard: FC<SectionGridFilterCardProps> = ({
         console.log("📤 URL params:", {
           searchLocation,
           searchLocationId,
+          searchHostId,
           searchFromDate,
           searchToDate,
           minPrice,
@@ -158,9 +171,21 @@ const SectionGridFilterCard: FC<SectionGridFilterCardProps> = ({
           bathrooms
         });
         
-        // Always fetch condotels - if no search params, get all condotels
-        const results = await condotelAPI.search(searchQuery);
-        console.log("✅ Search results:", results.length, "condotels found");
+        // Nếu có hostId, sử dụng API riêng để lấy condotels của host
+        let results: CondotelDTO[] = [];
+        if (searchHostId) {
+          const hostId = Number(searchHostId);
+          if (!isNaN(hostId)) {
+            console.log("🏠 Fetching condotels for host:", hostId);
+            results = await condotelAPI.getCondotelsByHostId(hostId);
+            console.log("✅ Loaded condotels for host:", results.length);
+          }
+        } else {
+          // Always fetch condotels - if no search params, get all condotels
+          results = await condotelAPI.search(searchQuery);
+          console.log("✅ Search results:", results.length, "condotels found");
+        }
+        
         console.log("✅ Results:", results);
         
         // Ensure we only set the results from the search, not all condotels

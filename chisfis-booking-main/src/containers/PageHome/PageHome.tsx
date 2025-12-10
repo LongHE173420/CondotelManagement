@@ -7,7 +7,7 @@ import SectionGridFeaturePlaces from "./SectionGridFeaturePlaces";
 import SectionHowItWork from "components/SectionHowItWork/SectionHowItWork";
 import BackgroundSection from "components/BackgroundSection/BackgroundSection";
 import BgGlassmorphism from "components/BgGlassmorphism/BgGlassmorphism";
-import { TaxonomyType } from "data/types";
+import { TaxonomyType, AuthorType } from "data/types";
 import SectionGridAuthorBox from "components/SectionGridAuthorBox/SectionGridAuthorBox";
 import SectionGridCategoryBox from "components/SectionGridCategoryBox/SectionGridCategoryBox";
 import SectionBecomeAnAuthor from "components/SectionBecomeAnAuthor/SectionBecomeAnAuthor";
@@ -15,11 +15,14 @@ import SectionVideos from "./SectionVideos";
 import { useTranslation } from "i18n/LanguageContext";
 import locationAPI, { LocationDTO } from "api/location";
 import condotelAPI from "api/condotel";
+import hostAPI, { TopHostDTO } from "api/host";
 
 function PageHome() {
   const { t } = useTranslation();
   const [locations, setLocations] = useState<TaxonomyType[]>([]);
   const [locations2, setLocations2] = useState<TaxonomyType[]>([]);
+  const [nearbyLocations, setNearbyLocations] = useState<TaxonomyType[]>([]);
+  const [topHosts, setTopHosts] = useState<AuthorType[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Load locations from API
@@ -52,23 +55,93 @@ function PageHome() {
           })
         );
 
-        // Split into two arrays: first section gets 3 locations, second section gets 2 locations
+        // Split into three arrays: first section gets 3 locations, second section gets 2 locations, nearby section gets remaining
         const firstSection = locationsWithCount.slice(0, 3); // Lấy 3 locations đầu tiên
         const secondSection = locationsWithCount.slice(3, 5); // Lấy 2 locations tiếp theo (từ vị trí 3 đến 5)
+        
+        // Nearby section: 
+        // - Nếu có >= 6 locations: lấy từ vị trí 5 trở đi, tối đa 8 locations
+        // - Nếu có < 6 locations: lấy tất cả locations (để hiển thị trong nearby section)
+        let nearbySection: TaxonomyType[] = [];
+        if (locationsWithCount.length >= 6) {
+          nearbySection = locationsWithCount.slice(5, Math.min(13, locationsWithCount.length));
+        } else {
+          // Nếu có ít locations, lấy tất cả để hiển thị trong nearby section
+          nearbySection = locationsWithCount.slice(0, Math.min(8, locationsWithCount.length));
+        }
+
+        console.log("📍 Locations loaded:", {
+          total: locationsWithCount.length,
+          firstSection: firstSection.length,
+          secondSection: secondSection.length,
+          nearbySection: nearbySection.length,
+          nearbyLocations: nearbySection.map(l => l.name)
+        });
 
         setLocations(firstSection.length > 0 ? firstSection : []);
         setLocations2(secondSection.length > 0 ? secondSection : []);
+        setNearbyLocations(nearbySection.length > 0 ? nearbySection : []);
       } catch (err: any) {
         console.error("Error loading locations:", err);
         // Fallback to demo data on error
         setLocations([]);
         setLocations2([]);
+        setNearbyLocations([]);
       } finally {
         setLoading(false);
       }
     };
 
     loadLocations();
+  }, []);
+
+  // Load top hosts from API
+  useEffect(() => {
+    const loadTopHosts = async () => {
+      try {
+        console.log("🏆 Loading top hosts...");
+        const topHostsData = await hostAPI.getTopRated(10);
+        console.log("🏆 Top hosts API response:", topHostsData);
+        console.log("🏆 Top hosts count:", topHostsData?.length || 0);
+        
+        if (!topHostsData || !Array.isArray(topHostsData) || topHostsData.length === 0) {
+          console.warn("⚠️ No top hosts data received from API");
+          setTopHosts([]);
+          return;
+        }
+        
+        // Map TopHostDTO to AuthorType
+        const mappedHosts: AuthorType[] = topHostsData.map((host: TopHostDTO) => {
+          const nameParts = (host.fullName || '').split(' ');
+          const firstName = nameParts[0] || '';
+          const lastName = nameParts.slice(1).join(' ') || '';
+          // Hiển thị fullName (tên host) thay vì companyName
+          const displayName = host.fullName || 'Host';
+          
+          return {
+            id: host.hostId,
+            firstName: firstName,
+            lastName: lastName,
+            displayName: displayName,
+            avatar: host.avatarUrl || '',
+            count: host.totalCondotels || 0,
+            desc: `${host.totalReviews || 0} đánh giá • ${host.totalCondotels || 0} condotel`,
+            jobName: host.companyName || 'Host', // jobName vẫn dùng companyName nếu có
+            href: `/listing-stay?hostId=${host.hostId}`,
+            starRating: host.averageRating || 0,
+          };
+        });
+        
+        console.log("🏆 Mapped hosts:", mappedHosts);
+        setTopHosts(mappedHosts);
+      } catch (err: any) {
+        console.error("❌ Error loading top hosts:", err);
+        console.error("❌ Error details:", err.response?.data || err.message);
+        setTopHosts([]);
+      }
+    };
+
+    loadTopHosts();
   }, []);
 
   // Fallback demo data if API fails or no locations
@@ -241,14 +314,19 @@ function PageHome() {
         {/* SECTION */}
         <SectionSubscribe2 />
 
-        {/* SECTION */}
+        {/* SECTION - Top Hosts */}
         <div className="relative py-16">
           <BackgroundSection className="bg-orange-50 dark:bg-black dark:bg-opacity-20 " />
-          <SectionGridAuthorBox />
+          <SectionGridAuthorBox 
+            authors={topHosts.length > 0 ? topHosts : undefined}
+            key={`top-hosts-${topHosts.length}`}
+          />
         </div>
 
-        {/* SECTION */}
-        <SectionGridCategoryBox />
+        {/* SECTION - Khám phá gần đây */}
+        <SectionGridCategoryBox 
+          categories={nearbyLocations.length > 0 ? nearbyLocations : undefined}
+        />
 
         {/* SECTION */}
         <div className="relative py-16">
