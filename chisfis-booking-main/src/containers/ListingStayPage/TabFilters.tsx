@@ -122,6 +122,9 @@ const TabFilters = () => {
   ) => {
     const params = new URLSearchParams(location.search);
     
+    // IMPORTANT: Keep all existing search params (location, startDate, endDate, guests, locationId)
+    // Only update filter params (beds, bathrooms, minPrice, maxPrice)
+    
     // Update beds filter
     if (bedsValue !== null && bedsValue > 0) {
       params.set("beds", bedsValue.toString());
@@ -150,8 +153,12 @@ const TabFilters = () => {
     }
     
     console.log("🔍 Applying filters, new URL params:", params.toString());
+    console.log("🔍 Preserved location:", params.get("location"));
+    console.log("🔍 Preserved startDate:", params.get("startDate"));
+    console.log("🔍 Preserved endDate:", params.get("endDate"));
+    console.log("🔍 Preserved guests:", params.get("guests"));
     
-    // Navigate with updated params
+    // Navigate with updated params (all existing params are preserved)
     const newUrl = params.toString() ? `${location.pathname}?${params.toString()}` : location.pathname;
     navigate(newUrl, { replace: true });
     

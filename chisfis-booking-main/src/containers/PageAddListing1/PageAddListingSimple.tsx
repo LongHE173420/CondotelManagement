@@ -80,7 +80,7 @@ const PageAddListingSimple: FC = () => {
   const [priceStartDate, setPriceStartDate] = useState("");
   const [priceEndDate, setPriceEndDate] = useState("");
   const [basePrice, setBasePrice] = useState<number>(0);
-  const [priceType, setPriceType] = useState("Default");
+  const [priceType, setPriceType] = useState("Thường");
   const [priceDescription, setPriceDescription] = useState("");
 
   // ResortId
@@ -146,13 +146,22 @@ const PageAddListingSimple: FC = () => {
     fetchAmenities();
   }, []);
 
-  // Load utilities từ API
+  // Load utilities từ API - theo resort nếu có resortId, nếu không thì load tất cả
   useEffect(() => {
     const fetchUtilities = async () => {
       setLoadingUtilities(true);
       try {
-        const utilitiesData = await utilityAPI.getAll();
-        setUtilities(utilitiesData);
+        if (resortId) {
+          // Load utilities theo resort
+          const utilitiesData = await utilityAPI.getByResort(resortId);
+          setUtilities(utilitiesData);
+          // Reset utilityIds khi đổi resort
+          setUtilityIds([]);
+        } else {
+          // Nếu không có resort, load tất cả utilities của host
+          const utilitiesData = await utilityAPI.getAll();
+          setUtilities(utilitiesData);
+        }
       } catch (err) {
         console.error("Error loading utilities:", err);
         setUtilities([]);
@@ -161,7 +170,7 @@ const PageAddListingSimple: FC = () => {
       }
     };
     fetchUtilities();
-  }, []);
+  }, [resortId]);
 
   // Sync formData
   // Check if user is Host
@@ -308,7 +317,7 @@ const PageAddListingSimple: FC = () => {
       setPriceStartDate("");
       setPriceEndDate("");
       setBasePrice(0);
-      setPriceType("Default");
+      setPriceType("Thường");
       setPriceDescription("");
     }
   };
@@ -610,11 +619,20 @@ const PageAddListingSimple: FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-2">Tiện nghi</label>
+                  <label className="block text-sm font-medium mb-2">
+                    Tiện nghi
+                    {resortId && (
+                      <span className="ml-2 text-xs text-primary-600 font-normal">
+                        (theo resort đã chọn)
+                      </span>
+                    )}
+                  </label>
                   {loadingUtilities ? (
                     <div className="flex items-center space-x-2">
                       <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary-600"></div>
-                      <span className="text-sm text-neutral-500">Đang tải danh sách tiện nghi...</span>
+                      <span className="text-sm text-neutral-500">
+                        {resortId ? "Đang tải tiện nghi từ resort..." : "Đang tải danh sách tiện nghi..."}
+                      </span>
                     </div>
                   ) : (
                     <div className="space-y-2">
@@ -631,7 +649,11 @@ const PageAddListingSimple: FC = () => {
                           </label>
                         ))
                       ) : (
-                        <p className="text-sm text-neutral-500">Không có tiện nghi nào</p>
+                        <p className="text-sm text-neutral-500">
+                          {resortId 
+                            ? "Resort này chưa có tiện nghi nào. Vui lòng chọn resort khác hoặc bỏ chọn resort để xem tất cả tiện nghi."
+                            : "Không có tiện nghi nào"}
+                        </p>
                       )}
                     </div>
                   )}
@@ -789,10 +811,10 @@ const PageAddListingSimple: FC = () => {
 
                 <FormItem label="Loại giá">
                   <Select value={priceType} onChange={(e) => setPriceType(e.target.value)}>
-                    <option value="Default">Mặc định</option>
-                    <option value="Seasonal">Theo mùa</option>
-                    <option value="Holiday">Ngày lễ</option>
-                    <option value="Weekend">Cuối tuần</option>
+                    <option value="Thường">Thường</option>
+                    <option value="Cuối tuần">Cuối tuần</option>
+                    <option value="Ngày lễ">Ngày lễ</option>
+                    <option value="Cao điểm">Cao điểm</option>
                   </Select>
                 </FormItem>
 

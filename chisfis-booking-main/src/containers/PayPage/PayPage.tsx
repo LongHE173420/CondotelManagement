@@ -6,6 +6,8 @@ import NcImage from "shared/NcImage/NcImage";
 import bookingAPI, { BookingDTO } from "api/booking";
 import voucherAPI, { VoucherDTO } from "api/voucher";
 import moment from "moment";
+import { useAuth } from "contexts/AuthContext";
+import { validateBookingOwnership } from "utils/bookingSecurity";
 
 export interface PayPageProps {
   className?: string;
@@ -14,9 +16,11 @@ export interface PayPageProps {
 const PayPage: FC<PayPageProps> = ({ className = "" }) => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const [booking, setBooking] = useState<BookingDTO | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [unauthorized, setUnauthorized] = useState(false);
   const [createdVouchers, setCreatedVouchers] = useState<VoucherDTO[]>([]);
   const [loadingVouchers, setLoadingVouchers] = useState(false);
   const [voucherError, setVoucherError] = useState<string | null>(null);
@@ -32,24 +36,57 @@ const PayPage: FC<PayPageProps> = ({ className = "" }) => {
         return;
       }
 
+      // Wait for auth to finish loading
+      if (authLoading) {
+        return; // Don't proceed until auth is initialized
+      }
+
+      // Check authentication first
+      if (!isAuthenticated || !user) {
+        setError("Vui lòng đăng nhập để xem thông tin booking");
+        setUnauthorized(true);
+        setLoading(false);
+        return;
+      }
+
       try {
         const bookingData = await bookingAPI.getBookingById(parseInt(bookingId));
-        setBooking(bookingData);
         
-        // Nếu thanh toán thành công, thử tạo voucher tự động
-        if (status === "success" && bookingData.status === "Confirmed") {
-          createVouchersAfterBooking(parseInt(bookingId));
+        // SECURITY CHECK: Verify user owns this booking
+        try {
+          validateBookingOwnership(bookingData, user);
+          setBooking(bookingData);
+          setUnauthorized(false);
+          
+          // Nếu thanh toán thành công, thử tạo voucher tự động
+          if (status === "success" && bookingData.status === "Confirmed") {
+            createVouchersAfterBooking(parseInt(bookingId));
+          }
+        } catch (securityError: any) {
+          console.error("Security error:", securityError);
+          setError(securityError.message || "Bạn không có quyền truy cập booking này");
+          setUnauthorized(true);
+          setBooking(null);
+          // Redirect to home after 3 seconds
+          setTimeout(() => {
+            navigate("/");
+          }, 3000);
         }
       } catch (err: any) {
         console.error("Error fetching booking:", err);
-        setError(err.response?.data?.message || err.message || "Không thể tải thông tin booking");
+        if (err.response?.status === 403 || err.response?.status === 401) {
+          setError("Bạn không có quyền truy cập booking này");
+          setUnauthorized(true);
+        } else {
+          setError(err.response?.data?.message || err.message || "Không thể tải thông tin booking");
+        }
       } finally {
         setLoading(false);
       }
     };
 
     fetchBooking();
-  }, [bookingId, status]);
+  }, [bookingId, status, user, isAuthenticated, authLoading, navigate]);
 
   // Tự động refresh booking status nếu booking vẫn ở "Pending" (đang chờ xác nhận thanh toán)
   useEffect(() => {
@@ -111,24 +148,56 @@ const PayPage: FC<PayPageProps> = ({ className = "" }) => {
   };
 
   const renderContent = () => {
-    if (loading) {
+    // Show loading if auth is still initializing or booking is loading
+    if (authLoading || loading) {
       return (
         <div className="w-full flex flex-col items-center justify-center py-12">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-6000 mb-4"></div>
-          <p className="text-neutral-600 dark:text-neutral-400">Đang tải thông tin...</p>
+          <p className="text-neutral-600 dark:text-neutral-400">
+            {authLoading ? "Đang kiểm tra đăng nhập..." : "Đang tải thông tin..."}
+          </p>
         </div>
       );
     }
 
-    if (error || !booking) {
+    if (error || !booking || unauthorized) {
       return (
         <div className="w-full flex flex-col sm:rounded-2xl sm:border border-neutral-200 dark:border-neutral-700 space-y-8 px-0 sm:p-6 xl:p-8">
-          <h2 className="text-3xl lg:text-4xl font-semibold text-red-600 dark:text-red-400">
-            Có lỗi xảy ra
-          </h2>
-          <div className="border-b border-neutral-200 dark:border-neutral-700"></div>
-          <p className="text-neutral-600 dark:text-neutral-400">{error || "Không tìm thấy thông tin booking"}</p>
-          <ButtonPrimary onClick={() => navigate("/")}>Về trang chủ</ButtonPrimary>
+          <div className="flex flex-col items-center text-center space-y-4">
+            <div className="w-20 h-20 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center">
+              <svg
+                className="w-10 h-10 text-red-600 dark:text-red-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                />
+              </svg>
+            </div>
+            <h2 className="text-3xl lg:text-4xl font-semibold text-red-600 dark:text-red-400">
+              {unauthorized ? "Không có quyền truy cập" : "Có lỗi xảy ra"}
+            </h2>
+            <div className="border-b border-neutral-200 dark:border-neutral-700 w-full"></div>
+            <p className="text-neutral-600 dark:text-neutral-400">{error || "Không tìm thấy thông tin booking"}</p>
+            {unauthorized && (
+              <p className="text-sm text-neutral-500 dark:text-neutral-500">
+                Đang chuyển về trang chủ...
+              </p>
+            )}
+            <div className="flex gap-4 mt-4">
+              <ButtonPrimary onClick={() => navigate("/my-bookings")}>
+                Xem booking của tôi
+              </ButtonPrimary>
+              <ButtonPrimary onClick={() => navigate("/")} className="bg-neutral-600 hover:bg-neutral-700">
+                Về trang chủ
+              </ButtonPrimary>
+            </div>
+          </div>
         </div>
       );
     }

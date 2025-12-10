@@ -71,12 +71,24 @@ const PageEditCondotel: React.FC = () => {
         setResortId(data.resortId);
         setImages((data.images || []).map((it: any) => ({ imageUrl: it.imageUrl, caption: it.caption })));
         setPrices((data.prices || []).map((p: any) => {
-          // Normalize priceType: chỉ chấp nhận "Default", "Seasonal", "Holiday", "Weekend"
-          const validPriceTypes = ["Default", "Seasonal", "Holiday", "Weekend"];
-          const incomingPriceType = p.priceType || "";
-          const normalizedPriceType = validPriceTypes.includes(incomingPriceType) 
-            ? incomingPriceType 
-            : "Default";
+          // Normalize priceType: map từ tiếng Anh sang tiếng Việt hoặc giữ nguyên nếu đã là tiếng Việt
+          const incomingPriceType = p.priceType || p.PriceType || "";
+          
+          // Map từ tiếng Anh sang tiếng Việt (nếu backend trả về tiếng Anh)
+          const priceTypeMap: Record<string, string> = {
+            "Default": "Thường",
+            "Weekend": "Cuối tuần",
+            "Holiday": "Ngày lễ",
+            "Seasonal": "Cao điểm",
+            "PeakSeason": "Cao điểm",
+            // Giữ nguyên nếu đã là tiếng Việt
+            "Thường": "Thường",
+            "Cuối tuần": "Cuối tuần",
+            "Ngày lễ": "Ngày lễ",
+            "Cao điểm": "Cao điểm",
+          };
+          
+          const normalizedPriceType = priceTypeMap[incomingPriceType] || "Thường";
           
           return {
             priceId: p.priceId || 0,
@@ -489,10 +501,10 @@ const PageEditCondotel: React.FC = () => {
                       }}
                       className="w-full px-4 py-3 border border-neutral-300 dark:border-neutral-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-neutral-700 dark:text-neutral-100"
                     >
-                      <option value="Default">Mặc định</option>
-                      <option value="Seasonal">Theo mùa</option>
-                      <option value="Holiday">Ngày lễ</option>
-                      <option value="Weekend">Cuối tuần</option>
+                      <option value="Thường">Thường</option>
+                      <option value="Cuối tuần">Cuối tuần</option>
+                      <option value="Ngày lễ">Ngày lễ</option>
+                      <option value="Cao điểm">Cao điểm</option>
                     </select>
                   </div>
                   <div>
@@ -527,7 +539,7 @@ const PageEditCondotel: React.FC = () => {
                 startDate: "",
                 endDate: "",
                 basePrice: 0,
-                priceType: "Default",
+                priceType: "Thường",
                 description: "",
               }])}
             >

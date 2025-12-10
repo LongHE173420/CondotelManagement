@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import locationAPI, { LocationDTO, LocationCreateUpdateDTO } from "api/location";
+import uploadAPI from "api/upload";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
 import ButtonSecondary from "shared/Button/ButtonSecondary";
 
@@ -166,19 +167,13 @@ const PageAdminLocations: React.FC = () => {
                     ID
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wider">
+                    Ảnh
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wider">
                     Tên Location
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wider">
-                    Địa chỉ
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wider">
-                    Thành phố
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wider">
-                    Quốc gia
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wider">
-                    Mã bưu điện
+                    Mô tả
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wider">
                     Hành động
@@ -193,20 +188,29 @@ const PageAdminLocations: React.FC = () => {
                         #{location.locationId}
                       </span>
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {location.imageUrl ? (
+                        <img
+                          src={location.imageUrl}
+                          alt={location.name}
+                          className="w-16 h-16 object-cover rounded-lg border border-neutral-200 dark:border-neutral-700"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = "https://via.placeholder.com/64?text=No+Image";
+                          }}
+                        />
+                      ) : (
+                        <div className="w-16 h-16 bg-neutral-200 dark:bg-neutral-700 rounded-lg flex items-center justify-center">
+                          <svg className="w-8 h-8 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                        </div>
+                      )}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-neutral-900 dark:text-neutral-100">
-                      {location.locationName}
+                      {location.name}
                     </td>
-                    <td className="px-6 py-4 text-sm text-neutral-500 dark:text-neutral-400">
-                      {location.address || "-"}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500 dark:text-neutral-400">
-                      {location.city || "-"}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500 dark:text-neutral-400">
-                      {location.country || "-"}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500 dark:text-neutral-400">
-                      {location.postalCode || "-"}
+                    <td className="px-6 py-4 text-sm text-neutral-500 dark:text-neutral-400 max-w-xs truncate">
+                      {location.description || "-"}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm space-x-2">
                       <ButtonSecondary
@@ -224,7 +228,7 @@ const PageAdminLocations: React.FC = () => {
                         </span>
                       </ButtonSecondary>
                       <button
-                        onClick={() => handleDelete(location.locationId, location.locationName)}
+                        onClick={() => handleDelete(location.locationId, location.name)}
                         disabled={deletingId === location.locationId}
                         className="px-4 py-2 text-sm font-bold bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-lg shadow-md hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
                       >
@@ -286,14 +290,15 @@ interface LocationModalProps {
 
 const LocationModal: React.FC<LocationModalProps> = ({ location, onClose, onSuccess }) => {
   const [formData, setFormData] = useState<LocationCreateUpdateDTO>({
-    locationName: location?.locationName || "",
-    address: location?.address || "",
-    city: location?.city || "",
-    country: location?.country || "",
-    postalCode: location?.postalCode || "",
+    name: location?.name || "",
+    description: location?.description || "",
+    imageUrl: location?.imageUrl || "",
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [imagePreview, setImagePreview] = useState<string | null>(location?.imageUrl || null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Prevent body scroll when modal is open
   useEffect(() => {
@@ -303,11 +308,54 @@ const LocationModal: React.FC<LocationModalProps> = ({ location, onClose, onSucc
     };
   }, []);
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setError("Vui lòng chọn file ảnh hợp lệ!");
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setError("Ảnh không được quá 10MB!");
+      return;
+    }
+
+    setUploadingImage(true);
+    setError("");
+
+    try {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+
+      const res = await uploadAPI.uploadImage(file);
+      if (res?.imageUrl && res.imageUrl.trim()) {
+        setFormData((prev) => ({ ...prev, imageUrl: res.imageUrl }));
+        setImagePreview(res.imageUrl);
+      } else {
+        throw new Error("Không nhận được URL ảnh từ server");
+      }
+    } catch (err: any) {
+      console.error("Upload image error:", err);
+      setError(err.response?.data?.message || err.message || "Upload ảnh thất bại!");
+      setImagePreview(location?.imageUrl || null);
+    } finally {
+      setUploadingImage(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
-    if (!formData.locationName || !formData.locationName.trim()) {
+    if (!formData.name || !formData.name.trim()) {
       setError("Vui lòng nhập tên location!");
       return;
     }
@@ -360,8 +408,8 @@ const LocationModal: React.FC<LocationModalProps> = ({ location, onClose, onSucc
                 </label>
                 <input
                   type="text"
-                  value={formData.locationName}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, locationName: e.target.value }))}
+                  value={formData.name}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
                   className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:bg-neutral-700 dark:text-neutral-100"
                   required
                 />
@@ -369,52 +417,84 @@ const LocationModal: React.FC<LocationModalProps> = ({ location, onClose, onSucc
 
               <div>
                 <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                  Địa chỉ
+                  Mô tả
                 </label>
-                <input
-                  type="text"
-                  value={formData.address}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, address: e.target.value }))}
+                <textarea
+                  value={formData.description || ""}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
+                  rows={4}
                   className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:bg-neutral-700 dark:text-neutral-100"
+                  placeholder="Nhập mô tả về location..."
                 />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                    Thành phố
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.city || ""}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, city: e.target.value }))}
-                    className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:bg-neutral-700 dark:text-neutral-100"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                    Quốc gia
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.country || ""}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, country: e.target.value }))}
-                    className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:bg-neutral-700 dark:text-neutral-100"
-                  />
-                </div>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                  Mã bưu điện
+                  Ảnh Location
                 </label>
-                <input
-                  type="text"
-                  value={formData.postalCode || ""}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, postalCode: e.target.value }))}
-                  className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:bg-neutral-700 dark:text-neutral-100"
-                />
+                <div className="space-y-3">
+                  {imagePreview && (
+                    <div className="relative">
+                      <img
+                        src={imagePreview}
+                        alt="Preview"
+                        className="w-full h-48 object-cover rounded-lg border border-neutral-300 dark:border-neutral-600"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = "https://via.placeholder.com/400x200?text=Invalid+Image";
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setImagePreview(null);
+                          setFormData((prev) => ({ ...prev, imageUrl: "" }));
+                        }}
+                        className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-3">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      disabled={uploadingImage}
+                      className="hidden"
+                      id="image-upload"
+                    />
+                    <label
+                      htmlFor="image-upload"
+                      className={`flex-1 px-4 py-2 border-2 border-dashed border-neutral-300 dark:border-neutral-600 rounded-lg cursor-pointer hover:border-emerald-500 dark:hover:border-emerald-500 transition-colors text-center ${
+                        uploadingImage ? "opacity-50 cursor-not-allowed" : ""
+                      }`}
+                    >
+                      {uploadingImage ? (
+                        <span className="flex items-center justify-center gap-2 text-neutral-500 dark:text-neutral-400">
+                          <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Đang upload...
+                        </span>
+                      ) : (
+                        <span className="flex items-center justify-center gap-2 text-neutral-600 dark:text-neutral-300">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          {imagePreview ? "Thay đổi ảnh" : "Chọn ảnh"}
+                        </span>
+                      )}
+                    </label>
+                  </div>
+                  <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                    Chọn ảnh để upload (JPG, PNG, GIF - tối đa 10MB)
+                  </p>
+                </div>
               </div>
 
               {error && (
