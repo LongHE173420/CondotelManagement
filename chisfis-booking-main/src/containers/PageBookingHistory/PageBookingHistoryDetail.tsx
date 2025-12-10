@@ -65,6 +65,49 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
   );
 };
 
+// Component đếm ngược thời gian thanh toán
+const PaymentCountdown: React.FC<{ createdAt: string; onTimeout: () => void }> = ({ createdAt, onTimeout }) => {
+  const [timeLeft, setTimeLeft] = useState(180); // 3 phút = 180 giây
+
+  useEffect(() => {
+    const createdTime = new Date(createdAt).getTime();
+    const expiryTime = createdTime + (3 * 60 * 1000); // +3 phút
+
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const remaining = Math.max(0, Math.floor((expiryTime - now) / 1000));
+
+      setTimeLeft(remaining);
+
+      if (remaining === 0) {
+        clearInterval(interval);
+        onTimeout(); // Gọi callback khi hết giờ
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [createdAt, onTimeout]);
+
+  const minutes = Math.floor(timeLeft / 60);
+  const seconds = timeLeft % 60;
+
+  return (
+    <div className="payment-countdown">
+      <p className="text-red-600 font-bold">
+        Thời gian thanh toán còn lại: 
+        <span className="text-2xl ml-2">
+          {minutes}:{seconds.toString().padStart(2, '0')}
+        </span>
+      </p>
+      {timeLeft === 0 && (
+        <p className="text-red-500">
+          Đã hết thời gian thanh toán. Vui lòng đặt phòng lại.
+        </p>
+      )}
+    </div>
+  );
+};
+
 // Component Trang Chi tiết Lịch sử Booking
 const PageBookingHistoryDetail = () => {
   const { id } = useParams();
@@ -77,6 +120,7 @@ const PageBookingHistoryDetail = () => {
   const [canReview, setCanReview] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [unauthorized, setUnauthorized] = useState(false);
+  const [expiredMessage, setExpiredMessage] = useState("");
 
   // Fetch booking và condotel details
   useEffect(() => {
@@ -159,6 +203,13 @@ const PageBookingHistoryDetail = () => {
     fetchData();
   }, [id, user, isAuthenticated, navigate]);
 
+  // Xóa thông báo hết hạn khi booking status thay đổi (không còn pending)
+  useEffect(() => {
+    if (booking && booking.status?.toLowerCase() !== "pending" && expiredMessage) {
+      setExpiredMessage("");
+    }
+  }, [booking?.status, expiredMessage]);
+
   // Tính số đêm
   const calculateNights = (): number => {
     if (!booking?.startDate || !booking?.endDate) return 0;
@@ -167,6 +218,15 @@ const PageBookingHistoryDetail = () => {
     const diffTime = Math.abs(end.getTime() - start.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays;
+  };
+
+  // Kiểm tra xem booking có còn trong thời gian thanh toán không (3 phút)
+  const isWithinPaymentTime = (): boolean => {
+    if (!booking?.createdAt) return false;
+    const createdTime = new Date(booking.createdAt).getTime();
+    const expiryTime = createdTime + (3 * 60 * 1000); // +3 phút
+    const now = Date.now();
+    return now < expiryTime;
   };
 
   // Kiểm tra xem booking có thể hủy không
@@ -227,6 +287,41 @@ const PageBookingHistoryDetail = () => {
     
     // Nếu hủy trong vòng 2 ngày (từ ngày tạo booking) VÀ booking có giá (đã thanh toán)
     return diffDays <= 2;
+  };
+
+  // Xử lý tự động hủy booking khi hết thời gian thanh toán
+  const handleAutoCancel = async () => {
+    if (!booking) return;
+    
+    // Kiểm tra lại trạng thái booking trước khi hủy (tránh hủy nhiều lần)
+    if (booking.status?.toLowerCase() !== "pending") {
+      return;
+    }
+
+    setCancelling(true);
+    try {
+      await bookingAPI.cancelBooking(booking.bookingId);
+      
+      // Reload booking để cập nhật trạng thái
+      const updatedBooking = await bookingAPI.getBookingById(booking.bookingId);
+      setBooking(updatedBooking);
+      
+      // Hiển thị thông báo trên màn hình
+      setExpiredMessage("Đã hết thời gian thanh toán. Đơn đặt phòng đã được tự động hủy.");
+    } catch (err: any) {
+      console.error("Error auto cancelling booking:", err);
+      // Vẫn reload để kiểm tra trạng thái mới nhất
+      try {
+        const updatedBooking = await bookingAPI.getBookingById(booking.bookingId);
+        setBooking(updatedBooking);
+        setExpiredMessage("Đã hết thời gian thanh toán. Vui lòng kiểm tra lại trạng thái đơn đặt phòng.");
+      } catch (reloadErr) {
+        console.error("Error reloading booking:", reloadErr);
+        setExpiredMessage("Đã hết thời gian thanh toán. Vui lòng làm mới trang để kiểm tra trạng thái.");
+      }
+    } finally {
+      setCancelling(false);
+    }
   };
 
   // Xử lý hủy booking
@@ -324,6 +419,34 @@ const PageBookingHistoryDetail = () => {
           </Link>
         </header>
 
+        {/* Thông báo hết thời gian thanh toán */}
+        {expiredMessage && (
+          <div className="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded-lg shadow-md">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3 flex-1">
+                <p className="text-sm font-medium text-red-800">
+                  {expiredMessage}
+                </p>
+              </div>
+              <div className="ml-auto pl-3">
+                <button
+                  onClick={() => setExpiredMessage("")}
+                  className="inline-flex text-red-500 hover:text-red-700 focus:outline-none"
+                >
+                  <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* --- Card Nội dung chính --- */}
         <div className="bg-white shadow-xl rounded-2xl overflow-hidden">
           <div className="grid grid-cols-1 md:grid-cols-3">
@@ -340,6 +463,19 @@ const PageBookingHistoryDetail = () => {
                     <StatusBadge status={booking.status} />
                   </dd>
                 </div>
+                
+                {/* Hiển thị countdown khi booking ở trạng thái Pending và còn trong thời gian thanh toán */}
+                {booking.status?.toLowerCase() === "pending" && booking.createdAt && isWithinPaymentTime() && (
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <PaymentCountdown 
+                      createdAt={booking.createdAt} 
+                      onTimeout={() => {
+                        // Khi hết thời gian, tự động hủy booking
+                        handleAutoCancel();
+                      }} 
+                    />
+                  </div>
+                )}
                 
                 {/* Nút thanh toán lại - chỉ hiển thị khi booking ở trạng thái Pending */}
                 {booking.status?.toLowerCase() === "pending" && (
