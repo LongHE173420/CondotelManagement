@@ -1,4 +1,5 @@
 import axiosClient from "./axiosClient";
+import logger from "utils/logger";
 
 export interface PackageDto {
     packageId: number;
@@ -73,7 +74,7 @@ export const packageAPI = {
             const response = await axiosClient.get<any>("/Package");
             const data = Array.isArray(response.data) ? response.data : (response.data?.data || []);
             if (!Array.isArray(data)) {
-                console.warn("PackageAPI.getAllPackages: Expected an array, but received:", response.data);
+                logger.warn("PackageAPI.getAllPackages: Expected an array, but received:", response.data);
                 return [];
             }
             return data.map(normalizePackageDto);
@@ -81,12 +82,12 @@ export const packageAPI = {
             // Check if error is related to missing database columns
             const errorMessage = error.response?.data?.message || error.message || "";
             if (errorMessage.includes("Invalid column name") || errorMessage.includes("CanUseFeaturedListing") || errorMessage.includes("MaxListingCount")) {
-                console.warn("⚠️ Backend database missing columns. Returning empty array. Backend needs to add columns or fix query.");
-                console.warn("Error details:", errorMessage);
+                logger.warn("Backend database missing columns. Returning empty array. Backend needs to add columns or fix query.");
+                logger.debug("Error details:", errorMessage);
                 // Return empty array to prevent crashes - backend needs to fix this
                 return [];
             }
-            console.error("Error fetching packages:", error);
+            logger.error("Error fetching packages:", error);
             // Return empty array on error to prevent crashes
             return [];
         }
@@ -101,8 +102,8 @@ export const packageAPI = {
             // Check if error is related to missing database columns
             const errorMessage = error.response?.data?.message || error.message || "";
             if (errorMessage.includes("Invalid column name") || errorMessage.includes("IsVerifiedBadgeEnabled") || errorMessage.includes("CanUseFeaturedListing")) {
-                console.warn("⚠️ Backend database missing columns. Returning null. Backend needs to add columns or fix query.");
-                console.warn("Error details:", errorMessage);
+                logger.warn("Backend database missing columns. Returning null. Backend needs to add columns or fix query.");
+                logger.debug("Error details:", errorMessage);
                 // Return null to prevent crashes - backend needs to fix this
                 return null;
             }
@@ -110,7 +111,7 @@ export const packageAPI = {
             if (error.response?.status === 400 || error.response?.status === 404) {
                 return null;
             }
-            console.error("Error fetching my package:", error);
+            logger.error("Error fetching my package:", error);
             return null;
         }
     },

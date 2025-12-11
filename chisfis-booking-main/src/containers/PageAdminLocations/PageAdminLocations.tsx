@@ -3,6 +3,7 @@ import locationAPI, { LocationDTO, LocationCreateUpdateDTO } from "api/location"
 import uploadAPI from "api/upload";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
 import ButtonSecondary from "shared/Button/ButtonSecondary";
+import { toastSuccess, showErrorMessage } from "utils/toast";
 
 const PageAdminLocations: React.FC = () => {
   const [locations, setLocations] = useState<LocationDTO[]>([]);
@@ -365,10 +366,10 @@ const LocationModal: React.FC<LocationModalProps> = ({ location, onClose, onSucc
     try {
       if (location) {
         await locationAPI.updateAdmin(location.locationId, formData);
-        alert("Cập nhật location thành công!");
+        toastSuccess("Cập nhật location thành công!");
       } else {
         await locationAPI.createAdmin(formData);
-        alert("Tạo location thành công!");
+        toastSuccess("Tạo location thành công!");
       }
       onSuccess();
     } catch (err: any) {

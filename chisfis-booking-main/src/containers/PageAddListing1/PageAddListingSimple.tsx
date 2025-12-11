@@ -15,6 +15,7 @@ import ButtonPrimary from "shared/Button/ButtonPrimary";
 import ButtonSecondary from "shared/Button/ButtonSecondary";
 import FormItem from "./FormItem";
 import NcInputNumber from "components/NcInputNumber/NcInputNumber";
+import { toastSuccess, toastWarning, showErrorMessage } from "utils/toast";
 
 interface ImageDTO {
   imageUrl: string;
@@ -363,7 +364,7 @@ const PageAddListingSimple: FC = () => {
     setError("");
 
     if (!user) {
-      alert("Bạn cần đăng nhập để thêm condotel!");
+      toastWarning("Bạn cần đăng nhập để thêm condotel!");
       return;
     }
 
@@ -447,7 +448,7 @@ const PageAddListingSimple: FC = () => {
       await condotelAPI.create(payload);
       console.log("✅ Condotel created successfully");
 
-      alert("Tạo condotel thành công!");
+      toastSuccess("Tạo condotel thành công!");
       resetForm();
       
       setTimeout(() => {

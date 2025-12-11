@@ -1,15 +1,7 @@
 import { Tab } from "@headlessui/react";
-import CarCard from "components/CarCard/CarCard";
 import CommentListing from "components/CommentListing/CommentListing";
-import ExperiencesCard from "components/ExperiencesCard/ExperiencesCard";
 import StartRating from "components/StartRating/StartRating";
-import StayCard from "components/StayCard/StayCard";
 import CondotelCard from "components/CondotelCard/CondotelCard";
-import {
-  DEMO_CAR_LISTINGS,
-  DEMO_EXPERIENCES_LISTINGS,
-  DEMO_STAY_LISTINGS,
-} from "data/listings";
 import React, { FC, Fragment, useState, useEffect } from "react";
 import Avatar from "shared/Avatar/Avatar";
 import ButtonSecondary from "shared/Button/ButtonSecondary";
@@ -18,6 +10,9 @@ import { Helmet } from "react-helmet";
 import condotelAPI, { CondotelDTO } from "api/condotel";
 import { useAuth } from "contexts/AuthContext";
 import { useTranslation } from "i18n/LanguageContext";
+import { useParams } from "react-router-dom";
+import { authAPI, HostPublicProfile } from "api/auth";
+import { hostAPI, TopHostDTO } from "api/host";
 
 export interface AuthorPageProps {
   className?: string;
@@ -25,18 +20,84 @@ export interface AuthorPageProps {
 
 const AuthorPage: FC<AuthorPageProps> = ({ className = "" }) => {
   const { t } = useTranslation();
-  let [categories] = useState(["Stays", "Experiences", "Car for rent", "Condotels"]);
+  const { hostId } = useParams<{ hostId?: string }>();
+  let [categories] = useState(["Condotels"]);
   const [condotels, setCondotels] = useState<CondotelDTO[]>([]);
   const [isLoadingCondotels, setIsLoadingCondotels] = useState(false);
   const [showAllCondotels, setShowAllCondotels] = useState(false);
   const { user } = useAuth();
+  const [hostInfo, setHostInfo] = useState<HostPublicProfile | null>(null);
+  const [topHostInfo, setTopHostInfo] = useState<TopHostDTO | null>(null);
+  const [loadingHost, setLoadingHost] = useState(true);
+
+  useEffect(() => {
+    const fetchHostInfo = async () => {
+      if (!hostId) {
+        setLoadingHost(false);
+        return;
+      }
+
+      try {
+        setLoadingHost(true);
+        const hostIdNum = Number(hostId);
+        
+        // Try to get from top hosts first (if available)
+        let foundTopHost: TopHostDTO | null = null;
+        try {
+          const topHosts = await hostAPI.getTopRated(100);
+          foundTopHost = topHosts.find(h => h.hostId === hostIdNum) || null;
+          if (foundTopHost) {
+            setTopHostInfo(foundTopHost);
+          }
+        } catch (err) {
+          console.log("Could not fetch from top hosts");
+        }
+
+        // Get host public profile
+
+        try {
+          const profile = await authAPI.getHostPublicProfile(hostIdNum);
+          setHostInfo(profile);
+        } catch (err: any) {
+          console.error("Error fetching host profile:", err);
+          // If profile not found, use top host info if available
+          if (foundTopHost) {
+            setHostInfo({
+              hostId: foundTopHost.hostId,
+              fullName: foundTopHost.fullName,
+              imageUrl: foundTopHost.avatarUrl,
+              phone: undefined,
+              isVerified: false,
+              packageName: undefined,
+              priorityLevel: 0,
+              displayColorTheme: "default",
+            });
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching host info:", error);
+      } finally {
+        setLoadingHost(false);
+      }
+    };
+
+    fetchHostInfo();
+  }, [hostId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const fetchCondotels = async () => {
       try {
         setIsLoadingCondotels(true);
-        const data = await condotelAPI.getAll();
-        setCondotels(data);
+        if (hostId) {
+          // Fetch condotels for this specific host
+          const hostIdNum = Number(hostId);
+          const data = await condotelAPI.getCondotelsByHostId(hostIdNum);
+          setCondotels(data);
+        } else {
+          // If no hostId, fetch all condotels (for current user)
+          const data = await condotelAPI.getAll();
+          setCondotels(data);
+        }
       } catch (error) {
         console.error("Error fetching condotels:", error);
         // Set empty array on error so UI still renders
@@ -47,28 +108,47 @@ const AuthorPage: FC<AuthorPageProps> = ({ className = "" }) => {
     };
 
     fetchCondotels();
-  }, []);
+  }, [hostId]);
 
   const renderSidebar = () => {
+    // Use host info if available, otherwise use current user
+    const displayName = hostInfo?.fullName || topHostInfo?.fullName || user?.fullName || "Host";
+    const displayImage = hostInfo?.imageUrl || topHostInfo?.avatarUrl || user?.imageUrl;
+    const displayPhone = hostInfo?.phone || user?.phone;
+    const isVerified = hostInfo?.isVerified || false;
+    const averageRating = topHostInfo?.averageRating;
+    const totalCondotels = topHostInfo?.totalCondotels || condotels.length;
+
     return (
       <div className=" w-full flex flex-col items-center text-center sm:rounded-2xl sm:border border-neutral-200 dark:border-neutral-700 space-y-6 sm:space-y-7 px-0 sm:p-6 xl:p-8">
         <Avatar
-          hasChecked
+          hasChecked={isVerified}
           hasCheckedClass="w-6 h-6 -top-0.5 right-2"
           sizeClass="w-28 h-28"
-          imgUrl={user?.imageUrl}
+          imgUrl={displayImage}
         />
 
         {/* ---- */}
         <div className="space-y-3 text-center flex flex-col items-center">
-          <h2 className="text-3xl font-semibold">{user?.fullName || "Host"}</h2>
-          <StartRating className="!text-base" />
+          <h2 className="text-3xl font-semibold">{displayName}</h2>
+          {averageRating ? (
+            <div className="flex items-center gap-2">
+              <StartRating className="!text-base" point={averageRating} />
+              <span className="text-sm text-neutral-500 dark:text-neutral-400">
+                ({topHostInfo?.totalReviews || 0} đánh giá)
+              </span>
+            </div>
+          ) : (
+            <StartRating className="!text-base" />
+          )}
         </div>
 
         {/* ---- */}
-        <p className="text-neutral-500 dark:text-neutral-400">
-          {user?.address || "No address provided."}
-        </p>
+        {hostInfo?.packageName && (
+          <p className="text-neutral-500 dark:text-neutral-400">
+            {hostInfo.packageName}
+          </p>
+        )}
         {/* ---- */}
         <SocialsList
           className="!space-x-3"
@@ -78,12 +158,14 @@ const AuthorPage: FC<AuthorPageProps> = ({ className = "" }) => {
         <div className="border-b border-neutral-200 dark:border-neutral-700 w-14"></div>
         {/* ---- */}
         <div className="space-y-2">
-          <div className="text-neutral-800 dark:text-neutral-100 text-sm">
-            <b>Email:</b> {user?.email || '---'}
-          </div>
-          {user?.phone && (
+          {displayPhone && (
             <div className="text-neutral-800 dark:text-neutral-100 text-sm">
-              <b>Phone:</b> {user.phone}
+              <b>Phone:</b> {displayPhone}
+            </div>
+          )}
+          {totalCondotels > 0 && (
+            <div className="text-neutral-800 dark:text-neutral-100 text-sm">
+              <b>Số căn hộ:</b> {totalCondotels}
             </div>
           )}
         </div>
@@ -92,12 +174,14 @@ const AuthorPage: FC<AuthorPageProps> = ({ className = "" }) => {
   };
 
   const renderSection1 = () => {
+    const displayName = hostInfo?.fullName || topHostInfo?.fullName || user?.fullName || "Host";
+    
     return (
       <div className="listingSection__wrap">
         <div>
-          <h2 className="text-2xl font-semibold">{user?.fullName || "Host"}'s listings</h2>
+          <h2 className="text-2xl font-semibold">Danh sách căn hộ của {displayName}</h2>
           <span className="block mt-2 text-neutral-500 dark:text-neutral-400">
-            Danh sách căn hộ đã đăng.
+            {condotels.length > 0 ? `${condotels.length} căn hộ đã đăng.` : "Chưa có căn hộ nào."}
           </span>
         </div>
         <div className="w-14 border-b border-neutral-200 dark:border-neutral-700"></div>
@@ -122,38 +206,6 @@ const AuthorPage: FC<AuthorPageProps> = ({ className = "" }) => {
               ))}
             </Tab.List>
             <Tab.Panels>
-              <Tab.Panel className="">
-                <div className="mt-8 grid grid-cols-1 gap-6 md:gap-7 sm:grid-cols-2">
-                  {DEMO_STAY_LISTINGS.filter((_, i) => i < 4).map((stay) => (
-                    <StayCard key={stay.id} data={stay} />
-                  ))}
-                </div>
-                <div className="flex mt-11 justify-center items-center">
-                  <ButtonSecondary>Show me more</ButtonSecondary>
-                </div>
-              </Tab.Panel>
-              <Tab.Panel className="">
-                <div className="mt-8 grid grid-cols-1 gap-6 md:gap-7 sm:grid-cols-2">
-                  {DEMO_EXPERIENCES_LISTINGS.filter((_, i) => i < 4).map(
-                    (stay) => (
-                      <ExperiencesCard key={stay.id} data={stay} />
-                    )
-                  )}
-                </div>
-                <div className="flex mt-11 justify-center items-center">
-                  <ButtonSecondary>Show me more</ButtonSecondary>
-                </div>
-              </Tab.Panel>
-              <Tab.Panel className="">
-                <div className="mt-8 grid grid-cols-1 gap-6 md:gap-7 sm:grid-cols-2">
-                  {DEMO_CAR_LISTINGS.filter((_, i) => i < 4).map((stay) => (
-                    <CarCard key={stay.id} data={stay} />
-                  ))}
-                </div>
-                <div className="flex mt-11 justify-center items-center">
-                  <ButtonSecondary>Show me more</ButtonSecondary>
-                </div>
-              </Tab.Panel>
               <Tab.Panel className="">
                 {isLoadingCondotels ? (
                   <div className="mt-8 flex justify-center items-center py-12">
@@ -215,10 +267,18 @@ const AuthorPage: FC<AuthorPageProps> = ({ className = "" }) => {
     );
   };
 
+  if (loadingHost) {
+    return (
+      <div className="container mt-12 mb-24 lg:mb-32 flex justify-center items-center py-24">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      </div>
+    );
+  }
+
   return (
     <div className={`nc-AuthorPage ${className}`} data-nc-id="AuthorPage">
       <Helmet>
-        <title>Login || Fiscondotel</title>
+        <title>{hostInfo?.fullName || topHostInfo?.fullName || "Host"} || Fiscondotel</title>
       </Helmet>
       <main className="container mt-12 mb-24 lg:mb-32 flex flex-col lg:flex-row">
         <div className="block flex-grow mb-24 lg:mb-0">

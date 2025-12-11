@@ -616,8 +616,8 @@ const PageAdminPayoutBooking: React.FC = () => {
                 {currentPayouts.map((payout) => {
                   const isExpanded = expandedRows.has(payout.bookingId);
                   return (
-                    <>
-                      <tr key={payout.bookingId} className="hover:bg-gradient-to-r hover:from-indigo-50/50 hover:to-purple-50/50 dark:hover:from-neutral-700/50 dark:hover:to-neutral-800/50 transition-all duration-200">
+                    <React.Fragment key={payout.bookingId}>
+                      <tr className="hover:bg-gradient-to-r hover:from-indigo-50/50 hover:to-purple-50/50 dark:hover:from-neutral-700/50 dark:hover:to-neutral-800/50 transition-all duration-200">
                         <td className="px-4 py-4">
                           <button
                             onClick={() => toggleExpand(payout.bookingId)}
@@ -882,7 +882,7 @@ const PageAdminPayoutBooking: React.FC = () => {
                           </td>
                         </tr>
                       )}
-                    </>
+                    </React.Fragment>
                   );
                 })}
               </tbody>

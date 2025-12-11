@@ -5,6 +5,7 @@ import ButtonPrimary from "shared/Button/ButtonPrimary";
 import ButtonSecondary from "shared/Button/ButtonSecondary";
 import { useAuth } from "contexts/AuthContext";
 import { validateBookingOwnership } from "utils/bookingSecurity";
+import { toast } from "react-toastify";
 
 // Danh sách ngân hàng phổ biến ở Việt Nam
 const BANKS = [
@@ -69,7 +70,6 @@ const PageRequestRefund = () => {
           setBooking(bookingData);
           setUnauthorized(false);
         } catch (securityError: any) {
-          console.error("Security error:", securityError);
           setError(securityError.message || "Bạn không có quyền truy cập booking này");
           setUnauthorized(true);
           setBooking(null);
@@ -82,10 +82,6 @@ const PageRequestRefund = () => {
 
         // Kiểm tra điều kiện hoàn tiền
         const status = bookingData.status?.toLowerCase()?.trim();
-        console.log("📋 Booking status khi load:", {
-          original: bookingData.status,
-          lowerCase: status
-        });
         
         // Phân biệt Cancel Payment vs Cancel Booking:
         // - Cancel Payment: Booking chưa thanh toán (status = "Cancelled" và totalPrice = 0/null) → KHÔNG refund
@@ -126,7 +122,6 @@ const PageRequestRefund = () => {
           }
         }
       } catch (err: any) {
-        console.error("Error loading booking:", err);
         setError("Không thể tải thông tin booking. Vui lòng thử lại sau.");
       } finally {
         setLoading(false);
@@ -140,7 +135,7 @@ const PageRequestRefund = () => {
     e.preventDefault();
 
     if (!bankName || !accountNumber || !accountHolder) {
-      alert("Vui lòng điền đầy đủ thông tin ngân hàng");
+      toast.error("❌ Vui lòng điền đầy đủ thông tin ngân hàng");
       return;
     }
 
@@ -152,20 +147,7 @@ const PageRequestRefund = () => {
     setSuccessMessage("");
 
     try {
-      console.log("🔄 Bắt đầu xử lý yêu cầu hoàn tiền...");
-      console.log("📋 Booking hiện tại:", {
-        bookingId: booking.bookingId,
-        status: booking.status,
-        totalPrice: booking.totalPrice,
-      });
-      
-      // Luôn reload booking để lấy status mới nhất
       let currentBooking = await bookingAPI.getBookingById(booking.bookingId);
-      console.log("📋 Booking sau khi reload:", {
-        bookingId: currentBooking.bookingId,
-        status: currentBooking.status,
-        totalPrice: currentBooking.totalPrice,
-      });
 
       if (!currentBooking) {
         throw new Error("Không thể tải thông tin booking. Vui lòng thử lại sau.");
@@ -173,16 +155,6 @@ const PageRequestRefund = () => {
 
       const status = currentBooking.status?.toLowerCase()?.trim();
       const statusOriginal = currentBooking.status; // Giữ nguyên case để hiển thị
-      
-      console.log("🔍 Kiểm tra status booking:", {
-        original: statusOriginal,
-        lowerCase: status,
-        bookingId: currentBooking.bookingId,
-        isCancelled: status === "cancelled",
-        isRefunded: status === "refunded",
-        isPending: status === "pending",
-        isConfirmed: status === "confirmed",
-      });
       
       // Backend cho phép tạo refund request cho các status:
       // - "Cancelled" (đã hủy)
@@ -204,38 +176,22 @@ const PageRequestRefund = () => {
         const canCancel = status === "pending" || status === "confirmed";
         
         if (canCancel) {
-          console.log("⚠️ Booking chưa hủy, đang hủy booking trước...");
           // Hủy booking trước
           try {
             await bookingAPI.cancelBooking(currentBooking.bookingId);
-            console.log("✅ Booking đã được hủy trước khi gửi yêu cầu hoàn tiền");
-            
-            // Đợi một chút để backend cập nhật status
-            await new Promise(resolve => setTimeout(resolve, 500));
             
             // Reload booking để lấy status mới
             currentBooking = await bookingAPI.getBookingById(currentBooking.bookingId);
             const newStatus = currentBooking.status?.toLowerCase()?.trim();
-            console.log("📋 Booking sau khi hủy:", {
-              bookingId: currentBooking.bookingId,
-              status: currentBooking.status,
-              statusLower: newStatus,
-            });
             
             // Kiểm tra lại status sau khi hủy
             // Backend sẽ set status = "Cancelled" khi hủy booking
             // Nếu là "Refunded" hoặc "Completed", cũng chấp nhận (backend sẽ kiểm tra refund request)
             const validStatusAfterCancel = ["cancelled", "refunded", "completed"];
             if (!validStatusAfterCancel.includes(newStatus)) {
-              console.error("❌ Status sau khi hủy không đúng:", {
-                expected: "cancelled (hoặc refunded/completed nếu backend cho phép)",
-                actual: newStatus,
-                original: currentBooking.status
-              });
               throw new Error(`Booking chưa được hủy thành công. Trạng thái hiện tại: ${currentBooking.status}. Vui lòng thử lại sau.`);
             }
           } catch (cancelErr: any) {
-            console.error("❌ Error cancelling booking:", cancelErr);
             const errorMsg = cancelErr.response?.data?.message ||
               cancelErr.response?.data?.Message ||
               cancelErr.message ||
@@ -247,48 +203,29 @@ const PageRequestRefund = () => {
         } else {
           // Status không phải cancelled, refunded (tạm thời chấp nhận), pending, hoặc confirmed
           const errorMsg = `Booking đang ở trạng thái "${statusOriginal || 'Không xác định'}" không thể hủy hoặc hoàn tiền. Chỉ có thể hoàn tiền cho booking đã bị hủy (status = "Cancelled" hoặc "Refunded" nếu backend set sai) hoặc đang ở trạng thái Pending/Confirmed.`;
-          console.error("❌", errorMsg, {
-            statusOriginal,
-            statusLower: status,
-            bookingId: currentBooking.bookingId,
-            canCancel: false
-          });
           setError(errorMsg);
           setSubmitting(false);
           return;
         }
-      } else {
-        // Booking đã ở trạng thái Cancelled/Refunded/Completed
-        // Kiểm tra lại: Nếu là Cancelled nhưng không có giá → Cancel Payment → không refund
-        if (isCancelledStatus && (!currentBooking.totalPrice || currentBooking.totalPrice === 0)) {
-          const errorMsg = "Booking này đã bị hủy thanh toán (chưa thanh toán). Không thể yêu cầu hoàn tiền cho booking chưa thanh toán.";
-          setError(errorMsg);
-          setSubmitting(false);
-          return;
-        }
-        
-        console.log("✅ Booking đã được hủy (status = Cancelled hoặc Refunded), có thể gửi yêu cầu hoàn tiền");
-      }
-
-      if (!currentBooking.totalPrice || currentBooking.totalPrice <= 0) {
+        } else {
+          // Booking đã ở trạng thái Cancelled/Refunded/Completed
+          // Kiểm tra lại: Nếu là Cancelled nhưng không có giá → Cancel Payment → không refund
+          if (isCancelledStatus && (!currentBooking.totalPrice || currentBooking.totalPrice === 0)) {
+            const errorMsg = "Booking này đã bị hủy thanh toán (chưa thanh toán). Không thể yêu cầu hoàn tiền cho booking chưa thanh toán.";
+            setError(errorMsg);
+            setSubmitting(false);
+            return;
+          }
+        }      if (!currentBooking.totalPrice || currentBooking.totalPrice <= 0) {
         throw new Error("Booking không có số tiền hợp lệ để hoàn tiền.");
       }
 
-      // Kiểm tra lại một lần nữa trước khi gửi
-      // Backend cho phép tạo refund request cho các status:
-      // - "Cancelled" (đã hủy)
-      // - "Refunded" (nếu chưa có refund request completed - backend sẽ kiểm tra)
-      // - "Completed" (có thể hoàn tiền)
-      // - "Confirmed", "Pending" (có thể hủy trước)
       const finalStatus = currentBooking.status?.toLowerCase()?.trim();
       const validStatuses = ["cancelled", "refunded", "completed", "confirmed", "pending"];
       
       if (!validStatuses.includes(finalStatus)) {
-        console.error("❌ Status không hợp lệ để hoàn tiền:", finalStatus);
         throw new Error(`Booking không ở trạng thái hợp lệ để hoàn tiền. Trạng thái hiện tại: ${currentBooking.status}. Chỉ có thể hoàn tiền cho booking đã bị hủy (Cancelled) hoặc đang ở trạng thái Pending/Confirmed/Completed/Refunded (nếu chưa có refund request completed).`);
       }
-      
-      console.log("✅ Booking ở trạng thái hợp lệ để hoàn tiền, sẵn sàng gửi yêu cầu hoàn tiền");
 
       if (!currentBooking.totalPrice || currentBooking.totalPrice <= 0) {
         throw new Error("Booking không có số tiền hợp lệ để hoàn tiền.");
@@ -309,44 +246,11 @@ const PageRequestRefund = () => {
         accountHolder,
       });
 
-      console.log("📥 Response từ API:", result);
-      console.log("📥 Full response data:", JSON.stringify(result, null, 2));
-
       if (result.success) {
         const successMsg = result.message || "Yêu cầu hoàn tiền đã được gửi thành công. Admin sẽ xử lý trong vòng 1-3 ngày làm việc.";
-        console.log("✅", successMsg);
         
         // Parse bank info từ response (có thể là BankInfo hoặc bankInfo)
         const bankInfoFromResponse = result.bankInfo || result.data?.BankInfo || result.data?.bankInfo || null;
-        
-        // Log để verify bank info
-        console.log("🔍 Bank info verification:", {
-          sent: {
-            bankName,
-            accountNumber: accountNumber.substring(0, 3) + "***",
-            accountHolder: accountHolder.substring(0, 3) + "***",
-          },
-          received: bankInfoFromResponse ? {
-            bankCode: bankInfoFromResponse.BankCode || bankInfoFromResponse.bankCode,
-            accountNumber: (bankInfoFromResponse.AccountNumber || bankInfoFromResponse.accountNumber)?.substring(0, 3) + "***",
-            accountHolder: (bankInfoFromResponse.AccountHolder || bankInfoFromResponse.accountHolder)?.substring(0, 3) + "***",
-          } : null,
-          responseData: result.data,
-        });
-        
-        // Verify bank info được lưu
-        if (bankInfoFromResponse) {
-          const receivedBankCode = bankInfoFromResponse.BankCode || bankInfoFromResponse.bankCode;
-          if (receivedBankCode) {
-            console.log("✅ Bank info đã được lưu và xác nhận từ backend:", {
-              bankCode: receivedBankCode,
-              hasAccountNumber: !!(bankInfoFromResponse.AccountNumber || bankInfoFromResponse.accountNumber),
-              hasAccountHolder: !!(bankInfoFromResponse.AccountHolder || bankInfoFromResponse.accountHolder),
-            });
-          }
-        } else {
-          console.warn("⚠️ Backend không trả về bank info trong response. Có thể chưa lưu vào database.");
-        }
         
         setSuccess(true);
         setSuccessMessage(successMsg);
@@ -357,18 +261,9 @@ const PageRequestRefund = () => {
         }, 2000);
       } else {
         const errorMsg = result.message || "Không thể gửi yêu cầu hoàn tiền. Vui lòng thử lại sau.";
-        console.error("❌", errorMsg);
         setError(errorMsg);
       }
     } catch (err: any) {
-      console.error("❌ Error submitting refund request:", err);
-      console.error("❌ Error details:", {
-        message: err.message,
-        response: err.response?.data,
-        status: err.response?.status,
-        statusText: err.response?.statusText,
-      });
-      
       let errorMsg = "Đã có lỗi xảy ra khi gửi yêu cầu hoàn tiền. Vui lòng thử lại sau.";
       
       if (err.response?.data) {

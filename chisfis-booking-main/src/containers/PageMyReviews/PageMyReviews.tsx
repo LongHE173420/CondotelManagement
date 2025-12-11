@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import reviewAPI, { ReviewDTO } from "api/review";
 import bookingAPI, { BookingDTO } from "api/booking";
+import { toast } from "react-toastify";
 
 // Format ngày tháng
 const formatDate = (dateString: string | undefined): string => {
@@ -73,18 +74,20 @@ const PageMyReviews: React.FC = () => {
   }, []);
 
   const handleDelete = async (reviewId: number) => {
-    if (!window.confirm("Bạn có chắc chắn muốn xóa đánh giá này?")) {
-      return;
-    }
+    toast.info("Xóa đánh giá?", {
+      position: "bottom-center",
+      autoClose: false,
+      closeButton: true,
+    });
 
     try {
       await reviewAPI.deleteReview(reviewId);
       // Reload reviews
       setReviews((prev) => prev.filter((r) => r.reviewId !== reviewId));
-      alert("Đã xóa đánh giá thành công!");
+      toast.success("✅ Đã xóa đánh giá thành công!");
     } catch (err: any) {
-      console.error("Error deleting review:", err);
-      alert(err.response?.data?.message || "Không thể xóa đánh giá");
+      const errorMsg = err.response?.data?.message || "Không thể xóa đánh giá";
+      toast.error(`❌ ${errorMsg}`);
     }
   };
 

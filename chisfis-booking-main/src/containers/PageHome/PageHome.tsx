@@ -127,7 +127,7 @@ function PageHome() {
             count: host.totalCondotels || 0,
             desc: `${host.totalReviews || 0} đánh giá • ${host.totalCondotels || 0} condotel`,
             jobName: host.companyName || 'Host', // jobName vẫn dùng companyName nếu có
-            href: `/listing-stay?hostId=${host.hostId}`,
+            href: `/author/${host.hostId}`,
             starRating: host.averageRating || 0,
           };
         });

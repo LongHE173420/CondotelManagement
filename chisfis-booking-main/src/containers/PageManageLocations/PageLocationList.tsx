@@ -34,7 +34,6 @@ const PageLocationList = () => {
   const handleDelete = (id: string, name: string) => {
     if (window.confirm(`Bạn có chắc muốn xóa địa điểm "${name}" không?`)) {
       // TODO: Gọi API xóa
-      console.log("Xóa địa điểm:", id);
       setLocations(current => current.filter(loc => loc.id !== id));
     }
   };

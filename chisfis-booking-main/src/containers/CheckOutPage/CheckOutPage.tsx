@@ -18,6 +18,7 @@ import bookingAPI, { CreateBookingDTO, ServicePackageBookingItem } from "api/boo
 import paymentAPI from "api/payment";
 import condotelAPI, { PromotionDTO } from "api/condotel";
 import voucherAPI, { VoucherDTO } from "api/voucher";
+import { toastWarning, showValidationError } from "utils/toast";
 import servicePackageAPI, { ServicePackageDTO } from "api/servicePackage";
 import { calculateFinalPrice } from "utils/priceCalculator";
 
@@ -58,7 +59,7 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
   const [voucherInput, setVoucherInput] = useState("");
   const [voucherError, setVoucherError] = useState<string | null>(null);
   const [servicePackages, setServicePackages] = useState<ServicePackageDTO[]>([]);
-  const [selectedServicePackages, setSelectedServicePackages] = useState<Map<number, number>>(new Map()); // serviceId -> quantity
+  const [selectedServicePackages, setSelectedServicePackages] = useState<Set<number>>(new Set()); // serviceId set (checkbox - không có số lượng)
   const [condotelDetail, setCondotelDetail] = useState<any>(null);
   const [bookingId, setBookingId] = useState<number | null>(null);
 
@@ -519,29 +520,29 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
     return priceAfterPromotion;
   };
 
-  // Calculate service packages total
+  // Calculate service packages total (mỗi service chỉ tính 1 lần vì dùng checkbox)
   const calculateServicePackagesTotal = (): number => {
     let total = 0;
-    selectedServicePackages.forEach((quantity, serviceId) => {
+    selectedServicePackages.forEach((serviceId) => {
       const servicePackage = servicePackages.find(sp => 
         (sp.serviceId === serviceId) || (sp.servicePackageId === serviceId) || (sp.packageId === serviceId)
       );
-      if (servicePackage && quantity > 0) {
-        total += servicePackage.price * quantity;
+      if (servicePackage) {
+        total += servicePackage.price; // Mỗi service chỉ tính 1 lần
       }
     });
     return total;
   };
 
-  // Handle service package quantity change
-  const handleServicePackageQuantityChange = (serviceId: number, quantity: number) => {
-    const newMap = new Map(selectedServicePackages);
-    if (quantity > 0) {
-      newMap.set(serviceId, quantity);
+  // Handle service package toggle (checkbox - chọn/bỏ chọn)
+  const handleServicePackageToggle = (serviceId: number) => {
+    const newSet = new Set(selectedServicePackages);
+    if (newSet.has(serviceId)) {
+      newSet.delete(serviceId); // Bỏ chọn
     } else {
-      newMap.delete(serviceId);
+      newSet.add(serviceId); // Chọn
     }
-    setSelectedServicePackages(newMap);
+    setSelectedServicePackages(newSet);
   };
 
   // Get selected voucher object
@@ -599,24 +600,24 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
   // Handle payment
   const handlePayment = async () => {
     if (!user) {
-      alert("Vui lòng đăng nhập để đặt phòng");
+      toastWarning("Vui lòng đăng nhập để đặt phòng");
       navigate("/login");
       return;
     }
 
     if (!state?.condotelId) {
-      alert("Vui lòng chọn căn hộ để đặt phòng");
+      showValidationError("Vui lòng chọn căn hộ để đặt phòng");
       return;
     }
 
     if (!rangeDates.startDate || !rangeDates.endDate) {
-      alert("Vui lòng chọn ngày check-in và check-out");
+      showValidationError("Vui lòng chọn ngày check-in và check-out");
       return;
     }
 
     const nights = rangeDates.endDate.diff(rangeDates.startDate, "days");
     if (nights <= 0) {
-      alert("Ngày check-out phải sau ngày check-in");
+      showValidationError("Ngày check-out phải sau ngày check-in");
       return;
     }
 
@@ -677,15 +678,13 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
         console.warn("⚠️ Could not check availability, proceeding with booking:", availabilityErr);
       }
 
-      // Prepare service packages for booking
+      // Prepare service packages for booking (quantity luôn là 1 vì dùng checkbox)
       const servicePackagesForBooking: ServicePackageBookingItem[] = [];
-      selectedServicePackages.forEach((quantity, serviceId) => {
-        if (quantity > 0) {
-          servicePackagesForBooking.push({
-            serviceId: serviceId,
-            quantity: quantity,
-          });
-        }
+      selectedServicePackages.forEach((serviceId) => {
+        servicePackagesForBooking.push({
+          serviceId: serviceId,
+          quantity: 1, // Luôn là 1 vì dùng checkbox
+        });
       });
 
       // Step 1: Tạo booking
@@ -1298,53 +1297,50 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
             <div className="space-y-4">
               {servicePackages.map((servicePackage) => {
                 const serviceId = servicePackage.serviceId || servicePackage.servicePackageId || servicePackage.packageId || 0;
-                const quantity = selectedServicePackages.get(serviceId) || 0;
-                const totalPrice = servicePackage.price * quantity;
+                const isSelected = selectedServicePackages.has(serviceId);
 
                 return (
                   <div
                     key={serviceId}
-                    className="p-4 border border-neutral-200 dark:border-neutral-700 rounded-lg hover:border-primary-500 dark:hover:border-primary-500 transition-colors"
+                    className={`p-4 border rounded-lg transition-all cursor-pointer ${
+                      isSelected
+                        ? "border-primary-500 bg-primary-50 dark:bg-primary-900/20 dark:border-primary-500"
+                        : "border-neutral-200 dark:border-neutral-700 hover:border-primary-300 dark:hover:border-primary-600"
+                    }`}
+                    onClick={() => handleServicePackageToggle(serviceId)}
                   >
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1">
-                        <h4 className="font-semibold text-neutral-900 dark:text-neutral-100">
-                          {servicePackage.name}
-                        </h4>
-                        {servicePackage.description && (
-                          <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">
-                            {servicePackage.description}
-                          </p>
-                        )}
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start gap-3 flex-1">
+                        {/* Checkbox */}
+                        <div className="flex items-center mt-1">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => handleServicePackageToggle(serviceId)}
+                            onClick={(e) => e.stopPropagation()} // Prevent double toggle
+                            className="w-5 h-5 text-primary-600 border-neutral-300 rounded focus:ring-primary-500 focus:ring-2 cursor-pointer"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-neutral-900 dark:text-neutral-100">
+                            {servicePackage.name}
+                          </h4>
+                          {servicePackage.description && (
+                            <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">
+                              {servicePackage.description}
+                            </p>
+                          )}
+                        </div>
                       </div>
                       <div className="ml-4 text-right">
-                        <p className="font-semibold text-neutral-900 dark:text-neutral-100">
+                        <p className={`font-semibold ${
+                          isSelected 
+                            ? "text-primary-600 dark:text-primary-400" 
+                            : "text-neutral-900 dark:text-neutral-100"
+                        }`}>
                           {servicePackage.price.toLocaleString()} đ
                         </p>
-                        {quantity > 0 && (
-                          <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">
-                            Tổng: {totalPrice.toLocaleString()} đ
-                          </p>
-                        )}
                       </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <button
-                        type="button"
-                        onClick={() => handleServicePackageQuantityChange(serviceId, Math.max(0, quantity - 1))}
-                        className="w-8 h-8 flex items-center justify-center border border-neutral-300 dark:border-neutral-600 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
-                        disabled={quantity === 0}
-                      >
-                        −
-                      </button>
-                      <span className="w-12 text-center font-medium">{quantity}</span>
-                      <button
-                        type="button"
-                        onClick={() => handleServicePackageQuantityChange(serviceId, quantity + 1)}
-                        className="w-8 h-8 flex items-center justify-center border border-neutral-300 dark:border-neutral-600 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
-                      >
-                        +
-                      </button>
                     </div>
                   </div>
                 );

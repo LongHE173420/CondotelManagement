@@ -1,4 +1,5 @@
 import axiosClient from "./axiosClient";
+import logger from "utils/logger";
 
 // Sub DTOs for CondotelDetailDTO
 export interface ImageDTO {
@@ -87,6 +88,8 @@ export interface CondotelDTO {
   thumbnailUrl?: string;
   resortName?: string;
   hostName?: string;
+  reviewCount?: number;
+  reviewRate?: number;
   activePromotion?: PromotionDTO | null; // Promotion đang active (nếu có)
   activePrice?: PriceDTO | null; // Price đang active (nếu có)
 }
@@ -110,6 +113,10 @@ export interface CondotelDetailDTO {
   // Resort info (nếu backend trả về)
   resortName?: string;
   resortAddress?: string;
+
+  // Review info
+  reviewCount?: number;
+  reviewRate?: number;
 
   // Liên kết 1-n
   images?: ImageDTO[];
@@ -273,13 +280,8 @@ export const condotelAPI = {
       params.bathrooms = query.bathrooms;
     }
 
-    console.log("🔍 Searching condotels with params:", params);
-    console.log("🔍 Full URL will be: /tenant/condotels?" + new URLSearchParams(params).toString());
-
     try {
       const response = await axiosClient.get<any>("/tenant/condotels", { params });
-      console.log("✅ Search response:", response.data);
-      console.log("✅ Response type:", Array.isArray(response.data) ? "Array" : typeof response.data);
 
       // Normalize response - handle both array, object with data property, and success wrapper
       let data: any[] = [];
@@ -295,8 +297,6 @@ export const condotelAPI = {
           }
         }
       }
-
-      console.log("✅ Processed data count:", data.length);
 
       // Map response to CondotelDTO format
       const mapped = data.map((item: any) => {
@@ -321,6 +321,8 @@ export const condotelAPI = {
           description: rawActivePrice.Description || rawActivePrice.description,
         } : null;
 
+        const normalizedPromotion = normalizePromotion(item.ActivePromotion || item.activePromotion);
+        
         return {
         condotelId: item.CondotelId || item.condotelId,
         name: item.Name || item.name,
@@ -331,16 +333,15 @@ export const condotelAPI = {
           thumbnailUrl: thumbnailUrl,
         resortName: item.ResortName || item.resortName,
         hostName: item.HostName || item.hostName,
-        activePromotion: normalizePromotion(item.ActivePromotion || item.activePromotion),
+        reviewCount: item.ReviewCount !== undefined ? item.ReviewCount : item.reviewCount,
+        reviewRate: item.ReviewRate !== undefined ? item.ReviewRate : item.reviewRate,
+        activePromotion: normalizedPromotion,
           activePrice: normalizedActivePrice,
         };
       });
 
-      console.log("✅ Mapped results:", mapped.length, "condotels");
       return mapped;
     } catch (error: any) {
-      console.error("❌ Search error:", error);
-      console.error("❌ Error response:", error.response?.data);
       throw error;
     }
   },
@@ -355,14 +356,6 @@ export const condotelAPI = {
   getById: async (id: number): Promise<CondotelDetailDTO> => {
     const response = await axiosClient.get<any>(`/tenant/condotels/${id}`);
     const data = response.data;
-
-    console.log("🔍 Raw API response for condotel:", id, data);
-    console.log("🔍 Raw Amenities:", data.Amenities || data.amenities);
-    console.log("🔍 Raw Utilities:", data.Utilities || data.utilities);
-    console.log("🔍 Raw Promotions:", data.Promotions || data.promotions);
-    console.log("🔍 Raw ActivePromotion:", data.ActivePromotion || data.activePromotion);
-    console.log("🔍 Raw ActivePrice:", data.ActivePrice || data.activePrice);
-    console.log("🔍 Raw Resort:", data.Resort || data.resort);
 
     const rawAmenities = data.Amenities || data.amenities || [];
     const rawUtilities = data.Utilities || data.utilities || [];
@@ -385,11 +378,13 @@ export const condotelAPI = {
       description: rawActivePrice.Description || rawActivePrice.description,
     } : null;
 
-    console.log("✅ Normalized Amenities:", normalizedAmenities);
-    console.log("✅ Normalized Utilities:", normalizedUtilities);
-    console.log("✅ Normalized Promotions:", normalizedPromotions);
-    console.log("✅ Normalized ActivePromotion:", normalizedActivePromotion);
-    console.log("✅ Normalized ActivePrice:", normalizedActivePrice);
+    logger.group(`Condotel ${id} - Normalized Data`, () => {
+      logger.debug("Normalized Amenities:", normalizedAmenities);
+      logger.debug("Normalized Utilities:", normalizedUtilities);
+      logger.debug("Normalized Promotions:", normalizedPromotions);
+      logger.debug("Normalized ActivePromotion:", normalizedActivePromotion);
+      logger.debug("Normalized ActivePrice:", normalizedActivePrice);
+    });
 
     // Normalize Resort object nếu có
     const resort = data.Resort || data.resort;
@@ -410,6 +405,8 @@ export const condotelAPI = {
       hostImageUrl: data.HostImageUrl || data.hostImageUrl,
       resortName: resort?.Name || resort?.name || data.ResortName || data.resortName,
       resortAddress: resortAddress,
+      reviewCount: data.ReviewCount !== undefined ? data.ReviewCount : data.reviewCount,
+      reviewRate: data.ReviewRate !== undefined ? data.ReviewRate : data.reviewRate,
       images: data.Images || data.images || [],
       prices: data.Prices || data.prices || [],
       details: data.Details || data.details || [],
@@ -472,12 +469,14 @@ export const condotelAPI = {
           thumbnailUrl: item.ThumbnailUrl || item.thumbnailUrl,
           resortName: item.ResortName || item.resortName,
           hostName: item.HostName || item.hostName,
+          reviewCount: item.ReviewCount !== undefined ? item.ReviewCount : item.reviewCount,
+          reviewRate: item.ReviewRate !== undefined ? item.ReviewRate : item.reviewRate,
           activePromotion: normalizePromotion(item.ActivePromotion || item.activePromotion),
           activePrice: normalizedActivePrice,
         };
       });
     } catch (err: any) {
-      console.error(`Error fetching condotels for host ${hostId}:`, err);
+      logger.error(`Error fetching condotels for host ${hostId}:`, err);
       return [];
     }
   },
@@ -602,36 +601,17 @@ export const condotelAPI = {
 
   // GET /api/host/condotel/{id} - Lấy condotel theo ID của host (cần đăng nhập)
   getByIdForHost: async (id: number): Promise<CondotelDetailDTO> => {
-    console.log("📥 API: getByIdForHost called with id:", id);
     const response = await axiosClient.get<any>(`/host/condotel/${id}`);
-    console.log("📥 API: Raw response:", response);
-    console.log("📥 API: Response data:", response.data);
     const data = response.data;
     
     // Handle response wrapper: { success: true, data: {...} }
     const actualData = data.success && data.data ? data.data : data;
-    console.log("📥 API: Actual data after unwrapping:", actualData);
 
     const rawAmenities = actualData.Amenities || actualData.amenities || [];
     const rawUtilities = actualData.Utilities || actualData.utilities || [];
     const rawPromotions = actualData.Promotions || actualData.promotions || [];
     const rawActivePromotion = actualData.ActivePromotion || actualData.activePromotion;
     const rawActivePrice = actualData.ActivePrice || actualData.activePrice;
-    
-    console.log("📥 API: Raw data fields:", {
-      hasName: !!(actualData.Name || actualData.name),
-      hasDescription: !!(actualData.Description || actualData.description),
-      hasBeds: !!(actualData.Beds !== undefined || actualData.beds !== undefined),
-      hasBathrooms: !!(actualData.Bathrooms !== undefined || actualData.bathrooms !== undefined),
-      hasPricePerNight: !!(actualData.PricePerNight !== undefined || actualData.pricePerNight !== undefined),
-      hasStatus: !!(actualData.Status || actualData.status),
-      hasResortId: !!(actualData.ResortId !== undefined || actualData.resortId !== undefined),
-      imagesCount: (actualData.Images || actualData.images || []).length,
-      pricesCount: (actualData.Prices || actualData.prices || []).length,
-      detailsCount: (actualData.Details || actualData.details || []).length,
-      amenitiesCount: rawAmenities.length,
-      utilitiesCount: rawUtilities.length,
-    });
 
     // Normalize activePrice
     const normalizedActivePrice = rawActivePrice ? {
@@ -655,6 +635,8 @@ export const condotelAPI = {
       status: actualData.Status || actualData.status || "Inactive",
       hostName: actualData.HostName || actualData.hostName,
       hostImageUrl: actualData.HostImageUrl || actualData.hostImageUrl,
+      reviewCount: actualData.ReviewCount !== undefined ? actualData.ReviewCount : actualData.reviewCount,
+      reviewRate: actualData.ReviewRate !== undefined ? actualData.ReviewRate : actualData.reviewRate,
       images: actualData.Images || actualData.images || [],
       prices: actualData.Prices || actualData.prices || [],
       details: actualData.Details || actualData.details || [],
@@ -665,7 +647,6 @@ export const condotelAPI = {
       activePrice: normalizedActivePrice,
     };
     
-    console.log("📥 API: Normalized result:", result);
     return result;
   },
 
@@ -730,15 +711,8 @@ export const condotelAPI = {
       requestData.UtilityIds = condotel.utilityIds;
     }
 
-    console.log("📤 Creating condotel with data:", JSON.stringify(requestData, null, 2));
-
     const response = await axiosClient.post<any>("/host/condotel", requestData);
-    const rawData = response.data;
-
-    // Handle response wrapper: { success: true, message: "...", data: {...} }
-    const data = rawData.success && rawData.data ? rawData.data : rawData;
-
-    console.log("✅ Condotel created successfully:", data);
+    const data = response.data;
 
     // Normalize response to CondotelDetailDTO
     const rawAmenities = data.Amenities || data.amenities || [];

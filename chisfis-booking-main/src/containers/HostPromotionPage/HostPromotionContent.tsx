@@ -4,6 +4,7 @@ import { useAuth } from "contexts/AuthContext";
 import { condotelAPI, CondotelDTO, PromotionDTO } from "api/condotel";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
 import ButtonSecondary from "shared/Button/ButtonSecondary";
+import { toast } from "react-toastify";
 
 const HostPromotionContent: React.FC = () => {
   const { user, isAuthenticated } = useAuth();
@@ -85,18 +86,20 @@ const HostPromotionContent: React.FC = () => {
   };
 
   const handleDelete = async (promotionId: number, title: string) => {
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa promotion "${title}"?`)) {
-      return;
-    }
+    toast.info(`Xóa promotion "${title}"?`, {
+      position: "bottom-center",
+      autoClose: false,
+      closeButton: true,
+    });
 
     setDeletingId(promotionId);
     try {
       await condotelAPI.deletePromotion(promotionId);
       await loadData();
-      alert("Xóa promotion thành công!");
+      toast.success("✅ Xóa promotion thành công!");
     } catch (err: any) {
-      console.error("Failed to delete promotion:", err);
-      alert(err.response?.data?.message || "Không thể xóa promotion");
+      const errorMsg = err.response?.data?.message || "Không thể xóa promotion";
+      toast.error(`❌ ${errorMsg}`);
     } finally {
       setDeletingId(null);
     }

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { toast } from "react-toastify";
 
 interface RefundInfo {
   bankName: string;
@@ -28,7 +29,7 @@ const CancelRefundModal: React.FC<CancelRefundModalProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!bankName || !accountNumber || !accountHolder) {
-      alert("Vui lòng điền đầy đủ thông tin ngân hàng để nhận tiền hoàn.");
+      toast.error("❌ Vui lòng điền đầy đủ thông tin ngân hàng để nhận tiền hoàn.");
       return;
     }
     onConfirm({ bankName, accountNumber, accountHolder });

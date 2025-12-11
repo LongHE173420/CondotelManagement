@@ -47,6 +47,13 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
+    "test:unit": "react-scripts test --watchAll=false --coverage=false",
+    "test:coverage": "react-scripts test --watchAll=false --coverage --coverageDirectory=coverage",
+    "test:quick": "npm run build && npm run test:unit",
+    "test:api": "node test-scripts/test-api.js",
+    "test:all": "npm run test:unit && npm run build",
+    "lint": "eslint src --ext .ts,.tsx",
+    "type-check": "tsc --noEmit",
     "eject": "react-scripts eject"
   },
   "eslintConfig": {

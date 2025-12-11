@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { toast } from "react-toastify";
 
 // Component con Sidebar
 const SidebarCard: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
@@ -20,7 +21,6 @@ const PageLocationEdit = () => {
   // Tải dữ liệu giả lập
   useEffect(() => {
     // TODO: Gọi API lấy chi tiết location với `id`
-    console.log("Tải dữ liệu location ID:", id);
     // Dữ liệu giả lập
     setName("Vũng Tàu");
     setDescription("Một thành phố biển nổi tiếng gần TP.HCM.");
@@ -29,30 +29,32 @@ const PageLocationEdit = () => {
   const handleUpdate = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name) {
-      alert("Vui lòng nhập Tên địa điểm.");
+      toast.error("❌ Vui lòng nhập Tên địa điểm.");
       return;
     }
     setIsLoading(true);
     // TODO: Gọi API cập nhật
-    console.log("Cập nhật địa điểm:", id, { name, description });
     setTimeout(() => {
       setIsLoading(false);
-      alert("Cập nhật địa điểm thành công!");
+      toast.success("✅ Cập nhật địa điểm thành công!");
       navigate("/manage-locations");
     }, 1000);
   };
   
   const handleDelete = () => {
-    if (window.confirm(`Bạn có chắc muốn xóa địa điểm "${name}" không?`)) {
-      setIsLoading(true);
-      // TODO: Gọi API xóa
-      console.log("Xóa địa điểm:", id);
-      setTimeout(() => {
-        setIsLoading(false);
-        alert("Đã xóa địa điểm.");
-        navigate("/manage-locations");
-      }, 1000);
-    }
+    toast.info(`Xóa địa điểm "${name}"?`, {
+      position: "bottom-center",
+      autoClose: false,
+      closeButton: true,
+    });
+
+    setIsLoading(true);
+    // TODO: Gọi API xóa
+    setTimeout(() => {
+      setIsLoading(false);
+      toast.success("✅ Đã xóa địa điểm.");
+      navigate("/manage-locations");
+    }, 1000);
   };
 
   return (

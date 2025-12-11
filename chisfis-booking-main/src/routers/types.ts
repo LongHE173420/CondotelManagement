@@ -43,6 +43,7 @@ export interface LocationStates {
   "/add-listing-10"?: {};
   //
   "/author"?: {};
+  "/author/:hostId"?: {};
   "/search"?: {};
   "/about"?: {};
   "/contact"?: {};

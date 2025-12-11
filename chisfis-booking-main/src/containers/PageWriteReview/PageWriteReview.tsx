@@ -4,6 +4,7 @@ import reviewAPI from "api/review";
 import bookingAPI, { BookingDTO } from "api/booking";
 import { useAuth } from "contexts/AuthContext";
 import { validateBookingOwnership } from "utils/bookingSecurity";
+import { toast } from "react-toastify";
 
 // Component Star (để chọn 1-5 sao)
 const StarRating: React.FC<{ rating: number; setRating: (rating: number) => void }> = ({ rating, setRating }) => {
@@ -129,12 +130,12 @@ const PageWriteReview = () => {
     e.preventDefault();
     
     if (rating === 0) {
-      alert("Vui lòng chọn số sao đánh giá (từ 1-5 sao).");
+      toast.error("❌ Vui lòng chọn số sao đánh giá (từ 1-5 sao).");
       return;
     }
 
     if (!id) {
-      alert("Booking ID không hợp lệ.");
+      toast.error("❌ Booking ID không hợp lệ.");
       return;
     }
 
@@ -156,11 +157,11 @@ const PageWriteReview = () => {
         comment: reviewText || undefined,
       });
 
-      alert("🎉 Cảm ơn bạn đã đánh giá!");
+      toast.success("🎉 Cảm ơn bạn đã đánh giá!");
       navigate(`/my-bookings`);
     } catch (err: any) {
-      console.error("Error creating review:", err);
       const message = err.response?.data?.message || err.response?.data?.error || "Không thể gửi đánh giá. Vui lòng thử lại sau.";
+      toast.error(`❌ ${message}`);
       setError(message);
       
       // Nếu lỗi là do không đủ điều kiện (400), có thể là đã review rồi hoặc không phải customer

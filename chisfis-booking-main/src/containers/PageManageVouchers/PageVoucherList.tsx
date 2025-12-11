@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
+import { toast } from "react-toastify";
 
 // --- Định nghĩa kiểu dữ liệu ---
 interface Voucher {
@@ -55,11 +56,14 @@ const PageVoucherList = () => {
   const [vouchers, setVouchers] = useState<Voucher[]>(mockVoucherData);
 
   const handleDelete = (id: string, code: string) => {
-    if (window.confirm(`Bạn có chắc muốn xóa voucher "${code}" không?`)) {
-      // TODO: Gọi API xóa
-      console.log("Xóa voucher:", id);
-      setVouchers(current => current.filter(v => v.id !== id));
-    }
+    toast.info(`Xóa voucher "${code}"?`, {
+      position: "bottom-center",
+      autoClose: false,
+      closeButton: true,
+    });
+    
+    setVouchers(current => current.filter(v => v.id !== id));
+    toast.success("✅ Đã xóa voucher thành công!");
   };
 
   return (

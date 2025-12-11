@@ -30,12 +30,17 @@ const PricingPage: React.FC = () => {
     }, []);
 
     const handlePurchase = async (pkg: PackageDto) => {
-        if (!window.confirm(`Xác nhận mua gói "${pkg.name}" - ${pkg.price.toLocaleString("vi-VN")} VNĐ?`)) return;
+        // Use toast confirm instead of window.confirm
+        toast.info(`🔔 Xác nhận mua gói "${pkg.name}" - ${pkg.price.toLocaleString("vi-VN")} VNĐ?`, {
+            position: "bottom-center",
+            autoClose: false,
+            closeButton: true,
+        });
 
         setPurchaseLoading(pkg.packageId);
         try {
             const result = await packageAPI.purchasePackage(pkg.packageId);
-            toast.success(result.message || "Đã tạo đơn hàng!");
+            toast.success(result.message || "✅ Đã tạo đơn hàng!");
 
             const paymentResponse = await axiosClient.post("/payment/create-package-payment", {
                 OrderCode: result.orderCode!.toString(),

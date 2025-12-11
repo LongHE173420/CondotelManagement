@@ -102,11 +102,6 @@ const StaySearchForm: FC<StaySearchFormProps> = ({
       const locationInput = form.querySelector('input[type="text"]') as HTMLInputElement;
       const currentLocationValue = locationInput?.value?.trim() || locationInputValue?.trim() || "";
       
-      console.log("🔍 StaySearchForm - handleSubmit called");
-      console.log("🔍 StaySearchForm - locationInputValue state:", locationInputValue);
-      console.log("🔍 StaySearchForm - locationInput DOM value:", locationInput?.value);
-      console.log("🔍 StaySearchForm - Using location:", currentLocationValue);
-      
       // Build search params - IMPORTANT: Set location FIRST, then dates
       const params = new URLSearchParams();
       
@@ -116,12 +111,7 @@ const StaySearchForm: FC<StaySearchFormProps> = ({
         // Validate location is not a date format
         if (!/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(trimmedLocation)) {
           params.set("location", trimmedLocation);
-          console.log("🔍 StaySearchForm - Setting location param:", trimmedLocation);
-        } else {
-          console.warn("⚠️ StaySearchForm - Location value looks like a date, skipping:", trimmedLocation);
         }
-      } else {
-        console.log("⚠️ StaySearchForm - No location value to submit");
       }
       
       // Then set dates
@@ -145,21 +135,14 @@ const StaySearchForm: FC<StaySearchFormProps> = ({
 
       // Navigate to listing-stay page with search params
       const queryString = params.toString();
-      console.log("🔍 StaySearchForm - Final query string:", queryString);
-      console.log("🔍 StaySearchForm - All params:", Object.fromEntries(params));
-      console.log("🔍 StaySearchForm - Location param value:", params.get("location"));
-      console.log("🔍 StaySearchForm - StartDate param value:", params.get("startDate"));
-      console.log("🔍 StaySearchForm - EndDate param value:", params.get("endDate"));
       
       // Validate: location should not be a date format
       const locationParam = params.get("location");
       if (locationParam && /^\d{2}\/\d{2}\/\d{4}$/.test(locationParam)) {
-        console.error("⚠️ StaySearchForm - Location param looks like a date! Removing it.");
         params.delete("location");
         // Try to get location from state instead
         if (currentLocationValue && !/^\d{2}\/\d{2}\/\d{4}$/.test(currentLocationValue)) {
           params.set("location", currentLocationValue);
-          console.log("🔍 StaySearchForm - Fixed location param:", currentLocationValue);
         }
       }
       
@@ -167,7 +150,6 @@ const StaySearchForm: FC<StaySearchFormProps> = ({
       if (currentLocationValue && currentLocationValue.trim() && !/^\d{2}\/\d{2}\/\d{4}$/.test(currentLocationValue.trim())) {
         // If location is provided and valid, navigate to map view
         const finalUrl = `/listing-stay-map${finalQueryString ? `?${finalQueryString}` : ""}`;
-        console.log("🔍 StaySearchForm - Navigating to:", finalUrl);
         navigate(finalUrl, { 
           state: { 
             searchParams: Object.fromEntries(params),
@@ -177,7 +159,6 @@ const StaySearchForm: FC<StaySearchFormProps> = ({
       } else {
         // Otherwise, navigate to list view
         const finalUrl = `/listing-stay${finalQueryString ? `?${finalQueryString}` : ""}`;
-        console.log("🔍 StaySearchForm - Navigating to:", finalUrl);
         navigate(finalUrl, { 
           state: { 
             searchParams: Object.fromEntries(params),
@@ -186,7 +167,6 @@ const StaySearchForm: FC<StaySearchFormProps> = ({
         });
       }
     } catch (error) {
-      console.error("Error submitting search form:", error);
       // Fallback: navigate to listing page without params
       navigate("/listing-stay");
     }
@@ -201,11 +181,9 @@ const StaySearchForm: FC<StaySearchFormProps> = ({
         <LocationInput
           defaultValue={locationInputValue}
           onChange={(value) => {
-            console.log("🔍 StaySearchForm - Location changed to:", value);
             setLocationInputValue(value);
           }}
           onInputDone={(value) => {
-            console.log("🔍 StaySearchForm - Location selected:", value);
             // Ensure location is set before focusing date
             setLocationInputValue(value);
             setDateFocused("startDate");

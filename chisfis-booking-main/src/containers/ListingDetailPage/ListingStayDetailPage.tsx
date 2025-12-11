@@ -25,6 +25,7 @@ import converSelectedDateToString from "utils/converSelectedDateToString";
 import { PencilSquareIcon } from "@heroicons/react/24/outline";
 import { useTranslation } from "i18n/LanguageContext";
 import { calculateFinalPrice } from "utils/priceCalculator";
+import { toastWarning, showValidationError } from "utils/toast";
 
 
 const ListingStayDetailPage: FC = () => {
@@ -274,24 +275,26 @@ const ListingStayDetailPage: FC = () => {
     // Sử dụng rangeDates hiện tại để kiểm tra activePrice
     const checkInDate = rangeDates.startDate;
     const checkOutDate = rangeDates.endDate;
-    const { basePrice: basePricePerNight } = calculateFinalPrice(
+    
+    // Lấy available promotion cho dates đã chọn
+    const availablePromotion = getAvailablePromotion();
+    
+    // Tính giá với promotion
+    const { basePrice: basePricePerNight, finalPrice: finalPricePerNight, discountAmount } = calculateFinalPrice(
       data.pricePerNight || 0,
       data.activePrice || null,
-      null, // Chưa áp dụng promotion ở đây
+      availablePromotion, // Áp dụng promotion
       checkInDate || undefined,
       checkOutDate || undefined
     );
+
+    const hasDiscount = discountAmount > 0;
 
     return (
       <div className="listingSection__wrap !space-y-6">
         <div className="flex justify-between items-center">
         <div className="flex items-center space-x-4">
           <StartRating />
-          <span>·</span>
-          <span>
-            <i className="las la-map-marker-alt"></i>
-            <span className="ml-1">Resort ID: {data.resortId || "—"}</span>
-          </span>
         </div>
         <LikeSaveBtns />
         </div>
@@ -299,9 +302,30 @@ const ListingStayDetailPage: FC = () => {
       <div className="text-neutral-6000 dark:text-neutral-300">{data.description || "Mô tả đang cập nhật."}</div>
         <div className="w-full border-b border-neutral-100 dark:border-neutral-700" />
         <div className="flex items-center justify-between xl:justify-start space-x-8 xl:space-x-12 text-sm text-neutral-700 dark:text-neutral-300">
-        <div className="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 text-center sm:text-left sm:space-x-3 "><i className="las la-bed text-2xl"></i><span>{data.beds} beds</span></div>
+        {data.resortName && (
+          <div className="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 text-center sm:text-left sm:space-x-3">
+            <i className="las la-building text-2xl"></i>
+            <span>{data.resortName}</span>
+          </div>
+        )}
         <div className="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 text-center sm:text-left sm:space-x-3 "><i className="las la-bath text-2xl"></i><span>{data.bathrooms} bathrooms</span></div>
-        <div className="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 text-center sm:text-left sm:space-x-3 "><i className="las la-tag text-2xl"></i><span>{Math.round(basePricePerNight).toLocaleString()} đ / đêm</span></div>
+        <div className="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 text-center sm:text-left sm:space-x-3 ">
+          <i className="las la-tag text-2xl"></i>
+          <div className="flex flex-col items-center sm:items-start">
+            {hasDiscount ? (
+              <>
+                <span className="text-red-600 dark:text-red-400 font-semibold">
+                  {Math.round(finalPricePerNight).toLocaleString()} đ / đêm
+                </span>
+                <span className="text-xs text-neutral-400 dark:text-neutral-500 line-through">
+                  {Math.round(basePricePerNight).toLocaleString()} đ
+                </span>
+              </>
+            ) : (
+              <span>{Math.round(basePricePerNight).toLocaleString()} đ / đêm</span>
+            )}
+          </div>
+        </div>
         </div>
       </div>
     );
@@ -669,21 +693,21 @@ const ListingStayDetailPage: FC = () => {
   const handleBooking = () => {
     // Kiểm tra user đã đăng nhập chưa
     if (!user) {
-      alert("Vui lòng đăng nhập để đặt phòng");
+      toastWarning("Vui lòng đăng nhập để đặt phòng");
       navigate("/login");
       return;
     }
 
     // Kiểm tra đã chọn ngày chưa
     if (!rangeDates.startDate || !rangeDates.endDate) {
-      alert("Vui lòng chọn ngày check-in và check-out");
+      showValidationError("Vui lòng chọn ngày check-in và check-out");
       return;
     }
 
     // Tính số đêm
     const nights = rangeDates.endDate.diff(rangeDates.startDate, "days");
     if (nights <= 0) {
-      alert("Ngày check-out phải sau ngày check-in");
+      showValidationError("Ngày check-out phải sau ngày check-in");
       return;
     }
 
@@ -845,7 +869,7 @@ const ListingStayDetailPage: FC = () => {
                 <span className="ml-1 text-base font-normal text-neutral-500 dark:text-neutral-400">/đêm</span>
               </span>
             )}
-            {availablePromotion && (
+            {availablePromotion && discountAmount > 0 && (
               <span className="mt-1 px-2 py-0.5 bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs font-semibold rounded inline-block w-fit">
                 {availablePromotion.discountPercentage 
                   ? `-${availablePromotion.discountPercentage}%`

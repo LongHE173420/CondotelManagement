@@ -1,103 +1,365 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { toast } from "react-toastify";
+import payoutAPI, { HostPayoutDTO } from "api/payout";
+import moment from "moment";
 
 // --- Định nghĩa kiểu dữ liệu ---
 // LƯU Ý: 'bank' dùng Mã ngân hàng chuẩn của VietQR (MB, VCB, TCB, ACB...)
-interface Payout {
-  id: number;
+interface GroupedPayout {
+  hostId: number;
   hostName: string;
   bankInfo: { bank: string; acc: string; name: string };
+  bookings: HostPayoutDTO[]; // Danh sách bookings của host này
   totalBookings: number;
-  totalRevenue: number;
-  paidToOwner: number;
-  period: string;
-  status: "Pending" | "Paid";
-  payoutDate: string; // Ngày chốt sổ (dd/mm/yyyy) để lọc
+  totalAmount: number;
+  status: "Pending" | "Paid"; // "Pending" nếu có ít nhất 1 booking chưa paid
+  earliestDate: string; // Ngày sớm nhất trong các bookings
+  latestDate: string; // Ngày muộn nhất trong các bookings
 }
 
-const mockPayouts: Payout[] = [
-  {
-    id: 1,
-    hostName: "Nguyễn Văn A",
-    bankInfo: { bank: "MB", acc: "0333666999", name: "NGUYEN VAN A" },
-    totalBookings: 12,
-    totalRevenue: 45000000,
-    paidToOwner: 45000000,
-    period: "01/11 - 15/11",
-    status: "Pending",
-    payoutDate: "15/11/2025"
-  },
-  {
-    id: 2,
-    hostName: "Trần Thị B",
-    bankInfo: { bank: "VCB", acc: "0011223344", name: "TRAN THI B" },
-    totalBookings: 5,
-    totalRevenue: 9000000,
-    paidToOwner: 9000000,
-    period: "01/11 - 15/11",
-    status: "Paid",
-    payoutDate: "15/11/2025"
-  },
-  {
-    id: 3,
-    hostName: "Lê Văn C",
-    bankInfo: { bank: "TCB", acc: "190333444555", name: "LE VAN C" },
-    totalBookings: 8,
-    totalRevenue: 15500000,
-    paidToOwner: 15500000,
-    period: "16/11 - 30/11",
-    status: "Pending",
-    payoutDate: "30/11/2025"
+// --- Helper: Map tên ngân hàng sang mã VietQR ---
+const getBankCode = (bankName: string | undefined): string => {
+  if (!bankName) return "MB";
+  const bankMap: Record<string, string> = {
+    "Vietcombank": "VCB",
+    "Vietinbank": "CTG",
+    "BIDV": "BID",
+    "Agribank": "VBA",
+    "Techcombank": "TCB",
+    "MBBank": "MB",
+    "ACB": "ACB",
+    "VPBank": "VPB",
+    "TPBank": "TPB",
+    "Sacombank": "STB",
+    "HDBank": "HDB",
+    "SHB": "SHB",
+    "Eximbank": "EIB",
+    "MSB": "MSB",
+  };
+  
+  const upperName = bankName.toUpperCase();
+  for (const [key, value] of Object.entries(bankMap)) {
+    if (upperName.includes(key.toUpperCase())) {
+      return value;
+    }
   }
-];
+  
+  // Nếu không tìm thấy, thử lấy 3 ký tự đầu
+  return bankName.substring(0, 3).toUpperCase();
+};
 
-// --- Helper: Chuyển chuỗi "dd/mm/yyyy" thành Date object ---
+// --- Helper: Group bookings theo host ---
+const groupPayoutsByHost = (bookings: HostPayoutDTO[]): GroupedPayout[] => {
+  const grouped = new Map<number, GroupedPayout>();
+  
+  bookings.forEach((booking) => {
+    const hostId = booking.hostId || 0;
+    
+    if (!grouped.has(hostId)) {
+      grouped.set(hostId, {
+        hostId: hostId,
+        hostName: booking.hostName || "Unknown Host",
+        bankInfo: {
+          bank: getBankCode(booking.bankName),
+          acc: booking.accountNumber || "",
+          name: booking.accountHolderName || booking.hostName || "",
+        },
+        bookings: [],
+        totalBookings: 0,
+        totalAmount: 0,
+        status: "Pending",
+        earliestDate: booking.completedAt || booking.endDate || "",
+        latestDate: booking.completedAt || booking.endDate || "",
+      });
+    }
+    
+    const group = grouped.get(hostId)!;
+    group.bookings.push(booking);
+    
+    // Chỉ tính totalBookings và totalAmount cho các booking chưa paid và chưa bị reject
+    if (!booking.isPaidToHost && !booking.isPaid && !booking.isRejected) {
+      group.totalBookings += 1;
+      group.totalAmount += booking.amount || booking.totalPrice || 0;
+    }
+    
+    // Cập nhật earliest và latest date
+    const bookingDate = booking.completedAt || booking.endDate || "";
+    if (bookingDate) {
+      if (!group.earliestDate || bookingDate < group.earliestDate) {
+        group.earliestDate = bookingDate;
+      }
+      if (!group.latestDate || bookingDate > group.latestDate) {
+        group.latestDate = bookingDate;
+      }
+    }
+  });
+  
+  // Sau khi group xong, cập nhật status dựa trên số lượng pending bookings (chưa paid và chưa bị reject)
+  const result = Array.from(grouped.values());
+  result.forEach((group) => {
+    const hasPending = group.bookings.some(
+      (b) => !b.isPaidToHost && !b.isPaid && !b.isRejected
+    );
+    group.status = hasPending ? "Pending" : "Paid";
+  });
+  
+  return result;
+};
+
+// --- Helper: Format period từ dates ---
+const formatPeriod = (earliest: string, latest: string): string => {
+  if (!earliest || !latest) return "N/A";
+  try {
+    const start = moment(earliest);
+    const end = moment(latest);
+    return `${start.format("DD/MM")} - ${end.format("DD/MM")}`;
+  } catch {
+    return "N/A";
+  }
+};
+
+// --- Helper: Chuyển chuỗi date thành Date object ---
 const parseDate = (dateStr: string) => {
-  const [day, month, year] = dateStr.split("/");
-  return new Date(Number(year), Number(month) - 1, Number(day));
+  if (!dateStr) return new Date();
+  try {
+    return moment(dateStr).toDate();
+  } catch {
+    return new Date();
+  }
 };
 
 const PageAdminPayout = () => {
-  const [payouts, setPayouts] = useState(mockPayouts);
+  const [groupedPayouts, setGroupedPayouts] = useState<GroupedPayout[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [processing, setProcessing] = useState(false);
+  
+  // State để track các booking đã bị reject (nếu backend không có field isRejected)
+  // Key: bookingId, Value: { rejectedAt: timestamp, reason: string }
+  const [rejectedBookings, setRejectedBookings] = useState<Map<number, { rejectedAt: string; reason: string }>>(new Map());
   
   // State để quản lý Modal phóng to QR
   const [selectedQR, setSelectedQR] = useState<{ url: string; title: string; amount: number; content: string } | null>(null);
 
   // ✨ STATE CHO MODAL XÁC NHẬN (MỚI - THAY THẾ WINDOW.CONFIRM)
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
-  const [selectedIdToConfirm, setSelectedIdToConfirm] = useState<number | null>(null);
+  const [selectedPayoutToConfirm, setSelectedPayoutToConfirm] = useState<GroupedPayout | null>(null);
+
+  // ✨ STATE CHO MODAL TỪ CHỐI
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [selectedPayoutToReject, setSelectedPayoutToReject] = useState<GroupedPayout | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
 
   // STATE CHO BỘ LỌC
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [startDate, setStartDate] = useState(""); 
   const [endDate, setEndDate] = useState("");
+  
+  // Load rejected bookings từ localStorage (persist across page reloads)
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("rejectedPayoutBookings");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        const map = new Map<number, { rejectedAt: string; reason: string }>();
+        Object.entries(parsed).forEach(([key, value]) => {
+          map.set(Number(key), value as { rejectedAt: string; reason: string });
+        });
+        setRejectedBookings(map);
+      }
+    } catch (error) {
+      console.error("Failed to load rejected bookings from localStorage:", error);
+    }
+  }, []);
+
+  // Load data từ API
+  useEffect(() => {
+    loadPayouts();
+  }, []);
+
+  const loadPayouts = async () => {
+    setLoading(true);
+    try {
+      // Load cả pending và paid payouts để có thể filter theo status
+      const [pendingData, paidData] = await Promise.all([
+        payoutAPI.getAdminPendingPayouts(),
+        payoutAPI.getAdminPaidPayouts(),
+      ]);
+      
+      // Filter ra các booking đã bị reject (nếu có field isRejected)
+      // Hoặc có thể backend không trả về các booking đã reject trong pending list
+      const validPendingData = pendingData.filter(
+        (booking) => !booking.isRejected
+      );
+      
+      // Combine và group theo host
+      // Logic group sẽ chỉ tính totalAmount cho các booking pending và chưa bị reject
+      const allBookings = [...validPendingData, ...paidData];
+      const grouped = groupPayoutsByHost(allBookings);
+      
+      console.log("📊 Loaded payouts:", {
+        pendingCount: pendingData.length,
+        validPendingCount: validPendingData.length,
+        paidCount: paidData.length,
+        groupedCount: grouped.length,
+      });
+      
+      setGroupedPayouts(grouped);
+    } catch (error: any) {
+      console.error("Failed to load payouts:", error);
+      toast.error(error.response?.data?.message || "Không thể tải danh sách thanh toán");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // --- HÀM MỞ MODAL XÁC NHẬN ---
-  const openConfirmModal = (id: number) => {
-    setSelectedIdToConfirm(id);
+  const openConfirmModal = (payout: GroupedPayout) => {
+    setSelectedPayoutToConfirm(payout);
     setConfirmModalOpen(true);
   };
 
-  // --- HÀM THỰC HIỆN CHUYỂN KHOẢN (KHI BẤM YES Ở MODAL) ---
-  const handleConfirmTransferAction = () => {
-    if (selectedIdToConfirm !== null) {
-      // TODO: Gọi API cập nhật trạng thái Payout thành 'Paid'
-      console.log("Admin xác nhận đã thanh toán cho payout ID:", selectedIdToConfirm);
+  // --- HÀM MỞ MODAL TỪ CHỐI ---
+  const openRejectModal = (payout: GroupedPayout) => {
+    setSelectedPayoutToReject(payout);
+    setRejectReason("");
+    setRejectModalOpen(true);
+  };
 
-      setPayouts(prev => prev.map(p => p.id === selectedIdToConfirm ? { ...p, status: "Paid" } : p));
+  // --- HÀM THỰC HIỆN XÁC NHẬN THANH TOÁN (KHI BẤM YES Ở MODAL) ---
+  const handleConfirmTransferAction = async () => {
+    if (!selectedPayoutToConfirm) return;
+
+    setProcessing(true);
+    try {
+      // Confirm tất cả bookings chưa được paid của host này
+      const pendingBookings = selectedPayoutToConfirm.bookings.filter(
+        (b) => !b.isPaidToHost && !b.isPaid
+      );
+
+      if (pendingBookings.length === 0) {
+        toast.warning("Không có booking nào cần xác nhận thanh toán");
+        setConfirmModalOpen(false);
+        setSelectedPayoutToConfirm(null);
+        setProcessing(false);
+        return;
+      }
+
+      // Confirm từng booking
+      let successCount = 0;
+      let failCount = 0;
+
+      for (const booking of pendingBookings) {
+        try {
+          await payoutAPI.confirmPayout(booking.bookingId);
+          successCount++;
+        } catch (error: any) {
+          console.error(`Failed to confirm booking ${booking.bookingId}:`, error);
+          failCount++;
+        }
+      }
+
+      if (successCount > 0) {
+        toast.success(`Đã xác nhận thanh toán cho ${successCount} booking${successCount > 1 ? "s" : ""} của ${selectedPayoutToConfirm.hostName}`);
+      }
+      if (failCount > 0) {
+        toast.error(`Không thể xác nhận ${failCount} booking${failCount > 1 ? "s" : ""}`);
+      }
+
+      // Reload data
+      await loadPayouts();
       
       // Đóng modal và reset
       setConfirmModalOpen(false);
-      setSelectedIdToConfirm(null);
+      setSelectedPayoutToConfirm(null);
+    } catch (error: any) {
+      console.error("Failed to confirm payout:", error);
+      toast.error(error.response?.data?.message || "Không thể xác nhận thanh toán");
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  // --- HÀM THỰC HIỆN TỪ CHỐI THANH TOÁN ---
+  const handleRejectPayoutAction = async () => {
+    if (!selectedPayoutToReject || !rejectReason.trim()) {
+      toast.error("Vui lòng nhập lý do từ chối");
+      return;
+    }
+
+    setProcessing(true);
+    try {
+      // Reject tất cả bookings chưa được paid của host này
+      const pendingBookings = selectedPayoutToReject.bookings.filter(
+        (b) => !b.isPaidToHost && !b.isPaid
+      );
+
+      if (pendingBookings.length === 0) {
+        toast.warning("Không có booking nào cần từ chối");
+        setRejectModalOpen(false);
+        setSelectedPayoutToReject(null);
+        setRejectReason("");
+        setProcessing(false);
+        return;
+      }
+
+      // Reject từng booking
+      let successCount = 0;
+      let failCount = 0;
+      const errors: string[] = [];
+
+      console.log(`🔄 Bắt đầu reject ${pendingBookings.length} booking(s) cho host ${selectedPayoutToReject.hostName}`);
+
+      for (const booking of pendingBookings) {
+        try {
+          console.log(`📤 Gọi API reject payout cho booking ${booking.bookingId}...`);
+          const result = await payoutAPI.rejectPayout(booking.bookingId, rejectReason.trim());
+          console.log(`✅ Reject thành công booking ${booking.bookingId}:`, result);
+          successCount++;
+        } catch (error: any) {
+          const errorMsg = error.response?.data?.message || error.message || "Unknown error";
+          console.error(`❌ Failed to reject booking ${booking.bookingId}:`, error);
+          console.error(`   Error details:`, error.response?.data);
+          errors.push(`Booking ${booking.bookingId}: ${errorMsg}`);
+          failCount++;
+        }
+      }
+
+      console.log(`📊 Kết quả reject: ${successCount} thành công, ${failCount} thất bại`);
+
+      if (successCount > 0) {
+        toast.success(`Đã từ chối thanh toán cho ${successCount} booking${successCount > 1 ? "s" : ""} của ${selectedPayoutToReject.hostName}`);
+      }
+      if (failCount > 0) {
+        toast.error(`Không thể từ chối ${failCount} booking${failCount > 1 ? "s" : ""}. ${errors.length > 0 ? errors[0] : ""}`);
+      }
+
+      // Đợi một chút để backend xử lý xong trước khi reload
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Reload data để cập nhật danh sách (các booking đã reject sẽ không còn trong pending list)
+      console.log("🔄 Reloading payouts sau khi reject...");
+      await loadPayouts();
+      
+      // Đóng modal và reset
+      setRejectModalOpen(false);
+      setSelectedPayoutToReject(null);
+      setRejectReason("");
+    } catch (error: any) {
+      console.error("Failed to reject payout:", error);
+      toast.error(error.response?.data?.message || "Không thể từ chối thanh toán");
+    } finally {
+      setProcessing(false);
     }
   };
 
   // --- HÀM TẠO LINK QR (VIETQR) ---
-  const generateQRUrl = (payout: any, template: "compact" | "print" = "compact") => {
+  const generateQRUrl = (payout: GroupedPayout, template: "compact" | "print" = "compact") => {
      const bankId = payout.bankInfo.bank;
      const accountNo = payout.bankInfo.acc;
-     const amount = payout.paidToOwner; 
-     const content = `Thanh toan ky ${payout.period.replace(/\//g, "-")}`;
+     const amount = payout.totalAmount; 
+     const period = formatPeriod(payout.earliestDate, payout.latestDate);
+     const content = `Thanh toan ky ${period.replace(/\//g, "-")}`;
      const accountName = payout.bankInfo.name;
 
      // Link API VietQR với amount và addInfo
@@ -105,7 +367,7 @@ const PageAdminPayout = () => {
   };
 
   // LOGIC LỌC DỮ LIỆU
-  const filteredPayouts = payouts.filter((p) => {
+  const filteredPayouts = groupedPayouts.filter((p) => {
     const matchesSearch = 
       p.hostName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.bankInfo.acc.includes(searchTerm);
@@ -113,7 +375,7 @@ const PageAdminPayout = () => {
     const matchesStatus = filterStatus === "all" || p.status === filterStatus;
 
     let matchesDate = true;
-    const pDate = parseDate(p.payoutDate); 
+    const pDate = parseDate(p.latestDate); 
 
     if (startDate) {
       const start = new Date(startDate);
@@ -137,6 +399,19 @@ const PageAdminPayout = () => {
     setEndDate("");
   };
 
+  if (loading) {
+    return (
+      <div className="p-8 bg-gray-50 min-h-screen">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex flex-col items-center justify-center py-20">
+            <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-200 border-t-blue-600"></div>
+            <p className="mt-4 text-gray-600 font-medium">Đang tải dữ liệu...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-8 bg-gray-50 min-h-screen">
       <div className="max-w-7xl mx-auto">
@@ -147,6 +422,12 @@ const PageAdminPayout = () => {
              <h1 className="text-2xl font-bold text-gray-800">Quyết toán Doanh thu</h1>
              <p className="text-sm text-gray-500 mt-1">Quản lý việc chuyển tiền doanh thu cho Chủ nhà.</p>
            </div>
+           <button
+             onClick={loadPayouts}
+             className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
+           >
+             🔄 Làm mới
+           </button>
         </div>
 
         {/* THANH CÔNG CỤ TÌM KIẾM & LỌC */}
@@ -225,10 +506,12 @@ const PageAdminPayout = () => {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredPayouts.map((p) => (
-                  <tr key={p.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{p.period}</td>
+                  <tr key={p.hostId} className="hover:bg-gray-50">
+                    <td className="px-4 py-4 text-sm text-gray-500">
+                      {formatPeriod(p.earliestDate, p.latestDate)}
+                    </td>
                     
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 py-4">
                       <div className="font-medium text-gray-900">{p.hostName}</div>
                       <div className="text-xs text-gray-500 mt-1">
                         {p.bankInfo.bank} - <span className="font-mono text-gray-700 font-semibold">{p.bankInfo.acc}</span>
@@ -236,31 +519,35 @@ const PageAdminPayout = () => {
                       <div className="text-[10px] text-gray-400 uppercase">{p.bankInfo.name}</div>
                     </td>
 
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 text-center">
+                    <td className="px-4 py-4 text-sm text-gray-700 text-center">
                       {p.totalBookings} đơn
                     </td>
 
-                    <td className="px-6 py-4 whitespace-nowrap text-green-600 font-bold text-lg">
-                      {p.paidToOwner.toLocaleString('vi-VN')} đ
+                    <td className="px-4 py-4 text-green-600 font-bold text-lg">
+                      {p.totalAmount.toLocaleString('vi-VN')} đ
                     </td>
 
-                    <td className="px-6 py-4">
-                       {p.status === "Pending" ? (
+                    <td className="px-4 py-4 text-center">
+                       {p.status === "Pending" && p.bankInfo.acc ? (
                           <div 
-                            className="group relative w-28 cursor-pointer border rounded-lg p-1 bg-white hover:shadow-md transition-all"
-                            onClick={() => setSelectedQR({
-                               url: generateQRUrl(p, "print"),
-                               title: `Chuyển khoản cho ${p.hostName}`,
-                               amount: p.paidToOwner,
-                               content: `Thanh toan ky ${p.period.replace(/\//g, "-")}`
-                            })}
+                            className="group relative w-24 mx-auto cursor-pointer border rounded-lg p-1 bg-white hover:shadow-md transition-all"
+                            onClick={() => {
+                              const period = formatPeriod(p.earliestDate, p.latestDate);
+                              setSelectedQR({
+                                url: generateQRUrl(p, "print"),
+                                title: `Chuyển khoản cho ${p.hostName}`,
+                                amount: p.totalAmount,
+                                content: `Thanh toan ky ${period.replace(/\//g, "-")}`
+                              });
+                            }}
+                            title="Click để phóng to QR Code"
                           >
                              <img 
                                src={generateQRUrl(p, "compact")} 
                                alt="QR" 
                                className="w-full h-auto rounded" 
                              />
-                             <div className="text-[10px] text-center mt-1 text-blue-600 font-medium">
+                             <div className="text-[9px] text-center mt-1 text-blue-600 font-medium">
                                🔍 Phóng to
                              </div>
                           </div>
@@ -269,7 +556,7 @@ const PageAdminPayout = () => {
                        )}
                     </td>
 
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 py-4 text-center">
                       {p.status === "Pending" ? (
                           <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full font-medium">Chờ thanh toán</span>
                       ) : (
@@ -277,15 +564,28 @@ const PageAdminPayout = () => {
                       )}
                     </td>
 
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {p.status === "Pending" && (
-                        <button 
-                          // ✨ THAY ĐỔI: GỌI HÀM MỞ MODAL THAY VÌ WINDOW.CONFIRM
-                          onClick={() => openConfirmModal(p.id)}
-                          className="bg-blue-600 text-white px-3 py-1.5 rounded text-sm hover:bg-blue-700 transition-colors shadow-sm"
-                        >
-                          Xác nhận
-                        </button>
+                    <td className="px-4 py-4">
+                      {p.status === "Pending" ? (
+                        <div className="flex flex-col gap-2 min-w-[160px]">
+                          <button 
+                            onClick={() => openConfirmModal(p)}
+                            disabled={processing}
+                            className="w-full bg-blue-600 text-white px-3 py-2 rounded text-sm hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                            title="Xác nhận đã chuyển khoản"
+                          >
+                            {processing ? "⏳ Đang xử lý..." : "✅ Xác nhận"}
+                          </button>
+                          <button 
+                            onClick={() => openRejectModal(p)}
+                            disabled={processing}
+                            className="w-full bg-red-600 text-white px-3 py-2 rounded text-sm hover:bg-red-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                            title="Từ chối thanh toán"
+                          >
+                            ❌ Từ chối
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-400 italic text-center block">--</span>
                       )}
                     </td>
                   </tr>
@@ -341,27 +641,100 @@ const PageAdminPayout = () => {
       )}
 
       {/* ✨ MODAL XÁC NHẬN TÙY CHỈNH (CUSTOM MODAL) - THAY THẾ WINDOW.CONFIRM */}
-      {confirmModalOpen && (
+      {confirmModalOpen && selectedPayoutToConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md mx-4 transform transition-all animate-fadeIn">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md mx-4 transform transition-all">
             <h3 className="text-lg font-bold text-gray-900 mb-4">
               Xác nhận đã chuyển khoản?
             </h3>
+            <div className="mb-4 p-4 bg-blue-50 rounded-lg">
+              <p className="text-sm text-gray-700 mb-2">
+                <strong>Chủ nhà:</strong> {selectedPayoutToConfirm.hostName}
+              </p>
+              <p className="text-sm text-gray-700 mb-2">
+                <strong>Số booking:</strong> {selectedPayoutToConfirm.bookings.filter(b => !b.isPaidToHost && !b.isPaid).length} booking(s)
+              </p>
+              <p className="text-sm text-gray-700">
+                <strong>Tổng tiền:</strong> <span className="text-green-600 font-bold">{selectedPayoutToConfirm.totalAmount.toLocaleString('vi-VN')} đ</span>
+              </p>
+            </div>
             <p className="text-gray-600 mb-6">
-              Bạn xác nhận rằng đã chuyển tiền thành công cho Chủ nhà này qua ngân hàng? Hành động này sẽ cập nhật trạng thái đợt thanh toán thành <strong>"Đã thanh toán"</strong>.
+              Bạn xác nhận rằng đã chuyển tiền thành công cho Chủ nhà này qua ngân hàng? Hành động này sẽ cập nhật trạng thái các booking thành <strong>"Đã thanh toán"</strong>.
             </p>
             <div className="flex justify-end space-x-3">
               <button
-                onClick={() => setConfirmModalOpen(false)}
-                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 font-medium transition-colors"
+                onClick={() => {
+                  setConfirmModalOpen(false);
+                  setSelectedPayoutToConfirm(null);
+                }}
+                disabled={processing}
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 font-medium transition-colors disabled:opacity-50"
               >
                 Hủy bỏ
               </button>
               <button
                 onClick={handleConfirmTransferAction}
-                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 font-medium shadow-sm transition-colors"
+                disabled={processing}
+                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 font-medium shadow-sm transition-colors disabled:opacity-50"
               >
-                Xác nhận ngay
+                {processing ? "Đang xử lý..." : "Xác nhận ngay"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ✨ MODAL TỪ CHỐI THANH TOÁN */}
+      {rejectModalOpen && selectedPayoutToReject && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md mx-4 transform transition-all">
+            <h3 className="text-lg font-bold text-red-600 mb-4">
+              Từ chối thanh toán
+            </h3>
+            <div className="mb-4 p-4 bg-red-50 rounded-lg">
+              <p className="text-sm text-gray-700 mb-2">
+                <strong>Chủ nhà:</strong> {selectedPayoutToReject.hostName}
+              </p>
+              <p className="text-sm text-gray-700 mb-2">
+                <strong>Số booking:</strong> {selectedPayoutToReject.bookings.filter(b => !b.isPaidToHost && !b.isPaid).length} booking(s)
+              </p>
+              <p className="text-sm text-gray-700">
+                <strong>Tổng tiền:</strong> <span className="text-red-600 font-bold">{selectedPayoutToReject.totalAmount.toLocaleString('vi-VN')} đ</span>
+              </p>
+            </div>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Lý do từ chối <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                placeholder="Nhập lý do từ chối thanh toán..."
+                rows={4}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:outline-none"
+              />
+            </div>
+            <p className="text-sm text-gray-500 mb-6">
+              Lý do từ chối sẽ được gửi qua email cho chủ nhà.
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => {
+                  setRejectModalOpen(false);
+                  setSelectedPayoutToReject(null);
+                  setRejectReason("");
+                }}
+                disabled={processing}
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 font-medium transition-colors disabled:opacity-50"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                onClick={handleRejectPayoutAction}
+                disabled={processing || !rejectReason.trim()}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 font-medium shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {processing ? "Đang xử lý..." : "Xác nhận từ chối"}
               </button>
             </div>
           </div>

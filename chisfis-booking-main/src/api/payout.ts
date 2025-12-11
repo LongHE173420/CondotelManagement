@@ -28,6 +28,11 @@ export interface HostPayoutDTO {
   bankName?: string; // Tên ngân hàng của host
   accountNumber?: string; // Số tài khoản ngân hàng của host
   accountHolderName?: string; // Tên chủ tài khoản của host
+  
+  // Thông tin về reject payout (nếu có)
+  isRejected?: boolean; // Đã bị từ chối thanh toán chưa
+  rejectedAt?: string; // DateTime khi bị từ chối
+  rejectReason?: string; // Lý do từ chối
 }
 
 // ProcessPayoutResponse - Response khi xử lý payout (theo HostPayoutResponseDTO mới)
@@ -72,6 +77,10 @@ const normalizePayout = (item: any): HostPayoutDTO => {
     bankName: item.BankName || item.bankName,
     accountNumber: item.AccountNumber || item.accountNumber,
     accountHolderName: item.AccountHolderName || item.accountHolderName,
+    // Thông tin về reject payout
+    isRejected: item.IsRejected !== undefined ? item.IsRejected : (item.isRejected !== undefined ? item.isRejected : false),
+    rejectedAt: item.RejectedAt || item.rejectedAt,
+    rejectReason: item.RejectReason || item.rejectReason,
   };
 };
 

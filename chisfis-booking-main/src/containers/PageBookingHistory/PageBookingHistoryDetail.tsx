@@ -5,6 +5,7 @@ import condotelAPI, { CondotelDetailDTO } from "api/condotel";
 import reviewAPI from "api/review";
 import { useAuth } from "contexts/AuthContext";
 import { validateBookingOwnership } from "utils/bookingSecurity";
+import { toastSuccess, showErrorMessage } from "utils/toast";
 
 // Format số tiền
 const formatPrice = (price: number | undefined): string => {
@@ -353,18 +354,14 @@ const PageBookingHistoryDetail = () => {
         }
       }
       
-      alert("Đã hủy đặt phòng thành công. Nếu hủy trong vòng 2 ngày, bạn có thể yêu cầu hoàn tiền.");
+      toastSuccess("Đã hủy đặt phòng thành công. Nếu hủy trong vòng 2 ngày, bạn có thể yêu cầu hoàn tiền.", { autoClose: 5000 });
       
       // Reload booking để cập nhật trạng thái
       const updatedBooking = await bookingAPI.getBookingById(booking.bookingId);
       setBooking(updatedBooking);
     } catch (err: any) {
       console.error("Error cancelling booking:", err);
-      alert(
-        err.response?.data?.message || 
-        err.message || 
-        "Không thể hủy đặt phòng. Vui lòng thử lại sau."
-      );
+      showErrorMessage("Hủy đặt phòng", err);
     } finally {
       setCancelling(false);
     }

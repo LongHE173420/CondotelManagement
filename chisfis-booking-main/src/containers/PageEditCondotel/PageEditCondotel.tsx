@@ -10,6 +10,7 @@ import Input from "shared/Input/Input";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
 import ButtonSecondary from "shared/Button/ButtonSecondary";
 import NcInputNumber from "components/NcInputNumber/NcInputNumber";
+import { toastSuccess, showErrorMessage } from "utils/toast";
 
 interface ImageDTO { imageUrl: string; caption?: string }
 
@@ -283,8 +284,10 @@ const PageEditCondotel: React.FC = () => {
       };
 
       await condotelAPI.update(Number(id), updatePayload);
-      alert("Cập nhật condotel thành công!");
-      navigate("/host-dashboard?tab=condotels");
+      toastSuccess("Cập nhật condotel thành công!");
+      setTimeout(() => {
+        navigate("/host-dashboard?tab=condotels");
+      }, 1500);
     } catch (err: any) {
       setError(err?.response?.data?.message || err.message || "Không thể cập nhật condotel");
     } finally {

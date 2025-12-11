@@ -3,9 +3,26 @@ import { useEffect, useRef, useState } from 'react';
 import { HubConnection, HubConnectionBuilder, HubConnectionState, LogLevel } from '@microsoft/signalr';
 import { ChatConversation, ChatMessageDto } from '../types/chatTypes';
 import axios from 'axios';
+import logger from 'utils/logger';
 
-const API_URL = 'https://localhost:7216/api/Chat';
-const HUB_URL = 'https://localhost:7216/hubs/chat';
+// Lấy base URL từ environment variable (giống như axiosClient.ts)
+// REACT_APP_API_URL thường có dạng: http://localhost:7216/api hoặc https://api.example.com/api
+// Ta cần lấy phần base (bỏ /api) để tạo HUB_URL và API_URL
+const getBaseUrl = (): string => {
+  const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:7216/api';
+  // Nếu REACT_APP_API_URL có /api ở cuối, bỏ nó đi để lấy base URL
+  const baseUrl = apiUrl.replace(/\/api\/?$/, '');
+  return baseUrl;
+};
+
+const BASE_URL = getBaseUrl();
+const API_URL = `${BASE_URL}/api/Chat`;
+const HUB_URL = `${BASE_URL}/hubs/chat`;
+
+logger.info('🔧 Chat API URLs:', { API_URL, HUB_URL, BASE_URL });
+if (!process.env.REACT_APP_API_URL) {
+  logger.warn('⚠️ REACT_APP_API_URL không được set, đang dùng default URLs');
+}
 
 interface UseChatReturn {
     conversations: ChatConversation[];
@@ -106,10 +123,12 @@ export const useChat = (currentUserId: number): UseChatReturn => {
             // Trường hợp 1: Chưa kết nối -> Thì bắt đầu kết nối
             connection.start()
                 .then(() => {
-                    console.log('✅ SignalR Connected!');
+                    logger.info('✅ SignalR Connected!', { hubUrl: HUB_URL });
                     setIsConnected(true); // Báo ra ngoài là đã xong
                 })
-                .catch((err: any) => console.error('❌ SignalR Connection Failed:', err));
+                .catch((err: any) => {
+                    logger.error('❌ SignalR Connection Failed:', err, { hubUrl: HUB_URL });
+                });
         }
         else if (connection.state === HubConnectionState.Connected) {
             // Trường hợp 2: Đã kết nối rồi (do React render lại) -> Báo luôn là true
@@ -137,7 +156,7 @@ export const useChat = (currentUserId: number): UseChatReturn => {
             });
             setUnreadCounts(counts);
         } catch (err: any) {
-            console.error('Load conversations error:', err.response?.data || err.message);
+            logger.error('Load conversations error:', err.response?.data || err.message, { apiUrl: API_URL });
         }
     };
     const loadMessages = async (conversationId: number) => {
@@ -160,7 +179,7 @@ export const useChat = (currentUserId: number): UseChatReturn => {
 
             setMessages(sorted);
         } catch (err: any) {
-            console.error("Load messages error:", err.response?.data || err.message);
+            logger.error("Load messages error:", err.response?.data || err.message, { conversationId });
         }
     };
 
@@ -183,7 +202,7 @@ export const useChat = (currentUserId: number): UseChatReturn => {
             }
 
         } catch (err) {
-            console.error('Open chat error:', err);
+            logger.error('Open chat error:', err, { targetUserId, currentUserId });
         }
     };
 
@@ -192,7 +211,7 @@ export const useChat = (currentUserId: number): UseChatReturn => {
     // 1. SỬA HÀM sendMessage – KHÔNG THÊM TEMP MESSAGE NỮA
     const sendMessage = (conversationId: number, content: string) => {
         if (!connection || connection.state !== HubConnectionState.Connected) {
-            console.error("SignalR not connected!");
+            logger.error("SignalR not connected!", { connectionState: connection?.state });
             return;
         }
         if (!content.trim()) return;
@@ -202,7 +221,7 @@ export const useChat = (currentUserId: number): UseChatReturn => {
 
         connection.invoke("SendMessage", conversationId, content.trim())
             .catch((err: any) => {
-                console.error("Send message error:", err);
+                logger.error("Send message error:", err, { conversationId, contentLength: content.length });
                 alert("Gửi tin nhắn thất bại, vui lòng thử lại!");
             });
     };

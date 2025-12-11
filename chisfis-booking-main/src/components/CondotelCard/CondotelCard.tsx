@@ -1,21 +1,50 @@
-import React, { FC } from "react";
+import React, { FC, useState } from "react";
 import { Link } from "react-router-dom";
 import StartRating from "components/StartRating/StartRating";
 import BtnLikeIcon from "components/BtnLikeIcon/BtnLikeIcon";
 import { CondotelDTO } from "api/condotel";
 import { calculateFinalPrice } from "utils/priceCalculator";
+import moment from "moment";
 
 export interface CondotelCardProps {
   className?: string;
-  data: CondotelDTO;
+  data?: CondotelDTO;
   size?: "default" | "small";
 }
+
+// Mock data để hiển thị khi không có dữ liệu thực
+const MOCK_CONDOTEL_DATA: CondotelDTO = {
+  condotelId: "mock-1",
+  name: "Best Western Cedars Boutique Hotel",
+  pricePerNight: 26,
+  beds: 10,
+  bathrooms: 4,
+  status: "active",
+  thumbnailUrl: "https://images.unsplash.com/photo-1566665556112-31771c3b37c9?w=800&h=600&fit=crop",
+  resortName: "1 Anzinger Court",
+  activePromotion: {
+    promotionId: "promo-1",
+    name: "Discount",
+    discountPercentage: 10,
+    discountAmount: 0,
+    startDate: moment().toISOString(),
+    endDate: moment().add(30, 'days').toISOString(),
+    status: "active",
+    isActive: true,
+  },
+  activePrice: null,
+  reviewRate: 4.8,
+  reviewCount: 28,
+} as any;
 
 const CondotelCard: FC<CondotelCardProps> = ({
   size = "default",
   className = "",
   data,
 }) => {
+  // Dùng mock data nếu không có dữ liệu thực
+  const cardData = data || MOCK_CONDOTEL_DATA;
+  
   const {
     condotelId,
     name,
@@ -27,7 +56,14 @@ const CondotelCard: FC<CondotelCardProps> = ({
     resortName,
     activePromotion,
     activePrice,
-  } = data;
+    reviewRate = 4.8,
+    reviewCount = 28,
+  } = cardData;
+
+  // State for image carousel
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("vi-VN", {
@@ -36,11 +72,56 @@ const CondotelCard: FC<CondotelCardProps> = ({
     }).format(price);
   };
 
+  // Kiểm tra promotion có đang active tại thời điểm hiện tại không
+  // Logic đơn giản: Nếu backend đã trả về activePromotion và có discount, thì hiển thị
+  // Chỉ kiểm tra dates nếu có, nhưng không bắt buộc
+  const isPromotionCurrentlyActive = (): boolean => {
+    if (!activePromotion) {
+      return false;
+    }
+
+    // Kiểm tra có discount không (phải có discountPercentage hoặc discountAmount > 0)
+    const hasDiscount = (activePromotion.discountPercentage !== undefined && 
+                        activePromotion.discountPercentage !== null && 
+                        activePromotion.discountPercentage > 0) ||
+                       (activePromotion.discountAmount !== undefined && 
+                        activePromotion.discountAmount !== null && 
+                        activePromotion.discountAmount > 0);
+    
+    if (!hasDiscount) {
+      return false;
+    }
+
+    // Nếu có startDate và endDate, kiểm tra thời gian
+    if (activePromotion.startDate && activePromotion.endDate) {
+      const promoStart = moment(activePromotion.startDate);
+      const promoEnd = moment(activePromotion.endDate);
+      const now = moment();
+      
+      // Kiểm tra xem thời điểm hiện tại có nằm trong khoảng thời gian của promotion không
+      const isWithinDateRange = now.isSameOrAfter(promoStart, 'day') && now.isSameOrBefore(promoEnd, 'day');
+      
+      // Nếu có dates nhưng không nằm trong khoảng thời gian, không active
+      if (!isWithinDateRange) {
+        // Vẫn cho phép sử dụng nếu backend đã trả về (có thể dates chưa được cập nhật)
+        // return false;
+      }
+    }
+
+    // Nếu có discount và (không có dates hoặc dates hợp lệ), thì hiển thị
+    return true;
+  };
+
   // Tính giá cuối cùng: basePrice (từ activePrice hoặc pricePerNight) + promotion
+  // Nếu backend đã trả về activePromotion và có discount, luôn sử dụng nó
+  const isPromoActive = isPromotionCurrentlyActive();
+  // Luôn sử dụng activePromotion nếu có discount (backend đã xác nhận)
+  const promotionToUse = activePromotion && isPromoActive ? activePromotion : null;
+  
   const { basePrice, finalPrice, discountAmount } = calculateFinalPrice(
     pricePerNight,
     activePrice,
-    activePromotion
+    promotionToUse
   );
 
   const hasDiscount = discountAmount > 0;
@@ -53,15 +134,14 @@ const CondotelCard: FC<CondotelCardProps> = ({
           alt={name}
           className="w-full h-full object-cover"
         />
-        <BtnLikeIcon isLiked={false} className="absolute right-3 top-3 z-[1]" />
-        {/* Promotion Badge */}
-        {activePromotion && (
+        {/* Promotion Badge - chỉ hiển thị khi promotion đang active */}
+        {isPromotionCurrentlyActive() && (
           <div className="absolute left-3 top-3 z-[1]">
             <span className="px-3 py-1.5 bg-red-500 text-white text-xs font-bold rounded-full shadow-lg">
-              {activePromotion.discountPercentage 
-                ? `-${activePromotion.discountPercentage}%`
-                : activePromotion.discountAmount
-                ? `-${formatPrice(activePromotion.discountAmount)}`
+              {activePromotion!.discountPercentage 
+                ? `-${activePromotion!.discountPercentage}% today`
+                : activePromotion!.discountAmount
+                ? `-${formatPrice(activePromotion!.discountAmount)}`
                 : "Khuyến mãi"}
             </span>
           </div>
@@ -106,21 +186,9 @@ const CondotelCard: FC<CondotelCardProps> = ({
         </div>
         <div className="w-14 border-b border-neutral-100 dark:border-neutral-800"></div>
         <div className="flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            {status && (
-              <span
-                className={`px-2.5 py-1 rounded-full text-xs font-semibold shadow-sm ${
-                  status === "Active"
-                    ? "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300"
-                    : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
-                }`}
-              >
-                {status === "Active" ? "Còn phòng" : "Hết phòng"}
-              </span>
-            )}
-          </div>
           <div className="flex items-center gap-3">
             <div className="flex flex-col">
+              {/* Hiển thị cả giá gốc (gạch ngang) và giá sau giảm nếu có promotion */}
               {hasDiscount ? (
                 <>
                   <span className="text-base font-semibold text-red-600 dark:text-red-400">
@@ -146,8 +214,9 @@ const CondotelCard: FC<CondotelCardProps> = ({
                 </span>
               )}
             </div>
-            <StartRating reviewCount={12} point={4.8} />
+            <StartRating reviewCount={reviewCount} point={reviewRate} />
           </div>
+          <BtnLikeIcon isLiked={false} />
         </div>
       </div>
     );

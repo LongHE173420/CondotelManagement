@@ -63,7 +63,6 @@ const PayPage: FC<PayPageProps> = ({ className = "" }) => {
             createVouchersAfterBooking(parseInt(bookingId));
           }
         } catch (securityError: any) {
-          console.error("Security error:", securityError);
           setError(securityError.message || "Bạn không có quyền truy cập booking này");
           setUnauthorized(true);
           setBooking(null);
@@ -73,7 +72,6 @@ const PayPage: FC<PayPageProps> = ({ className = "" }) => {
           }, 3000);
         }
       } catch (err: any) {
-        console.error("Error fetching booking:", err);
         if (err.response?.status === 403 || err.response?.status === 401) {
           setError("Bạn không có quyền truy cập booking này");
           setUnauthorized(true);
@@ -107,7 +105,6 @@ const PayPage: FC<PayPageProps> = ({ className = "" }) => {
             createVouchersAfterBooking(parseInt(bookingId));
           }
         } catch (err: any) {
-          console.error("Error refreshing booking:", err);
         }
       }, 3000); // Refresh mỗi 3 giây
 
@@ -128,18 +125,14 @@ const PayPage: FC<PayPageProps> = ({ className = "" }) => {
     setVoucherError(null);
     try {
       const result = await voucherAPI.autoCreate(bookingId);
-      console.log("🎁 Voucher creation result:", result);
       
       if (result.success && result.data && result.data.length > 0) {
         setCreatedVouchers(result.data);
-        console.log(`✅ Created ${result.data.length} vouchers for user`);
       } else {
         // Không có voucher được tạo (có thể host tắt auto-generate hoặc chưa cấu hình)
-        console.log("ℹ️ No vouchers created:", result.message);
         setVoucherError(result.message || "Không có voucher được tạo tự động");
       }
     } catch (err: any) {
-      console.error("Failed to create vouchers:", err);
       // Không hiển thị error vì đây là tính năng optional
       setVoucherError(err.response?.data?.message || "Không thể tạo voucher tự động");
     } finally {

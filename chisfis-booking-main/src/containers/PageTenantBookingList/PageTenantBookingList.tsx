@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import bookingAPI, { BookingDTO } from "api/booking";
 import moment from "moment";
+import { toastSuccess, showErrorMessage } from "utils/toast";
 
 // --- Định nghĩa kiểu dữ liệu ---
 type BookingStatusVN = "Đã xác nhận" | "Đang xử lý" | "Đã hủy" | "Hoàn thành";
@@ -350,7 +351,6 @@ const PageTenantBookings = () => {
                 }
                 setBookings(sortedData);
             } catch (err: any) {
-                console.error("Error fetching bookings:", err);
                 setError("Không thể tải danh sách đặt phòng. Vui lòng thử lại sau.");
             } finally {
                 setLoading(false);
@@ -395,7 +395,7 @@ const PageTenantBookings = () => {
                 }
             }
             
-            alert("Đã hủy đặt phòng thành công. Nếu hủy trong vòng 2 ngày, bạn có thể yêu cầu hoàn tiền.");
+            toastSuccess("Đã hủy đặt phòng thành công. Nếu hủy trong vòng 2 ngày, bạn có thể yêu cầu hoàn tiền.", { autoClose: 5000 });
             
             // Reload bookings để cập nhật trạng thái
             const data = await bookingAPI.getMyBookings();
@@ -424,12 +424,7 @@ const PageTenantBookings = () => {
             }
             setBookings(sortedData);
         } catch (err: any) {
-            console.error("Error cancelling booking:", err);
-            alert(
-                err.response?.data?.message || 
-                err.message || 
-                "Không thể hủy đặt phòng. Vui lòng thử lại sau."
-            );
+            showErrorMessage("Hủy đặt phòng", err);
         } finally {
             setCancellingId(null);
         }
@@ -510,10 +505,6 @@ const PageTenantBookings = () => {
                                         <td className="px-5 py-4 whitespace-nowrap align-middle">
                                             <img 
                                                 src={booking.condotelImageUrl || ""}
-                                                onError={(e) => {
-                                                  console.error("❌ Image load error");
-                                                  (e.target as HTMLImageElement).style.display = "none";
-                                                }} 
                                                 alt={booking.condotelName || "Condotel"} 
                                                 className="w-24 h-16 object-cover rounded-lg shadow-sm" 
                                             />
