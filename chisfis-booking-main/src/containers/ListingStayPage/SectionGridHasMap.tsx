@@ -12,6 +12,7 @@ import Heading2 from "components/Heading/Heading2";
 import condotelAPI, { CondotelDTO } from "api/condotel";
 import { useTranslation } from "i18n/LanguageContext";
 import moment from "moment";
+import { toastError } from "utils/toast";
 
 // Default coordinates for Vietnam (center of Vietnam)
 const DEFAULT_VIETNAM_CENTER = {
@@ -78,10 +79,6 @@ const SectionGridHasMap: FC<SectionGridHasMapProps> = () => {
     // Use window.location.search as fallback if React Router location.search is empty
     const searchString = location.search || window.location.search;
     const urlParams = new URLSearchParams(searchString);
-    console.log("🔍 SectionGridHasMap - React Router location.search:", location.search);
-    console.log("🔍 SectionGridHasMap - Window location.search:", window.location.search);
-    console.log("🔍 SectionGridHasMap - Using search string:", searchString);
-    console.log("🔍 SectionGridHasMap - All URL params:", Object.fromEntries(urlParams));
     return urlParams;
   }, [location.search]);
   
@@ -98,18 +95,13 @@ const SectionGridHasMap: FC<SectionGridHasMapProps> = () => {
     }
   });
   
-  console.log("🔍 SectionGridHasMap - All location params found:", allLocationParams);
-  
   // Find the first location that is NOT a date format
   for (const loc of allLocationParams) {
     // Check if it looks like a date (DD/MM/YYYY, DD-MM-YYYY, YYYY-MM-DD, etc.)
     const isDate = /^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}$/.test(loc) || /^\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}$/.test(loc);
     if (!isDate && loc.trim().length > 0) {
       searchLocation = loc.trim();
-      console.log("🔍 SectionGridHasMap - Using valid location:", searchLocation);
       break;
-    } else {
-      console.warn("⚠️ SectionGridHasMap - Ignoring location that looks like date:", loc);
     }
   }
   
@@ -118,7 +110,6 @@ const SectionGridHasMap: FC<SectionGridHasMapProps> = () => {
     const firstLocation = params.get("location");
     if (firstLocation && !/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}$/.test(firstLocation) && !/^\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}$/.test(firstLocation)) {
       searchLocation = firstLocation.trim();
-      console.log("🔍 SectionGridHasMap - Using first location param:", searchLocation);
     }
   }
   

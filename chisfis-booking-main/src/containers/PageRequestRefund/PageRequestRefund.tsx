@@ -231,7 +231,8 @@ const PageRequestRefund = () => {
         throw new Error("Booking không có số tiền hợp lệ để hoàn tiền.");
       }
 
-      console.log("💰 Đang gửi yêu cầu hoàn tiền với thông tin:", {
+      // Log refund request details (removed console.log for production)
+      // console.log("💰 Đang gửi yêu cầu hoàn tiền với thông tin:", {
         bookingId: currentBooking.bookingId,
         status: currentBooking.status,
         totalPrice: currentBooking.totalPrice,

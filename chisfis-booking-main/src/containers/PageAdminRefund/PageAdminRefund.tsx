@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import adminAPI from "api/admin";
 import paymentAPI from "api/payment";
+import { toastError, toastWarning, toastSuccess } from "utils/toast";
 
 // --- Định nghĩa kiểu dữ liệu từ backend ---
 interface RefundRequest {
@@ -107,12 +108,6 @@ const PageAdminRefund = () => {
       const response = await adminAPI.getRefundRequests(params);
       const data = response.data || [];
       
-      console.log("📥 Raw refund requests from API:", data);
-      if (data.length > 0) {
-        console.log("📥 First item sample:", JSON.stringify(data[0], null, 2));
-        console.log("📥 First item bankInfo:", data[0].bankInfo || data[0].BankInfo || "NOT FOUND");
-      }
-      
       // Normalize response từ backend (PascalCase -> camelCase)
       // Backend trả về RefundRequestDTO với format bookingId: BOOK-001
       const normalized = data.map((item: any, index: number) => {
@@ -140,7 +135,6 @@ const PageAdminRefund = () => {
               accountHolder: item.BankInfo.AccountHolder || item.BankInfo.accountHolder || "",
             };
             if (bankInfo.bankName || bankInfo.accountNumber) {
-              console.log(`✅ [${index}] Parsed BankInfo (PascalCase):`, bankInfo);
               return bankInfo;
             }
           }
@@ -152,7 +146,6 @@ const PageAdminRefund = () => {
               accountHolder: item.bankInfo.accountHolder || item.bankInfo.AccountHolder || "",
             };
             if (bankInfo.bankName || bankInfo.accountNumber) {
-              console.log(`✅ [${index}] Parsed bankInfo (camelCase):`, bankInfo);
               return bankInfo;
             }
           }
@@ -164,18 +157,8 @@ const PageAdminRefund = () => {
               accountHolder: item.AccountHolder || item.accountHolder || "",
             };
             if (bankInfo.bankName || bankInfo.accountNumber) {
-              console.log(`✅ [${index}] Parsed bankInfo (root level):`, bankInfo);
               return bankInfo;
             }
-          }
-          if (index === 0) {
-            console.warn(`⚠️ [${index}] No bankInfo found in item:`, {
-              hasBankInfo: !!item.BankInfo,
-              hasbankInfo: !!item.bankInfo,
-              hasBankCode: !!item.BankCode,
-              hasbankCode: !!item.bankCode,
-              itemKeys: Object.keys(item),
-            });
           }
           return undefined;
         })();
@@ -190,21 +173,15 @@ const PageAdminRefund = () => {
         refundAmount: item.RefundAmount !== undefined ? item.RefundAmount : item.refundAmount,
         bankInfo: parsedBankInfo,
         status: item.Status || item.status || "Pending", // Backend map: "Cancelled" → "Pending", "Refunded" → "Completed"
-        cancelDate: (() => {
-          const cancelDate = item.CancelDate || item.cancelDate || item.CancelDateFormatted || item.cancelDateFormatted;
-          if (cancelDate && index === 0) {
-            console.log("📅 CancelDate from backend:", cancelDate, typeof cancelDate);
-          }
-          return cancelDate;
-        })(),
+        cancelDate: item.CancelDate || item.cancelDate || item.CancelDateFormatted || item.cancelDateFormatted,
         createdAt: item.CreatedAt || item.createdAt,
         reason: item.Reason || item.reason,
       };
       });
       
       setRequests(normalized);
-    } catch (err: any) {
-      console.error("Error loading refund requests:", err);
+      } catch (err: any) {
+        toastError("Không thể tải danh sách yêu cầu hoàn tiền");
       setError(err.response?.data?.message || err.message || "Không thể tải danh sách yêu cầu hoàn tiền");
     } finally {
       setLoading(false);
@@ -226,7 +203,9 @@ const PageAdminRefund = () => {
     if (requests.length > 0) {
       requests.forEach((req) => {
         if (req.status === "Pending" && req.bankInfo && !qrUrlsCache[req.bookingId] && !loadingQR[req.bookingId]) {
-          generateQRUrl(req, "compact").catch(console.error);
+          generateQRUrl(req, "compact").catch((err) => {
+            toastError("Không thể tạo QR code");
+          });
         }
       });
     }
@@ -256,7 +235,6 @@ const PageAdminRefund = () => {
       numericId = bookingId as number;
     }
     
-    console.log("🔍 Opening confirm modal with bookingId:", numericId, "type:", type);
     setSelectedBookingId(numericId);
     setRefundType(type);
     setRefundReason("");
@@ -272,7 +250,7 @@ const PageAdminRefund = () => {
           const url = await generateQRUrl(selectedRequest, "print");
           setQrUrlModal(url);
         } catch (error) {
-          console.error("Error generating QR for modal:", error);
+          toastError("Không thể tạo QR code cho modal");
         } finally {
           setLoadingQRModal(false);
         }
@@ -299,23 +277,21 @@ const PageAdminRefund = () => {
       numericId = selectedBookingId as number;
     }
     
-    console.log("💰 Processing auto refund for bookingId:", numericId);
-
     setProcessing(true);
     try {
       const result = await adminAPI.refundBooking(numericId, refundReason || undefined);
       
       if (result.success) {
-        alert(result.message || "Hoàn tiền tự động thành công!");
+        toastSuccess(result.message || "Hoàn tiền tự động thành công!");
         setConfirmModalOpen(false);
         setSelectedBookingId(null);
         loadRefundRequests(); // Reload danh sách
       } else {
-        alert(result.message || "Không thể hoàn tiền tự động. Vui lòng thử lại.");
+        toastError(result.message || "Không thể hoàn tiền tự động. Vui lòng thử lại.");
       }
     } catch (err: any) {
-      console.error("Error processing auto refund:", err);
-      alert(err.response?.data?.message || err.message || "Đã có lỗi xảy ra khi hoàn tiền tự động");
+      const errorMsg = err.response?.data?.message || err.message || "Đã có lỗi xảy ra khi hoàn tiền tự động";
+      toastError(errorMsg);
     } finally {
       setProcessing(false);
     }
@@ -338,11 +314,9 @@ const PageAdminRefund = () => {
     // Kiểm tra refund request có tồn tại không
     const selectedRequest = requests.find(req => req.bookingId === numericBookingId);
     if (!selectedRequest) {
-      alert("Không tìm thấy thông tin yêu cầu hoàn tiền. Vui lòng thử lại.");
+      toastError("Không tìm thấy thông tin yêu cầu hoàn tiền. Vui lòng thử lại.");
       return;
     }
-
-    console.log("💰 Confirming manual refund for bookingId:", numericBookingId);
 
     setProcessing(true);
     try {
@@ -351,16 +325,16 @@ const PageAdminRefund = () => {
       const result = await adminAPI.confirmRefundRequest(numericBookingId);
       
       if (result.success) {
-        alert(result.message || "Đã xác nhận chuyển tiền thủ công thành công!");
+        toastSuccess(result.message || "Đã xác nhận chuyển tiền thủ công thành công!");
         setConfirmModalOpen(false);
         setSelectedBookingId(null);
         loadRefundRequests(); // Reload danh sách
       } else {
-        alert(result.message || "Không thể xác nhận. Vui lòng thử lại.");
+        toastError(result.message || "Không thể xác nhận. Vui lòng thử lại.");
       }
     } catch (err: any) {
-      console.error("Error confirming manual refund:", err);
-      alert(err.response?.data?.message || err.message || "Đã có lỗi xảy ra khi xác nhận");
+      const errorMsg = err.response?.data?.message || err.message || "Đã có lỗi xảy ra khi xác nhận";
+      toastError(errorMsg);
     } finally {
       setProcessing(false);
     }
@@ -369,7 +343,7 @@ const PageAdminRefund = () => {
   // --- HÀM TỪ CHỐI YÊU CẦU HOÀN TIỀN ---
   const handleRejectRefund = async () => {
     if (!selectedRefundRequestId || !rejectReason.trim()) {
-      alert("Vui lòng nhập lý do từ chối.");
+      toastWarning("Vui lòng nhập lý do từ chối.");
       return;
     }
 
@@ -383,24 +357,22 @@ const PageAdminRefund = () => {
       numericRefundRequestId = selectedRefundRequestId as number;
     }
 
-    console.log("❌ Rejecting refund request for refundRequestId:", numericRefundRequestId, "reason:", rejectReason);
-
     setProcessing(true);
     try {
       const result = await adminAPI.rejectRefundRequest(numericRefundRequestId, rejectReason.trim());
       
       if (result.success) {
-        alert(result.message || "Đã từ chối yêu cầu hoàn tiền thành công!");
+        toastSuccess(result.message || "Đã từ chối yêu cầu hoàn tiền thành công!");
         setRejectModalOpen(false);
         setSelectedRefundRequestId(null);
         setRejectReason("");
         loadRefundRequests(); // Reload danh sách
       } else {
-        alert(result.message || "Không thể từ chối. Vui lòng thử lại.");
+        toastError(result.message || "Không thể từ chối. Vui lòng thử lại.");
       }
     } catch (err: any) {
-      console.error("Error rejecting refund request:", err);
-      alert(err.response?.data?.message || err.message || "Đã có lỗi xảy ra khi từ chối");
+      const errorMsg = err.response?.data?.message || err.message || "Đã có lỗi xảy ra khi từ chối";
+      toastError(errorMsg);
     } finally {
       setProcessing(false);
     }
@@ -449,7 +421,7 @@ const PageAdminRefund = () => {
 
       return template === "compact" ? qrData.compactUrl : qrData.printUrl;
     } catch (error: any) {
-      console.error("Error generating QR code:", error);
+      toastError("Không thể tạo QR code");
       // Fallback: tạo URL trực tiếp nếu API fail
       const bankId = req.bankInfo.bankName;
       const accountNo = req.bankInfo.accountNumber;
@@ -478,7 +450,9 @@ const PageAdminRefund = () => {
     }
 
     // Nếu chưa có, trigger async generation (sẽ update sau)
-    generateQRUrl(req, template).catch(console.error);
+    generateQRUrl(req, template).catch((err) => {
+      toastError("Không thể tạo QR code");
+    });
     
     // Return fallback URL tạm thời
      const bankId = req.bankInfo.bankName;
@@ -523,7 +497,7 @@ const PageAdminRefund = () => {
       
       // Kiểm tra date hợp lệ
       if (isNaN(date.getTime())) {
-        console.warn("Invalid date string:", dateString);
+        // Invalid date string
         return dateString; // Trả về string gốc nếu không parse được
       }
       
@@ -533,7 +507,7 @@ const PageAdminRefund = () => {
       const year = date.getFullYear();
       return `${day}/${month}/${year}`;
     } catch (error) {
-      console.error("Error formatting date:", error, dateString);
+      // Error formatting date
       return dateString || ""; // Trả về string gốc nếu có lỗi
     }
   };
@@ -779,7 +753,7 @@ const PageAdminRefund = () => {
                                   setRejectReason("");
                                   setRejectModalOpen(true);
                                 } else {
-                                  alert("Không tìm thấy ID của refund request. Vui lòng thử lại.");
+                                  toastError("Không tìm thấy ID của refund request. Vui lòng thử lại.");
                                 }
                               }}
                               className="bg-red-600 text-white px-3 py-1.5 rounded-md text-xs hover:bg-red-700 shadow-sm transition-colors font-medium"
@@ -913,7 +887,7 @@ const PageAdminRefund = () => {
                           alt="QR Code chuyển khoản" 
                           className="w-64 h-64 mx-auto"
                           onError={(e) => {
-                            console.error("QR code image failed to load");
+                            // QR code image failed to load
                             const target = e.target as HTMLImageElement;
                             target.style.display = 'none';
                           }}

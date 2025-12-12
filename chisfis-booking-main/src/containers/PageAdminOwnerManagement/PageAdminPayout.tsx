@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { toast } from "react-toastify";
 import payoutAPI, { HostPayoutDTO } from "api/payout";
 import moment from "moment";
+import { toastError, toastSuccess, toastWarning } from "utils/toast";
 
 // --- Định nghĩa kiểu dữ liệu ---
 // LƯU Ý: 'bank' dùng Mã ngân hàng chuẩn của VietQR (MB, VCB, TCB, ACB...)
@@ -168,7 +169,7 @@ const PageAdminPayout = () => {
         setRejectedBookings(map);
       }
     } catch (error) {
-      console.error("Failed to load rejected bookings from localStorage:", error);
+      // Failed to load rejected bookings from localStorage
     }
   }, []);
 
@@ -197,17 +198,10 @@ const PageAdminPayout = () => {
       const allBookings = [...validPendingData, ...paidData];
       const grouped = groupPayoutsByHost(allBookings);
       
-      console.log("📊 Loaded payouts:", {
-        pendingCount: pendingData.length,
-        validPendingCount: validPendingData.length,
-        paidCount: paidData.length,
-        groupedCount: grouped.length,
-      });
-      
       setGroupedPayouts(grouped);
     } catch (error: any) {
-      console.error("Failed to load payouts:", error);
-      toast.error(error.response?.data?.message || "Không thể tải danh sách thanh toán");
+      const errorMsg = error.response?.data?.message || "Không thể tải danh sách thanh toán";
+      toastError(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -254,16 +248,15 @@ const PageAdminPayout = () => {
           await payoutAPI.confirmPayout(booking.bookingId);
           successCount++;
         } catch (error: any) {
-          console.error(`Failed to confirm booking ${booking.bookingId}:`, error);
           failCount++;
         }
       }
 
       if (successCount > 0) {
-        toast.success(`Đã xác nhận thanh toán cho ${successCount} booking${successCount > 1 ? "s" : ""} của ${selectedPayoutToConfirm.hostName}`);
+        toastSuccess(`Đã xác nhận thanh toán cho ${successCount} booking${successCount > 1 ? "s" : ""} của ${selectedPayoutToConfirm.hostName}`);
       }
       if (failCount > 0) {
-        toast.error(`Không thể xác nhận ${failCount} booking${failCount > 1 ? "s" : ""}`);
+        toastError(`Không thể xác nhận ${failCount} booking${failCount > 1 ? "s" : ""}`);
       }
 
       // Reload data
@@ -273,8 +266,8 @@ const PageAdminPayout = () => {
       setConfirmModalOpen(false);
       setSelectedPayoutToConfirm(null);
     } catch (error: any) {
-      console.error("Failed to confirm payout:", error);
-      toast.error(error.response?.data?.message || "Không thể xác nhận thanh toán");
+      const errorMsg = error.response?.data?.message || "Không thể xác nhận thanh toán";
+      toastError(errorMsg);
     } finally {
       setProcessing(false);
     }
@@ -308,37 +301,28 @@ const PageAdminPayout = () => {
       let failCount = 0;
       const errors: string[] = [];
 
-      console.log(`🔄 Bắt đầu reject ${pendingBookings.length} booking(s) cho host ${selectedPayoutToReject.hostName}`);
-
       for (const booking of pendingBookings) {
         try {
-          console.log(`📤 Gọi API reject payout cho booking ${booking.bookingId}...`);
-          const result = await payoutAPI.rejectPayout(booking.bookingId, rejectReason.trim());
-          console.log(`✅ Reject thành công booking ${booking.bookingId}:`, result);
+          await payoutAPI.rejectPayout(booking.bookingId, rejectReason.trim());
           successCount++;
         } catch (error: any) {
           const errorMsg = error.response?.data?.message || error.message || "Unknown error";
-          console.error(`❌ Failed to reject booking ${booking.bookingId}:`, error);
-          console.error(`   Error details:`, error.response?.data);
           errors.push(`Booking ${booking.bookingId}: ${errorMsg}`);
           failCount++;
         }
       }
 
-      console.log(`📊 Kết quả reject: ${successCount} thành công, ${failCount} thất bại`);
-
       if (successCount > 0) {
-        toast.success(`Đã từ chối thanh toán cho ${successCount} booking${successCount > 1 ? "s" : ""} của ${selectedPayoutToReject.hostName}`);
+        toastSuccess(`Đã từ chối thanh toán cho ${successCount} booking${successCount > 1 ? "s" : ""} của ${selectedPayoutToReject.hostName}`);
       }
       if (failCount > 0) {
-        toast.error(`Không thể từ chối ${failCount} booking${failCount > 1 ? "s" : ""}. ${errors.length > 0 ? errors[0] : ""}`);
+        toastError(`Không thể từ chối ${failCount} booking${failCount > 1 ? "s" : ""}. ${errors.length > 0 ? errors[0] : ""}`);
       }
 
       // Đợi một chút để backend xử lý xong trước khi reload
       await new Promise(resolve => setTimeout(resolve, 500));
       
       // Reload data để cập nhật danh sách (các booking đã reject sẽ không còn trong pending list)
-      console.log("🔄 Reloading payouts sau khi reject...");
       await loadPayouts();
       
       // Đóng modal và reset
@@ -346,8 +330,8 @@ const PageAdminPayout = () => {
       setSelectedPayoutToReject(null);
       setRejectReason("");
     } catch (error: any) {
-      console.error("Failed to reject payout:", error);
-      toast.error(error.response?.data?.message || "Không thể từ chối thanh toán");
+      const errorMsg = error.response?.data?.message || "Không thể từ chối thanh toán";
+      toastError(errorMsg);
     } finally {
       setProcessing(false);
     }

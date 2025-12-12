@@ -31,11 +31,13 @@ export interface VoucherCreateDTO {
 }
 
 // Host Voucher Settings DTO
+// Theo spec: autoGenerate, discountAmount/Percentage, validMonths, usageLimit
 export interface HostVoucherSettingDTO {
-  autoGenerateVouchers?: boolean;
-  defaultDiscountPercentage?: number;
-  defaultDiscountAmount?: number;
-  defaultUsageLimit?: number;
+  autoGenerateVouchers?: boolean; // autoGenerate
+  defaultDiscountPercentage?: number; // discountPercentage
+  defaultDiscountAmount?: number; // discountAmount
+  validMonths?: number; // Thời hạn voucher (tháng) - theo spec
+  defaultUsageLimit?: number; // usageLimit
   defaultMinimumOrderAmount?: number;
   voucherPrefix?: string;
   voucherLength?: number;
@@ -73,18 +75,118 @@ export const voucherAPI = {
   },
 
   // POST /api/host/vouchers - Tạo voucher mới
+  // Theo spec: CondotelID (bắt buộc), Code (bắt buộc, unique), StartDate < EndDate, 
+  // Ít nhất một trong: DiscountAmount hoặc DiscountPercentage, tự động set Status = "Active"
   create: async (voucher: VoucherCreateDTO): Promise<VoucherDTO> => {
-    const response = await axiosClient.post<VoucherDTO>("/host/vouchers", voucher);
-    return response.data;
+    // Map camelCase sang PascalCase để khớp với backend C# DTO
+    const requestData: any = {
+      Code: voucher.code,
+      StartDate: voucher.startDate,
+      EndDate: voucher.endDate,
+    };
+    
+    // CondotelID là bắt buộc theo spec
+    if (voucher.condotelId) {
+      requestData.CondotelId = voucher.condotelId;
+    }
+    
+    // Ít nhất một trong: DiscountAmount hoặc DiscountPercentage
+    if (voucher.discountPercentage !== undefined) {
+      requestData.DiscountPercentage = voucher.discountPercentage;
+    }
+    if (voucher.discountAmount !== undefined) {
+      requestData.DiscountAmount = voucher.discountAmount;
+    }
+    
+    // Optional fields
+    if (voucher.description) {
+      requestData.Description = voucher.description;
+    }
+    if (voucher.usageLimit !== undefined) {
+      requestData.UsageLimit = voucher.usageLimit;
+    }
+    if (voucher.minimumOrderAmount !== undefined) {
+      requestData.MinimumOrderAmount = voucher.minimumOrderAmount;
+    }
+    // Backend tự động set Status = "Active" khi tạo
+    
+    const response = await axiosClient.post<VoucherDTO>("/host/vouchers", requestData);
+    const data = response.data;
+    
+    // Normalize response từ PascalCase sang camelCase
+    return {
+      voucherId: data.VoucherId || data.voucherId,
+      code: data.Code || data.code,
+      description: data.Description || data.description,
+      discountPercentage: data.DiscountPercentage !== undefined ? data.DiscountPercentage : data.discountPercentage,
+      discountAmount: data.DiscountAmount !== undefined ? data.DiscountAmount : data.discountAmount,
+      startDate: data.StartDate || data.startDate,
+      endDate: data.EndDate || data.endDate,
+      isActive: data.IsActive !== undefined ? data.IsActive : data.isActive,
+      usageLimit: data.UsageLimit !== undefined ? data.UsageLimit : data.usageLimit,
+      usedCount: data.UsedCount !== undefined ? data.UsedCount : data.usedCount,
+      minimumOrderAmount: data.MinimumOrderAmount !== undefined ? data.MinimumOrderAmount : data.minimumOrderAmount,
+      createdAt: data.CreatedAt || data.createdAt,
+      updatedAt: data.UpdatedAt || data.updatedAt,
+    };
   },
 
   // PUT /api/host/vouchers/{id} - Cập nhật voucher
+  // Validation tương tự Create, chỉ cập nhật được voucher thuộc về host
   update: async (
     id: number,
     voucher: VoucherCreateDTO
   ): Promise<VoucherDTO> => {
-    const response = await axiosClient.put<VoucherDTO>(`/host/vouchers/${id}`, voucher);
-    return response.data;
+    // Map camelCase sang PascalCase để khớp với backend C# DTO
+    const requestData: any = {
+      Code: voucher.code,
+      StartDate: voucher.startDate,
+      EndDate: voucher.endDate,
+    };
+    
+    if (voucher.condotelId) {
+      requestData.CondotelId = voucher.condotelId;
+    }
+    
+    if (voucher.discountPercentage !== undefined) {
+      requestData.DiscountPercentage = voucher.discountPercentage;
+    }
+    if (voucher.discountAmount !== undefined) {
+      requestData.DiscountAmount = voucher.discountAmount;
+    }
+    
+    if (voucher.description) {
+      requestData.Description = voucher.description;
+    }
+    if (voucher.usageLimit !== undefined) {
+      requestData.UsageLimit = voucher.usageLimit;
+    }
+    if (voucher.minimumOrderAmount !== undefined) {
+      requestData.MinimumOrderAmount = voucher.minimumOrderAmount;
+    }
+    if (voucher.isActive !== undefined) {
+      requestData.Status = voucher.isActive ? "Active" : "Inactive";
+    }
+    
+    const response = await axiosClient.put<VoucherDTO>(`/host/vouchers/${id}`, requestData);
+    const data = response.data;
+    
+    // Normalize response từ PascalCase sang camelCase
+    return {
+      voucherId: data.VoucherId || data.voucherId,
+      code: data.Code || data.code,
+      description: data.Description || data.description,
+      discountPercentage: data.DiscountPercentage !== undefined ? data.DiscountPercentage : data.discountPercentage,
+      discountAmount: data.DiscountAmount !== undefined ? data.DiscountAmount : data.discountAmount,
+      startDate: data.StartDate || data.startDate,
+      endDate: data.EndDate || data.endDate,
+      isActive: data.IsActive !== undefined ? data.IsActive : data.isActive,
+      usageLimit: data.UsageLimit !== undefined ? data.UsageLimit : data.usageLimit,
+      usedCount: data.UsedCount !== undefined ? data.UsedCount : data.usedCount,
+      minimumOrderAmount: data.MinimumOrderAmount !== undefined ? data.MinimumOrderAmount : data.minimumOrderAmount,
+      createdAt: data.CreatedAt || data.createdAt,
+      updatedAt: data.UpdatedAt || data.updatedAt,
+    };
   },
 
   // DELETE /api/host/vouchers/{id} - Xóa voucher
@@ -214,10 +316,12 @@ export const voucherAPI = {
     const data = response.data;
     
     // Normalize response từ backend (PascalCase -> camelCase)
+    // Theo spec: autoGenerate, discountAmount/Percentage, validMonths, usageLimit
     return {
       autoGenerateVouchers: data.AutoGenerateVouchers !== undefined ? data.AutoGenerateVouchers : data.autoGenerateVouchers,
       defaultDiscountPercentage: data.DefaultDiscountPercentage !== undefined ? data.DefaultDiscountPercentage : data.defaultDiscountPercentage,
       defaultDiscountAmount: data.DefaultDiscountAmount !== undefined ? data.DefaultDiscountAmount : data.defaultDiscountAmount,
+      validMonths: data.ValidMonths !== undefined ? data.ValidMonths : data.validMonths,
       defaultUsageLimit: data.DefaultUsageLimit !== undefined ? data.DefaultUsageLimit : data.defaultUsageLimit,
       defaultMinimumOrderAmount: data.DefaultMinimumOrderAmount !== undefined ? data.DefaultMinimumOrderAmount : data.defaultMinimumOrderAmount,
       voucherPrefix: data.VoucherPrefix || data.voucherPrefix,
@@ -226,8 +330,38 @@ export const voucherAPI = {
   },
 
   // POST /api/host/settings/voucher - Lưu voucher settings của host
+  // Theo spec: Khi autoGenerate = true, tự động tạo voucher cho tất cả condotel của host
+  // Gửi email thông báo cho customer, Voucher có thời hạn = validMonths tháng
   saveSettings: async (settings: HostVoucherSettingDTO): Promise<HostVoucherSettingDTO> => {
-    const response = await axiosClient.post<any>("/host/settings/voucher", settings);
+    // Map camelCase sang PascalCase để khớp với backend C# DTO
+    const requestData: any = {};
+    
+    if (settings.autoGenerateVouchers !== undefined) {
+      requestData.AutoGenerateVouchers = settings.autoGenerateVouchers;
+    }
+    if (settings.defaultDiscountPercentage !== undefined) {
+      requestData.DefaultDiscountPercentage = settings.defaultDiscountPercentage;
+    }
+    if (settings.defaultDiscountAmount !== undefined) {
+      requestData.DefaultDiscountAmount = settings.defaultDiscountAmount;
+    }
+    if (settings.validMonths !== undefined) {
+      requestData.ValidMonths = settings.validMonths;
+    }
+    if (settings.defaultUsageLimit !== undefined) {
+      requestData.DefaultUsageLimit = settings.defaultUsageLimit;
+    }
+    if (settings.defaultMinimumOrderAmount !== undefined) {
+      requestData.DefaultMinimumOrderAmount = settings.defaultMinimumOrderAmount;
+    }
+    if (settings.voucherPrefix) {
+      requestData.VoucherPrefix = settings.voucherPrefix;
+    }
+    if (settings.voucherLength !== undefined) {
+      requestData.VoucherLength = settings.voucherLength;
+    }
+    
+    const response = await axiosClient.post<any>("/host/settings/voucher", requestData);
     const data = response.data;
     
     // Normalize response từ backend (PascalCase -> camelCase)
@@ -235,6 +369,7 @@ export const voucherAPI = {
       autoGenerateVouchers: data.AutoGenerateVouchers !== undefined ? data.AutoGenerateVouchers : data.autoGenerateVouchers,
       defaultDiscountPercentage: data.DefaultDiscountPercentage !== undefined ? data.DefaultDiscountPercentage : data.defaultDiscountPercentage,
       defaultDiscountAmount: data.DefaultDiscountAmount !== undefined ? data.DefaultDiscountAmount : data.defaultDiscountAmount,
+      validMonths: data.ValidMonths !== undefined ? data.ValidMonths : data.validMonths,
       defaultUsageLimit: data.DefaultUsageLimit !== undefined ? data.DefaultUsageLimit : data.defaultUsageLimit,
       defaultMinimumOrderAmount: data.DefaultMinimumOrderAmount !== undefined ? data.DefaultMinimumOrderAmount : data.defaultMinimumOrderAmount,
       voucherPrefix: data.VoucherPrefix || data.voucherPrefix,
