@@ -49,7 +49,6 @@ import PageBookingHistory from "containers/PageBookingHistory/PageBookingHistory
 import PageBookingHistoryDetail from "containers/PageBookingHistory/PageBookingHistoryDetail";
 import PageRequestRefund from "containers/PageRequestRefund/PageRequestRefund";
 import PageWriteReview from "containers/PageWriteReview/PageWriteReview";
-import TestPage from "containers/TestPage/TestPage";
 import PageMyReviews from "containers/PageMyReviews/PageMyReviews";
 import PageBlogList from "containers/PageManageBlog/PageBlogList";
 import PageBlogAdd from "containers/PageManageBlog/PageBlogAdd";
@@ -203,11 +202,6 @@ const RoutesContent = () => {
         <Route path="/subscription" element={<PageSubcription />} />
         <Route path="/pricing" element={<PricingPage />} />
         <Route path="/payment/success" element={<PaymentSuccess />} />
-        
-        {/* Test Page - Only in development */}
-        {process.env.NODE_ENV === 'development' && (
-          <Route path="/test" element={<TestPage />} />
-        )}
 
         {pages.map(({ component, path }) => {
           const Component = component;
