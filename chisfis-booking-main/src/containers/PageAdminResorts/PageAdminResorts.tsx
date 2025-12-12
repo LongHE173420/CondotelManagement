@@ -5,6 +5,7 @@ import utilityAPI, { UtilityDTO } from "api/utility";
 import vietnamAddressAPI from "api/vietnamAddress";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
 import ButtonSecondary from "shared/Button/ButtonSecondary";
+import { toastError, toastSuccess } from "utils/toast";
 
 const PageAdminResorts: React.FC = () => {
   const [resorts, setResorts] = useState<ResortDTO[]>([]);
@@ -32,8 +33,9 @@ const PageAdminResorts: React.FC = () => {
       const data = await resortAPI.getAllAdmin();
       setResorts(data);
     } catch (err: any) {
-      console.error("Failed to load resorts:", err);
-      setError(err.response?.data?.message || "Không thể tải danh sách resorts");
+      const errorMsg = err.response?.data?.message || "Không thể tải danh sách resorts";
+      setError(errorMsg);
+      toastError(errorMsg);
       setResorts([]);
     } finally {
       setLoading(false);
@@ -46,7 +48,7 @@ const PageAdminResorts: React.FC = () => {
       const data = await locationAPI.getAllAdmin();
       setLocations(data);
     } catch (err: any) {
-      console.error("Failed to load locations:", err);
+      toastError("Không thể tải danh sách địa điểm");
     } finally {
       setLoadingLocations(false);
     }
@@ -62,9 +64,11 @@ const PageAdminResorts: React.FC = () => {
       await resortAPI.deleteAdmin(id);
       setSuccess(`Đã xóa resort "${name}" thành công!`);
       await loadResorts();
+      toastSuccess(`Đã xóa resort "${name}" thành công!`);
     } catch (err: any) {
-      console.error("Failed to delete resort:", err);
-      setError(err.response?.data?.message || "Không thể xóa resort");
+      const errorMsg = err.response?.data?.message || "Không thể xóa resort";
+      setError(errorMsg);
+      toastError(errorMsg);
     } finally {
       setDeletingId(null);
     }
@@ -399,13 +403,11 @@ const ResortModal: React.FC<ResortModalProps> = ({ resort, locations, loadingLoc
             // Wards sẽ được load khi chọn district
             setWardsList([]);
           } catch (err) {
-            console.error("Failed to load districts:", err);
             // Fallback: thử lấy từ API internal
             try {
               const internalDistricts = await locationAPI.getDistrictsByLocationIdPublic(location.locationId);
               setDistrictsList(internalDistricts);
             } catch (fallbackErr) {
-              console.error("Failed to load districts from internal API:", fallbackErr);
               setDistrictsList([]);
             }
           } finally {
@@ -475,15 +477,16 @@ const ResortModal: React.FC<ResortModalProps> = ({ resort, locations, loadingLoc
 
       if (resort) {
         await resortAPI.updateAdmin(resort.resortId, submitData);
-        alert("Cập nhật resort thành công!");
+        toastSuccess("Cập nhật resort thành công!");
       } else {
         await resortAPI.createAdmin(submitData);
-        alert("Tạo resort thành công!");
+        toastSuccess("Tạo resort thành công!");
       }
       onSuccess();
     } catch (err: any) {
-      console.error("Failed to save resort:", err);
-      setError(err.response?.data?.message || "Không thể lưu resort. Vui lòng thử lại!");
+      const errorMsg = err.response?.data?.message || "Không thể lưu resort. Vui lòng thử lại!";
+      setError(errorMsg);
+      toastError(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -598,13 +601,11 @@ const ResortModal: React.FC<ResortModalProps> = ({ resort, locations, loadingLoc
                               setWardsList(internalWards);
                             }
                           } catch (err) {
-                            console.error("Failed to load wards:", err);
                             // Fallback: thử lấy từ API internal
                             try {
                               const internalWards = await locationAPI.getWardsByLocationIdPublic(selectedLocation.locationId);
                               setWardsList(internalWards);
                             } catch (fallbackErr) {
-                              console.error("Failed to load wards from internal API:", fallbackErr);
                               setWardsList([]);
                             }
                           } finally {
@@ -773,8 +774,9 @@ const ResortUtilitiesModal: React.FC<ResortUtilitiesModalProps> = ({ resort, onC
       setResortUtilities(utilitiesData);
       setAllUtilities(allUtilitiesData);
     } catch (err: any) {
-      console.error("Failed to load utilities:", err);
-      setError(err.response?.data?.message || "Không thể tải danh sách utilities");
+      const errorMsg = err.response?.data?.message || "Không thể tải danh sách utilities";
+      setError(errorMsg);
+      toastError(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -788,9 +790,11 @@ const ResortUtilitiesModal: React.FC<ResortUtilitiesModalProps> = ({ resort, onC
       setSuccess("Thêm utility thành công!");
       await loadData();
       setShowAddModal(false);
+      toastSuccess("Thêm utility thành công!");
     } catch (err: any) {
-      console.error("Failed to add utility:", err);
-      setError(err.response?.data?.message || "Không thể thêm utility");
+      const errorMsg = err.response?.data?.message || "Không thể thêm utility";
+      setError(errorMsg);
+      toastError(errorMsg);
     } finally {
       setLoadingUtilities(false);
     }
@@ -807,9 +811,11 @@ const ResortUtilitiesModal: React.FC<ResortUtilitiesModalProps> = ({ resort, onC
       await resortAPI.removeUtility(resort.resortId, utilityId);
       setSuccess("Xóa utility thành công!");
       await loadData();
+      toastSuccess("Xóa utility thành công!");
     } catch (err: any) {
-      console.error("Failed to remove utility:", err);
-      setError(err.response?.data?.message || "Không thể xóa utility");
+      const errorMsg = err.response?.data?.message || "Không thể xóa utility";
+      setError(errorMsg);
+      toastError(errorMsg);
     } finally {
       setDeletingUtilityId(null);
     }

@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import voucherAPI, { VoucherDTO } from "api/voucher";
 import moment from "moment";
 import { useAuth } from "contexts/AuthContext";
+import { toastError } from "utils/toast";
 
 interface Voucher {
   id: string;
@@ -74,13 +75,10 @@ const PageMyVouchers = () => {
       setIsLoading(true);
       setError(null);
       try {
-        console.log("🔄 Loading my vouchers...");
         const vouchersData = await voucherAPI.getMyVouchers();
-        console.log("✅ My vouchers loaded:", vouchersData);
         
         // Check if vouchersData is valid
         if (!vouchersData || !Array.isArray(vouchersData)) {
-          console.warn("⚠️ Invalid vouchers data format:", vouchersData);
           setVouchers([]);
           return;
         }
@@ -111,11 +109,11 @@ const PageMyVouchers = () => {
         });
 
         setVouchers(mappedVouchers);
-        console.log("✅ Mapped vouchers:", mappedVouchers.length);
       
       } catch (error: any) {
-        console.error("❌ Lỗi khi tải voucher của bạn:", error);
-        setError(error.response?.data?.message || error.message || "Không thể tải voucher. Vui lòng thử lại sau.");
+        const errorMsg = error.response?.data?.message || error.message || "Không thể tải voucher. Vui lòng thử lại sau.";
+        setError(errorMsg);
+        toastError(errorMsg);
         setVouchers([]);
       } finally {
         setIsLoading(false);

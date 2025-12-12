@@ -58,10 +58,7 @@ const PayPage: FC<PayPageProps> = ({ className = "" }) => {
           setBooking(bookingData);
           setUnauthorized(false);
           
-          // Nếu thanh toán thành công, thử tạo voucher tự động
-          if (status === "success" && bookingData.status === "Confirmed") {
-            createVouchersAfterBooking(parseInt(bookingId));
-          }
+          // Lưu ý: Voucher chỉ được tạo khi booking chuyển từ "Confirmed" sang "Completed" (xử lý ở Host Dashboard)
         } catch (securityError: any) {
           setError(securityError.message || "Bạn không có quyền truy cập booking này");
           setUnauthorized(true);
@@ -99,10 +96,10 @@ const PayPage: FC<PayPageProps> = ({ className = "" }) => {
           const bookingData = await bookingAPI.getBookingById(parseInt(bookingId));
           setBooking(bookingData);
           
-          // Nếu booking đã được xác nhận, dừng refresh và tạo voucher
+          // Nếu booking đã được xác nhận, dừng refresh
+          // Lưu ý: Voucher chỉ được tạo khi booking chuyển từ "Confirmed" sang "Completed" (xử lý ở Host Dashboard)
           if (bookingData.status === "Confirmed") {
             clearInterval(refreshInterval);
-            createVouchersAfterBooking(parseInt(bookingId));
           }
         } catch (err: any) {
         }

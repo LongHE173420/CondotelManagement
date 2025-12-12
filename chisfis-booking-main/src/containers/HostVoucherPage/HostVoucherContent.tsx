@@ -5,6 +5,7 @@ import voucherAPI, { VoucherDTO, VoucherCreateDTO, HostVoucherSettingDTO } from 
 import condotelAPI, { CondotelDTO } from "api/condotel";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
 import ButtonSecondary from "shared/Button/ButtonSecondary";
+import { toastSuccess, toastError, toastWarning, toastInfo } from "utils/toast";
 
 const HostVoucherContent: React.FC = () => {
   const { user, isAuthenticated } = useAuth();
@@ -36,8 +37,9 @@ const HostVoucherContent: React.FC = () => {
       const vouchersData = await voucherAPI.getAll();
       setVouchers(vouchersData);
     } catch (err: any) {
-      console.error("Failed to load vouchers:", err);
-      setError(err.response?.data?.message || "Không thể tải danh sách voucher");
+      const errorMsg = err.response?.data?.message || "Không thể tải danh sách voucher";
+      setError(errorMsg);
+      toastError(errorMsg);
       setVouchers([]);
     } finally {
       setLoading(false);
@@ -53,10 +55,10 @@ const HostVoucherContent: React.FC = () => {
     try {
       await voucherAPI.delete(voucherId);
       await loadData();
-      alert("Xóa voucher thành công!");
+      toastSuccess("Xóa voucher thành công!");
     } catch (err: any) {
-      console.error("Failed to delete voucher:", err);
-      alert(err.response?.data?.message || "Không thể xóa voucher");
+      const errorMsg = err.response?.data?.message || "Không thể xóa voucher";
+      toastError(errorMsg);
     } finally {
       setDeletingId(null);
     }
@@ -83,8 +85,9 @@ const HostVoucherContent: React.FC = () => {
       const settingsData = await voucherAPI.getSettings();
       setSettings(settingsData);
     } catch (err: any) {
-      console.error("Failed to load settings:", err);
-      setError(err.response?.data?.message || "Không thể tải cài đặt");
+      const errorMsg = err.response?.data?.message || "Không thể tải cài đặt";
+      setError(errorMsg);
+      toastError(errorMsg);
     } finally {
       setLoadingSettings(false);
     }
@@ -96,10 +99,10 @@ const HostVoucherContent: React.FC = () => {
       await voucherAPI.saveSettings(newSettings);
       setSettings(newSettings);
       setShowSettings(false);
-      alert("Cập nhật cài đặt thành công!");
+      toastSuccess("Cập nhật cài đặt thành công!");
     } catch (err: any) {
-      console.error("Failed to save settings:", err);
-      alert(err.response?.data?.message || "Không thể lưu cài đặt");
+      const errorMsg = err.response?.data?.message || "Không thể lưu cài đặt";
+      toastError(errorMsg);
     } finally {
       setSavingSettings(false);
     }
@@ -340,7 +343,6 @@ const VoucherModal: React.FC<VoucherModalProps> = ({
           const data = await condotelAPI.getAllForHost();
           setCondotels(data);
         } catch (err: any) {
-          console.error("Failed to load condotels:", err);
           // Không set error vì condotelId là optional
         } finally {
           setLoadingCondotels(false);
@@ -354,21 +356,32 @@ const VoucherModal: React.FC<VoucherModalProps> = ({
     e.preventDefault();
     setError("");
 
-    // Validation
+    // Validation theo spec API
     if (!formData.code || !formData.code.trim()) {
       setError("Vui lòng nhập mã voucher!");
+      toastWarning("Mã voucher là bắt buộc");
+      return;
+    }
+    // CondotelID là bắt buộc theo spec khi tạo voucher thủ công
+    if (!voucher && !formData.condotelId) {
+      setError("Vui lòng chọn condotel!");
+      toastWarning("Condotel là bắt buộc khi tạo voucher");
       return;
     }
     if (!formData.startDate || !formData.endDate) {
       setError("Vui lòng chọn ngày bắt đầu và kết thúc!");
+      toastWarning("Ngày bắt đầu và kết thúc là bắt buộc");
       return;
     }
     if (new Date(formData.startDate) >= new Date(formData.endDate)) {
       setError("Ngày kết thúc phải sau ngày bắt đầu!");
+      toastWarning("Ngày kết thúc phải sau ngày bắt đầu");
       return;
     }
+    // Ít nhất một trong: DiscountAmount hoặc DiscountPercentage (theo spec)
     if (!formData.discountPercentage && !formData.discountAmount) {
       setError("Vui lòng nhập phần trăm giảm giá hoặc số tiền giảm giá!");
+      toastWarning("Vui lòng nhập ít nhất một trong: phần trăm giảm giá hoặc số tiền giảm giá");
       return;
     }
 
@@ -390,15 +403,17 @@ const VoucherModal: React.FC<VoucherModalProps> = ({
       if (voucher) {
         // Update voucher
         await voucherAPI.update(voucher.voucherId, voucherData);
-        alert("Cập nhật voucher thành công!");
+        toastSuccess("Cập nhật voucher thành công!");
       } else {
         // Create voucher
         await voucherAPI.create(voucherData);
-        alert("Tạo voucher thành công!");
+        toastSuccess("Tạo voucher thành công!");
       }
       onSuccess();
     } catch (err: any) {
-      console.error("Failed to save voucher:", err);
+      const errorMsg = err.response?.data?.message || err.response?.data?.error || "Không thể lưu voucher";
+      setError(errorMsg);
+      toastError(errorMsg);
       let errorMessage = "Không thể lưu voucher. Vui lòng thử lại!";
 
       if (err.response?.data?.message) {
@@ -677,6 +692,7 @@ const VoucherSettingsModal: React.FC<VoucherSettingsModalProps> = ({
     autoGenerateVouchers: false,
     defaultDiscountPercentage: undefined,
     defaultDiscountAmount: undefined,
+    validMonths: 3, // Mặc định 3 tháng theo spec
     defaultUsageLimit: undefined,
     defaultMinimumOrderAmount: undefined,
     voucherPrefix: "",
@@ -783,6 +799,31 @@ const VoucherSettingsModal: React.FC<VoucherSettingsModalProps> = ({
               className="w-full px-4 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-neutral-700 dark:text-neutral-100"
               placeholder="Nhập số tiền giảm giá mặc định"
             />
+          </div>
+
+          {/* Valid Months - Thời hạn voucher (tháng) theo spec */}
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+              Thời hạn voucher (tháng) <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="number"
+              min="1"
+              max="12"
+              value={formData.validMonths || 3}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  validMonths: e.target.value ? Number(e.target.value) : 3,
+                })
+              }
+              className="w-full px-4 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-neutral-700 dark:text-neutral-100"
+              placeholder="Nhập số tháng (1-12)"
+              required
+            />
+            <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
+              Voucher sẽ có thời hạn bằng số tháng này khi tự động tạo
+            </p>
           </div>
 
           {/* Default Usage Limit */}

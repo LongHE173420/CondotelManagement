@@ -16,6 +16,7 @@ import { useTranslation } from "i18n/LanguageContext";
 import locationAPI, { LocationDTO } from "api/location";
 import condotelAPI from "api/condotel";
 import hostAPI, { TopHostDTO } from "api/host";
+import { toastError } from "utils/toast";
 
 function PageHome() {
   const { t } = useTranslation();
@@ -49,7 +50,6 @@ function PageHome() {
               const condotels = await condotelAPI.getCondotelsByLocationId(Number(loc.id));
               return { ...loc, count: condotels.length };
             } catch (err) {
-              console.error(`Error fetching count for location ${loc.id}:`, err);
               return { ...loc, count: 0 };
             }
           })
@@ -70,19 +70,11 @@ function PageHome() {
           nearbySection = locationsWithCount.slice(0, Math.min(8, locationsWithCount.length));
         }
 
-        console.log("📍 Locations loaded:", {
-          total: locationsWithCount.length,
-          firstSection: firstSection.length,
-          secondSection: secondSection.length,
-          nearbySection: nearbySection.length,
-          nearbyLocations: nearbySection.map(l => l.name)
-        });
-
         setLocations(firstSection.length > 0 ? firstSection : []);
         setLocations2(secondSection.length > 0 ? secondSection : []);
         setNearbyLocations(nearbySection.length > 0 ? nearbySection : []);
       } catch (err: any) {
-        console.error("Error loading locations:", err);
+        toastError("Không thể tải danh sách địa điểm");
         // Fallback to demo data on error
         setLocations([]);
         setLocations2([]);
@@ -99,13 +91,9 @@ function PageHome() {
   useEffect(() => {
     const loadTopHosts = async () => {
       try {
-        console.log("🏆 Loading top hosts...");
         const topHostsData = await hostAPI.getTopRated(10);
-        console.log("🏆 Top hosts API response:", topHostsData);
-        console.log("🏆 Top hosts count:", topHostsData?.length || 0);
         
         if (!topHostsData || !Array.isArray(topHostsData) || topHostsData.length === 0) {
-          console.warn("⚠️ No top hosts data received from API");
           setTopHosts([]);
           return;
         }
@@ -132,11 +120,9 @@ function PageHome() {
           };
         });
         
-        console.log("🏆 Mapped hosts:", mappedHosts);
         setTopHosts(mappedHosts);
       } catch (err: any) {
-        console.error("❌ Error loading top hosts:", err);
-        console.error("❌ Error details:", err.response?.data || err.message);
+        toastError("Không thể tải danh sách host nổi bật");
         setTopHosts([]);
       }
     };

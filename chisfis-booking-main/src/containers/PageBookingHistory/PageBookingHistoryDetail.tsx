@@ -5,7 +5,7 @@ import condotelAPI, { CondotelDetailDTO } from "api/condotel";
 import reviewAPI from "api/review";
 import { useAuth } from "contexts/AuthContext";
 import { validateBookingOwnership } from "utils/bookingSecurity";
-import { toastSuccess, showErrorMessage } from "utils/toast";
+import { toastSuccess, toastError, showErrorMessage } from "utils/toast";
 
 // Format số tiền
 const formatPrice = (price: number | undefined): string => {
@@ -153,7 +153,7 @@ const PageBookingHistoryDetail = () => {
           setBooking(bookingData);
           setUnauthorized(false);
         } catch (securityError: any) {
-          console.error("Security error:", securityError);
+          // Security error - user doesn't own this booking
           setError(securityError.message || "Bạn không có quyền truy cập booking này");
           setUnauthorized(true);
           setBooking(null);
@@ -170,7 +170,7 @@ const PageBookingHistoryDetail = () => {
             const condotelData = await condotelAPI.getById(bookingData.condotelId);
             setCondotel(condotelData);
           } catch (err: any) {
-            console.error("Error fetching condotel:", err);
+            toastError("Không thể tải thông tin condotel");
             // Không set error nếu không fetch được condotel, chỉ log
           }
         }
@@ -186,10 +186,10 @@ const PageBookingHistoryDetail = () => {
           // Nếu booking chưa completed, không thể review
           // Chỉ booking với status "Completed" mới được phép review
           setCanReview(false);
-          console.log(`Booking status is "${bookingData.status}", not "Completed". Cannot review.`);
+          // Booking status is not "Completed", cannot review
         }
       } catch (err: any) {
-        console.error("Error fetching booking detail:", err);
+        toastError("Không thể tải thông tin booking");
         if (err.response?.status === 403 || err.response?.status === 401) {
           setError("Bạn không có quyền truy cập booking này");
           setUnauthorized(true);
@@ -310,14 +310,14 @@ const PageBookingHistoryDetail = () => {
       // Hiển thị thông báo trên màn hình
       setExpiredMessage("Đã hết thời gian thanh toán. Đơn đặt phòng đã được tự động hủy.");
     } catch (err: any) {
-      console.error("Error auto cancelling booking:", err);
+      toastError("Không thể tự động hủy booking");
       // Vẫn reload để kiểm tra trạng thái mới nhất
       try {
         const updatedBooking = await bookingAPI.getBookingById(booking.bookingId);
         setBooking(updatedBooking);
         setExpiredMessage("Đã hết thời gian thanh toán. Vui lòng kiểm tra lại trạng thái đơn đặt phòng.");
       } catch (reloadErr) {
-        console.error("Error reloading booking:", reloadErr);
+        toastError("Không thể tải lại thông tin booking");
         setExpiredMessage("Đã hết thời gian thanh toán. Vui lòng làm mới trang để kiểm tra trạng thái.");
       }
     } finally {
@@ -360,7 +360,7 @@ const PageBookingHistoryDetail = () => {
       const updatedBooking = await bookingAPI.getBookingById(booking.bookingId);
       setBooking(updatedBooking);
     } catch (err: any) {
-      console.error("Error cancelling booking:", err);
+      toastError("Không thể hủy booking");
       showErrorMessage("Hủy đặt phòng", err);
     } finally {
       setCancelling(false);
@@ -614,7 +614,7 @@ const PageBookingHistoryDetail = () => {
                   <img 
                     src={condotel.images?.[0]?.imageUrl || booking.condotelImageUrl || ""}
                     onError={(e) => {
-                      console.error("❌ Image load error");
+                      // Image load error
                       (e.target as HTMLImageElement).style.display = "none";
                     }} 
                     alt={condotel.name}

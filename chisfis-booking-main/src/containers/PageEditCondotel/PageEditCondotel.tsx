@@ -26,7 +26,6 @@ const ImageItem: React.FC<{ img: ImageDTO; index: number; onRemove: () => void }
           alt={`Hình ${index + 1}`}
           className="w-full h-40 object-cover rounded-xl border-2 border-neutral-200 dark:border-neutral-700"
           onError={(e) => {
-            console.error("❌ Image load error:", img.imageUrl);
             setImageError(true);
           }}
         />
@@ -86,13 +85,11 @@ const PageEditCondotel: React.FC = () => {
   useEffect(() => {
     const load = async () => {
       if (!id) {
-        console.warn("⚠️ No condotel ID provided");
         setError("Không tìm thấy ID condotel");
         setLoading(false);
         return;
       }
       if (!user || user.roleName !== "Host") {
-        console.warn("⚠️ User is not a Host, redirecting...");
         navigate("/");
         return;
       }
@@ -100,11 +97,7 @@ const PageEditCondotel: React.FC = () => {
       setError("");
       try {
         // Load condotel data
-        console.log("📥 Loading condotel data for ID:", id);
-        console.log("📥 User:", user);
         const data = await condotelAPI.getByIdForHost(Number(id));
-        console.log("✅ Condotel data loaded:", data);
-        console.log("✅ Data keys:", Object.keys(data));
         
         setName(data.name || "");
         setDescription(data.description || "");
@@ -117,20 +110,6 @@ const PageEditCondotel: React.FC = () => {
         setPricePerNight(data.pricePerNight || 0);
         setResortId(data.resortId);
         
-        console.log("📝 Set form values:", {
-          name: data.name,
-          description: data.description,
-          status: normalized === "Active" ? "Active" : "Inactive",
-          beds: data.beds,
-          bathrooms: data.bathrooms,
-          pricePerNight: data.pricePerNight,
-          resortId: data.resortId,
-          imagesCount: (data.images || []).length,
-          pricesCount: (data.prices || []).length,
-          detailsCount: (data.details || []).length,
-          amenitiesCount: (data.amenities || []).length,
-          utilitiesCount: (data.utilities || []).length,
-        });
         setImages((data.images || []).map((it: any) => ({ imageUrl: it.imageUrl, caption: it.caption })));
         setPrices((data.prices || []).map((p: any) => {
           // Normalize priceType: map từ tiếng Anh sang tiếng Việt hoặc giữ nguyên nếu đã là tiếng Việt
@@ -183,13 +162,11 @@ const PageEditCondotel: React.FC = () => {
         setAmenities(amenitiesData);
         setUtilities(utilitiesData);
       } catch (e: any) {
-        console.error("❌ Error loading condotel:", e);
-        console.error("❌ Error response:", e?.response?.data);
-        console.error("❌ Error message:", e?.message);
-        setError(e?.response?.data?.message || e?.message || "Không thể tải condotel");
+        const errorMsg = e?.response?.data?.message || e?.message || "Không thể tải condotel";
+        setError(errorMsg);
+        showErrorMessage("Tải condotel", e);
       } finally {
         setLoading(false);
-        console.log("✅ Loading completed");
       }
     };
     load();
@@ -225,7 +202,7 @@ const PageEditCondotel: React.FC = () => {
         setError("Upload thành công nhưng không nhận được URL ảnh. Vui lòng thử lại.");
       }
     } catch (err: any) {
-      console.error("Upload error:", err);
+      showErrorMessage("Upload ảnh", err);
       const errorMessage = err?.response?.data?.message 
         || err?.response?.data?.error
         || err?.message 
@@ -305,20 +282,7 @@ const PageEditCondotel: React.FC = () => {
   }
 
   // Debug: Log current state values
-  console.log("🔍 Current form state:", {
-    name,
-    description,
-    status,
-    beds,
-    bathrooms,
-    pricePerNight,
-    resortId,
-    imagesCount: images.length,
-    pricesCount: prices.length,
-    detailsCount: details.length,
-    amenityIdsCount: amenityIds.length,
-    utilityIdsCount: utilityIds.length,
-  });
+  // Debug: Current form state (removed console.log for production)
 
   return (
     <div className="px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto pb-16 pt-8">

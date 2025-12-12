@@ -80,7 +80,7 @@ const normalizePayout = (item: any): HostPayoutDTO => {
     // Thông tin về reject payout
     isRejected: item.IsRejected !== undefined ? item.IsRejected : (item.isRejected !== undefined ? item.isRejected : false),
     rejectedAt: item.RejectedAt || item.rejectedAt,
-    rejectReason: item.RejectReason || item.rejectReason,
+    rejectReason: item.RejectionReason || item.RejectReason || item.rejectReason,
   };
 };
 
@@ -186,6 +186,35 @@ export const payoutAPI = {
     const data = response.data;
     
     // Normalize response từ backend (PascalCase -> camelCase)
+    const payouts = Array.isArray(data) ? data : (data.data || []);
+    
+    return payouts.map(normalizePayout);
+  },
+
+  // GET /api/admin/payouts/rejected?hostId=1&fromDate=2025-01-01&toDate=2025-12-31 - Admin xem danh sách booking đã bị từ chối
+  // hostId (optional): Lọc theo host cụ thể
+  // fromDate, toDate (optional): Lọc theo khoảng thời gian từ chối (YYYY-MM-DD)
+  getAdminRejectedPayouts: async (options?: {
+    hostId?: number;
+    fromDate?: string; // YYYY-MM-DD
+    toDate?: string; // YYYY-MM-DD
+  }): Promise<HostPayoutDTO[]> => {
+    const params: any = {};
+    if (options?.hostId !== undefined && options?.hostId !== null) {
+      params.hostId = options.hostId;
+    }
+    if (options?.fromDate) {
+      params.fromDate = options.fromDate;
+    }
+    if (options?.toDate) {
+      params.toDate = options.toDate;
+    }
+    
+    const response = await axiosClient.get<any>("/admin/payouts/rejected", { params });
+    const data = response.data;
+    
+    // Normalize response từ backend (PascalCase -> camelCase)
+    // Response có thể có structure: { success: true, data: [...], total: 5, totalAmount: 25000000, summary: {...} }
     const payouts = Array.isArray(data) ? data : (data.data || []);
     
     return payouts.map(normalizePayout);

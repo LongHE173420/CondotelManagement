@@ -18,7 +18,7 @@ import bookingAPI, { CreateBookingDTO, ServicePackageBookingItem } from "api/boo
 import paymentAPI from "api/payment";
 import condotelAPI, { PromotionDTO } from "api/condotel";
 import voucherAPI, { VoucherDTO } from "api/voucher";
-import { toastWarning, showValidationError } from "utils/toast";
+import { toastWarning, toastError, showValidationError } from "utils/toast";
 import servicePackageAPI, { ServicePackageDTO } from "api/servicePackage";
 import { calculateFinalPrice } from "utils/priceCalculator";
 
@@ -103,8 +103,6 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
       setError(null);
 
       try {
-        console.log("🔄 Retrying payment for booking:", bookingIdNum);
-        
         // Fetch booking details
         const booking = await bookingAPI.getBookingById(bookingIdNum);
         
@@ -133,7 +131,6 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
         }
         description = description.substring(0, 25);
 
-        console.log("📤 Creating payment link for retry payment...");
         const paymentResponse = await paymentAPI.createPayment({
           bookingId: booking.bookingId,
           description: description,
@@ -142,19 +139,15 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
         });
 
         if (paymentResponse.data?.checkoutUrl) {
-          console.log("✅ Payment link created, redirecting to PayOS...");
           // Redirect to PayOS checkout
           window.location.href = paymentResponse.data.checkoutUrl;
         } else {
           throw new Error(paymentResponse.desc || "Không thể tạo link thanh toán");
         }
       } catch (err: any) {
-        console.error("❌ Retry payment error:", err);
-        setError(
-          err.response?.data?.message ||
-          err.message ||
-          "Không thể tạo link thanh toán. Vui lòng thử lại."
-        );
+        const errorMsg = err.response?.data?.message || err.message || "Không thể tạo link thanh toán. Vui lòng thử lại.";
+        setError(errorMsg);
+        toastError(errorMsg);
         setLoading(false);
       }
     };
@@ -166,7 +159,6 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
   useEffect(() => {
     if (state && (state as any).activePromotionId) {
       const promotionId = (state as any).activePromotionId;
-      console.log("🎁 Pre-selecting promotion from state:", promotionId);
       setSelectedPromotionId(promotionId);
     }
   }, [state]);
@@ -185,20 +177,14 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
       if (!state?.condotelId) return;
       
       try {
-        console.log("🔄 Loading condotel detail for promotions...");
         const detail = await condotelAPI.getById(state.condotelId);
         setCondotelDetail(detail);
-        
-        console.log("📦 Condotel detail loaded:", detail);
-        console.log("🎁 Promotions from detail:", detail.promotions);
-        console.log("🎁 ActivePromotion from detail:", detail.activePromotion);
         
         // Load promotions from condotel detail
         let loadedPromotions: PromotionDTO[] = [];
         
         if (detail.promotions && Array.isArray(detail.promotions)) {
           loadedPromotions = detail.promotions;
-          console.log("✅ Loaded promotions from detail.promotions:", loadedPromotions.length);
         }
         
         // Also check activePromotion (single promotion)
@@ -207,22 +193,17 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
           const exists = loadedPromotions.some(p => p.promotionId === detail.activePromotion?.promotionId);
           if (!exists) {
             loadedPromotions.push(detail.activePromotion);
-            console.log("✅ Added activePromotion to list");
           }
         }
         
         setPromotions(loadedPromotions);
-        console.log("🎁 Final promotions list:", loadedPromotions);
         
         // Auto-select promotion if passed from detail page
         if (state && (state as any).activePromotionId) {
           const promotionId = (state as any).activePromotionId;
           const promotionExists = loadedPromotions.some(p => p.promotionId === promotionId);
           if (promotionExists) {
-            console.log("✅ Auto-selecting promotion:", promotionId);
             setSelectedPromotionId(promotionId);
-          } else {
-            console.log("⚠️ Promotion from state not found in loaded promotions");
           }
         }
 
@@ -236,7 +217,6 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
           // 1. Load vouchers của user hiện tại (nếu đã đăng nhập)
           if (user) {
             try {
-              console.log("🎫 Loading my vouchers...");
               const myVouchers = await voucherAPI.getMyVouchers();
               // Filter: chỉ lấy voucher active và chưa hết hạn
               const activeMyVouchers = myVouchers.filter(v => {
@@ -247,16 +227,13 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
               });
               myVouchersList = activeMyVouchers;
               allVouchers.push(...activeMyVouchers);
-              console.log("🎫 My vouchers:", activeMyVouchers.length);
             } catch (myVoucherErr) {
-              console.warn("⚠️ Error loading my vouchers:", myVoucherErr);
               // Không block nếu không load được my vouchers
             }
           }
           
           // 2. Load vouchers theo condotel
           try {
-            console.log("🎫 Loading vouchers for condotel:", state.condotelId);
             const condotelVouchers = await voucherAPI.getByCondotel(state.condotelId);
             // Filter: chỉ lấy voucher active và chưa hết hạn
             const activeCondotelVouchers = condotelVouchers.filter(v => {
@@ -267,9 +244,7 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
             });
             condotelVouchersList = activeCondotelVouchers;
             allVouchers.push(...activeCondotelVouchers);
-            console.log("🎫 Condotel vouchers:", activeCondotelVouchers.length);
           } catch (condotelVoucherErr) {
-            console.warn("⚠️ Error loading condotel vouchers:", condotelVoucherErr);
             // Không block nếu không load được condotel vouchers
           }
           
@@ -281,9 +256,7 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
           setMyVouchers(myVouchersList);
           setCondotelVouchers(condotelVouchersList);
           setVouchers(uniqueVouchers);
-          console.log("🎫 Total available vouchers:", uniqueVouchers.length);
         } catch (voucherErr) {
-          console.error("❌ Error loading vouchers:", voucherErr);
           setVouchers([]);
           setMyVouchers([]);
           setCondotelVouchers([]);
@@ -291,20 +264,17 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
 
         // Load service packages available for this condotel
         try {
-          console.log("📦 Loading service packages for condotel:", state.condotelId);
           const condotelServicePackages = await servicePackageAPI.getByCondotel(state.condotelId);
           // Filter: chỉ lấy service packages active
           const activeServicePackages = condotelServicePackages.filter(sp => {
             return (sp.isActive !== false) && (sp.status === "Active" || !sp.status);
           });
           setServicePackages(activeServicePackages);
-          console.log("📦 Available service packages:", activeServicePackages.length);
         } catch (serviceErr) {
-          console.error("Error loading service packages:", serviceErr);
           setServicePackages([]);
         }
       } catch (err) {
-        console.error("❌ Error loading condotel detail:", err);
+        toastError("Không thể tải thông tin condotel");
       }
     };
 
@@ -327,7 +297,6 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
         // - Status = "Active"
         // - EndDate >= today
         // - Sắp xếp theo EndDate
-        console.log("🎫 Loading vouchers for condotel:", state.condotelId);
         const condotelVouchers = await voucherAPI.getByCondotel(state.condotelId);
         
         // Filter thêm ở frontend để đảm bảo (backend đã filter rồi nhưng double-check)
@@ -346,7 +315,6 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
         let myVouchersList: VoucherDTO[] = [];
         if (user) {
           try {
-            console.log("🎫 Loading my vouchers...");
             const myVouchers = await voucherAPI.getMyVouchers();
             // Filter: chỉ lấy voucher active, còn hiệu lực, và có condotelId khớp
             const activeMyVouchers = myVouchers.filter(v => {
@@ -360,9 +328,7 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
               return true;
             });
             myVouchersList = activeMyVouchers;
-            console.log("🎫 My vouchers for this condotel:", activeMyVouchers.length);
           } catch (myVoucherErr) {
-            console.warn("⚠️ Error loading my vouchers:", myVoucherErr);
             // Không block nếu không load được my vouchers
           }
         }
@@ -376,9 +342,7 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
         setMyVouchers(myVouchersList);
         setCondotelVouchers(validCondotelVouchers);
         setVouchers(uniqueVouchers);
-        console.log("🎫 Total available vouchers:", uniqueVouchers.length);
       } catch (voucherErr) {
-        console.error("❌ Error loading vouchers:", voucherErr);
         setVouchers([]);
         setMyVouchers([]);
         setCondotelVouchers([]);
@@ -391,26 +355,13 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
   // Filter available promotions based on booking dates
   const getAvailablePromotions = (): PromotionDTO[] => {
     if (!rangeDates.startDate || !rangeDates.endDate) {
-      console.log("⚠️ No booking dates selected");
       return [];
     }
     
     const startDate = rangeDates.startDate.format("YYYY-MM-DD");
     const endDate = rangeDates.endDate.format("YYYY-MM-DD");
     
-    console.log("🔍 Filtering promotions for booking dates:", { startDate, endDate });
-    console.log("🔍 Total promotions to filter:", promotions.length);
-    
     const available = promotions.filter((promo) => {
-      console.log("🔍 Checking promotion:", {
-        promotionId: promo.promotionId,
-        name: promo.name,
-        status: promo.status,
-        isActive: promo.isActive,
-        startDate: promo.startDate,
-        endDate: promo.endDate,
-      });
-      
       // Check if booking dates overlap with promotion period
       // Promotion is available if booking dates overlap with promotion period
       const promoStart = moment(promo.startDate).format("YYYY-MM-DD");
@@ -421,12 +372,6 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
       const overlaps = startDate <= promoEnd && endDate >= promoStart;
       
       if (!overlaps) {
-        console.log("❌ Promotion dates don't overlap:", promo.promotionId, {
-          bookingStart: startDate,
-          bookingEnd: endDate,
-          promoStart,
-          promoEnd,
-        });
         return false;
       }
       
@@ -436,14 +381,7 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
       
       // If booking dates are fully within promotion period, consider it active (regardless of status/isActive)
       if (bookingWithinPromotion) {
-        console.log("✅ Promotion dates fully contain booking dates - ACCEPTING:", promo.promotionId, {
-          bookingStart: startDate,
-          bookingEnd: endDate,
-          promoStart,
-          promoEnd,
-          status: promo.status,
-          isActive: promo.isActive,
-        });
+        // Promotion dates fully contain booking dates
         return true;
       }
       
@@ -462,25 +400,12 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
         (isCurrentlyActive); // Accept if dates are current, even if status is not set
       
       if (!isActive) {
-        console.log("❌ Promotion not active:", promo.promotionId, {
-          status: promo.status,
-          isActive: promo.isActive,
-          isCurrentlyActive,
-          today,
-          promoStart,
-          promoEnd,
-          bookingWithinPromotion,
-        });
         return false;
       }
       
-      console.log("✅ Promotion is available (overlap check):", promo.promotionId);
-      
-      console.log("✅ Promotion is available:", promo.promotionId);
       return true;
     });
     
-    console.log("✅ Available promotions:", available.length, available);
     return available;
   };
 
@@ -635,7 +560,7 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
           const condotelDetail = await condotelAPI.getById(state.condotelId);
           condotelName = condotelDetail.name;
         } catch (err) {
-          console.warn("Could not fetch condotel name:", err);
+          // Could not fetch condotel name
         }
       }
 
@@ -654,13 +579,11 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
       
       if ((!finalPromotionId || finalPromotionId <= 0) && availablePromotions.length > 0) {
         finalPromotionId = availablePromotions[0].promotionId;
-        console.log("🎁 Auto-selecting first available promotion for booking:", finalPromotionId);
         setSelectedPromotionId(finalPromotionId);
       }
 
       // Step 0: Check availability before creating booking
       try {
-        console.log("🔍 Checking availability...");
         const availability = await bookingAPI.checkAvailability(
           state.condotelId!,
           startDateStr,
@@ -669,13 +592,12 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
         
         if (!availability.available) {
           setError("Căn hộ không khả dụng trong khoảng thời gian đã chọn. Vui lòng chọn ngày khác.");
+          toastWarning("Căn hộ không khả dụng trong khoảng thời gian đã chọn. Vui lòng chọn ngày khác.");
           setLoading(false);
           return;
         }
-        console.log("✅ Condotel is available for selected dates");
       } catch (availabilityErr: any) {
         // If availability check fails, still try to create booking (backend will validate)
-        console.warn("⚠️ Could not check availability, proceeding with booking:", availabilityErr);
       }
 
       // Prepare service packages for booking (quantity luôn là 1 vì dùng checkbox)
@@ -699,37 +621,7 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
         servicePackages: servicePackagesForBooking.length > 0 ? servicePackagesForBooking : undefined,
       };
 
-      console.log("📤 Creating booking with data:", bookingData);
-      console.log("🎁 Available promotions:", availablePromotions.length);
-      console.log("🎁 Selected promotion ID (state):", selectedPromotionId);
-      console.log("🎁 Final promotion ID (to send):", finalPromotionId);
-      console.log("🎁 Promotion will be sent:", bookingData.promotionId);
-      console.log("🎫 Voucher code will be sent:", bookingData.voucherCode || "None");
-      console.log("📦 Service packages will be sent:", servicePackagesForBooking.length);
-      console.log("ℹ️ Backend will automatically validate and apply promotion + voucher + service packages if valid");
-      
-      if (finalPromotionId) {
-        const promo = availablePromotions.find(p => p.promotionId === finalPromotionId);
-        console.log("🎁 Promotion details being sent:", {
-          promotionId: promo?.promotionId,
-          name: promo?.name,
-          discountPercentage: promo?.discountPercentage,
-          discountAmount: promo?.discountAmount,
-          startDate: promo?.startDate,
-          endDate: promo?.endDate,
-          status: promo?.status,
-          isActive: promo?.isActive,
-        });
-        console.log("ℹ️ Backend validation will check:");
-        console.log("  ✓ Promotion belongs to condotel (CondotelId match)");
-        console.log("  ✓ Promotion is active (Status = 'Active')");
-        console.log("  ✓ Booking dates are within promotion period (StartDate <= booking dates <= EndDate)");
-      }
-      
       let booking = await bookingAPI.createBooking(bookingData);
-      console.log("✅ Booking created:", booking);
-      console.log("💰 Booking totalPrice (from backend, already includes promotion discount):", booking.totalPrice);
-      console.log("🎁 Booking promotionId:", booking.promotionId);
       
       // Validate bookingId exists
       if (!booking.bookingId) {
@@ -738,25 +630,15 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
       
       // Backend đã tự động validate và áp dụng promotion
       // totalPrice từ backend đã bao gồm discount nếu promotion hợp lệ
-      if (finalPromotionId && booking.promotionId !== finalPromotionId) {
-        console.warn("⚠️ Promotion ID mismatch:", {
-          sent: finalPromotionId,
-          received: booking.promotionId,
-          message: "Backend có thể đã reject promotion hoặc sử dụng promotion khác"
-        });
-      }
       
       // If booking doesn't have totalPrice, try to fetch it again (backend might calculate it asynchronously)
       if (!booking.totalPrice || booking.totalPrice <= 0) {
-        console.warn("⚠️ Booking created without totalPrice, fetching booking again...");
         try {
           // Wait a bit for backend to calculate totalPrice
           await new Promise(resolve => setTimeout(resolve, 500));
           booking = await bookingAPI.getBookingById(booking.bookingId);
-          console.log("✅ Booking fetched again:", booking);
-          console.log("💰 Booking totalPrice after fetch:", booking.totalPrice);
         } catch (fetchError) {
-          console.error("❌ Error fetching booking:", fetchError);
+          // Error fetching booking - will be handled by validation below
         }
       }
       
@@ -776,8 +658,6 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
       const returnUrl = `${window.location.origin}/pay-done?bookingId=${booking.bookingId}&status=success`;
       const cancelUrl = `${window.location.origin}/payment/cancel?bookingId=${booking.bookingId}&status=cancelled`;
 
-      console.log("📤 Creating payment link for booking:", booking.bookingId);
-      
       // PayOS requires description to be max 25 characters
       // Create a short description that fits within 25 characters
       const bookingIdStr = String(booking.bookingId);
@@ -802,16 +682,12 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
       // Final safety check: ensure description is exactly 25 characters or less
       description = description.substring(0, 25);
       
-      console.log(`📝 Payment description (${description.length} chars): "${description}"`);
-      
       const paymentResponse = await paymentAPI.createPayment({
         bookingId: booking.bookingId,
         description: description,
         returnUrl: returnUrl,
         cancelUrl: cancelUrl,
       });
-
-      console.log("✅ Payment link created:", paymentResponse);
 
       if (paymentResponse.data?.checkoutUrl) {
         // Step 3: Redirect đến PayOS checkout
@@ -820,8 +696,6 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
         throw new Error(paymentResponse.desc || "Không thể tạo link thanh toán");
       }
     } catch (err: any) {
-      console.error("❌ Payment error:", err);
-      
       // Handle validation errors (400)
       if (err.response?.status === 400) {
         const errorData = err.response?.data;
@@ -834,16 +708,13 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
           // Check if error is related to promotion or voucher
           const errorMessageLower = errorMessage.toLowerCase();
           if (errorMessageLower.includes("promotion") || errorMessageLower.includes("khuyến mãi")) {
-            console.warn("⚠️ Promotion validation error from backend:", errorMessage);
             // Có thể promotion không hợp lệ, thử lại không có promotion
             const sentPromotionId = bookingData?.promotionId;
             if (sentPromotionId) {
-              console.log("🔄 Promotion was sent but rejected by backend:", sentPromotionId);
               // Có thể hiển thị thông báo và cho user chọn tiếp tục không có promotion
               errorMessage += "\n\nBạn có thể thử lại không sử dụng khuyến mãi.";
             }
           } else if (errorMessageLower.includes("voucher") || errorMessageLower.includes("mã giảm giá")) {
-            console.warn("⚠️ Voucher validation error from backend:", errorMessage);
             // Voucher không hợp lệ, xóa voucher đã chọn
             setSelectedVoucherCode(null);
             setVoucherError(errorMessage);
@@ -915,7 +786,6 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
       selectedPromotion = availablePromotions[0];
       // Auto-select it in state if not already selected
       if (!selectedPromotionId || selectedPromotionId !== selectedPromotion.promotionId) {
-        console.log("🎁 Auto-selecting first available promotion for display:", selectedPromotion.promotionId);
         setSelectedPromotionId(selectedPromotion.promotionId);
       }
     }
@@ -935,24 +805,6 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
     const promotionDiscount = baseTotalPrice - priceAfterPromotion;
     const voucherDiscount = selectedVoucher ? (priceAfterPromotion - priceAfterPromotionAndVoucher) : 0;
     const totalDiscount = promotionDiscount + voucherDiscount;
-    
-    console.log("💰 Sidebar price calculation:", {
-      pricePerNight: state?.pricePerNight,
-      activePrice: condotelDetail?.activePrice,
-      basePricePerNight,
-      checkInDate: checkInDate?.format("YYYY-MM-DD"),
-      checkOutDate: checkOutDate?.format("YYYY-MM-DD"),
-      nights,
-      baseTotalPrice,
-      selectedPromotionId,
-      selectedPromotion: selectedPromotion?.promotionId,
-      discountPercentage: selectedPromotion?.discountPercentage,
-      totalPrice,
-      promotionDiscount,
-      voucherDiscount,
-      totalDiscount,
-      availablePromotionsCount: availablePromotions.length,
-    });
 
     return (
       <div className="w-full flex flex-col sm:rounded-2xl lg:border border-neutral-200 dark:border-neutral-700 space-y-6 sm:space-y-8 px-0 sm:p-6 xl:p-8">
@@ -1067,10 +919,8 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
         {/* Promotion Selection */}
         {(() => {
           const availablePromotions = getAvailablePromotions();
-          console.log("🎁 Rendering promotions section. Available:", availablePromotions.length);
           
           if (availablePromotions.length === 0) {
-            console.log("⚠️ No available promotions to display");
             return null;
           }
           
