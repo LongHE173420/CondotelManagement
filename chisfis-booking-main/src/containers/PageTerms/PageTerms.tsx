@@ -213,3 +213,4 @@ const PageTerms = () => {
 
 export default PageTerms;
 
+

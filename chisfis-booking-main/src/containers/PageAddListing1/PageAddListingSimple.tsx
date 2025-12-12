@@ -15,6 +15,7 @@ import ButtonPrimary from "shared/Button/ButtonPrimary";
 import ButtonSecondary from "shared/Button/ButtonSecondary";
 import FormItem from "./FormItem";
 import NcInputNumber from "components/NcInputNumber/NcInputNumber";
+import { toastSuccess, toastWarning, showErrorMessage } from "utils/toast";
 
 interface ImageDTO {
   imageUrl: string;
@@ -38,7 +39,7 @@ const PageAddListingSimple: FC = () => {
   // Basic Info
   const [name, setName] = useState(formData.name || "");
   const [description, setDescription] = useState(formData.description || "");
-  const [status, setStatus] = useState(formData.status || "Pending");
+  const [status, setStatus] = useState(formData.status || "Active");
 
   // Location - tự động lấy từ resort (không cần chọn)
   // Location sẽ được lấy tự động từ resort khi có resortId
@@ -80,7 +81,7 @@ const PageAddListingSimple: FC = () => {
   const [priceStartDate, setPriceStartDate] = useState("");
   const [priceEndDate, setPriceEndDate] = useState("");
   const [basePrice, setBasePrice] = useState<number>(0);
-  const [priceType, setPriceType] = useState("Regular");
+  const [priceType, setPriceType] = useState("Thường");
   const [priceDescription, setPriceDescription] = useState("");
 
   // ResortId
@@ -146,13 +147,22 @@ const PageAddListingSimple: FC = () => {
     fetchAmenities();
   }, []);
 
-  // Load utilities từ API
+  // Load utilities từ API - theo resort nếu có resortId, nếu không thì load tất cả
   useEffect(() => {
     const fetchUtilities = async () => {
       setLoadingUtilities(true);
       try {
-        const utilitiesData = await utilityAPI.getAll();
-        setUtilities(utilitiesData);
+        if (resortId) {
+          // Load utilities theo resort
+          const utilitiesData = await utilityAPI.getByResort(resortId);
+          setUtilities(utilitiesData);
+          // Reset utilityIds khi đổi resort
+          setUtilityIds([]);
+        } else {
+          // Nếu không có resort, load tất cả utilities của host
+          const utilitiesData = await utilityAPI.getAll();
+          setUtilities(utilitiesData);
+        }
       } catch (err) {
         console.error("Error loading utilities:", err);
         setUtilities([]);
@@ -161,7 +171,7 @@ const PageAddListingSimple: FC = () => {
       }
     };
     fetchUtilities();
-  }, []);
+  }, [resortId]);
 
   // Sync formData
   // Check if user is Host
@@ -308,7 +318,7 @@ const PageAddListingSimple: FC = () => {
       setPriceStartDate("");
       setPriceEndDate("");
       setBasePrice(0);
-      setPriceType("Regular");
+      setPriceType("Thường");
       setPriceDescription("");
     }
   };
@@ -354,7 +364,7 @@ const PageAddListingSimple: FC = () => {
     setError("");
 
     if (!user) {
-      alert("Bạn cần đăng nhập để thêm condotel!");
+      toastWarning("Bạn cần đăng nhập để thêm condotel!");
       return;
     }
 
@@ -396,7 +406,7 @@ const PageAddListingSimple: FC = () => {
         pricePerNight: Number(pricePerNight),
         beds: Number(beds),
         bathrooms: Number(bathrooms),
-        status: status, // "Pending", "Active", "Inactive", "Available", "Unavailable"
+        status: status, // "Active" hoặc "Inactive"
         ...(description.trim() && { description: description.trim() }),
         // Images - chỉ cần imageUrl và caption (không cần imageId khi create)
         ...(images.length > 0 && { 
@@ -438,7 +448,7 @@ const PageAddListingSimple: FC = () => {
       await condotelAPI.create(payload);
       console.log("✅ Condotel created successfully");
 
-      alert("Tạo condotel thành công!");
+      toastSuccess("Tạo condotel thành công!");
       resetForm();
       
       setTimeout(() => {
@@ -513,9 +523,8 @@ const PageAddListingSimple: FC = () => {
 
               <FormItem label="Trạng thái">
                 <Select value={status} onChange={(e) => setStatus(e.target.value)}>
-                  <option value="Pending">Pending</option>
-                  <option value="Available">Available</option>
-                  <option value="Unavailable">Unavailable</option>
+                  <option value="Active">Active (Hoạt động)</option>
+                  <option value="Inactive">Inactive (Không hoạt động)</option>
                 </Select>
               </FormItem>
             </div>
@@ -611,11 +620,20 @@ const PageAddListingSimple: FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-2">Tiện nghi</label>
+                  <label className="block text-sm font-medium mb-2">
+                    Tiện nghi
+                    {resortId && (
+                      <span className="ml-2 text-xs text-primary-600 font-normal">
+                        (theo resort đã chọn)
+                      </span>
+                    )}
+                  </label>
                   {loadingUtilities ? (
                     <div className="flex items-center space-x-2">
                       <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary-600"></div>
-                      <span className="text-sm text-neutral-500">Đang tải danh sách tiện nghi...</span>
+                      <span className="text-sm text-neutral-500">
+                        {resortId ? "Đang tải tiện nghi từ resort..." : "Đang tải danh sách tiện nghi..."}
+                      </span>
                     </div>
                   ) : (
                     <div className="space-y-2">
@@ -632,7 +650,11 @@ const PageAddListingSimple: FC = () => {
                           </label>
                         ))
                       ) : (
-                        <p className="text-sm text-neutral-500">Không có tiện nghi nào</p>
+                        <p className="text-sm text-neutral-500">
+                          {resortId 
+                            ? "Resort này chưa có tiện nghi nào. Vui lòng chọn resort khác hoặc bỏ chọn resort để xem tất cả tiện nghi."
+                            : "Không có tiện nghi nào"}
+                        </p>
                       )}
                     </div>
                   )}
@@ -710,7 +732,8 @@ const PageAddListingSimple: FC = () => {
                           alt={`${index + 1}`}
                           className="w-full h-32 object-cover rounded-lg border-2 border-neutral-200 dark:border-neutral-700"
                           onError={(e) => {
-                            (e.target as HTMLImageElement).src = "https://via.placeholder.com/300x200?text=Image+Error";
+                            console.error("❌ Image load error:", img.imageUrl);
+                            (e.target as HTMLImageElement).style.display = "none";
                           }}
                         />
                         <button
@@ -790,10 +813,10 @@ const PageAddListingSimple: FC = () => {
 
                 <FormItem label="Loại giá">
                   <Select value={priceType} onChange={(e) => setPriceType(e.target.value)}>
-                    <option value="Regular">Thường</option>
-                    <option value="Weekend">Cuối tuần</option>
-                    <option value="Holiday">Ngày lễ</option>
-                    <option value="Peak">Cao điểm</option>
+                    <option value="Thường">Thường</option>
+                    <option value="Cuối tuần">Cuối tuần</option>
+                    <option value="Ngày lễ">Ngày lễ</option>
+                    <option value="Cao điểm">Cao điểm</option>
                   </Select>
                 </FormItem>
 

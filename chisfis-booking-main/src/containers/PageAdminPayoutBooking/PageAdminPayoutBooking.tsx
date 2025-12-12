@@ -5,6 +5,7 @@ import paymentAPI from "api/payment";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
 import ButtonSecondary from "shared/Button/ButtonSecondary";
 import moment from "moment";
+import { toastError, toastSuccess, toastWarning } from "utils/toast";
 
 interface HostOption {
   hostId: number;
@@ -12,12 +13,13 @@ interface HostOption {
   email: string;
 }
 
-type PayoutTab = "pending" | "paid";
+type PayoutTab = "pending" | "paid" | "rejected";
 
 const PageAdminPayoutBooking: React.FC = () => {
   const [activeTab, setActiveTab] = useState<PayoutTab>("pending");
   const [pendingPayouts, setPendingPayouts] = useState<HostPayoutDTO[]>([]);
   const [paidPayouts, setPaidPayouts] = useState<HostPayoutDTO[]>([]);
+  const [rejectedPayouts, setRejectedPayouts] = useState<HostPayoutDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [processingAll, setProcessingAll] = useState(false);
@@ -33,6 +35,8 @@ const PageAdminPayoutBooking: React.FC = () => {
   const [qrUrl, setQrUrl] = useState<string>("");
   const [loadingQR, setLoadingQR] = useState(false);
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
 
   const loadPendingPayouts = async () => {
     setLoading(true);
@@ -41,10 +45,10 @@ const PageAdminPayoutBooking: React.FC = () => {
       // Admin API - xem tất cả booking chờ thanh toán (có thể filter theo hostId)
       const data = await payoutAPI.getAdminPendingPayouts(filterHostId);
       setPendingPayouts(data);
-      console.log("💰 Admin pending payouts loaded:", data, "filterHostId:", filterHostId);
     } catch (err: any) {
-      console.error("Failed to load pending payouts:", err);
-      setError(err.response?.data?.message || "Không thể tải danh sách booking chờ thanh toán");
+      const errorMsg = err.response?.data?.message || "Không thể tải danh sách booking chờ thanh toán";
+      setError(errorMsg);
+      toastError(errorMsg);
       setPendingPayouts([]);
     } finally {
       setLoading(false);
@@ -62,11 +66,32 @@ const PageAdminPayoutBooking: React.FC = () => {
         toDate: filterToDate || undefined,
       });
       setPaidPayouts(data);
-      console.log("💰 Admin paid payouts loaded:", data, "filters:", { filterHostId, filterFromDate, filterToDate });
     } catch (err: any) {
-      console.error("Failed to load paid payouts:", err);
-      setError(err.response?.data?.message || "Không thể tải danh sách booking đã thanh toán");
+      const errorMsg = err.response?.data?.message || "Không thể tải danh sách booking đã thanh toán";
+      setError(errorMsg);
+      toastError(errorMsg);
       setPaidPayouts([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadRejectedPayouts = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      // Admin API - xem tất cả booking đã bị từ chối (có thể filter theo hostId, fromDate, toDate)
+      const data = await payoutAPI.getAdminRejectedPayouts({
+        hostId: filterHostId,
+        fromDate: filterFromDate || undefined,
+        toDate: filterToDate || undefined,
+      });
+      setRejectedPayouts(data);
+    } catch (err: any) {
+      const errorMsg = err.response?.data?.message || "Không thể tải danh sách booking đã bị từ chối";
+      setError(errorMsg);
+      toastError(errorMsg);
+      setRejectedPayouts([]);
     } finally {
       setLoading(false);
     }
@@ -88,7 +113,7 @@ const PageAdminPayoutBooking: React.FC = () => {
           }));
         setHosts(hostUsers);
       } catch (err: any) {
-        console.error("Failed to load hosts:", err);
+        toastError("Không thể tải danh sách host");
       } finally {
         setLoadingHosts(false);
       }
@@ -99,8 +124,10 @@ const PageAdminPayoutBooking: React.FC = () => {
   useEffect(() => {
     if (activeTab === "pending") {
       loadPendingPayouts();
-    } else {
+    } else if (activeTab === "paid") {
       loadPaidPayouts();
+    } else if (activeTab === "rejected") {
+      loadRejectedPayouts();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, filterHostId, filterFromDate, filterToDate]);
@@ -120,7 +147,7 @@ const PageAdminPayoutBooking: React.FC = () => {
   const handleProcessPayout = async (payout: HostPayoutDTO) => {
     // Kiểm tra thông tin ngân hàng
     if (!payout.bankName || !payout.accountNumber || !payout.accountHolderName) {
-      alert("Thông tin ngân hàng của host chưa đầy đủ. Vui lòng yêu cầu host cập nhật thông tin ngân hàng trước khi thanh toán.");
+      toastWarning("Thông tin ngân hàng của host chưa đầy đủ. Vui lòng yêu cầu host cập nhật thông tin ngân hàng trước khi thanh toán.");
       return;
     }
 
@@ -156,7 +183,7 @@ const PageAdminPayoutBooking: React.FC = () => {
 
       setQrUrl(qrData.compactUrl || qrData.printUrl || "");
     } catch (err: any) {
-      console.error("Error generating QR code:", err);
+      toastError("Không thể tạo QR code");
       // Fallback: tạo URL trực tiếp nếu API fail
       const bankCode = mapBankNameToCode(payout.bankName);
       const amount = payout.amount || payout.totalPrice || 0;
@@ -214,21 +241,60 @@ const PageAdminPayoutBooking: React.FC = () => {
     try {
       // Admin API - xác nhận và xử lý payout
       const result = await payoutAPI.confirmPayout(selectedPayout.bookingId);
-      console.log("✅ Payout confirmed and processed:", result);
       
       if (result.success) {
-        setSuccess(result.message || `Đã xác nhận và xử lý thanh toán cho booking #${selectedPayout.bookingId} thành công`);
+        const successMsg = result.message || `Đã xác nhận và xử lý thanh toán cho booking #${selectedPayout.bookingId} thành công`;
+        setSuccess(successMsg);
+        toastSuccess(successMsg);
         // Đóng modal và reload danh sách
         setShowQRModal(false);
         setSelectedPayout(null);
         setQrUrl("");
         await loadPendingPayouts();
       } else {
-        setError(result.message || "Không thể xử lý thanh toán");
+        const errorMsg = result.message || "Không thể xử lý thanh toán";
+        setError(errorMsg);
+        toastError(errorMsg);
       }
     } catch (err: any) {
-      console.error("Failed to confirm payout:", err);
-      setError(err.response?.data?.message || "Không thể xử lý thanh toán");
+      const errorMsg = err.response?.data?.message || "Không thể xử lý thanh toán";
+      setError(errorMsg);
+      toastError(errorMsg);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleRejectPayout = async () => {
+    if (!selectedPayout || !rejectReason.trim()) {
+      setError("Vui lòng nhập lý do từ chối.");
+      return;
+    }
+
+    setProcessing(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      const result = await payoutAPI.rejectPayout(selectedPayout.bookingId, rejectReason.trim());
+      
+      if (result.success) {
+        const successMsg = result.message || `Đã từ chối thanh toán cho booking #${selectedPayout.bookingId} thành công`;
+        setSuccess(successMsg);
+        toastSuccess(successMsg);
+        setRejectModalOpen(false);
+        setSelectedPayout(null);
+        setRejectReason("");
+        await loadPendingPayouts();
+      } else {
+        const errorMsg = result.message || "Không thể từ chối thanh toán";
+        setError(errorMsg);
+        toastError(errorMsg);
+      }
+    } catch (err: any) {
+      const errorMsg = err.response?.data?.message || "Không thể từ chối thanh toán";
+      setError(errorMsg);
+      toastError(errorMsg);
     } finally {
       setProcessing(false);
     }
@@ -246,21 +312,23 @@ const PageAdminPayoutBooking: React.FC = () => {
     try {
       // Admin API - xử lý tất cả booking đủ điều kiện
       const result = await payoutAPI.processAllPayouts();
-      console.log("✅ All payouts processed (Admin):", result);
       
       if (result.success) {
-        setSuccess(
-          result.message || 
-          `Đã xử lý ${result.processedCount || result.processedBookings || 0} booking với tổng tiền ${result.totalAmount?.toLocaleString("vi-VN") || 0} đ`
-        );
+        const successMsg = result.message || 
+          `Đã xử lý ${result.processedCount || result.processedBookings || 0} booking với tổng tiền ${result.totalAmount?.toLocaleString("vi-VN") || 0} đ`;
+        setSuccess(successMsg);
+        toastSuccess(successMsg);
         // Reload danh sách
         await loadPendingPayouts();
       } else {
-        setError(result.message || "Không thể xử lý thanh toán");
+        const errorMsg = result.message || "Không thể xử lý thanh toán";
+        setError(errorMsg);
+        toastError(errorMsg);
       }
     } catch (err: any) {
-      console.error("Failed to process all payouts:", err);
-      setError(err.response?.data?.message || "Không thể xử lý thanh toán");
+      const errorMsg = err.response?.data?.message || "Không thể xử lý thanh toán";
+      setError(errorMsg);
+      toastError(errorMsg);
     } finally {
       setProcessingAll(false);
     }
@@ -285,6 +353,16 @@ const PageAdminPayoutBooking: React.FC = () => {
     }
   };
 
+  // Format ngày giờ
+  const formatDateTime = (dateString: string | undefined): string => {
+    if (!dateString) return "";
+    try {
+      return moment(dateString).format("DD/MM/YYYY HH:mm");
+    } catch {
+      return dateString;
+    }
+  };
+
   // Toggle expand row
   const toggleExpand = (bookingId: number) => {
     const newExpanded = new Set(expandedRows);
@@ -297,7 +375,10 @@ const PageAdminPayoutBooking: React.FC = () => {
   };
 
   // Get current payouts based on active tab
-  const currentPayouts = activeTab === "pending" ? pendingPayouts : paidPayouts;
+  const currentPayouts = 
+    activeTab === "pending" ? pendingPayouts : 
+    activeTab === "paid" ? paidPayouts : 
+    rejectedPayouts;
   const totalAmount = currentPayouts.reduce((sum, payout) => sum + (payout.amount || payout.totalPrice || 0), 0);
 
   if (loading) {
@@ -322,7 +403,9 @@ const PageAdminPayoutBooking: React.FC = () => {
         <p className="text-neutral-600 dark:text-neutral-400">
           {activeTab === "pending" 
             ? "Xử lý thanh toán cho các booking đã hoàn thành và đủ 15 ngày kể từ ngày kết thúc"
-            : "Xem lịch sử các booking đã được thanh toán cho host"}
+            : activeTab === "paid"
+            ? "Xem lịch sử các booking đã được thanh toán cho host"
+            : "Xem danh sách các booking đã bị từ chối thanh toán"}
         </p>
       </div>
 
@@ -348,6 +431,16 @@ const PageAdminPayoutBooking: React.FC = () => {
             }`}
           >
             Đã thanh toán ({paidPayouts.length})
+          </button>
+          <button
+            onClick={() => setActiveTab("rejected")}
+            className={`flex-1 px-6 py-4 text-sm font-semibold transition-all ${
+              activeTab === "rejected"
+                ? "bg-gradient-to-r from-red-500 to-orange-600 text-white"
+                : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-700"
+            }`}
+          >
+            Đã từ chối ({rejectedPayouts.length})
           </button>
         </div>
       </div>
@@ -383,8 +476,8 @@ const PageAdminPayoutBooking: React.FC = () => {
             )}
           </div>
 
-          {/* Date Filters - Only show for Paid tab */}
-          {activeTab === "paid" && (
+          {/* Date Filters - Show for Paid and Rejected tabs */}
+          {(activeTab === "paid" || activeTab === "rejected") && (
             <>
               <div>
                 <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
@@ -434,7 +527,11 @@ const PageAdminPayoutBooking: React.FC = () => {
         <div className="flex items-center justify-between">
           <div className="bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900/30 dark:to-purple-900/30 rounded-xl p-4 flex-1 mr-4">
             <p className="text-sm font-medium text-indigo-600 dark:text-indigo-400">
-              {activeTab === "pending" ? "Tổng tiền chờ thanh toán" : "Tổng tiền đã thanh toán"}
+              {activeTab === "pending" 
+                ? "Tổng tiền chờ thanh toán" 
+                : activeTab === "paid"
+                ? "Tổng tiền đã thanh toán"
+                : "Tổng tiền đã từ chối"}
             </p>
             <p className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mt-2">
               {formatPrice(totalAmount)}
@@ -442,7 +539,11 @@ const PageAdminPayoutBooking: React.FC = () => {
           </div>
           <div className="bg-gradient-to-br from-purple-100 to-pink-100 dark:from-purple-900/30 dark:to-pink-900/30 rounded-xl p-4 flex-1 mr-4 text-right">
             <p className="text-sm font-medium text-purple-600 dark:text-purple-400">
-              {activeTab === "pending" ? "Số booking chờ thanh toán" : "Số booking đã thanh toán"}
+              {activeTab === "pending" 
+                ? "Số booking chờ thanh toán" 
+                : activeTab === "paid"
+                ? "Số booking đã thanh toán"
+                : "Số booking đã từ chối"}
             </p>
             <p className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mt-2">
               {currentPayouts.length}
@@ -538,12 +639,16 @@ const PageAdminPayoutBooking: React.FC = () => {
           <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-2">
             {activeTab === "pending" 
               ? "Không có booking chờ thanh toán"
-              : "Không có booking đã thanh toán"}
+              : activeTab === "paid"
+              ? "Không có booking đã thanh toán"
+              : "Không có booking đã từ chối"}
           </h3>
           <p className="text-neutral-600 dark:text-neutral-400">
             {activeTab === "pending"
               ? "Tất cả booking đã hoàn thành đã được thanh toán hoặc chưa đủ 15 ngày kể từ ngày kết thúc."
-              : "Không có booking nào đã được thanh toán trong khoảng thời gian đã chọn."}
+              : activeTab === "paid"
+              ? "Không có booking nào đã được thanh toán trong khoảng thời gian đã chọn."
+              : "Không có booking nào đã bị từ chối trong khoảng thời gian đã chọn."}
           </p>
         </div>
       ) : (
@@ -572,8 +677,13 @@ const PageAdminPayoutBooking: React.FC = () => {
                     Số tiền
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wider">
-                    Số ngày chờ
+                    {activeTab === "rejected" ? "Ngày từ chối" : "Số ngày chờ"}
                   </th>
+                  {activeTab === "rejected" && (
+                    <th className="px-6 py-4 text-left text-xs font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wider">
+                      Lý do từ chối
+                    </th>
+                  )}
                   <th className="px-6 py-4 text-left text-xs font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wider">
                     Hành động
                   </th>
@@ -583,8 +693,8 @@ const PageAdminPayoutBooking: React.FC = () => {
                 {currentPayouts.map((payout) => {
                   const isExpanded = expandedRows.has(payout.bookingId);
                   return (
-                    <>
-                      <tr key={payout.bookingId} className="hover:bg-gradient-to-r hover:from-indigo-50/50 hover:to-purple-50/50 dark:hover:from-neutral-700/50 dark:hover:to-neutral-800/50 transition-all duration-200">
+                    <React.Fragment key={payout.bookingId}>
+                      <tr className="hover:bg-gradient-to-r hover:from-indigo-50/50 hover:to-purple-50/50 dark:hover:from-neutral-700/50 dark:hover:to-neutral-800/50 transition-all duration-200">
                         <td className="px-4 py-4">
                           <button
                             onClick={() => toggleExpand(payout.bookingId)}
@@ -638,31 +748,68 @@ const PageAdminPayoutBooking: React.FC = () => {
                           {formatPrice(payout.amount || payout.totalPrice)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500 dark:text-neutral-400">
-                          <span className="px-2 py-1 bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-300 rounded-full text-xs font-medium">
-                            {payout.daysSinceCompleted !== undefined
-                              ? `${payout.daysSinceCompleted} ngày`
-                              : "Đang tính"}
-                          </span>
+                          {activeTab === "rejected" ? (
+                            payout.rejectedAt ? (
+                              <span className="px-2 py-1 bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-300 rounded-full text-xs font-medium">
+                                {formatDateTime(payout.rejectedAt)}
+                              </span>
+                            ) : (
+                              <span className="text-neutral-400 italic">N/A</span>
+                            )
+                          ) : (
+                            <span className="px-2 py-1 bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-300 rounded-full text-xs font-medium">
+                              {payout.daysSinceCompleted !== undefined
+                                ? `${payout.daysSinceCompleted} ngày`
+                                : "Đang tính"}
+                            </span>
+                          )}
                         </td>
+                        {activeTab === "rejected" && (
+                          <td className="px-6 py-4 text-sm text-neutral-500 dark:text-neutral-400 max-w-xs">
+                            <div className="truncate" title={payout.rejectReason || "Không có lý do"}>
+                              {payout.rejectReason || (
+                                <span className="text-neutral-400 italic">Không có lý do</span>
+                              )}
+                            </div>
+                          </td>
+                        )}
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
                           {activeTab === "pending" ? (
-                            <ButtonPrimary
-                              onClick={() => handleProcessPayout(payout)}
-                              disabled={processing}
-                              className="min-w-[120px]"
-                            >
-                              Xử lý
-                            </ButtonPrimary>
-                          ) : (
+                            <div className="flex gap-2">
+                              <ButtonPrimary
+                                onClick={() => handleProcessPayout(payout)}
+                                disabled={processing}
+                                className="min-w-[100px]"
+                              >
+                                Xử lý
+                              </ButtonPrimary>
+                              <button
+                                onClick={() => {
+                                  setSelectedPayout(payout);
+                                  setRejectReason("");
+                                  setRejectModalOpen(true);
+                                }}
+                                className="px-3 py-1.5 bg-red-600 text-white rounded-md hover:bg-red-700 shadow-sm transition-colors font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                disabled={processing}
+                                title="Từ chối thanh toán"
+                              >
+                                ❌ Từ chối
+                              </button>
+                            </div>
+                          ) : activeTab === "paid" ? (
                             <span className="px-3 py-1 bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-300 rounded-full text-xs font-medium">
                               Đã thanh toán
+                            </span>
+                          ) : (
+                            <span className="px-3 py-1 bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-300 rounded-full text-xs font-medium">
+                              Đã từ chối
                             </span>
                           )}
                         </td>
                       </tr>
                       {isExpanded && (
                         <tr className="bg-gradient-to-r from-indigo-50/30 to-purple-50/30 dark:from-neutral-700/30 dark:to-neutral-800/30">
-                          <td colSpan={9} className="px-6 py-6">
+                          <td colSpan={activeTab === "rejected" ? 10 : 9} className="px-6 py-6">
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                               {/* Thông tin Host */}
                               <div className="bg-white dark:bg-neutral-800 rounded-xl p-4 shadow-lg border border-indigo-200 dark:border-indigo-800">
@@ -824,18 +971,52 @@ const PageAdminPayoutBooking: React.FC = () => {
                                     <span className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${
                                       payout.isPaid 
                                         ? 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-300'
+                                        : activeTab === "rejected"
+                                        ? 'bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-300'
                                         : 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-300'
                                     }`}>
-                                      {payout.isPaid ? 'Đã thanh toán' : 'Chờ thanh toán'}
+                                      {payout.isPaid ? 'Đã thanh toán' : activeTab === "rejected" ? 'Đã từ chối' : 'Chờ thanh toán'}
                                     </span>
                                   </div>
                                 </div>
                               </div>
+
+                              {/* Thông tin Từ chối - Chỉ hiển thị cho rejected tab */}
+                              {activeTab === "rejected" && (payout.rejectedAt || payout.rejectReason) && (
+                                <div className="bg-gradient-to-br from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 rounded-xl p-4 shadow-lg border border-red-200 dark:border-red-800">
+                                  <h4 className="text-sm font-bold text-red-600 dark:text-red-400 mb-3 flex items-center">
+                                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                    Thông tin Từ chối
+                                  </h4>
+                                  <div className="space-y-2 text-sm">
+                                    {payout.rejectedAt && (
+                                      <div>
+                                        <span className="text-neutral-500 dark:text-neutral-400">Ngày giờ từ chối:</span>
+                                        <span className="ml-2 font-medium text-neutral-900 dark:text-neutral-100">
+                                          {formatDateTime(payout.rejectedAt)}
+                                        </span>
+                                      </div>
+                                    )}
+                                    {payout.rejectReason && (
+                                      <div>
+                                        <span className="text-neutral-500 dark:text-neutral-400">Lý do từ chối:</span>
+                                        <div className="mt-1 p-2 bg-white dark:bg-neutral-800 rounded-md border border-red-200 dark:border-red-800">
+                                          <p className="text-neutral-900 dark:text-neutral-100 whitespace-pre-wrap">
+                                            {payout.rejectReason}
+                                          </p>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           </td>
                         </tr>
                       )}
-                    </>
+                    </React.Fragment>
                   );
                 })}
               </tbody>
@@ -1017,6 +1198,54 @@ const PageAdminPayoutBooking: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* MODAL TỪ CHỐI PAYOUT */}
+      {rejectModalOpen && selectedPayout && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm" style={{ position: 'fixed', width: '100%', height: '100%' }}>
+          <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-2xl p-6 w-full max-w-md mx-4 transform transition-all animate-fadeIn">
+            <h3 className="text-lg font-bold text-red-600 mb-4">
+              ❌ Từ chối thanh toán cho Host
+            </h3>
+            <p className="text-gray-600 mb-4">
+              Bạn có chắc chắn muốn từ chối thanh toán cho booking #{selectedPayout.bookingId}? Vui lòng nhập lý do từ chối.
+            </p>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Lý do từ chối <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                placeholder="Ví dụ: Booking có vấn đề về chất lượng dịch vụ, Khách hàng khiếu nại..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent dark:bg-neutral-700 dark:border-neutral-600 dark:text-white"
+                rows={4}
+                required
+              />
+            </div>
+
+            <div className="flex gap-3 justify-end">
+              <ButtonSecondary
+                onClick={() => {
+                  setRejectModalOpen(false);
+                  setSelectedPayout(null);
+                  setRejectReason("");
+                }}
+                disabled={processing}
+              >
+                Hủy
+              </ButtonSecondary>
+              <button
+                onClick={handleRejectPayout}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={processing || !rejectReason.trim()}
+              >
+                {processing ? "Đang xử lý..." : "Xác nhận từ chối"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -142,12 +142,36 @@ export const adminAPI = {
     return response.data;
   },
 
-  // POST /api/admin/refund-requests/{bookingId}/confirm-manual - Xác nhận hoàn tiền thủ công
+  // POST /api/admin/refund-requests/{bookingId}/confirm-manual - Xác nhận hoàn tiền thủ công (legacy)
   confirmRefundManually: async (
     bookingId: number
   ): Promise<{ success: boolean; message: string }> => {
     const response = await axiosClient.post<{ success: boolean; message: string }>(
       `/admin/refund-requests/${bookingId}/confirm-manual`
+    );
+    return response.data;
+  },
+
+  // POST /api/admin/refund-requests/{bookingId}/confirm - Xác nhận hoàn tiền thủ công (mới)
+  // Lưu ý: Backend expect bookingId, không phải refundRequestId
+  confirmRefundRequest: async (
+    bookingId: number
+  ): Promise<{ success: boolean; message: string }> => {
+    const response = await axiosClient.post<{ success: boolean; message: string }>(
+      `/admin/refund-requests/${bookingId}/confirm`
+    );
+    return response.data;
+  },
+
+  // POST /api/admin/refund-requests/{refundRequestId}/reject - Từ chối yêu cầu hoàn tiền
+  // Lưu ý: Backend expect refundRequestId, không phải bookingId
+  rejectRefundRequest: async (
+    refundRequestId: number,
+    reason: string
+  ): Promise<{ success: boolean; message: string }> => {
+    const response = await axiosClient.post<{ success: boolean; message: string }>(
+      `/admin/refund-requests/${refundRequestId}/reject`,
+      { reason }
     );
     return response.data;
   },

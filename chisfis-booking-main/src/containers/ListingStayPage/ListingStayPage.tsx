@@ -25,6 +25,7 @@ const ListingStayPage: FC<ListingStayPageProps> = ({ className = "" }) => {
   const params = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const searchLocation = params.get("location");
   const searchLocationId = params.get("locationId");
+  const searchHostId = params.get("hostId");
   const searchFromDate = params.get("startDate");
   const searchToDate = params.get("endDate");
   const minPrice = params.get("minPrice");
@@ -40,7 +41,7 @@ const ListingStayPage: FC<ListingStayPageProps> = ({ className = "" }) => {
           const locationId = Number(searchLocationId);
           if (!isNaN(locationId)) {
             const locationData = await locationAPI.getByIdPublic(locationId);
-            setLocationName(locationData.locationName);
+            setLocationName(locationData.name);
           }
         } catch (err) {
           console.error("Error loading location name:", err);
@@ -59,14 +60,24 @@ const ListingStayPage: FC<ListingStayPageProps> = ({ className = "" }) => {
         // Build search query
         const searchQuery: any = {};
         
-        // Ưu tiên locationId hơn location string
-        if (searchLocationId) {
-          const locationId = Number(searchLocationId);
-          if (!isNaN(locationId)) {
-            searchQuery.locationId = locationId;
+        // Host ID filter (ưu tiên cao nhất)
+        if (searchHostId) {
+          const hostId = Number(searchHostId);
+          if (!isNaN(hostId)) {
+            searchQuery.hostId = hostId;
           }
-        } else if (searchLocation) {
-          searchQuery.location = searchLocation;
+        }
+        
+        // Ưu tiên locationId hơn location string (chỉ nếu không có hostId)
+        if (!searchHostId) {
+          if (searchLocationId) {
+            const locationId = Number(searchLocationId);
+            if (!isNaN(locationId)) {
+              searchQuery.locationId = locationId;
+            }
+          } else if (searchLocation) {
+            searchQuery.location = searchLocation;
+          }
         }
         
         if (searchFromDate) {
@@ -113,7 +124,7 @@ const ListingStayPage: FC<ListingStayPageProps> = ({ className = "" }) => {
       }
     };
     fetchCount();
-  }, [searchLocation, searchLocationId, searchFromDate, searchToDate, minPrice, maxPrice, beds, bathrooms]);
+  }, [searchLocation, searchLocationId, searchHostId, searchFromDate, searchToDate, minPrice, maxPrice, beds, bathrooms]);
   
   return (
     <div

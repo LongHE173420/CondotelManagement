@@ -51,22 +51,29 @@ export const reportAPI = {
     if (from) params.from = from;
     if (to) params.to = to;
 
-    const response = await axiosClient.get<HostReportDTO>("/host/report", { params });
-    const data = response.data;
+    const response = await axiosClient.get<any>("/host/report", { params });
+    
+    // Handle response structure: { success: true, data: { ... } }
+    let data: any = response.data;
+    if (data && data.data && typeof data.data === 'object') {
+      data = data.data; // Extract data from wrapper
+    }
 
     // Normalize response từ backend (PascalCase -> camelCase)
+    // Map từ format mới: { revenue, totalBookings, totalCancellations, completedBookings, ... }
+    // Sang format cũ: { totalRevenue, totalBookings, cancelledBookings, completedBookings, ... }
     return {
-      totalRevenue: data.totalRevenue !== undefined ? data.totalRevenue : (data as any).TotalRevenue,
-      totalBookings: data.totalBookings !== undefined ? data.totalBookings : (data as any).TotalBookings,
-      totalCustomers: data.totalCustomers !== undefined ? data.totalCustomers : (data as any).TotalCustomers,
-      averageBookingValue: data.averageBookingValue !== undefined ? data.averageBookingValue : (data as any).AverageBookingValue,
-      confirmedBookings: data.confirmedBookings !== undefined ? data.confirmedBookings : (data as any).ConfirmedBookings,
-      pendingBookings: data.pendingBookings !== undefined ? data.pendingBookings : (data as any).PendingBookings,
-      cancelledBookings: data.cancelledBookings !== undefined ? data.cancelledBookings : (data as any).CancelledBookings,
-      completedBookings: data.completedBookings !== undefined ? data.completedBookings : (data as any).CompletedBookings,
-      revenueByMonth: data.revenueByMonth || (data as any).RevenueByMonth || (data as any).RevenueByPeriod,
-      bookingsByStatus: data.bookingsByStatus || (data as any).BookingsByStatus,
-      topCondotels: data.topCondotels || (data as any).TopCondotels,
+      totalRevenue: data.revenue !== undefined ? data.revenue : (data.totalRevenue !== undefined ? data.totalRevenue : (data as any).TotalRevenue || (data as any).Revenue || 0),
+      totalBookings: data.totalBookings !== undefined ? data.totalBookings : (data as any).TotalBookings || 0,
+      totalCustomers: data.totalCustomers !== undefined ? data.totalCustomers : (data as any).TotalCustomers || 0,
+      averageBookingValue: data.averageBookingValue !== undefined ? data.averageBookingValue : (data as any).AverageBookingValue || 0,
+      confirmedBookings: data.confirmedBookings !== undefined ? data.confirmedBookings : (data as any).ConfirmedBookings || 0,
+      pendingBookings: data.pendingBookings !== undefined ? data.pendingBookings : (data as any).PendingBookings || 0,
+      cancelledBookings: data.totalCancellations !== undefined ? data.totalCancellations : (data.cancelledBookings !== undefined ? data.cancelledBookings : (data as any).CancelledBookings || (data as any).TotalCancellations || 0),
+      completedBookings: data.completedBookings !== undefined ? data.completedBookings : (data as any).CompletedBookings || 0,
+      revenueByMonth: data.revenueByMonth || (data as any).RevenueByMonth || (data as any).RevenueByPeriod || [],
+      bookingsByStatus: data.bookingsByStatus || (data as any).BookingsByStatus || [],
+      topCondotels: data.topCondotels || (data as any).TopCondotels || [],
       dateFrom: data.dateFrom || (data as any).DateFrom || from,
       dateTo: data.dateTo || (data as any).DateTo || to,
     };
@@ -86,25 +93,30 @@ export const reportAPI = {
     console.log("📊 [Revenue Report] Full URL will be: /host/report/revenue?" + new URLSearchParams(params).toString());
 
     const response = await axiosClient.get<any>("/host/report/revenue", { params });
-    const data = response.data;
+    
+    // Handle response structure: { success: true, data: { monthlyRevenues: [...], yearlyRevenues: [...] } }
+    let responseData = response.data;
+    if (responseData && responseData.success && responseData.data) {
+      responseData = responseData.data; // Extract data from wrapper
+    }
+    
+    const data = responseData;
 
     console.log("📊 [Revenue Report] Raw response:", data);
     console.log("📊 [Revenue Report] Response type:", Array.isArray(data) ? "Array" : typeof data);
     console.log("📊 [Revenue Report] Response keys:", data && typeof data === "object" ? Object.keys(data) : "N/A");
 
-    // Backend có thể trả về:
-    // 1. Array trực tiếp: [{ Period, Revenue, Bookings }, ...]
-    // 2. Object với monthlyRevenues: { monthlyRevenues: [...], yearlyRevenues: [...] }
-    // 3. Object với data: { data: [...] }
+    // Backend trả về structure mới:
+    // { success: true, data: { monthlyRevenues: [...], yearlyRevenues: [...] } }
     
     let revenueData: any[] = [];
 
     if (Array.isArray(data)) {
-      // Case 1: Array trực tiếp
+      // Case 1: Array trực tiếp (fallback)
       revenueData = data;
       console.log("📊 [Revenue Report] Response is Array, count:", revenueData.length);
     } else if (data && typeof data === "object") {
-      // Case 2: Object với monthlyRevenues/yearlyRevenues
+      // Case 2: Object với monthlyRevenues/yearlyRevenues (format mới)
       const monthlyRevenues = data.monthlyRevenues || data.MonthlyRevenues || [];
       const yearlyRevenues = data.yearlyRevenues || data.YearlyRevenues || [];
       
@@ -113,7 +125,7 @@ export const reportAPI = {
       console.log("📊 [Revenue Report] monthlyRevenues:", monthlyRevenues);
       console.log("📊 [Revenue Report] yearlyRevenues:", yearlyRevenues);
 
-      // Ưu tiên monthlyRevenues nếu có, nếu không thì dùng yearlyRevenues
+      // Ưu tiên monthlyRevenues nếu có, nếu không thì dùng yearlyRevenues[].monthlyData
       if (monthlyRevenues.length > 0) {
         revenueData = monthlyRevenues;
         console.log("📊 [Revenue Report] Using monthlyRevenues");
@@ -124,16 +136,13 @@ export const reportAPI = {
           const monthlyData = yearItem.monthlyData || yearItem.MonthlyData || [];
           if (monthlyData.length > 0) {
             flattened.push(...monthlyData);
-          } else {
-            // Nếu không có monthlyData, dùng chính yearItem
-            flattened.push(yearItem);
           }
         });
         revenueData = flattened;
-        console.log("📊 [Revenue Report] Using yearlyRevenues (flattened), count:", revenueData.length);
-      } else if (data.data) {
-        // Case 3: Object với data property
-        revenueData = Array.isArray(data.data) ? data.data : [];
+        console.log("📊 [Revenue Report] Using yearlyRevenues[].monthlyData (flattened), count:", revenueData.length);
+      } else if (data.data && Array.isArray(data.data)) {
+        // Case 3: Object với data property (fallback)
+        revenueData = data.data;
         console.log("📊 [Revenue Report] Using data.data, count:", revenueData.length);
       }
     }
@@ -141,20 +150,17 @@ export const reportAPI = {
     console.log("📊 [Revenue Report] Processed data count:", revenueData.length);
     console.log("📊 [Revenue Report] Processed data:", revenueData);
 
-    // Map và normalize data (PascalCase -> camelCase)
-    // KHÔNG filter items có Revenue = 0, vì có thể có tháng không có doanh thu
+    // Map và normalize data
+    // Format mới: { year: 2024, month: 1, monthName: 'Tháng 1', revenue: number, totalBookings: number }
     const mappedData = revenueData
       .map((item: any) => {
-        // Hỗ trợ nhiều format:
-        // 1. Format cũ: { Period: "YYYY-MM", Revenue: number, Bookings: number }
-        // 2. Format mới: { year: 2025, month: 9, monthName: 'Tháng 9', revenue: number, totalBookings: number }
-        
+        // Hỗ trợ format mới: { year, month, monthName, revenue, totalBookings }
         let period = item.Period || item.period || "";
         let revenue = item.Revenue !== undefined ? item.Revenue : (item.revenue !== undefined ? item.revenue : 0);
         let bookings = item.Bookings !== undefined ? item.Bookings : (item.bookings !== undefined ? item.bookings : (item.totalBookings !== undefined ? item.totalBookings : 0));
         
         // Nếu không có period nhưng có year và month, tạo period từ đó
-        if (!period && item.year && item.month) {
+        if (!period && (item.year || item.Year) && (item.month || item.Month)) {
           const year = item.year || item.Year;
           const month = item.month || item.Month;
           if (year && month) {

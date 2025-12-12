@@ -2,6 +2,9 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import reviewAPI from "api/review";
 import bookingAPI, { BookingDTO } from "api/booking";
+import { useAuth } from "contexts/AuthContext";
+import { validateBookingOwnership } from "utils/bookingSecurity";
+import { toast } from "react-toastify";
 
 // Component Star (để chọn 1-5 sao)
 const StarRating: React.FC<{ rating: number; setRating: (rating: number) => void }> = ({ rating, setRating }) => {
@@ -29,6 +32,7 @@ const StarRating: React.FC<{ rating: number; setRating: (rating: number) => void
 const PageWriteReview = () => {
   const { id } = useParams(); // ID này là ID của ĐƠN ĐẶT PHÒNG (bookingId)
   const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
   
   const [booking, setBooking] = useState<BookingDTO | null>(null);
   const [rating, setRating] = useState(0);
@@ -38,6 +42,7 @@ const PageWriteReview = () => {
   const [checking, setChecking] = useState(true);
   const [error, setError] = useState("");
   const [canReview, setCanReview] = useState(false);
+  const [unauthorized, setUnauthorized] = useState(false);
 
   // Check if can review và fetch booking info
   useEffect(() => {
@@ -48,11 +53,35 @@ const PageWriteReview = () => {
         return;
       }
 
+      // Check authentication first
+      if (!isAuthenticated || !user) {
+        setError("Vui lòng đăng nhập để viết đánh giá");
+        setUnauthorized(true);
+        setChecking(false);
+        return;
+      }
+
       try {
         setChecking(true);
         // Fetch booking để hiển thị thông tin
         const bookingData = await bookingAPI.getBookingById(parseInt(id));
-        setBooking(bookingData);
+        
+        // SECURITY CHECK: Verify user owns this booking
+        try {
+          validateBookingOwnership(bookingData, user);
+          setBooking(bookingData);
+          setUnauthorized(false);
+        } catch (securityError: any) {
+          console.error("Security error:", securityError);
+          setError(securityError.message || "Bạn không có quyền truy cập booking này");
+          setUnauthorized(true);
+          setBooking(null);
+          // Redirect to home after 3 seconds
+          setTimeout(() => {
+            navigate("/");
+          }, 3000);
+          return;
+        }
 
         // Kiểm tra booking status phải là "Completed" trước
         const bookingStatus = bookingData.status?.toLowerCase();
@@ -83,25 +112,30 @@ const PageWriteReview = () => {
         setCanReview(true);
       } catch (err: any) {
         console.error("Error checking can review:", err);
-        setError("Không thể kiểm tra quyền đánh giá. Vui lòng thử lại sau.");
+        if (err.response?.status === 403 || err.response?.status === 401) {
+          setError("Bạn không có quyền truy cập booking này");
+          setUnauthorized(true);
+        } else {
+          setError("Không thể kiểm tra quyền đánh giá. Vui lòng thử lại sau.");
+        }
       } finally {
         setChecking(false);
       }
     };
 
     checkCanReview();
-  }, [id]);
+  }, [id, user, isAuthenticated, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (rating === 0) {
-      alert("Vui lòng chọn số sao đánh giá (từ 1-5 sao).");
+      toast.error("❌ Vui lòng chọn số sao đánh giá (từ 1-5 sao).");
       return;
     }
 
     if (!id) {
-      alert("Booking ID không hợp lệ.");
+      toast.error("❌ Booking ID không hợp lệ.");
       return;
     }
 
@@ -123,11 +157,11 @@ const PageWriteReview = () => {
         comment: reviewText || undefined,
       });
 
-      alert("🎉 Cảm ơn bạn đã đánh giá!");
+      toast.success("🎉 Cảm ơn bạn đã đánh giá!");
       navigate(`/my-bookings`);
     } catch (err: any) {
-      console.error("Error creating review:", err);
       const message = err.response?.data?.message || err.response?.data?.error || "Không thể gửi đánh giá. Vui lòng thử lại sau.";
+      toast.error(`❌ ${message}`);
       setError(message);
       
       // Nếu lỗi là do không đủ điều kiện (400), có thể là đã review rồi hoặc không phải customer

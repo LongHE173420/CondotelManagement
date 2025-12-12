@@ -224,3 +224,4 @@ const PageRegulations = () => {
 
 export default PageRegulations;
 
+

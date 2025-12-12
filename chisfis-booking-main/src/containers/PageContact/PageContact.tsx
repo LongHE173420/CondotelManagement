@@ -6,7 +6,7 @@ import Label from "components/Label/Label";
 import Input from "shared/Input/Input";
 import Textarea from "shared/Textarea/Textarea";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
-import SectionClientSay from "components/SectionClientSay/SectionClientSay";
+import SectionOurFeatures from "components/SectionOurFeatures/SectionOurFeatures";
 import BackgroundSection from "components/BackgroundSection/BackgroundSection";
 
 export interface PageContactProps {
@@ -99,7 +99,7 @@ const PageContact: FC<PageContactProps> = ({ className = "" }) => {
       <div className="container">
         <div className="relative py-16">
           <BackgroundSection />
-          <SectionClientSay uniqueClassName="Pagecontact_" />
+          <SectionOurFeatures type="type2" />
         </div>
         <SectionSubscribe2 className="py-24 lg:py-32" />
       </div>

@@ -1,4 +1,5 @@
 import axiosClient from "./axiosClient";
+import logger from "utils/logger";
 
 // Sub DTOs for CondotelDetailDTO
 export interface ImageDTO {
@@ -87,7 +88,10 @@ export interface CondotelDTO {
   thumbnailUrl?: string;
   resortName?: string;
   hostName?: string;
+  reviewCount?: number;
+  reviewRate?: number;
   activePromotion?: PromotionDTO | null; // Promotion đang active (nếu có)
+  activePrice?: PriceDTO | null; // Price đang active (nếu có)
 }
 
 // CondotelDetailDTO - Full details for detail/update
@@ -106,6 +110,14 @@ export interface CondotelDetailDTO {
   hostName?: string;
   hostImageUrl?: string;
 
+  // Resort info (nếu backend trả về)
+  resortName?: string;
+  resortAddress?: string;
+
+  // Review info
+  reviewCount?: number;
+  reviewRate?: number;
+
   // Liên kết 1-n
   images?: ImageDTO[];
   prices?: PriceDTO[];
@@ -116,6 +128,7 @@ export interface CondotelDetailDTO {
   utilities?: UtilityDTO[];
   promotions?: PromotionDTO[]; // Danh sách tất cả promotions (không chỉ active)
   activePromotion?: PromotionDTO | null; // Promotion đang active (nếu có)
+  activePrice?: PriceDTO | null; // Price đang active (nếu có)
 }
 
 // CreateCondotelDTO - For creating new condotel (matches CondotelCreateDTO from backend)
@@ -127,7 +140,7 @@ export interface CreateCondotelDTO {
   pricePerNight: number;
   beds: number;
   bathrooms: number;
-  status: string; // "Pending", "Active", "Inactive", "Available", "Unavailable"
+  status: string; // "Active" hoặc "Inactive"
 
   // Liên kết 1-n
   images?: Array<{
@@ -164,6 +177,7 @@ export interface CondotelSearchQuery {
   name?: string;
   location?: string; // Location name
   locationId?: number; // Location ID
+  hostId?: number; // Host ID
   fromDate?: string; // DateOnly format: YYYY-MM-DD
   toDate?: string; // DateOnly format: YYYY-MM-DD
   minPrice?: number; // Minimum price per night
@@ -171,6 +185,61 @@ export interface CondotelSearchQuery {
   beds?: number; // Minimum number of beds (>=)
   bathrooms?: number; // Minimum number of bathrooms (>=)
 }
+
+// Helper functions to normalize data (shared across API calls)
+const normalizeAmenities = (amenities: any[]): AmenityDTO[] => {
+  if (!amenities || !Array.isArray(amenities)) return [];
+  return amenities.map((a: any) => ({
+    amenityId: a.AmenityId || a.amenityId || a.Id || a.id,
+    name: a.Name || a.name,
+  }));
+};
+
+const normalizeUtilities = (utilities: any[]): UtilityDTO[] => {
+  if (!utilities || !Array.isArray(utilities)) return [];
+  return utilities.map((u: any) => ({
+    utilityId: u.UtilityId || u.utilityId || u.Id || u.id,
+    name: u.Name || u.name,
+  }));
+};
+
+const normalizePromotions = (promotions: any[]): PromotionDTO[] => {
+  if (!promotions || !Array.isArray(promotions)) return [];
+  return promotions.map((p: any) => ({
+    promotionId: p.PromotionId || p.promotionId || 0,
+    condotelId: p.CondotelId || p.condotelId || 0,
+    condotelName: p.CondotelName || p.condotelName,
+    name: p.Name || p.name || p.Title || p.title || "",
+    description: p.Description || p.description,
+    discountPercentage: p.DiscountPercentage !== undefined ? p.DiscountPercentage : p.discountPercentage,
+    discountAmount: p.DiscountAmount !== undefined ? p.DiscountAmount : p.discountAmount,
+    startDate: p.StartDate || p.startDate || "",
+    endDate: p.EndDate || p.endDate || "",
+    isActive: p.IsActive !== undefined ? p.IsActive : (p.isActive !== undefined ? p.isActive : false),
+    status: p.Status || p.status,
+    createdAt: p.CreatedAt || p.createdAt,
+    updatedAt: p.UpdatedAt || p.updatedAt,
+  }));
+};
+
+const normalizePromotion = (promo: any): PromotionDTO | null => {
+  if (!promo) return null;
+  return {
+    promotionId: promo.PromotionId || promo.promotionId || 0,
+    condotelId: promo.CondotelId || promo.condotelId || 0,
+    condotelName: promo.CondotelName || promo.condotelName,
+    name: promo.Name || promo.name || promo.Title || promo.title || "",
+    description: promo.Description || promo.description,
+    discountPercentage: promo.DiscountPercentage !== undefined ? promo.DiscountPercentage : promo.discountPercentage,
+    discountAmount: promo.DiscountAmount !== undefined ? promo.DiscountAmount : promo.discountAmount,
+    startDate: promo.StartDate || promo.startDate || "",
+    endDate: promo.EndDate || promo.endDate || "",
+    isActive: promo.IsActive !== undefined ? promo.IsActive : (promo.isActive !== undefined ? promo.isActive : false),
+    status: promo.Status || promo.status,
+    createdAt: promo.CreatedAt || promo.createdAt,
+    updatedAt: promo.UpdatedAt || promo.updatedAt,
+  };
+};
 
 // API Calls
 export const condotelAPI = {
@@ -187,6 +256,10 @@ export const condotelAPI = {
     } else if (query?.location) {
       // Chỉ thêm location string nếu không có locationId
       params.location = query.location.trim();
+    }
+    // Host ID
+    if (query?.hostId !== undefined && query?.hostId !== null) {
+      params.hostId = query.hostId;
     }
     if (query?.fromDate) {
       params.fromDate = query.fromDate;
@@ -207,43 +280,23 @@ export const condotelAPI = {
       params.bathrooms = query.bathrooms;
     }
 
-    console.log("🔍 Searching condotels with params:", params);
-    console.log("🔍 Full URL will be: /tenant/condotels?" + new URLSearchParams(params).toString());
-
     try {
       const response = await axiosClient.get<any>("/tenant/condotels", { params });
-      console.log("✅ Search response:", response.data);
-      console.log("✅ Response type:", Array.isArray(response.data) ? "Array" : typeof response.data);
 
-      // Normalize response - handle both array and object with data property
+      // Normalize response - handle both array, object with data property, and success wrapper
       let data: any[] = [];
       if (Array.isArray(response.data)) {
         data = response.data;
-      } else if (response.data && typeof response.data === 'object' && 'data' in response.data) {
-        data = Array.isArray(response.data.data) ? response.data.data : [];
+      } else if (response.data && typeof response.data === 'object') {
+        // Handle { success: true, data: [...] } wrapper
+        if ('data' in response.data) {
+          if (Array.isArray(response.data.data)) {
+            data = response.data.data;
+          } else {
+            data = [];
+          }
+        }
       }
-
-      console.log("✅ Processed data count:", data.length);
-
-      // Helper function to normalize PromotionDTO
-      const normalizePromotion = (promo: any): PromotionDTO | null => {
-        if (!promo) return null;
-        return {
-          promotionId: promo.PromotionId || promo.promotionId || 0,
-          condotelId: promo.CondotelId || promo.condotelId || 0,
-          condotelName: promo.CondotelName || promo.condotelName,
-          name: promo.Name || promo.name || promo.Title || promo.title || "",
-          description: promo.Description || promo.description,
-          discountPercentage: promo.DiscountPercentage !== undefined ? promo.DiscountPercentage : promo.discountPercentage,
-          discountAmount: promo.DiscountAmount !== undefined ? promo.DiscountAmount : promo.discountAmount,
-          startDate: promo.StartDate || promo.startDate || "",
-          endDate: promo.EndDate || promo.endDate || "",
-          isActive: promo.IsActive !== undefined ? promo.IsActive : (promo.isActive !== undefined ? promo.isActive : false),
-          status: promo.Status || promo.status,
-          createdAt: promo.CreatedAt || promo.createdAt,
-          updatedAt: promo.UpdatedAt || promo.updatedAt,
-        };
-      };
 
       // Map response to CondotelDTO format
       const mapped = data.map((item: any) => {
@@ -257,25 +310,38 @@ export const condotelAPI = {
           }
         }
 
+        // Normalize activePrice
+        const rawActivePrice = item.ActivePrice || item.activePrice;
+        const normalizedActivePrice = rawActivePrice ? {
+          priceId: rawActivePrice.PriceId || rawActivePrice.priceId,
+          startDate: rawActivePrice.StartDate || rawActivePrice.startDate,
+          endDate: rawActivePrice.EndDate || rawActivePrice.endDate,
+          basePrice: rawActivePrice.BasePrice !== undefined ? rawActivePrice.BasePrice : rawActivePrice.basePrice,
+          priceType: rawActivePrice.PriceType || rawActivePrice.priceType,
+          description: rawActivePrice.Description || rawActivePrice.description,
+        } : null;
+
+        const normalizedPromotion = normalizePromotion(item.ActivePromotion || item.activePromotion);
+        
         return {
-          condotelId: item.CondotelId || item.condotelId,
-          name: item.Name || item.name,
-          pricePerNight: item.PricePerNight !== undefined ? item.PricePerNight : item.pricePerNight,
-          beds: item.Beds !== undefined ? item.Beds : item.beds,
-          bathrooms: item.Bathrooms !== undefined ? item.Bathrooms : item.bathrooms,
-          status: item.Status || item.status,
+        condotelId: item.CondotelId || item.condotelId,
+        name: item.Name || item.name,
+        pricePerNight: item.PricePerNight !== undefined ? item.PricePerNight : item.pricePerNight,
+        beds: item.Beds !== undefined ? item.Beds : item.beds,
+        bathrooms: item.Bathrooms !== undefined ? item.Bathrooms : item.bathrooms,
+        status: item.Status || item.status,
           thumbnailUrl: thumbnailUrl,
-          resortName: item.ResortName || item.resortName,
-          hostName: item.HostName || item.hostName,
-          activePromotion: normalizePromotion(item.ActivePromotion || item.activePromotion),
+        resortName: item.ResortName || item.resortName,
+        hostName: item.HostName || item.hostName,
+        reviewCount: item.ReviewCount !== undefined ? item.ReviewCount : item.reviewCount,
+        reviewRate: item.ReviewRate !== undefined ? item.ReviewRate : item.reviewRate,
+        activePromotion: normalizedPromotion,
+          activePrice: normalizedActivePrice,
         };
       });
 
-      console.log("✅ Mapped results:", mapped.length, "condotels");
       return mapped;
     } catch (error: any) {
-      console.error("❌ Search error:", error);
-      console.error("❌ Error response:", error.response?.data);
       throw error;
     }
   },
@@ -291,84 +357,38 @@ export const condotelAPI = {
     const response = await axiosClient.get<any>(`/tenant/condotels/${id}`);
     const data = response.data;
 
-    console.log("🔍 Raw API response for condotel:", id, data);
-    console.log("🔍 Raw Amenities:", data.Amenities || data.amenities);
-    console.log("🔍 Raw Utilities:", data.Utilities || data.utilities);
-    console.log("🔍 Raw Promotions:", data.Promotions || data.promotions);
-    console.log("🔍 Raw ActivePromotion:", data.ActivePromotion || data.activePromotion);
-
-    // Normalize amenities array - handle both PascalCase and camelCase properties
-    const normalizeAmenities = (amenities: any[]): AmenityDTO[] => {
-      if (!amenities || !Array.isArray(amenities)) return [];
-      return amenities.map((a: any) => ({
-        amenityId: a.AmenityId || a.amenityId || a.Id || a.id,
-        name: a.Name || a.name,
-      }));
-    };
-
-    // Normalize utilities array - handle both PascalCase and camelCase properties
-    const normalizeUtilities = (utilities: any[]): UtilityDTO[] => {
-      if (!utilities || !Array.isArray(utilities)) return [];
-      return utilities.map((u: any) => ({
-        utilityId: u.UtilityId || u.utilityId || u.Id || u.id,
-        name: u.Name || u.name,
-      }));
-    };
-
-    // Normalize promotions array - handle both PascalCase and camelCase properties
-    const normalizePromotions = (promotions: any[]): PromotionDTO[] => {
-      if (!promotions || !Array.isArray(promotions)) return [];
-      return promotions.map((p: any) => ({
-        promotionId: p.PromotionId || p.promotionId || 0,
-        condotelId: p.CondotelId || p.condotelId || 0,
-        condotelName: p.CondotelName || p.condotelName,
-        name: p.Name || p.name || p.Title || p.title || "",
-        description: p.Description || p.description,
-        discountPercentage: p.DiscountPercentage !== undefined ? p.DiscountPercentage : p.discountPercentage,
-        discountAmount: p.DiscountAmount !== undefined ? p.DiscountAmount : p.discountAmount,
-        startDate: p.StartDate || p.startDate || "",
-        endDate: p.EndDate || p.endDate || "",
-        isActive: p.IsActive !== undefined ? p.IsActive : (p.isActive !== undefined ? p.isActive : false),
-        status: p.Status || p.status,
-        createdAt: p.CreatedAt || p.createdAt,
-        updatedAt: p.UpdatedAt || p.updatedAt,
-      }));
-    };
-
-    // Normalize single promotion
-    const normalizePromotion = (promo: any): PromotionDTO | null => {
-      if (!promo) return null;
-      return {
-        promotionId: promo.PromotionId || promo.promotionId || 0,
-        condotelId: promo.CondotelId || promo.condotelId || 0,
-        condotelName: promo.CondotelName || promo.condotelName,
-        name: promo.Name || promo.name || promo.Title || promo.title || "",
-        description: promo.Description || promo.description,
-        discountPercentage: promo.DiscountPercentage !== undefined ? promo.DiscountPercentage : promo.discountPercentage,
-        discountAmount: promo.DiscountAmount !== undefined ? promo.DiscountAmount : promo.discountAmount,
-        startDate: promo.StartDate || promo.startDate || "",
-        endDate: promo.EndDate || promo.endDate || "",
-        isActive: promo.IsActive !== undefined ? promo.IsActive : (promo.isActive !== undefined ? promo.isActive : false),
-        status: promo.Status || promo.status,
-        createdAt: promo.CreatedAt || promo.createdAt,
-        updatedAt: promo.UpdatedAt || promo.updatedAt,
-      };
-    };
-
     const rawAmenities = data.Amenities || data.amenities || [];
     const rawUtilities = data.Utilities || data.utilities || [];
     const rawPromotions = data.Promotions || data.promotions || [];
     const rawActivePromotion = data.ActivePromotion || data.activePromotion;
+    const rawActivePrice = data.ActivePrice || data.activePrice;
 
     const normalizedAmenities = normalizeAmenities(rawAmenities);
     const normalizedUtilities = normalizeUtilities(rawUtilities);
     const normalizedPromotions = normalizePromotions(rawPromotions);
     const normalizedActivePromotion = normalizePromotion(rawActivePromotion);
+    
+    // Normalize activePrice
+    const normalizedActivePrice = rawActivePrice ? {
+      priceId: rawActivePrice.PriceId || rawActivePrice.priceId,
+      startDate: rawActivePrice.StartDate || rawActivePrice.startDate,
+      endDate: rawActivePrice.EndDate || rawActivePrice.endDate,
+      basePrice: rawActivePrice.BasePrice !== undefined ? rawActivePrice.BasePrice : rawActivePrice.basePrice,
+      priceType: rawActivePrice.PriceType || rawActivePrice.priceType,
+      description: rawActivePrice.Description || rawActivePrice.description,
+    } : null;
 
-    console.log("✅ Normalized Amenities:", normalizedAmenities);
-    console.log("✅ Normalized Utilities:", normalizedUtilities);
-    console.log("✅ Normalized Promotions:", normalizedPromotions);
-    console.log("✅ Normalized ActivePromotion:", normalizedActivePromotion);
+    logger.group(`Condotel ${id} - Normalized Data`, () => {
+      logger.debug("Normalized Amenities:", normalizedAmenities);
+      logger.debug("Normalized Utilities:", normalizedUtilities);
+      logger.debug("Normalized Promotions:", normalizedPromotions);
+      logger.debug("Normalized ActivePromotion:", normalizedActivePromotion);
+      logger.debug("Normalized ActivePrice:", normalizedActivePrice);
+    });
+
+    // Normalize Resort object nếu có
+    const resort = data.Resort || data.resort;
+    const resortAddress = resort?.Address || resort?.address || data.ResortAddress || data.resortAddress || "";
 
     // Normalize response - map PascalCase to camelCase
     return {
@@ -383,6 +403,10 @@ export const condotelAPI = {
       status: data.Status || data.status,
       hostName: data.HostName || data.hostName,
       hostImageUrl: data.HostImageUrl || data.hostImageUrl,
+      resortName: resort?.Name || resort?.name || data.ResortName || data.resortName,
+      resortAddress: resortAddress,
+      reviewCount: data.ReviewCount !== undefined ? data.ReviewCount : data.reviewCount,
+      reviewRate: data.ReviewRate !== undefined ? data.ReviewRate : data.reviewRate,
       images: data.Images || data.images || [],
       prices: data.Prices || data.prices || [],
       details: data.Details || data.details || [],
@@ -390,6 +414,7 @@ export const condotelAPI = {
       utilities: normalizedUtilities,
       promotions: normalizedPromotions,
       activePromotion: normalizedActivePromotion,
+      activePrice: normalizedActivePrice,
     };
   },
 
@@ -401,6 +426,59 @@ export const condotelAPI = {
   // GET /api/tenant/condotels?locationId=... - Tìm kiếm condotel theo location ID (public, không cần đăng nhập)
   getCondotelsByLocationId: async (locationId: number): Promise<CondotelDTO[]> => {
     return condotelAPI.search({ locationId });
+  },
+
+  // GET /api/tenant/condotels/host/{hostId} - Lấy condotels theo host ID (public, không cần đăng nhập)
+  getCondotelsByHostId: async (hostId: number): Promise<CondotelDTO[]> => {
+    try {
+      const response = await axiosClient.get<any>(`/tenant/condotels/host/${hostId}`);
+      const data = response.data;
+      
+      // Handle response format: { success: true, data: [...] } or array
+      let condotels: any[] = [];
+      if (data && typeof data === 'object') {
+        if (data.success && data.data && Array.isArray(data.data)) {
+          condotels = data.data;
+        } else if (Array.isArray(data)) {
+          condotels = data;
+        } else if (data.data && Array.isArray(data.data)) {
+          condotels = data.data;
+        } else if (data.Data && Array.isArray(data.Data)) {
+          condotels = data.Data;
+        }
+      }
+      
+      // Normalize response - map PascalCase to camelCase
+      return condotels.map((item: any) => {
+        const normalizedActivePrice = item.ActivePrice || item.activePrice ? {
+          priceId: item.ActivePrice?.PriceId || item.activePrice?.priceId,
+          startDate: item.ActivePrice?.StartDate || item.activePrice?.startDate,
+          endDate: item.ActivePrice?.EndDate || item.activePrice?.endDate,
+          basePrice: item.ActivePrice?.BasePrice !== undefined ? item.ActivePrice.BasePrice : item.activePrice?.basePrice,
+          priceType: item.ActivePrice?.PriceType || item.activePrice?.priceType,
+          description: item.ActivePrice?.Description || item.activePrice?.description,
+        } : null;
+
+        return {
+          condotelId: item.CondotelId || item.condotelId,
+          name: item.Name || item.name,
+          pricePerNight: item.PricePerNight !== undefined ? item.PricePerNight : item.pricePerNight,
+          beds: item.Beds !== undefined ? item.Beds : item.beds,
+          bathrooms: item.Bathrooms !== undefined ? item.Bathrooms : item.bathrooms,
+          status: item.Status || item.status,
+          thumbnailUrl: item.ThumbnailUrl || item.thumbnailUrl,
+          resortName: item.ResortName || item.resortName,
+          hostName: item.HostName || item.hostName,
+          reviewCount: item.ReviewCount !== undefined ? item.ReviewCount : item.reviewCount,
+          reviewRate: item.ReviewRate !== undefined ? item.ReviewRate : item.reviewRate,
+          activePromotion: normalizePromotion(item.ActivePromotion || item.activePromotion),
+          activePrice: normalizedActivePrice,
+        };
+      });
+    } catch (err: any) {
+      logger.error(`Error fetching condotels for host ${hostId}:`, err);
+      return [];
+    }
   },
 
   // GET /api/tenant/condotels/{id}/amenities - Lấy danh sách amenities của condotel (public)
@@ -493,7 +571,19 @@ export const condotelAPI = {
       };
     };
 
-    return data.map((item: any) => ({
+    return data.map((item: any) => {
+      // Normalize activePrice
+      const rawActivePrice = item.ActivePrice || item.activePrice;
+      const normalizedActivePrice = rawActivePrice ? {
+        priceId: rawActivePrice.PriceId || rawActivePrice.priceId,
+        startDate: rawActivePrice.StartDate || rawActivePrice.startDate,
+        endDate: rawActivePrice.EndDate || rawActivePrice.endDate,
+        basePrice: rawActivePrice.BasePrice !== undefined ? rawActivePrice.BasePrice : rawActivePrice.basePrice,
+        priceType: rawActivePrice.PriceType || rawActivePrice.priceType,
+        description: rawActivePrice.Description || rawActivePrice.description,
+      } : null;
+
+      return {
       condotelId: item.CondotelId || item.condotelId,
       name: item.Name || item.name,
       pricePerNight: item.PricePerNight !== undefined ? item.PricePerNight : item.pricePerNight,
@@ -504,94 +594,60 @@ export const condotelAPI = {
       resortName: item.ResortName || item.resortName,
       hostName: item.HostName || item.hostName,
       activePromotion: normalizePromotion(item.ActivePromotion || item.activePromotion),
-    }));
+        activePrice: normalizedActivePrice,
+      };
+    });
   },
 
   // GET /api/host/condotel/{id} - Lấy condotel theo ID của host (cần đăng nhập)
   getByIdForHost: async (id: number): Promise<CondotelDetailDTO> => {
     const response = await axiosClient.get<any>(`/host/condotel/${id}`);
     const data = response.data;
+    
+    // Handle response wrapper: { success: true, data: {...} }
+    const actualData = data.success && data.data ? data.data : data;
 
-    // Reuse normalization functions from getById
-    const normalizeAmenities = (amenities: any[]): AmenityDTO[] => {
-      if (!amenities || !Array.isArray(amenities)) return [];
-      return amenities.map((a: any) => ({
-        amenityId: a.AmenityId || a.amenityId || a.Id || a.id,
-        name: a.Name || a.name,
-      }));
-    };
+    const rawAmenities = actualData.Amenities || actualData.amenities || [];
+    const rawUtilities = actualData.Utilities || actualData.utilities || [];
+    const rawPromotions = actualData.Promotions || actualData.promotions || [];
+    const rawActivePromotion = actualData.ActivePromotion || actualData.activePromotion;
+    const rawActivePrice = actualData.ActivePrice || actualData.activePrice;
 
-    const normalizeUtilities = (utilities: any[]): UtilityDTO[] => {
-      if (!utilities || !Array.isArray(utilities)) return [];
-      return utilities.map((u: any) => ({
-        utilityId: u.UtilityId || u.utilityId || u.Id || u.id,
-        name: u.Name || u.name,
-      }));
-    };
+    // Normalize activePrice
+    const normalizedActivePrice = rawActivePrice ? {
+      priceId: rawActivePrice.PriceId || rawActivePrice.priceId,
+      startDate: rawActivePrice.StartDate || rawActivePrice.startDate,
+      endDate: rawActivePrice.EndDate || rawActivePrice.endDate,
+      basePrice: rawActivePrice.BasePrice !== undefined ? rawActivePrice.BasePrice : rawActivePrice.basePrice,
+      priceType: rawActivePrice.PriceType || rawActivePrice.priceType,
+      description: rawActivePrice.Description || rawActivePrice.description,
+    } : null;
 
-    const normalizePromotions = (promotions: any[]): PromotionDTO[] => {
-      if (!promotions || !Array.isArray(promotions)) return [];
-      return promotions.map((p: any) => ({
-        promotionId: p.PromotionId || p.promotionId || 0,
-        condotelId: p.CondotelId || p.condotelId || 0,
-        condotelName: p.CondotelName || p.condotelName,
-        name: p.Name || p.name || p.Title || p.title || "",
-        description: p.Description || p.description,
-        discountPercentage: p.DiscountPercentage !== undefined ? p.DiscountPercentage : p.discountPercentage,
-        discountAmount: p.DiscountAmount !== undefined ? p.DiscountAmount : p.discountAmount,
-        startDate: p.StartDate || p.startDate || "",
-        endDate: p.EndDate || p.endDate || "",
-        isActive: p.IsActive !== undefined ? p.IsActive : (p.isActive !== undefined ? p.isActive : false),
-        status: p.Status || p.status,
-        createdAt: p.CreatedAt || p.createdAt,
-        updatedAt: p.UpdatedAt || p.updatedAt,
-      }));
-    };
-
-    const normalizePromotion = (promo: any): PromotionDTO | null => {
-      if (!promo) return null;
-      return {
-        promotionId: promo.PromotionId || promo.promotionId || 0,
-        condotelId: promo.CondotelId || promo.condotelId || 0,
-        condotelName: promo.CondotelName || promo.condotelName,
-        name: promo.Name || promo.name || promo.Title || promo.title || "",
-        description: promo.Description || promo.description,
-        discountPercentage: promo.DiscountPercentage !== undefined ? promo.DiscountPercentage : promo.discountPercentage,
-        discountAmount: promo.DiscountAmount !== undefined ? promo.DiscountAmount : promo.discountAmount,
-        startDate: promo.StartDate || promo.startDate || "",
-        endDate: promo.EndDate || promo.endDate || "",
-        isActive: promo.IsActive !== undefined ? promo.IsActive : (promo.isActive !== undefined ? promo.isActive : false),
-        status: promo.Status || promo.status,
-        createdAt: promo.CreatedAt || promo.createdAt,
-        updatedAt: promo.UpdatedAt || promo.updatedAt,
-      };
-    };
-
-    const rawAmenities = data.Amenities || data.amenities || [];
-    const rawUtilities = data.Utilities || data.utilities || [];
-    const rawPromotions = data.Promotions || data.promotions || [];
-    const rawActivePromotion = data.ActivePromotion || data.activePromotion;
-
-    return {
-      condotelId: data.CondotelId || data.condotelId,
-      hostId: data.HostId || data.hostId,
-      resortId: data.ResortId || data.resortId,
-      name: data.Name || data.name,
-      description: data.Description || data.description,
-      pricePerNight: data.PricePerNight !== undefined ? data.PricePerNight : data.pricePerNight,
-      beds: data.Beds !== undefined ? data.Beds : data.beds,
-      bathrooms: data.Bathrooms !== undefined ? data.Bathrooms : data.bathrooms,
-      status: data.Status || data.status,
-      hostName: data.HostName || data.hostName,
-      hostImageUrl: data.HostImageUrl || data.hostImageUrl,
-      images: data.Images || data.images || [],
-      prices: data.Prices || data.prices || [],
-      details: data.Details || data.details || [],
+    const result = {
+      condotelId: actualData.CondotelId || actualData.condotelId,
+      hostId: actualData.HostId || actualData.hostId,
+      resortId: actualData.ResortId !== undefined ? actualData.ResortId : (actualData.resortId !== undefined ? actualData.resortId : undefined),
+      name: actualData.Name || actualData.name || "",
+      description: actualData.Description || actualData.description || "",
+      pricePerNight: actualData.PricePerNight !== undefined ? actualData.PricePerNight : (actualData.pricePerNight !== undefined ? actualData.pricePerNight : 0),
+      beds: actualData.Beds !== undefined ? actualData.Beds : (actualData.beds !== undefined ? actualData.beds : 1),
+      bathrooms: actualData.Bathrooms !== undefined ? actualData.Bathrooms : (actualData.bathrooms !== undefined ? actualData.bathrooms : 1),
+      status: actualData.Status || actualData.status || "Inactive",
+      hostName: actualData.HostName || actualData.hostName,
+      hostImageUrl: actualData.HostImageUrl || actualData.hostImageUrl,
+      reviewCount: actualData.ReviewCount !== undefined ? actualData.ReviewCount : actualData.reviewCount,
+      reviewRate: actualData.ReviewRate !== undefined ? actualData.ReviewRate : actualData.reviewRate,
+      images: actualData.Images || actualData.images || [],
+      prices: actualData.Prices || actualData.prices || [],
+      details: actualData.Details || actualData.details || [],
       amenities: normalizeAmenities(rawAmenities),
       utilities: normalizeUtilities(rawUtilities),
       promotions: normalizePromotions(rawPromotions),
       activePromotion: normalizePromotion(rawActivePromotion),
+      activePrice: normalizedActivePrice,
     };
+    
+    return result;
   },
 
   // POST /api/host/condotel - Tạo condotel mới
@@ -655,13 +711,35 @@ export const condotelAPI = {
       requestData.UtilityIds = condotel.utilityIds;
     }
 
-    console.log("📤 Creating condotel with data:", JSON.stringify(requestData, null, 2));
+    const response = await axiosClient.post<any>("/host/condotel", requestData);
+    const data = response.data;
 
-    const response = await axiosClient.post<CondotelDetailDTO>("/host/condotel", requestData);
+    // Normalize response to CondotelDetailDTO
+    const rawAmenities = data.Amenities || data.amenities || [];
+    const rawUtilities = data.Utilities || data.utilities || [];
+    const rawPromotions = data.Promotions || data.promotions || [];
+    const rawActivePromotion = data.ActivePromotion || data.activePromotion;
 
-    console.log("✅ Condotel created successfully:", response.data);
-
-    return response.data;
+    return {
+      condotelId: data.CondotelId || data.condotelId,
+      hostId: data.HostId || data.hostId,
+      resortId: data.ResortId || data.resortId,
+      name: data.Name || data.name,
+      description: data.Description || data.description,
+      pricePerNight: data.PricePerNight !== undefined ? data.PricePerNight : data.pricePerNight,
+      beds: data.Beds !== undefined ? data.Beds : data.beds,
+      bathrooms: data.Bathrooms !== undefined ? data.Bathrooms : data.bathrooms,
+      status: data.Status || data.status,
+      hostName: data.HostName || data.hostName,
+      hostImageUrl: data.HostImageUrl || data.hostImageUrl,
+      images: data.Images || data.images || [],
+      prices: data.Prices || data.prices || [],
+      details: data.Details || data.details || [],
+      amenities: normalizeAmenities(rawAmenities),
+      utilities: normalizeUtilities(rawUtilities),
+      promotions: normalizePromotions(rawPromotions),
+      activePromotion: normalizePromotion(rawActivePromotion),
+    };
   },
 
   // PUT /api/condotel/{id} - Cập nhật condotel

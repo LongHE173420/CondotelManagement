@@ -12,6 +12,7 @@ import Heading2 from "components/Heading/Heading2";
 import condotelAPI, { CondotelDTO } from "api/condotel";
 import { useTranslation } from "i18n/LanguageContext";
 import moment from "moment";
+import { toastError } from "utils/toast";
 
 // Default coordinates for Vietnam (center of Vietnam)
 const DEFAULT_VIETNAM_CENTER = {
@@ -74,9 +75,46 @@ const SectionGridHasMap: FC<SectionGridHasMapProps> = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const params = useMemo(() => new URLSearchParams(location.search), [location.search]);
-  const searchLocation = params.get("location");
+  const params = useMemo(() => {
+    // Use window.location.search as fallback if React Router location.search is empty
+    const searchString = location.search || window.location.search;
+    const urlParams = new URLSearchParams(searchString);
+    return urlParams;
+  }, [location.search]);
+  
+  // Get location param - validate it's not a date format
+  // URLSearchParams.get() only returns the FIRST value if there are multiple params with same name
+  // So we need to check all location params
+  let searchLocation: string | null = null;
+  
+  // Get all location params (if URL has multiple location params)
+  const allLocationParams: string[] = [];
+  params.forEach((value, key) => {
+    if (key === "location") {
+      allLocationParams.push(value);
+    }
+  });
+  
+  // Find the first location that is NOT a date format
+  for (const loc of allLocationParams) {
+    // Check if it looks like a date (DD/MM/YYYY, DD-MM-YYYY, YYYY-MM-DD, etc.)
+    const isDate = /^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}$/.test(loc) || /^\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}$/.test(loc);
+    if (!isDate && loc.trim().length > 0) {
+      searchLocation = loc.trim();
+      break;
+    }
+  }
+  
+  // Fallback: if no valid location found, try params.get() (gets first value)
+  if (!searchLocation) {
+    const firstLocation = params.get("location");
+    if (firstLocation && !/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}$/.test(firstLocation) && !/^\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}$/.test(firstLocation)) {
+      searchLocation = firstLocation.trim();
+    }
+  }
+  
   const searchLocationId = params.get("locationId");
+  const searchHostId = params.get("hostId");
   const searchFromDate = params.get("startDate");
   const searchToDate = params.get("endDate");
   const searchGuests = params.get("guests");
@@ -84,6 +122,19 @@ const SectionGridHasMap: FC<SectionGridHasMapProps> = () => {
   const maxPrice = params.get("maxPrice");
   const beds = params.get("beds");
   const bathrooms = params.get("bathrooms");
+  
+  console.log("🔍 SectionGridHasMap - Parsed values:", {
+    searchLocation,
+    searchLocationId,
+    searchHostId,
+    searchFromDate,
+    searchToDate,
+    searchGuests,
+    minPrice,
+    maxPrice,
+    beds,
+    bathrooms
+  });
 
   useEffect(() => {
     const fetchCondotels = async () => {
@@ -91,17 +142,34 @@ const SectionGridHasMap: FC<SectionGridHasMapProps> = () => {
         setLoading(true);
         setError("");
         
+        console.log("🔍 SectionGridHasMap - Current URL params:", location.search);
+        console.log("🔍 SectionGridHasMap - searchLocation:", searchLocation);
+        console.log("🔍 SectionGridHasMap - searchLocationId:", searchLocationId);
+        
         // Build search query
         const searchQuery: any = {};
         
-        // Ưu tiên locationId hơn location string
-        if (searchLocationId) {
-          const locationId = Number(searchLocationId);
-          if (!isNaN(locationId)) {
-            searchQuery.locationId = locationId;
+        // Host ID filter (ưu tiên cao nhất)
+        if (searchHostId) {
+          const hostId = Number(searchHostId);
+          if (!isNaN(hostId)) {
+            searchQuery.hostId = hostId;
+            console.log("🔍 Using hostId:", hostId);
           }
-        } else if (searchLocation) {
-          searchQuery.location = searchLocation;
+        }
+        
+        // Ưu tiên locationId hơn location string (chỉ nếu không có hostId)
+        if (!searchHostId) {
+          if (searchLocationId) {
+            const locationId = Number(searchLocationId);
+            if (!isNaN(locationId)) {
+              searchQuery.locationId = locationId;
+              console.log("🔍 Using locationId:", locationId);
+            }
+          } else if (searchLocation) {
+            searchQuery.location = searchLocation;
+            console.log("🔍 Using location:", searchLocation);
+          }
         }
         
         if (searchFromDate) {
@@ -140,7 +208,22 @@ const SectionGridHasMap: FC<SectionGridHasMapProps> = () => {
         }
         
         // Use new search API with all parameters
-        const results = await condotelAPI.search(searchQuery);
+        console.log("🔍 SectionGridHasMap - Final searchQuery:", searchQuery);
+        
+        // Nếu có hostId, sử dụng API riêng để lấy condotels của host
+        let results: CondotelDTO[] = [];
+        if (searchHostId) {
+          const hostId = Number(searchHostId);
+          if (!isNaN(hostId)) {
+            console.log("🏠 Fetching condotels for host:", hostId);
+            results = await condotelAPI.getCondotelsByHostId(hostId);
+            console.log("✅ Loaded condotels for host:", results.length);
+          }
+        } else {
+          results = await condotelAPI.search(searchQuery);
+          console.log("🔍 SectionGridHasMap - Results count:", results.length);
+        }
+        
         setCondotels(results);
       } catch (err: any) {
         console.error("Error fetching condotels:", err);
@@ -152,7 +235,7 @@ const SectionGridHasMap: FC<SectionGridHasMapProps> = () => {
     };
 
     fetchCondotels();
-  }, [location.search]); // Use location.search to trigger on any URL param change
+  }, [location.search, searchLocation, searchLocationId, searchHostId, searchFromDate, searchToDate, minPrice, maxPrice, beds, bathrooms]); // Trigger when any search param changes
 
   // Convert condotels to StayDataType for display
   const stayListings: StayDataType[] = condotels.map(convertCondotelToStay);

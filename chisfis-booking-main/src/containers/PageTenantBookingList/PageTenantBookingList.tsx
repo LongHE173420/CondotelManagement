@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import bookingAPI, { BookingDTO } from "api/booking";
+import moment from "moment";
+import { toastSuccess, showErrorMessage } from "utils/toast";
 
 // --- Định nghĩa kiểu dữ liệu ---
 type BookingStatusVN = "Đã xác nhận" | "Đang xử lý" | "Đã hủy" | "Hoàn thành";
@@ -68,16 +70,29 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
 };
 
 // Kiểm tra xem booking có thể hoàn tiền không
-// Chỉ cho phép refund nếu:
-// 1. Booking status = "Cancelled"
-// 2. Booking đã thanh toán trước đó (có totalPrice > 0)
-// 3. Hủy trong vòng 2 ngày
-// KHÔNG cho phép refund nếu booking bị cancel payment (chưa thanh toán)
+// Sử dụng field canRefund từ API response (Option 1)
+// Fallback về logic cũ nếu canRefund không có trong response
 const canRefund = (booking: BookingDTO): boolean => {
+    // Chỉ cho phép yêu cầu hoàn tiền nếu:
+    // 1. Booking status = "Cancelled"
+    // 2. refundStatus = null (chưa có refund request)
+    // 3. canRefund = true (từ backend)
+    
     if (booking.status?.toLowerCase() !== "cancelled") {
         return false;
     }
     
+    // Nếu đã có refund request (refundStatus không null), không cho phép tạo request mới
+    if (booking.refundStatus !== null && booking.refundStatus !== undefined) {
+        return false;
+    }
+    
+    // Ưu tiên sử dụng field canRefund từ backend
+    if (booking.canRefund !== undefined) {
+        return booking.canRefund;
+    }
+    
+    // Fallback: Logic cũ nếu backend chưa trả về canRefund
     // Phân biệt Cancel Payment vs Cancel Booking:
     // - Cancel Payment: Booking chưa thanh toán (totalPrice = 0 hoặc null) → không refund
     // - Cancel Booking: Booking đã thanh toán (totalPrice > 0) → có refund
@@ -104,8 +119,8 @@ const canRefund = (booking: BookingDTO): boolean => {
 // Kiểm tra xem booking có thể hủy không
 const canCancel = (booking: BookingDTO): boolean => {
     const status = booking.status?.toLowerCase();
-    // Chỉ cho phép hủy nếu status là Pending hoặc Confirmed
-    return status === "pending" || status === "confirmed";
+    // Chỉ cho phép hủy nếu status là Confirmed (không cho phép hủy khi đang xử lý - Pending)
+    return status === "confirmed";
 };
 
 // --- [NÂNG CẤP UI] Component Nút Thao tác ---
@@ -150,6 +165,149 @@ const ActionButtons: React.FC<{
     );
 };
 
+// --- Component Modal Chi tiết Thanh toán ---
+const PaymentDetailModal: React.FC<{ 
+    booking: BookingDTO | null; 
+    isOpen: boolean; 
+    onClose: () => void;
+    navigate: (path: string) => void;
+}> = ({ booking, isOpen, onClose, navigate }) => {
+    if (!isOpen || !booking) return null;
+
+    const statusVN = mapStatusToVN(booking.status || "Pending");
+    const isPending = booking.status?.toLowerCase() === "pending";
+
+    const handleRetryPayment = () => {
+        if (booking.bookingId) {
+            navigate(`/checkout?bookingId=${booking.bookingId}&retry=true`);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+            <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+                <div className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onClick={onClose}></div>
+                
+                <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                    <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-semibold text-gray-900">
+                                Chi tiết thanh toán
+                            </h3>
+                            <button
+                                onClick={onClose}
+                                className="text-gray-400 hover:text-gray-500"
+                            >
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        
+                        <div className="space-y-4">
+                            <div className="flex justify-between">
+                                <span className="text-sm font-medium text-gray-500">Mã booking</span>
+                                <span className="text-sm text-gray-900">#{booking.bookingId}</span>
+                            </div>
+                            
+                            <div className="flex justify-between">
+                                <span className="text-sm font-medium text-gray-500">Trạng thái</span>
+                                <StatusBadge status={booking.status || "Pending"} />
+                            </div>
+                            
+                            {isPending && (
+                                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                                    <p className="text-sm text-yellow-800">
+                                        <strong>Lưu ý:</strong> Booking đang ở trạng thái "{statusVN}". 
+                                        Hệ thống đang xác nhận thanh toán của bạn. 
+                                        Nếu bạn đã hoàn tất thanh toán, vui lòng đợi vài giây để hệ thống cập nhật trạng thái.
+                                    </p>
+                                </div>
+                            )}
+                            
+                            {/* Hiển thị refund status nếu booking đã bị hủy */}
+                            {booking.status?.toLowerCase() === "cancelled" && booking.refundStatus && (
+                                <div className={`rounded-lg p-3 ${
+                                    booking.refundStatus === "Pending" ? "bg-yellow-50 border border-yellow-200" :
+                                    booking.refundStatus === "Refunded" || booking.refundStatus === "Completed" ? "bg-green-50 border border-green-200" :
+                                    "bg-gray-50 border border-gray-200"
+                                }`}>
+                                    <p className={`text-sm ${
+                                        booking.refundStatus === "Pending" ? "text-yellow-800" :
+                                        booking.refundStatus === "Refunded" || booking.refundStatus === "Completed" ? "text-green-800" :
+                                        "text-gray-800"
+                                    }`}>
+                                        <strong>Trạng thái hoàn tiền:</strong> {
+                                            booking.refundStatus === "Pending" ? "Đang chờ hoàn tiền" :
+                                            booking.refundStatus === "Refunded" ? "Đã hoàn tiền thành công (PayOS)" :
+                                            booking.refundStatus === "Completed" ? "Đã hoàn tiền thủ công" :
+                                            booking.refundStatus
+                                        }
+                                    </p>
+                                </div>
+                            )}
+                            
+                            <div className="flex justify-between">
+                                <span className="text-sm font-medium text-gray-500">Tổng tiền</span>
+                                <span className="text-sm font-semibold text-gray-900">
+                                    {formatPrice(booking.totalPrice)}
+                                </span>
+                            </div>
+                            
+                            <div className="flex justify-between">
+                                <span className="text-sm font-medium text-gray-500">Ngày đặt</span>
+                                <span className="text-sm text-gray-900">
+                                    {formatDate(booking.createdAt)}
+                                </span>
+                            </div>
+                            
+                            <div className="flex justify-between">
+                                <span className="text-sm font-medium text-gray-500">Phương thức thanh toán</span>
+                                <span className="text-sm text-gray-900">PayOS</span>
+                            </div>
+                            
+                            {booking.promotionId && (
+                                <div className="flex justify-between">
+                                    <span className="text-sm font-medium text-gray-500">Khuyến mãi</span>
+                                    <span className="text-sm text-green-600">Đã áp dụng</span>
+                                </div>
+                            )}
+                            
+                            <div className="pt-4 border-t border-gray-200">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-base font-semibold text-gray-900">Tổng thanh toán</span>
+                                    <span className="text-lg font-bold text-gray-900">
+                                        {formatPrice(booking.totalPrice)}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse gap-2">
+                        {isPending && (
+                            <button
+                                type="button"
+                                onClick={handleRetryPayment}
+                                className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none sm:w-auto sm:text-sm"
+                            >
+                                💳 Thanh toán lại
+                            </button>
+                        )}
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm"
+                        >
+                            Đóng
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 // --- Component Trang Quản lý Booking (Tenant) ---
 const PageTenantBookings = () => {
     const navigate = useNavigate();
@@ -158,6 +316,8 @@ const PageTenantBookings = () => {
     const [error, setError] = useState("");
     const [sortBy, setSortBy] = useState("newest");
     const [cancellingId, setCancellingId] = useState<number | null>(null);
+    const [selectedBooking, setSelectedBooking] = useState<BookingDTO | null>(null);
+    const [showPaymentModal, setShowPaymentModal] = useState(false);
 
     // Fetch bookings từ API
     useEffect(() => {
@@ -191,7 +351,6 @@ const PageTenantBookings = () => {
                 }
                 setBookings(sortedData);
             } catch (err: any) {
-                console.error("Error fetching bookings:", err);
                 setError("Không thể tải danh sách đặt phòng. Vui lòng thử lại sau.");
             } finally {
                 setLoading(false);
@@ -236,7 +395,7 @@ const PageTenantBookings = () => {
                 }
             }
             
-            alert("Đã hủy đặt phòng thành công. Nếu hủy trong vòng 2 ngày, bạn có thể yêu cầu hoàn tiền.");
+            toastSuccess("Đã hủy đặt phòng thành công. Nếu hủy trong vòng 2 ngày, bạn có thể yêu cầu hoàn tiền.", { autoClose: 5000 });
             
             // Reload bookings để cập nhật trạng thái
             const data = await bookingAPI.getMyBookings();
@@ -265,12 +424,7 @@ const PageTenantBookings = () => {
             }
             setBookings(sortedData);
         } catch (err: any) {
-            console.error("Error cancelling booking:", err);
-            alert(
-                err.response?.data?.message || 
-                err.message || 
-                "Không thể hủy đặt phòng. Vui lòng thử lại sau."
-            );
+            showErrorMessage("Hủy đặt phòng", err);
         } finally {
             setCancellingId(null);
         }
@@ -350,7 +504,7 @@ const PageTenantBookings = () => {
                                         </td>
                                         <td className="px-5 py-4 whitespace-nowrap align-middle">
                                             <img 
-                                                src={booking.condotelImageUrl || "https://via.placeholder.com/96x64?text=No+Image"} 
+                                                src={booking.condotelImageUrl || ""}
                                                 alt={booking.condotelName || "Condotel"} 
                                                 className="w-24 h-16 object-cover rounded-lg shadow-sm" 
                                             />
@@ -366,7 +520,18 @@ const PageTenantBookings = () => {
                                             <div className="text-xs text-gray-400">→ {formatDate(booking.endDate)}</div>
                                         </td>
                                         <td className="px-5 py-4 whitespace-nowrap text-sm font-medium text-gray-800 align-middle">
-                                            {formatPrice(booking.totalPrice)}
+                                            <div className="flex flex-col">
+                                                <span>{formatPrice(booking.totalPrice)}</span>
+                                                <button
+                                                    onClick={() => {
+                                                        setSelectedBooking(booking);
+                                                        setShowPaymentModal(true);
+                                                    }}
+                                                    className="text-xs text-blue-600 hover:text-blue-800 underline mt-1"
+                                                >
+                                                    Xem chi tiết
+                                                </button>
+                                            </div>
                                         </td>
                                         <td className="px-5 py-4 whitespace-nowrap align-middle">
                                             <StatusBadge status={booking.status || "Pending"} />
@@ -399,6 +564,17 @@ const PageTenantBookings = () => {
                     </div>
                 )}
             </div>
+            
+            {/* Payment Detail Modal */}
+            <PaymentDetailModal
+                booking={selectedBooking}
+                isOpen={showPaymentModal}
+                onClose={() => {
+                    setShowPaymentModal(false);
+                    setSelectedBooking(null);
+                }}
+                navigate={navigate}
+            />
         </div>
     );
 };

@@ -96,39 +96,79 @@ const StaySearchForm: FC<StaySearchFormProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Build search params
-    const params = new URLSearchParams();
-    
-    if (locationInputValue) {
-      params.set("location", locationInputValue);
-    }
-    
-    if (dateRangeValue.startDate) {
-      params.set("startDate", dateRangeValue.startDate.format("YYYY-MM-DD"));
-    }
-    
-    if (dateRangeValue.endDate) {
-      params.set("endDate", dateRangeValue.endDate.format("YYYY-MM-DD"));
-    }
-    
-    // Calculate total guests
-    const totalGuests = 
-      (guestValue.guestAdults || 0) + 
-      (guestValue.guestChildren || 0) + 
-      (guestValue.guestInfants || 0);
-    
-    if (totalGuests > 0) {
-      params.set("guests", totalGuests.toString());
-    }
+    try {
+      // Get the latest location value from the form input as well
+      const form = e.currentTarget as HTMLFormElement;
+      const locationInput = form.querySelector('input[type="text"]') as HTMLInputElement;
+      const currentLocationValue = locationInput?.value?.trim() || locationInputValue?.trim() || "";
+      
+      // Build search params - IMPORTANT: Set location FIRST, then dates
+      const params = new URLSearchParams();
+      
+      // Set location FIRST to ensure it's not overwritten
+      if (currentLocationValue && currentLocationValue.trim()) {
+        const trimmedLocation = currentLocationValue.trim();
+        // Validate location is not a date format
+        if (!/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(trimmedLocation)) {
+          params.set("location", trimmedLocation);
+        }
+      }
+      
+      // Then set dates
+      if (dateRangeValue.startDate) {
+        params.set("startDate", dateRangeValue.startDate.format("YYYY-MM-DD"));
+      }
+      
+      if (dateRangeValue.endDate) {
+        params.set("endDate", dateRangeValue.endDate.format("YYYY-MM-DD"));
+      }
+      
+      // Calculate total guests
+      const totalGuests = 
+        (guestValue.guestAdults || 0) + 
+        (guestValue.guestChildren || 0) + 
+        (guestValue.guestInfants || 0);
+      
+      if (totalGuests > 0) {
+        params.set("guests", totalGuests.toString());
+      }
 
-    // Navigate to listing-stay-map page with search params when location is provided
-    const queryString = params.toString();
-    if (locationInputValue) {
-      // If location is provided, navigate to map view
-      navigate(`/listing-stay-map${queryString ? `?${queryString}` : ""}`);
-    } else {
-      // Otherwise, navigate to list view
-      navigate(`/listing-stay${queryString ? `?${queryString}` : ""}`);
+      // Navigate to listing-stay page with search params
+      const queryString = params.toString();
+      
+      // Validate: location should not be a date format
+      const locationParam = params.get("location");
+      if (locationParam && /^\d{2}\/\d{2}\/\d{4}$/.test(locationParam)) {
+        params.delete("location");
+        // Try to get location from state instead
+        if (currentLocationValue && !/^\d{2}\/\d{2}\/\d{4}$/.test(currentLocationValue)) {
+          params.set("location", currentLocationValue);
+        }
+      }
+      
+      const finalQueryString = params.toString();
+      if (currentLocationValue && currentLocationValue.trim() && !/^\d{2}\/\d{2}\/\d{4}$/.test(currentLocationValue.trim())) {
+        // If location is provided and valid, navigate to map view
+        const finalUrl = `/listing-stay-map${finalQueryString ? `?${finalQueryString}` : ""}`;
+        navigate(finalUrl, { 
+          state: { 
+            searchParams: Object.fromEntries(params),
+            preserveQuery: true 
+          }
+        });
+      } else {
+        // Otherwise, navigate to list view
+        const finalUrl = `/listing-stay${finalQueryString ? `?${finalQueryString}` : ""}`;
+        navigate(finalUrl, { 
+          state: { 
+            searchParams: Object.fromEntries(params),
+            preserveQuery: true 
+          }
+        });
+      }
+    } catch (error) {
+      // Fallback: navigate to listing page without params
+      navigate("/listing-stay");
     }
   };
 
@@ -139,10 +179,15 @@ const StaySearchForm: FC<StaySearchFormProps> = ({
         className="w-full relative mt-8 flex rounded-full shadow-xl dark:shadow-2xl bg-white dark:bg-neutral-800 "
       >
         <LocationInput
-          key={locationInputValue || "location-input"}
           defaultValue={locationInputValue}
-          onChange={(e) => setLocationInputValue(e)}
-          onInputDone={() => setDateFocused("startDate")}
+          onChange={(value) => {
+            setLocationInputValue(value);
+          }}
+          onInputDone={(value) => {
+            // Ensure location is set before focusing date
+            setLocationInputValue(value);
+            setDateFocused("startDate");
+          }}
           className="flex-[1.5]"
         />
         <StayDatesRangeInput

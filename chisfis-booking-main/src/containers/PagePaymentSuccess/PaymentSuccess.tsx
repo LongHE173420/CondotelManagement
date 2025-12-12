@@ -22,13 +22,10 @@ const PaymentSuccess: React.FC = () => {
             if (hasCalledAPI.current) return;
             hasCalledAPI.current = true;
 
-            console.log("Gọi API confirm-payment với OrderCode:", orderCode);
-
             axiosClient
                 // Bỏ /api nếu axiosClient đã config baseURL
                 .get(`/Package/confirm-payment?orderCode=${orderCode}`)
                 .then((res) => {
-                    console.log("API thành công:", res.data);
                     setStatus('success');
 
                     const message = (res.data as any)?.message || "THANH TOÁN THÀNH CÔNG! BẠN ĐÃ LÊN HOST!";
@@ -49,7 +46,6 @@ const PaymentSuccess: React.FC = () => {
                     // ===========================================
                 })
                 .catch((err) => {
-                    console.error("Lỗi API confirm-payment:", err.response?.data || err);
                     setStatus('error');
                     toast.warning("Giao dịch hoàn tất, vui lòng đăng nhập lại để kiểm tra quyền Host.");
 

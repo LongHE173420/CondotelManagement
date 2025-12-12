@@ -1,4 +1,5 @@
 import axiosClient from "./axiosClient";
+import logger from "utils/logger";
 
 // BookingDTO từ backend - khớp với C# DTO
 export interface BookingDTO {
@@ -12,6 +13,8 @@ export interface BookingDTO {
   promotionId?: number; // int? in C#
   isUsingRewardPoints: boolean;
   createdAt: string; // DateTime in C#
+  canRefund?: boolean; // Field từ backend để check xem booking có thể hoàn tiền không
+  refundStatus?: string | null; // "Pending", "Refunded", "Completed", hoặc null (chưa có refund request)
   
   // Thông tin condotel (nếu backend trả về khi join)
   condotelName?: string;
@@ -56,51 +59,80 @@ export interface CheckAvailabilityResponse {
   available: boolean;
 }
 
+// API Response Types (support both PascalCase and camelCase from backend)
+interface BookingResponseRaw {
+  BookingId?: number;
+  bookingId?: number;
+  CondotelId?: number;
+  condotelId?: number;
+  CustomerId?: number;
+  customerId?: number;
+  StartDate?: string;
+  startDate?: string;
+  EndDate?: string;
+  endDate?: string;
+  TotalPrice?: number;
+  totalPrice?: number;
+  Status?: string;
+  status?: string;
+  PromotionId?: number;
+  promotionId?: number;
+  IsUsingRewardPoints?: boolean;
+  isUsingRewardPoints?: boolean;
+  CreatedAt?: string;
+  createdAt?: string;
+  CanRefund?: boolean;
+  canRefund?: boolean;
+  RefundStatus?: string | null;
+  refundStatus?: string | null;
+  CondotelName?: string;
+  condotelName?: string;
+  CondotelImageUrl?: string;
+  condotelImageUrl?: string;
+  CondotelPricePerNight?: number;
+  condotelPricePerNight?: number;
+  CustomerName?: string;
+  customerName?: string;
+  CustomerEmail?: string;
+  customerEmail?: string;
+}
+
+// Helper function to normalize booking response
+const normalizeBooking = (item: BookingResponseRaw): BookingDTO => {
+  return {
+    bookingId: item.BookingId ?? item.bookingId ?? 0,
+    condotelId: item.CondotelId ?? item.condotelId ?? 0,
+    customerId: item.CustomerId ?? item.customerId ?? 0,
+    startDate: item.StartDate ?? item.startDate ?? "",
+    endDate: item.EndDate ?? item.endDate ?? "",
+    totalPrice: item.TotalPrice ?? item.totalPrice,
+    status: item.Status ?? item.status ?? "",
+    promotionId: item.PromotionId ?? item.promotionId,
+    isUsingRewardPoints: item.IsUsingRewardPoints ?? item.isUsingRewardPoints ?? false,
+    createdAt: item.CreatedAt ?? item.createdAt ?? "",
+    canRefund: item.CanRefund ?? item.canRefund,
+    refundStatus: item.RefundStatus ?? item.refundStatus ?? null,
+    condotelName: item.CondotelName ?? item.condotelName,
+    condotelImageUrl: item.CondotelImageUrl ?? item.condotelImageUrl,
+    condotelPricePerNight: item.CondotelPricePerNight ?? item.condotelPricePerNight,
+    customerName: item.CustomerName ?? item.customerName,
+    customerEmail: item.CustomerEmail ?? item.customerEmail,
+  };
+};
+
 // API Calls
 export const bookingAPI = {
   // GET /api/booking/my - Lấy tất cả bookings của tenant hiện tại
   getMyBookings: async (): Promise<BookingDTO[]> => {
-    const response = await axiosClient.get<any[]>("/booking/my");
+    const response = await axiosClient.get<BookingResponseRaw[]>("/booking/my");
     // Normalize response từ backend (PascalCase -> camelCase)
-    return response.data.map((item: any) => ({
-      bookingId: item.BookingId || item.bookingId,
-      condotelId: item.CondotelId || item.condotelId,
-      customerId: item.CustomerId || item.customerId,
-      startDate: item.StartDate || item.startDate,
-      endDate: item.EndDate || item.endDate,
-      totalPrice: item.TotalPrice !== undefined ? item.TotalPrice : item.totalPrice,
-      status: item.Status || item.status,
-      promotionId: item.PromotionId !== undefined ? item.PromotionId : item.promotionId,
-      isUsingRewardPoints: item.IsUsingRewardPoints !== undefined ? item.IsUsingRewardPoints : item.isUsingRewardPoints,
-      createdAt: item.CreatedAt || item.createdAt,
-      // Thông tin condotel nếu có
-      condotelName: item.CondotelName || item.condotelName,
-      condotelImageUrl: item.CondotelImageUrl || item.condotelImageUrl,
-      condotelPricePerNight: item.CondotelPricePerNight !== undefined ? item.CondotelPricePerNight : item.condotelPricePerNight,
-    }));
+    return response.data.map(normalizeBooking);
   },
 
   // GET /api/booking/{id} - Lấy booking theo ID
   getBookingById: async (id: number): Promise<BookingDTO> => {
-    const response = await axiosClient.get<any>(`/booking/${id}`);
-    const data = response.data;
-    // Normalize response từ backend (PascalCase -> camelCase)
-    return {
-      bookingId: data.BookingId || data.bookingId,
-      condotelId: data.CondotelId || data.condotelId,
-      customerId: data.CustomerId || data.customerId,
-      startDate: data.StartDate || data.startDate,
-      endDate: data.EndDate || data.endDate,
-      totalPrice: data.TotalPrice !== undefined ? data.TotalPrice : data.totalPrice,
-      status: data.Status || data.status,
-      promotionId: data.PromotionId !== undefined ? data.PromotionId : data.promotionId,
-      isUsingRewardPoints: data.IsUsingRewardPoints !== undefined ? data.IsUsingRewardPoints : data.isUsingRewardPoints,
-      createdAt: data.CreatedAt || data.createdAt,
-      // Thông tin condotel nếu có
-      condotelName: data.CondotelName || data.condotelName,
-      condotelImageUrl: data.CondotelImageUrl || data.condotelImageUrl,
-      condotelPricePerNight: data.CondotelPricePerNight !== undefined ? data.CondotelPricePerNight : data.condotelPricePerNight,
-    };
+    const response = await axiosClient.get<BookingResponseRaw>(`/booking/${id}`);
+    return normalizeBooking(response.data);
   },
 
   // GET /api/booking/check-availability - Kiểm tra tính khả dụng
@@ -125,7 +157,19 @@ export const bookingAPI = {
   // POST /api/booking - Tạo booking mới
   createBooking: async (booking: CreateBookingDTO): Promise<BookingDTO> => {
     // Map camelCase sang PascalCase để khớp với backend C# DTO
-    const requestData: any = {
+    interface BookingRequestData {
+      CondotelId: number;
+      StartDate: string;
+      EndDate: string;
+      Status: string;
+      CondotelName?: string;
+      PromotionId?: number;
+      VoucherCode?: string;
+      ServicePackages?: Array<{ ServiceId: number; Quantity: number }>;
+      IsUsingRewardPoints?: boolean;
+    }
+    
+    const requestData: BookingRequestData = {
       CondotelId: booking.condotelId,
       StartDate: booking.startDate,
       EndDate: booking.endDate,
@@ -153,42 +197,39 @@ export const bookingAPI = {
       requestData.IsUsingRewardPoints = booking.isUsingRewardPoints;
     }
 
-    console.log("📤 Creating booking with data:", JSON.stringify(requestData, null, 2));
-    console.log("🎫 Voucher code being sent:", booking.voucherCode || "None");
-    console.log("📦 Service packages being sent:", booking.servicePackages?.length || 0);
+    logger.debug("Creating booking with data:", requestData);
+    logger.debug("Voucher code being sent:", booking.voucherCode || "None");
+    logger.debug("Service packages being sent:", booking.servicePackages?.length || 0);
 
-    const response = await axiosClient.post<any>("/booking", requestData);
-    console.log("✅ Booking created successfully:", response.data);
+    interface BookingCreateResponse {
+      success?: boolean;
+      data?: BookingResponseRaw;
+      message?: string;
+    }
+
+    const response = await axiosClient.post<BookingResponseRaw | BookingCreateResponse>("/booking", requestData);
+    logger.debug("Booking created successfully:", response.data);
 
     // Backend returns result with nested Data property (ServiceResult pattern)
     // Response structure: { success: true, data: BookingDTO, message: ... }
     // Or direct BookingDTO if CreatedAtAction returns it directly
-    const responseData: any = response.data;
+    const responseData = response.data as BookingCreateResponse | BookingResponseRaw;
     
     // Extract booking data - could be in responseData.data or responseData directly
-    const data: any = responseData.data || responseData;
+    const data = ('data' in responseData && responseData.data) 
+      ? responseData.data 
+      : (responseData as BookingResponseRaw);
     
-    console.log("📦 Extracted booking data:", data);
+    logger.debug("Extracted booking data:", data);
     
     // Normalize response từ backend (PascalCase -> camelCase)
-    const bookingId = data.BookingId || data.bookingId;
-    if (!bookingId) {
-      console.error("❌ BookingId not found in response:", responseData);
+    const normalized = normalizeBooking(data);
+    if (!normalized.bookingId) {
+      logger.error("BookingId not found in response:", responseData);
       throw new Error("Booking created but BookingId not found in response");
     }
     
-    return {
-      bookingId: bookingId,
-      condotelId: data.CondotelId || data.condotelId,
-      customerId: data.CustomerId || data.customerId,
-      startDate: data.StartDate || data.startDate,
-      endDate: data.EndDate || data.endDate,
-      totalPrice: data.TotalPrice !== undefined ? data.TotalPrice : data.totalPrice,
-      status: data.Status || data.status,
-      promotionId: data.PromotionId !== undefined ? data.PromotionId : data.promotionId,
-      isUsingRewardPoints: data.IsUsingRewardPoints !== undefined ? data.IsUsingRewardPoints : data.isUsingRewardPoints,
-      createdAt: data.CreatedAt || data.createdAt,
-    };
+    return normalized;
   },
 
   // PUT /api/booking/{id} - Cập nhật booking
@@ -197,7 +238,15 @@ export const bookingAPI = {
     booking: UpdateBookingDTO
   ): Promise<BookingDTO> => {
     // Map camelCase sang PascalCase
-    const requestData: any = {
+    interface BookingUpdateRequestData {
+      BookingId: number;
+      StartDate?: string;
+      EndDate?: string;
+      PromotionId?: number;
+      IsUsingRewardPoints?: boolean;
+    }
+
+    const requestData: BookingUpdateRequestData = {
       BookingId: id,
     };
 
@@ -214,21 +263,8 @@ export const bookingAPI = {
       requestData.IsUsingRewardPoints = booking.isUsingRewardPoints;
     }
 
-    const response = await axiosClient.put<any>(`/booking/${id}`, requestData);
-    const data: any = response.data;
-    // Normalize response từ backend (PascalCase -> camelCase)
-    return {
-      bookingId: data.BookingId || data.bookingId,
-      condotelId: data.CondotelId || data.condotelId,
-      customerId: data.CustomerId || data.customerId,
-      startDate: data.StartDate || data.startDate,
-      endDate: data.EndDate || data.endDate,
-      totalPrice: data.TotalPrice !== undefined ? data.TotalPrice : data.totalPrice,
-      status: data.Status || data.status,
-      promotionId: data.PromotionId !== undefined ? data.PromotionId : data.promotionId,
-      isUsingRewardPoints: data.IsUsingRewardPoints !== undefined ? data.IsUsingRewardPoints : data.isUsingRewardPoints,
-      createdAt: data.CreatedAt || data.createdAt,
-    };
+    const response = await axiosClient.put<BookingResponseRaw>(`/booking/${id}`, requestData);
+    return normalizeBooking(response.data);
   },
 
   // DELETE /api/booking/{id} - Hủy booking
@@ -348,9 +384,25 @@ export const bookingAPI = {
   // ========== HOST BOOKING APIs ==========
   // GET /api/host/booking - Lấy tất cả bookings của host hiện tại
   getHostBookings: async (): Promise<BookingDTO[]> => {
-    const response = await axiosClient.get<any[]>("/host/booking");
+    const response = await axiosClient.get<any>("/host/booking");
     // Normalize response từ backend (PascalCase -> camelCase)
-    return response.data.map((item: any) => ({
+    // Handle both array and object with data property
+    let data: any[] = [];
+    if (Array.isArray(response.data)) {
+      data = response.data;
+    } else if (response.data && Array.isArray(response.data.data)) {
+      data = response.data.data;
+    } else if (response.data && typeof response.data === 'object') {
+      // If response.data is a single object, wrap it in array
+      data = [response.data];
+    }
+    
+    if (!Array.isArray(data)) {
+      console.warn("getHostBookings: response.data is not an array:", response.data);
+      return [];
+    }
+    
+    return data.map((item: any) => ({
       bookingId: item.BookingId || item.bookingId,
       condotelId: item.CondotelId || item.condotelId,
       customerId: item.CustomerId || item.customerId,
@@ -361,6 +413,8 @@ export const bookingAPI = {
       promotionId: item.PromotionId !== undefined ? item.PromotionId : item.promotionId,
       isUsingRewardPoints: item.IsUsingRewardPoints !== undefined ? item.IsUsingRewardPoints : item.isUsingRewardPoints,
       createdAt: item.CreatedAt || item.createdAt,
+      canRefund: item.CanRefund !== undefined ? item.CanRefund : item.canRefund,
+      refundStatus: item.RefundStatus !== undefined ? (item.RefundStatus || null) : (item.refundStatus !== undefined ? (item.refundStatus || null) : null),
       // Thông tin condotel và customer nếu có
       condotelName: item.CondotelName || item.condotelName,
       condotelImageUrl: item.CondotelImageUrl || item.condotelImageUrl,
@@ -372,9 +426,25 @@ export const bookingAPI = {
 
   // GET /api/host/booking/customer/{customerId} - Lấy bookings theo customer
   getHostBookingsByCustomer: async (customerId: number): Promise<BookingDTO[]> => {
-    const response = await axiosClient.get<any[]>(`/host/booking/customer/${customerId}`);
+    const response = await axiosClient.get<any>(`/host/booking/customer/${customerId}`);
     // Normalize response từ backend (PascalCase -> camelCase)
-    return response.data.map((item: any) => ({
+    // Handle both array and object with data property
+    let data: any[] = [];
+    if (Array.isArray(response.data)) {
+      data = response.data;
+    } else if (response.data && Array.isArray(response.data.data)) {
+      data = response.data.data;
+    } else if (response.data && typeof response.data === 'object') {
+      // If response.data is a single object, wrap it in array
+      data = [response.data];
+    }
+    
+    if (!Array.isArray(data)) {
+      console.warn("getHostBookingsByCustomer: response.data is not an array:", response.data);
+      return [];
+    }
+    
+    return data.map((item: any) => ({
       bookingId: item.BookingId || item.bookingId,
       condotelId: item.CondotelId || item.condotelId,
       customerId: item.CustomerId || item.customerId,
@@ -385,6 +455,7 @@ export const bookingAPI = {
       promotionId: item.PromotionId !== undefined ? item.PromotionId : item.promotionId,
       isUsingRewardPoints: item.IsUsingRewardPoints !== undefined ? item.IsUsingRewardPoints : item.isUsingRewardPoints,
       createdAt: item.CreatedAt || item.createdAt,
+      canRefund: item.CanRefund !== undefined ? item.CanRefund : item.canRefund,
       condotelName: item.CondotelName || item.condotelName,
       condotelImageUrl: item.CondotelImageUrl || item.condotelImageUrl,
       condotelPricePerNight: item.CondotelPricePerNight !== undefined ? item.CondotelPricePerNight : item.condotelPricePerNight,
@@ -414,11 +485,24 @@ export const bookingAPI = {
       promotionId: data.PromotionId !== undefined ? data.PromotionId : data.promotionId,
       isUsingRewardPoints: data.IsUsingRewardPoints !== undefined ? data.IsUsingRewardPoints : data.isUsingRewardPoints,
       createdAt: data.CreatedAt || data.createdAt,
+      canRefund: data.CanRefund !== undefined ? data.CanRefund : data.canRefund,
+      refundStatus: data.RefundStatus !== undefined ? (data.RefundStatus || null) : (data.refundStatus !== undefined ? (data.refundStatus || null) : null),
       condotelName: data.CondotelName || data.condotelName,
       condotelImageUrl: data.CondotelImageUrl || data.condotelImageUrl,
       condotelPricePerNight: data.CondotelPricePerNight !== undefined ? data.CondotelPricePerNight : data.condotelPricePerNight,
       customerName: data.CustomerName || data.customerName,
       customerEmail: data.CustomerEmail || data.customerEmail,
+    };
+  },
+
+  // GET /api/booking/{id}/can-refund - Check xem booking có thể hoàn tiền không (Option 2)
+  checkCanRefund: async (id: number): Promise<{ canRefund: boolean; message?: string }> => {
+    const response = await axiosClient.get<any>(`/booking/${id}/can-refund`);
+    const data = response.data;
+    // Normalize response từ backend (PascalCase -> camelCase)
+    return {
+      canRefund: data.CanRefund !== undefined ? data.CanRefund : data.canRefund,
+      message: data.Message || data.message,
     };
   },
 };

@@ -4,6 +4,7 @@ import Input from "shared/Input/Input";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
 import { Link, useNavigate } from "react-router-dom";
 import { authAPI } from "api/auth";
+import { toast } from "react-toastify";
 
 interface AxiosErrorLike {
   isAxiosError: boolean;
@@ -156,10 +157,12 @@ const PageSignUp: FC<{ className?: string }> = ({ className = "" }) => {
     setVerifying(true);
     try {
       await authAPI.verifyEmail({ email: formData.email, otp });
-      alert("Xác thực thành công! Đăng nhập ngay nhé!");
+      toast.success("✅ Xác thực thành công! Đăng nhập ngay nhé!");
       navigate("/login");
     } catch (err) {
-      setError(isAxiosError(err) ? (err.response?.data?.message || "OTP sai hoặc hết hạn") : "Lỗi mạng");
+      const errorMsg = isAxiosError(err) ? (err.response?.data?.message || "OTP sai hoặc hết hạn") : "Lỗi mạng";
+      toast.error(`❌ ${errorMsg}`);
+      setError(errorMsg);
     } finally {
       setVerifying(false);
     }

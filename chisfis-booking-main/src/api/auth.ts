@@ -254,10 +254,41 @@ export const authAPI = {
     return response.data;
   },
   getHostPublicProfile: async (hostId: number): Promise<HostPublicProfile> => {
-    const response = await axiosClient.get<HostPublicProfile>(
-      `/public-profile/host/${hostId}`
-    );
-    return response.data;
+    try {
+      const response = await axiosClient.get<any>(
+        `/public-profile/host/${hostId}`
+      );
+      // Normalize response - handle missing columns gracefully
+      return {
+        hostId: response.data.HostId || response.data.hostId || 0,
+        fullName: response.data.FullName || response.data.fullName || "",
+        imageUrl: response.data.ImageUrl || response.data.imageUrl,
+        phone: response.data.Phone || response.data.phone,
+        isVerified: response.data.IsVerified !== undefined ? response.data.IsVerified : (response.data.isVerified !== undefined ? response.data.isVerified : false),
+        packageName: response.data.PackageName || response.data.packageName,
+        // Handle missing columns with default values
+        priorityLevel: response.data.PriorityLevel !== undefined ? response.data.PriorityLevel : (response.data.priorityLevel !== undefined ? response.data.priorityLevel : 0),
+        displayColorTheme: response.data.DisplayColorTheme || response.data.displayColorTheme || "default",
+      };
+    } catch (error: any) {
+      // Check if error is related to missing database columns
+      const errorMessage = error.response?.data?.message || error.message || "";
+      if (errorMessage.includes("Invalid column name") || 
+          errorMessage.includes("PriorityLevel") || 
+          errorMessage.includes("DisplayColorTheme")) {
+        console.warn("⚠️ Backend database missing columns. Returning default profile. Backend needs to add columns or fix query.");
+        console.warn("Error details:", errorMessage);
+      }
+      console.error("Error fetching host public profile:", error);
+      // Return default profile on error
+      return {
+        hostId: 0,
+        fullName: "",
+        isVerified: false,
+        priorityLevel: 0,
+        displayColorTheme: "default",
+      };
+    }
   },
 };
 

@@ -42,12 +42,8 @@ const Avatar: FC<AvatarProps> = ({
           src={url}
           alt={name}
           onError={(e) => {
-            console.error("❌ Image load error:", url);
             // Nếu ảnh lỗi, ẩn ảnh để hiển thị chữ cái đầu
             e.currentTarget.style.display = "none";
-          }}
-          onLoad={() => {
-            console.log("✅ Image loaded successfully:", url);
           }}
         />
       )}

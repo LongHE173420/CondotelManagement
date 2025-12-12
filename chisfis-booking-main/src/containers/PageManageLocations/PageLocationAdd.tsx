@@ -23,7 +23,6 @@ const PageLocationAdd = () => {
     }
     setIsLoading(true);
     // TODO: Gọi API
-    console.log("Tạo địa điểm mới:", { name, description });
     setTimeout(() => {
       setIsLoading(false);
       alert("Tạo địa điểm thành công!");

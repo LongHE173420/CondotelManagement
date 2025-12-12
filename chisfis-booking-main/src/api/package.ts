@@ -1,4 +1,5 @@
 import axiosClient from "./axiosClient";
+import logger from "utils/logger";
 
 export interface PackageDto {
     packageId: number;
@@ -36,6 +37,37 @@ export interface PurchasePackageRequestDto {
     packageId: number;
 }
 
+// Helper function to normalize PackageDto (handle missing columns gracefully)
+const normalizePackageDto = (item: any): PackageDto => {
+    return {
+        packageId: item.PackageId || item.packageId || 0,
+        name: item.Name || item.name || "",
+        price: item.Price !== undefined ? item.Price : item.price,
+        duration: item.Duration || item.duration || "",
+        description: item.Description || item.description || "",
+        maxListings: item.MaxListings !== undefined ? item.MaxListings : (item.maxListings !== undefined ? item.maxListings : 0),
+        canUseFeaturedListing: item.CanUseFeaturedListing !== undefined ? item.CanUseFeaturedListing : (item.canUseFeaturedListing !== undefined ? item.canUseFeaturedListing : false),
+    };
+};
+
+// Helper function to normalize HostPackageDetailsDto (handle missing columns gracefully)
+const normalizeHostPackageDetails = (item: any): HostPackageDetailsDto => {
+    return {
+        packageName: item.PackageName || item.packageName || "",
+        status: item.Status || item.status || "",
+        startDate: item.StartDate || item.startDate || "",
+        endDate: item.EndDate || item.endDate || "",
+        maxListings: item.MaxListings !== undefined ? item.MaxListings : (item.maxListings !== undefined ? item.maxListings : 0),
+        currentListings: item.CurrentListings !== undefined ? item.CurrentListings : (item.currentListings !== undefined ? item.currentListings : 0),
+        canUseFeaturedListing: item.CanUseFeaturedListing !== undefined ? item.CanUseFeaturedListing : (item.canUseFeaturedListing !== undefined ? item.canUseFeaturedListing : false),
+        message: item.Message || item.message,
+        paymentUrl: item.PaymentUrl || item.paymentUrl,
+        orderCode: item.OrderCode !== undefined ? item.OrderCode : item.orderCode,
+        amount: item.Amount !== undefined ? item.Amount : item.amount,
+        isVerifiedBadgeEnabled: item.IsVerifiedBadgeEnabled !== undefined ? item.IsVerifiedBadgeEnabled : (item.isVerifiedBadgeEnabled !== undefined ? item.isVerifiedBadgeEnabled : false),
+    };
+};
+
 export interface PaymentUrlResponseDto {
     paymentUrl: string;
     orderCode: number;
@@ -43,15 +75,48 @@ export interface PaymentUrlResponseDto {
 
 export const packageAPI = {
     getAllPackages: async (): Promise<PackageDto[]> => {
-        const response = await axiosClient.get<PackageDto[]>("/Package");
-        return response.data;
+        try {
+            const response = await axiosClient.get<any>("/Package");
+            const data = Array.isArray(response.data) ? response.data : (response.data?.data || []);
+            if (!Array.isArray(data)) {
+                logger.warn("PackageAPI.getAllPackages: Expected an array, but received:", response.data);
+                return [];
+            }
+            return data.map(normalizePackageDto);
+        } catch (error: any) {
+            // Check if error is related to missing database columns
+            const errorMessage = error.response?.data?.message || error.message || "";
+            if (errorMessage.includes("Invalid column name") || errorMessage.includes("CanUseFeaturedListing") || errorMessage.includes("MaxListingCount")) {
+                logger.warn("Backend database missing columns. Returning empty array. Backend needs to add columns or fix query.");
+                logger.debug("Error details:", errorMessage);
+                // Return empty array to prevent crashes - backend needs to fix this
+                return [];
+            }
+            logger.error("Error fetching packages:", error);
+            // Return empty array on error to prevent crashes
+            return [];
+        }
     },
 
     getMyPackage: async (): Promise<HostPackageDetailsDto | null> => {
         try {
-            const response = await axiosClient.get<HostPackageDetailsDto>("/host/packages/my-package");
-            return response.data.packageName ? response.data : null;
-        } catch {
+            const response = await axiosClient.get<any>("/host/packages/my-package");
+            const normalized = normalizeHostPackageDetails(response.data);
+            return normalized.packageName ? normalized : null;
+        } catch (error: any) {
+            // Check if error is related to missing database columns
+            const errorMessage = error.response?.data?.message || error.message || "";
+            if (errorMessage.includes("Invalid column name") || errorMessage.includes("IsVerifiedBadgeEnabled") || errorMessage.includes("CanUseFeaturedListing")) {
+                logger.warn("Backend database missing columns. Returning null. Backend needs to add columns or fix query.");
+                logger.debug("Error details:", errorMessage);
+                // Return null to prevent crashes - backend needs to fix this
+                return null;
+            }
+            // Nếu 400 hoặc 404 → người dùng chưa có package → bình thường
+            if (error.response?.status === 400 || error.response?.status === 404) {
+                return null;
+            }
+            logger.error("Error fetching my package:", error);
             return null;
         }
     },

@@ -44,7 +44,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           const parsedUser = JSON.parse(userStr);
           setUser(parsedUser);
         } catch {
-          console.warn("Invalid user data in localStorage");
         }
       }
 
@@ -68,21 +67,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           try {
             const pkg = await packageAPI.getMyPackage();
             setHostPackage(pkg);
-            console.log("Host package loaded:", pkg);
           } catch (pkgError: any) {
             // Nếu 400 hoặc 404 → người dùng chưa có package → bình thường
             if (pkgError.response?.status === 400 || pkgError.response?.status === 404) {
-              console.log("Host chưa có package → bình thường");
               setHostPackage(null);
             } else {
-              console.warn("Lỗi không mong muốn khi load package:", pkgError);
             }
           }
         } else {
           setHostPackage(null); // Tenant, Admin → không cần package
         }
       } catch (error: any) {
-        console.error("Token không hợp lệ hoặc hết hạn → đăng xuất", error);
         handleLogout();
       } finally {
         setIsLoading(false);
@@ -109,7 +104,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           if (err.response?.status === 400 || err.response?.status === 404) {
             setHostPackage(null);
           } else {
-            console.warn("Lỗi load package sau login:", err);
           }
         });
     } else {
@@ -124,9 +118,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (currentToken) {
       try {
         await authAPI.logout();
-        console.log("Logout API success");
       } catch (error) {
-        console.warn("Logout API failed, proceeding with local logout:", error);
       }
     }
 
@@ -159,14 +151,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           if (err.response?.status === 400 || err.response?.status === 404) {
             setHostPackage(null);
           } else {
-            console.warn("Lỗi reload package:", err);
           }
         }
       } else {
         setHostPackage(null);
       }
     } catch (error) {
-      console.error("Reload user thất bại → logout", error);
       handleLogout();
     }
   };

@@ -86,6 +86,7 @@ export const pages: Page[] = [
   { path: "/listing-real-estate", component: ListingRealEstatePage },
   //
   { path: "/author", component: AuthorPage },
+  { path: "/author/:hostId", component: AuthorPage },
   //
   { path: "/blog", component: BlogPage },
   { path: "/blog-single", component: BlogSingle },

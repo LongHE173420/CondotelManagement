@@ -3,6 +3,9 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import bookingAPI, { BookingDTO } from "api/booking";
 import condotelAPI, { CondotelDetailDTO } from "api/condotel";
 import reviewAPI from "api/review";
+import { useAuth } from "contexts/AuthContext";
+import { validateBookingOwnership } from "utils/bookingSecurity";
+import { toastSuccess, toastError, showErrorMessage } from "utils/toast";
 
 // Format số tiền
 const formatPrice = (price: number | undefined): string => {
@@ -63,16 +66,62 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
   );
 };
 
+// Component đếm ngược thời gian thanh toán
+const PaymentCountdown: React.FC<{ createdAt: string; onTimeout: () => void }> = ({ createdAt, onTimeout }) => {
+  const [timeLeft, setTimeLeft] = useState(180); // 3 phút = 180 giây
+
+  useEffect(() => {
+    const createdTime = new Date(createdAt).getTime();
+    const expiryTime = createdTime + (3 * 60 * 1000); // +3 phút
+
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const remaining = Math.max(0, Math.floor((expiryTime - now) / 1000));
+
+      setTimeLeft(remaining);
+
+      if (remaining === 0) {
+        clearInterval(interval);
+        onTimeout(); // Gọi callback khi hết giờ
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [createdAt, onTimeout]);
+
+  const minutes = Math.floor(timeLeft / 60);
+  const seconds = timeLeft % 60;
+
+  return (
+    <div className="payment-countdown">
+      <p className="text-red-600 font-bold">
+        Thời gian thanh toán còn lại: 
+        <span className="text-2xl ml-2">
+          {minutes}:{seconds.toString().padStart(2, '0')}
+        </span>
+      </p>
+      {timeLeft === 0 && (
+        <p className="text-red-500">
+          Đã hết thời gian thanh toán. Vui lòng đặt phòng lại.
+        </p>
+      )}
+    </div>
+  );
+};
+
 // Component Trang Chi tiết Lịch sử Booking
 const PageBookingHistoryDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
   const [booking, setBooking] = useState<BookingDTO | null>(null);
   const [condotel, setCondotel] = useState<CondotelDetailDTO | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [canReview, setCanReview] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [unauthorized, setUnauthorized] = useState(false);
+  const [expiredMessage, setExpiredMessage] = useState("");
 
   // Fetch booking và condotel details
   useEffect(() => {
@@ -83,13 +132,37 @@ const PageBookingHistoryDetail = () => {
         return;
       }
 
+      // Check authentication first
+      if (!isAuthenticated || !user) {
+        setError("Vui lòng đăng nhập để xem thông tin booking");
+        setUnauthorized(true);
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
         setError("");
 
         // Fetch booking detail
         const bookingData = await bookingAPI.getBookingById(parseInt(id));
-        setBooking(bookingData);
+        
+        // SECURITY CHECK: Verify user owns this booking
+        try {
+          validateBookingOwnership(bookingData, user);
+          setBooking(bookingData);
+          setUnauthorized(false);
+        } catch (securityError: any) {
+          // Security error - user doesn't own this booking
+          setError(securityError.message || "Bạn không có quyền truy cập booking này");
+          setUnauthorized(true);
+          setBooking(null);
+          // Redirect to home after 3 seconds
+          setTimeout(() => {
+            navigate("/");
+          }, 3000);
+          return;
+        }
 
         // Fetch condotel detail
         if (bookingData.condotelId) {
@@ -97,7 +170,7 @@ const PageBookingHistoryDetail = () => {
             const condotelData = await condotelAPI.getById(bookingData.condotelId);
             setCondotel(condotelData);
           } catch (err: any) {
-            console.error("Error fetching condotel:", err);
+            toastError("Không thể tải thông tin condotel");
             // Không set error nếu không fetch được condotel, chỉ log
           }
         }
@@ -113,18 +186,30 @@ const PageBookingHistoryDetail = () => {
           // Nếu booking chưa completed, không thể review
           // Chỉ booking với status "Completed" mới được phép review
           setCanReview(false);
-          console.log(`Booking status is "${bookingData.status}", not "Completed". Cannot review.`);
+          // Booking status is not "Completed", cannot review
         }
       } catch (err: any) {
-        console.error("Error fetching booking detail:", err);
-        setError("Không thể tải chi tiết đặt phòng. Vui lòng thử lại sau.");
+        toastError("Không thể tải thông tin booking");
+        if (err.response?.status === 403 || err.response?.status === 401) {
+          setError("Bạn không có quyền truy cập booking này");
+          setUnauthorized(true);
+        } else {
+          setError("Không thể tải chi tiết đặt phòng. Vui lòng thử lại sau.");
+        }
       } finally {
         setLoading(false);
       }
     };
 
     fetchData();
-  }, [id]);
+  }, [id, user, isAuthenticated, navigate]);
+
+  // Xóa thông báo hết hạn khi booking status thay đổi (không còn pending)
+  useEffect(() => {
+    if (booking && booking.status?.toLowerCase() !== "pending" && expiredMessage) {
+      setExpiredMessage("");
+    }
+  }, [booking?.status, expiredMessage]);
 
   // Tính số đêm
   const calculateNights = (): number => {
@@ -136,24 +221,51 @@ const PageBookingHistoryDetail = () => {
     return diffDays;
   };
 
+  // Kiểm tra xem booking có còn trong thời gian thanh toán không (3 phút)
+  const isWithinPaymentTime = (): boolean => {
+    if (!booking?.createdAt) return false;
+    const createdTime = new Date(booking.createdAt).getTime();
+    const expiryTime = createdTime + (3 * 60 * 1000); // +3 phút
+    const now = Date.now();
+    return now < expiryTime;
+  };
+
   // Kiểm tra xem booking có thể hủy không
   const canCancel = (): boolean => {
     if (!booking) return false;
     const status = booking.status?.toLowerCase();
-    return status === "pending" || status === "confirmed";
+    // Chỉ cho phép hủy nếu status là Confirmed (không cho phép hủy khi đang xử lý - Pending)
+    return status === "confirmed";
   };
 
   // Kiểm tra xem booking có thể hoàn tiền không
-  // Chỉ cho phép refund nếu:
-  // 1. Booking status = "Cancelled"
-  // 2. Booking đã thanh toán trước đó (status trước đó là "Confirmed" hoặc "Completed")
-  // 3. Hủy trong vòng 2 ngày
-  // KHÔNG cho phép refund nếu booking bị cancel payment (status = "Pending" trước đó)
+  // Sử dụng field canRefund từ API response (Option 1)
+  // Fallback về logic cũ nếu canRefund không có trong response
   const canRefund = (): boolean => {
-    if (!booking || booking.status?.toLowerCase() !== "cancelled") {
+    if (!booking) {
       return false;
     }
     
+    // Chỉ cho phép yêu cầu hoàn tiền nếu:
+    // 1. Booking status = "Cancelled"
+    // 2. refundStatus = null (chưa có refund request)
+    // 3. canRefund = true (từ backend)
+    
+    if (booking.status?.toLowerCase() !== "cancelled") {
+      return false;
+    }
+    
+    // Nếu đã có refund request (refundStatus không null), không cho phép tạo request mới
+    if (booking.refundStatus !== null && booking.refundStatus !== undefined) {
+      return false;
+    }
+    
+    // Ưu tiên sử dụng field canRefund từ backend
+    if (booking.canRefund !== undefined) {
+      return booking.canRefund;
+    }
+    
+    // Fallback: Logic cũ nếu backend chưa trả về canRefund
     // Phân biệt Cancel Payment vs Cancel Booking:
     // - Cancel Payment: Booking chưa thanh toán (status ban đầu = "Pending") → không refund
     // - Cancel Booking: Booking đã thanh toán (status ban đầu = "Confirmed" hoặc "Completed") → có refund
@@ -176,6 +288,41 @@ const PageBookingHistoryDetail = () => {
     
     // Nếu hủy trong vòng 2 ngày (từ ngày tạo booking) VÀ booking có giá (đã thanh toán)
     return diffDays <= 2;
+  };
+
+  // Xử lý tự động hủy booking khi hết thời gian thanh toán
+  const handleAutoCancel = async () => {
+    if (!booking) return;
+    
+    // Kiểm tra lại trạng thái booking trước khi hủy (tránh hủy nhiều lần)
+    if (booking.status?.toLowerCase() !== "pending") {
+      return;
+    }
+
+    setCancelling(true);
+    try {
+      await bookingAPI.cancelBooking(booking.bookingId);
+      
+      // Reload booking để cập nhật trạng thái
+      const updatedBooking = await bookingAPI.getBookingById(booking.bookingId);
+      setBooking(updatedBooking);
+      
+      // Hiển thị thông báo trên màn hình
+      setExpiredMessage("Đã hết thời gian thanh toán. Đơn đặt phòng đã được tự động hủy.");
+    } catch (err: any) {
+      toastError("Không thể tự động hủy booking");
+      // Vẫn reload để kiểm tra trạng thái mới nhất
+      try {
+        const updatedBooking = await bookingAPI.getBookingById(booking.bookingId);
+        setBooking(updatedBooking);
+        setExpiredMessage("Đã hết thời gian thanh toán. Vui lòng kiểm tra lại trạng thái đơn đặt phòng.");
+      } catch (reloadErr) {
+        toastError("Không thể tải lại thông tin booking");
+        setExpiredMessage("Đã hết thời gian thanh toán. Vui lòng làm mới trang để kiểm tra trạng thái.");
+      }
+    } finally {
+      setCancelling(false);
+    }
   };
 
   // Xử lý hủy booking
@@ -207,18 +354,14 @@ const PageBookingHistoryDetail = () => {
         }
       }
       
-      alert("Đã hủy đặt phòng thành công. Nếu hủy trong vòng 2 ngày, bạn có thể yêu cầu hoàn tiền.");
+      toastSuccess("Đã hủy đặt phòng thành công. Nếu hủy trong vòng 2 ngày, bạn có thể yêu cầu hoàn tiền.", { autoClose: 5000 });
       
       // Reload booking để cập nhật trạng thái
       const updatedBooking = await bookingAPI.getBookingById(booking.bookingId);
       setBooking(updatedBooking);
     } catch (err: any) {
-      console.error("Error cancelling booking:", err);
-      alert(
-        err.response?.data?.message || 
-        err.message || 
-        "Không thể hủy đặt phòng. Vui lòng thử lại sau."
-      );
+      toastError("Không thể hủy booking");
+      showErrorMessage("Hủy đặt phòng", err);
     } finally {
       setCancelling(false);
     }
@@ -273,6 +416,34 @@ const PageBookingHistoryDetail = () => {
           </Link>
         </header>
 
+        {/* Thông báo hết thời gian thanh toán */}
+        {expiredMessage && (
+          <div className="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded-lg shadow-md">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3 flex-1">
+                <p className="text-sm font-medium text-red-800">
+                  {expiredMessage}
+                </p>
+              </div>
+              <div className="ml-auto pl-3">
+                <button
+                  onClick={() => setExpiredMessage("")}
+                  className="inline-flex text-red-500 hover:text-red-700 focus:outline-none"
+                >
+                  <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* --- Card Nội dung chính --- */}
         <div className="bg-white shadow-xl rounded-2xl overflow-hidden">
           <div className="grid grid-cols-1 md:grid-cols-3">
@@ -290,6 +461,34 @@ const PageBookingHistoryDetail = () => {
                   </dd>
                 </div>
                 
+                {/* Hiển thị countdown khi booking ở trạng thái Pending và còn trong thời gian thanh toán */}
+                {booking.status?.toLowerCase() === "pending" && booking.createdAt && isWithinPaymentTime() && (
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <PaymentCountdown 
+                      createdAt={booking.createdAt} 
+                      onTimeout={() => {
+                        // Khi hết thời gian, tự động hủy booking
+                        handleAutoCancel();
+                      }} 
+                    />
+                  </div>
+                )}
+                
+                {/* Nút thanh toán lại - chỉ hiển thị khi booking ở trạng thái Pending */}
+                {booking.status?.toLowerCase() === "pending" && (
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <button
+                      onClick={() => navigate(`/checkout?bookingId=${booking.bookingId}&retry=true`)}
+                      className="w-full px-4 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors"
+                    >
+                      💳 Thanh toán lại
+                    </button>
+                    <p className="mt-2 text-xs text-gray-500">
+                      * Nếu thanh toán chưa thành công, bạn có thể thanh toán lại
+                    </p>
+                  </div>
+                )}
+                
                 {/* Nút hủy booking - chỉ hiển thị khi booking có thể hủy */}
                 {canCancel() && (
                   <div className="mt-4 pt-4 border-t border-gray-200">
@@ -306,7 +505,29 @@ const PageBookingHistoryDetail = () => {
                   </div>
                 )}
                 
-                {/* Nút yêu cầu hoàn tiền - chỉ hiển thị khi booking bị hủy trong vòng 2 ngày */}
+                {/* Hiển thị refund status nếu booking đã bị hủy và có refund request */}
+                {booking.status?.toLowerCase() === "cancelled" && booking.refundStatus && (
+                  <div className={`mt-4 pt-4 border-t border-gray-200 rounded-lg p-3 ${
+                    booking.refundStatus === "Pending" ? "bg-yellow-50 border-yellow-200" :
+                    booking.refundStatus === "Refunded" || booking.refundStatus === "Completed" ? "bg-green-50 border-green-200" :
+                    "bg-gray-50 border-gray-200"
+                  }`}>
+                    <p className={`text-sm font-medium ${
+                      booking.refundStatus === "Pending" ? "text-yellow-800" :
+                      booking.refundStatus === "Refunded" || booking.refundStatus === "Completed" ? "text-green-800" :
+                      "text-gray-800"
+                    }`}>
+                      <strong>Trạng thái hoàn tiền:</strong> {
+                        booking.refundStatus === "Pending" ? "Đang chờ hoàn tiền" :
+                        booking.refundStatus === "Refunded" ? "Đã hoàn tiền thành công (PayOS)" :
+                        booking.refundStatus === "Completed" ? "Đã hoàn tiền thủ công" :
+                        booking.refundStatus
+                      }
+                    </p>
+                  </div>
+                )}
+                
+                {/* Nút yêu cầu hoàn tiền - chỉ hiển thị khi booking bị hủy trong vòng 2 ngày và chưa có refund request */}
                 {canRefund() && (
                   <div className="mt-4 pt-4 border-t border-gray-200">
                     <button
@@ -339,6 +560,18 @@ const PageBookingHistoryDetail = () => {
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">
                   Chi tiết thanh toán
                 </h3>
+                
+                {/* Thông báo khi booking đang ở trạng thái Pending */}
+                {booking.status?.toLowerCase() === "pending" && (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+                    <p className="text-sm text-yellow-800">
+                      <strong>Lưu ý:</strong> Booking đang ở trạng thái "{mapStatusToVN(booking.status)}". 
+                      Hệ thống đang xác nhận thanh toán của bạn. 
+                      Nếu bạn đã hoàn tất thanh toán, vui lòng đợi vài giây để hệ thống cập nhật trạng thái.
+                    </p>
+                  </div>
+                )}
+                
                 <dl className="space-y-3">
                   {condotel && (
                     <div className="flex justify-between">
@@ -350,6 +583,19 @@ const PageBookingHistoryDetail = () => {
                       </dd>
                     </div>
                   )}
+                  
+                  {booking.promotionId && (
+                    <div className="flex justify-between">
+                      <dt className="text-sm text-gray-500">Khuyến mãi</dt>
+                      <dd className="text-sm text-green-600">Đã áp dụng</dd>
+                    </div>
+                  )}
+                  
+                  <div className="flex justify-between">
+                    <dt className="text-sm text-gray-500">Phương thức thanh toán</dt>
+                    <dd className="text-sm text-gray-700">PayOS</dd>
+                  </div>
+                  
                   <div className="flex justify-between font-bold text-gray-900 text-base pt-3 border-t border-gray-200">
                     <dt>Tổng cộng</dt>
                     <dd>{formatPrice(booking.totalPrice)}</dd>
@@ -366,7 +612,11 @@ const PageBookingHistoryDetail = () => {
               {condotel ? (
                 <>
                   <img 
-                    src={condotel.images?.[0]?.imageUrl || booking.condotelImageUrl || "https://via.placeholder.com/400?text=No+Image"} 
+                    src={condotel.images?.[0]?.imageUrl || booking.condotelImageUrl || ""}
+                    onError={(e) => {
+                      // Image load error
+                      (e.target as HTMLImageElement).style.display = "none";
+                    }} 
                     alt={condotel.name}
                     className="w-full h-40 object-cover rounded-lg shadow-md mb-4" 
                   />

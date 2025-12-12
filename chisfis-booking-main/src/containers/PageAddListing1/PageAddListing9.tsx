@@ -5,7 +5,7 @@ import FormItem from "./FormItem";
 
 const PageAddListing9 = () => {
   const { formData, setFormData } = useAddCondotel();
-  const [status, setStatus] = useState<string>(formData.status || "Available");
+  const [status, setStatus] = useState<string>(formData.status || "Active");
   const [description, setDescription] = useState<string>(formData.description || "");
   const handleNext = () => {
     setFormData((prev: Record<string, any>) => ({ ...prev, status, description }));
@@ -14,8 +14,8 @@ const PageAddListing9 = () => {
     <CommonLayout index="09" backtHref="/add-listing-8" nextHref="/add-listing-10" onNext={handleNext}>
       <FormItem label="Trạng thái căn hộ">
         <select value={status} onChange={e=>setStatus(e.target.value)}>
-          <option value="Available">Available</option>
-          <option value="Unavailable">Unavailable</option>
+          <option value="Active">Active (Hoạt động)</option>
+          <option value="Inactive">Inactive (Không hoạt động)</option>
         </select>
       </FormItem>
       <FormItem label="Mô tả">

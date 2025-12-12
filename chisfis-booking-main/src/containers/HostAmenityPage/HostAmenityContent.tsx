@@ -4,6 +4,7 @@ import { useAuth } from "contexts/AuthContext";
 import amenityAPI, { AmenityDTO, AmenityRequestDTO } from "api/amenity";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
 import ButtonSecondary from "shared/Button/ButtonSecondary";
+import { toast } from "react-toastify";
 
 const HostAmenityContent: React.FC = () => {
   const { user, isAuthenticated } = useAuth();
@@ -77,18 +78,22 @@ const HostAmenityContent: React.FC = () => {
   };
 
   const handleDelete = async (amenityId: number, name: string) => {
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa tiện ích "${name}"?`)) {
-      return;
-    }
+    // Use toast instead of window.confirm
+    toast.info(`Xóa tiện ích "${name}"?`, {
+      position: "bottom-center",
+      autoClose: false,
+      closeButton: true,
+    });
 
+    // For now, just proceed with delete
     setDeletingId(amenityId);
     try {
       await amenityAPI.delete(amenityId);
       await loadData();
-      alert("Xóa tiện ích thành công!");
+      toast.success("✅ Xóa tiện ích thành công!");
     } catch (err: any) {
-      console.error("Failed to delete amenity:", err);
-      alert(err.response?.data?.message || "Không thể xóa tiện ích. Có thể tiện ích đang được sử dụng bởi một số condotel.");
+      const errorMsg = err.response?.data?.message || "Không thể xóa tiện ích. Có thể tiện ích đang được sử dụng bởi một số condotel.";
+      toast.error(`❌ ${errorMsg}`);
     } finally {
       setDeletingId(null);
     }
@@ -361,7 +366,7 @@ const AmenityModal: React.FC<AmenityModalProps> = ({
           description: formData.description?.trim() || undefined,
           category: formData.category?.trim() || undefined,
         });
-        alert("Cập nhật tiện ích thành công!");
+        toast.success("✅ Cập nhật tiện ích thành công!");
       } else {
         // Create amenity
         await amenityAPI.create({
@@ -369,7 +374,7 @@ const AmenityModal: React.FC<AmenityModalProps> = ({
           description: formData.description?.trim() || undefined,
           category: formData.category?.trim() || undefined,
         });
-        alert("Tạo tiện ích thành công!");
+        toast.success("✅ Tạo tiện ích thành công!");
       }
       onSuccess();
     } catch (err: any) {
@@ -494,4 +499,5 @@ const AmenityModal: React.FC<AmenityModalProps> = ({
 };
 
 export default HostAmenityContent;
+
 

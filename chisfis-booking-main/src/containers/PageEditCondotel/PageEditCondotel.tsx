@@ -10,8 +10,43 @@ import Input from "shared/Input/Input";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
 import ButtonSecondary from "shared/Button/ButtonSecondary";
 import NcInputNumber from "components/NcInputNumber/NcInputNumber";
+import { toastSuccess, showErrorMessage } from "utils/toast";
 
 interface ImageDTO { imageUrl: string; caption?: string }
+
+// Component để hiển thị từng ảnh với xử lý lỗi
+const ImageItem: React.FC<{ img: ImageDTO; index: number; onRemove: () => void }> = ({ img, index, onRemove }) => {
+  const [imageError, setImageError] = useState(false);
+
+  return (
+    <div className="relative group">
+      {!imageError ? (
+        <img
+          src={img.imageUrl}
+          alt={`Hình ${index + 1}`}
+          className="w-full h-40 object-cover rounded-xl border-2 border-neutral-200 dark:border-neutral-700"
+          onError={(e) => {
+            setImageError(true);
+          }}
+        />
+      ) : (
+        <div className="w-full h-40 bg-neutral-200 dark:bg-neutral-700 rounded-xl border-2 border-neutral-200 dark:border-neutral-700 flex items-center justify-center">
+          <svg className="w-12 h-12 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+        </div>
+      )}
+      <button
+        type="button"
+        onClick={onRemove}
+        className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-7 h-7 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 shadow-lg"
+        title="Xóa ảnh"
+      >
+        ×
+      </button>
+    </div>
+  );
+};
 
 const PageEditCondotel: React.FC = () => {
   const { id } = useParams();
@@ -49,7 +84,11 @@ const PageEditCondotel: React.FC = () => {
 
   useEffect(() => {
     const load = async () => {
-      if (!id) return;
+      if (!id) {
+        setError("Không tìm thấy ID condotel");
+        setLoading(false);
+        return;
+      }
       if (!user || user.roleName !== "Host") {
         navigate("/");
         return;
@@ -59,6 +98,7 @@ const PageEditCondotel: React.FC = () => {
       try {
         // Load condotel data
         const data = await condotelAPI.getByIdForHost(Number(id));
+        
         setName(data.name || "");
         setDescription(data.description || "");
         // Chuẩn hóa về Active/Inactive để đồng bộ badge hiển thị
@@ -69,15 +109,37 @@ const PageEditCondotel: React.FC = () => {
         setBathrooms(data.bathrooms || 1);
         setPricePerNight(data.pricePerNight || 0);
         setResortId(data.resortId);
+        
         setImages((data.images || []).map((it: any) => ({ imageUrl: it.imageUrl, caption: it.caption })));
-        setPrices((data.prices || []).map((p: any) => ({
-          priceId: p.priceId || 0,
-          startDate: p.startDate || "",
-          endDate: p.endDate || "",
-          basePrice: p.basePrice || 0,
-          priceType: p.priceType || "",
-          description: p.description || "",
-        })));
+        setPrices((data.prices || []).map((p: any) => {
+          // Normalize priceType: map từ tiếng Anh sang tiếng Việt hoặc giữ nguyên nếu đã là tiếng Việt
+          const incomingPriceType = p.priceType || p.PriceType || "";
+          
+          // Map từ tiếng Anh sang tiếng Việt (nếu backend trả về tiếng Anh)
+          const priceTypeMap: Record<string, string> = {
+            "Default": "Thường",
+            "Weekend": "Cuối tuần",
+            "Holiday": "Ngày lễ",
+            "Seasonal": "Cao điểm",
+            "PeakSeason": "Cao điểm",
+            // Giữ nguyên nếu đã là tiếng Việt
+            "Thường": "Thường",
+            "Cuối tuần": "Cuối tuần",
+            "Ngày lễ": "Ngày lễ",
+            "Cao điểm": "Cao điểm",
+          };
+          
+          const normalizedPriceType = priceTypeMap[incomingPriceType] || "Thường";
+          
+          return {
+            priceId: p.priceId || 0,
+            startDate: p.startDate || "",
+            endDate: p.endDate || "",
+            basePrice: p.basePrice || 0,
+            priceType: normalizedPriceType,
+            description: p.description || "",
+          };
+        }));
         setDetails((data.details || []).map((d: any) => ({
           buildingName: d.buildingName,
           roomNumber: d.roomNumber,
@@ -100,7 +162,9 @@ const PageEditCondotel: React.FC = () => {
         setAmenities(amenitiesData);
         setUtilities(utilitiesData);
       } catch (e: any) {
-        setError(e?.response?.data?.message || e?.message || "Không thể tải condotel");
+        const errorMsg = e?.response?.data?.message || e?.message || "Không thể tải condotel";
+        setError(errorMsg);
+        showErrorMessage("Tải condotel", e);
       } finally {
         setLoading(false);
       }
@@ -138,7 +202,7 @@ const PageEditCondotel: React.FC = () => {
         setError("Upload thành công nhưng không nhận được URL ảnh. Vui lòng thử lại.");
       }
     } catch (err: any) {
-      console.error("Upload error:", err);
+      showErrorMessage("Upload ảnh", err);
       const errorMessage = err?.response?.data?.message 
         || err?.response?.data?.error
         || err?.message 
@@ -197,8 +261,10 @@ const PageEditCondotel: React.FC = () => {
       };
 
       await condotelAPI.update(Number(id), updatePayload);
-      alert("Cập nhật condotel thành công!");
-      navigate("/host-dashboard?tab=condotels");
+      toastSuccess("Cập nhật condotel thành công!");
+      setTimeout(() => {
+        navigate("/host-dashboard?tab=condotels");
+      }, 1500);
     } catch (err: any) {
       setError(err?.response?.data?.message || err.message || "Không thể cập nhật condotel");
     } finally {
@@ -208,11 +274,15 @@ const PageEditCondotel: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      <div className="flex flex-col items-center justify-center min-h-[60vh]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mb-4"></div>
+        <p className="text-neutral-600 dark:text-neutral-400">Đang tải dữ liệu condotel...</p>
       </div>
     );
   }
+
+  // Debug: Log current state values
+  // Debug: Current form state (removed console.log for production)
 
   return (
     <div className="px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto pb-16 pt-8">
@@ -390,19 +460,19 @@ const PageEditCondotel: React.FC = () => {
                 <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
                   Số giường
                 </label>
-                <NcInputNumber defaultValue={beds} onChange={setBeds} />
+                <NcInputNumber key={`beds-${beds}`} defaultValue={beds} onChange={setBeds} />
               </div>
               <div>
                 <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
                   Số phòng tắm
                 </label>
-                <NcInputNumber defaultValue={bathrooms} onChange={setBathrooms} />
+                <NcInputNumber key={`bathrooms-${bathrooms}`} defaultValue={bathrooms} onChange={setBathrooms} />
               </div>
               <div>
                 <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
                   Giá mỗi đêm (VNĐ) *
                 </label>
-                <NcInputNumber defaultValue={pricePerNight} onChange={setPricePerNight} />
+                <NcInputNumber key={`price-${pricePerNight}`} defaultValue={pricePerNight} onChange={setPricePerNight} />
               </div>
             </div>
           </div>
@@ -480,9 +550,10 @@ const PageEditCondotel: React.FC = () => {
                       }}
                       className="w-full px-4 py-3 border border-neutral-300 dark:border-neutral-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-neutral-700 dark:text-neutral-100"
                     >
-                      <option value="Normal">Bình thường</option>
-                      <option value="Peak">Cao điểm</option>
-                      <option value="Low">Thấp điểm</option>
+                      <option value="Thường">Thường</option>
+                      <option value="Cuối tuần">Cuối tuần</option>
+                      <option value="Ngày lễ">Ngày lễ</option>
+                      <option value="Cao điểm">Cao điểm</option>
                     </select>
                   </div>
                   <div>
@@ -517,7 +588,7 @@ const PageEditCondotel: React.FC = () => {
                 startDate: "",
                 endDate: "",
                 basePrice: 0,
-                priceType: "Normal",
+                priceType: "Thường",
                 description: "",
               }])}
             >
@@ -782,24 +853,12 @@ const PageEditCondotel: React.FC = () => {
             {images.length > 0 && (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 pt-4 border-t border-neutral-200 dark:border-neutral-700">
                 {images.map((img, i) => (
-                  <div key={i} className="relative group">
-                    <img
-                      src={img.imageUrl}
-                      alt={`Hình ${i + 1}`}
-                      className="w-full h-40 object-cover rounded-xl border-2 border-neutral-200 dark:border-neutral-700"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = "https://via.placeholder.com/300x200?text=Image+Error";
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removeImage(i)}
-                      className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-7 h-7 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 shadow-lg"
-                      title="Xóa ảnh"
-                    >
-                      ×
-                    </button>
-                  </div>
+                  <ImageItem
+                    key={i}
+                    img={img}
+                    index={i}
+                    onRemove={() => removeImage(i)}
+                  />
                 ))}
               </div>
             )}

@@ -17,6 +17,7 @@ import HostPayoutContent from "containers/HostPayoutPage/HostPayoutContent";
 import HostWalletContent from "containers/HostWalletPage/HostWalletContent";
 import HostVerificationContent from "containers/HostVerificationPage/HostVerificationContent";
 import HostAmenityContent from "containers/HostAmenityPage/HostAmenityContent";
+import { toastSuccess, toastError, toastWarning, toastInfo } from "utils/toast";
 
 const HostCondotelDashboard = () => {
   const { user, isAuthenticated } = useAuth();
@@ -62,8 +63,8 @@ const HostCondotelDashboard = () => {
       setBookingsLoading(true);
       const data = await bookingAPI.getHostBookings();
       setBookings(data);
-    } catch (err: any) {
-      console.error("Error fetching bookings:", err);
+      } catch (err: any) {
+        toastError("Không thể tải danh sách booking");
       setBookings([]);
     } finally {
       setBookingsLoading(false);
@@ -161,34 +162,59 @@ const HostCondotelDashboard = () => {
     try {
       await bookingAPI.updateHostBookingStatus(bookingId, normalizedStatus);
       
-      // Nếu status mới là "Completed", tự động tạo voucher
-      if (normalizedStatus === "completed") {
+      // Prepare success message
+      const successMsg = `Đã cập nhật trạng thái sang "${mapStatusToVN(normalizedStatus)}" thành công!`;
+      
+      // Voucher chỉ được tạo khi booking chuyển từ "Confirmed" sang "Completed"
+      if (normalizedStatus === "completed" && currentStatus === "confirmed") {
         try {
           const voucherAPI = (await import("api/voucher")).default;
           const result = await voucherAPI.autoCreate(bookingId);
           if (result.success && result.data && result.data.length > 0) {
-            console.log(`✅ Đã tự động tạo ${result.data.length} voucher cho booking ${bookingId}:`, result.data);
-            // Có thể hiển thị thông báo về voucher đã tạo
+            const voucherMsg = `✅ Đã tự động tạo ${result.data.length} voucher cho booking ${bookingId}`;
+            toastSuccess(successMsg);
+            toastSuccess(voucherMsg, { autoClose: 4000 });
           } else {
-            console.log(`ℹ️ Không tạo voucher tự động: ${result.message}`);
+            // Hiển thị thông báo rõ ràng về lý do không tạo được voucher
+            const reason = result.message || "Không thể tạo voucher tự động";
+            let userMessage = `⚠️ Không tạo voucher tự động: ${reason}`;
+            
+            // Kiểm tra các lý do phổ biến
+            if (reason.toLowerCase().includes("autogenerate") || reason.toLowerCase().includes("auto-generate")) {
+              userMessage = "⚠️ Không tạo voucher: Host đã tắt tính năng tự động tạo voucher (AutoGenerate)";
+            } else if (reason.toLowerCase().includes("setting") || reason.toLowerCase().includes("cấu hình")) {
+              userMessage = "⚠️ Không tạo voucher: Cài đặt voucher chưa được cấu hình đầy đủ";
+            }
+            
+            toastSuccess(successMsg);
+            toastWarning(userMessage, { autoClose: 4000 });
           }
         } catch (voucherErr: any) {
           // Không block việc cập nhật status nếu tạo voucher thất bại
-          console.error("Error auto-creating vouchers:", voucherErr);
+          const errorMsg = voucherErr.response?.data?.message || voucherErr.message || "Lỗi không xác định";
+          
+          // Hiển thị thông báo nếu có thông tin cụ thể từ server
+          if (errorMsg.toLowerCase().includes("autogenerate") || errorMsg.toLowerCase().includes("auto-generate")) {
+            toastSuccess(successMsg);
+            toastWarning("💡 Lưu ý: Host có thể đã tắt tính năng tự động tạo voucher (AutoGenerate)", { autoClose: 4000 });
+          } else if (errorMsg.toLowerCase().includes("setting") || errorMsg.toLowerCase().includes("cấu hình")) {
+            toastSuccess(successMsg);
+            toastWarning("💡 Lưu ý: Cài đặt voucher có thể chưa được cấu hình đầy đủ", { autoClose: 4000 });
+          } else {
+            toastSuccess(successMsg);
+            toastWarning("Không thể tạo voucher tự động", { autoClose: 4000 });
+          }
         }
+      } else {
+        // Show success message
+        toastSuccess(successMsg);
       }
       
       // Refresh danh sách
       await fetchBookings();
-      // Show success message
-      const successMsg = `Đã cập nhật trạng thái sang "${mapStatusToVN(normalizedStatus)}" thành công!`;
-      console.log(successMsg);
-      // Có thể thay bằng toast notification nếu có
-      alert(successMsg);
     } catch (err: any) {
-      console.error("Error updating booking status:", err);
       const message = err.response?.data?.message || err.response?.data?.error || "Không thể cập nhật trạng thái. Vui lòng thử lại sau.";
-      alert(message);
+      toastError(message);
       // Reload để reset select về giá trị cũ
       fetchBookings();
     } finally {
@@ -211,13 +237,12 @@ const HostCondotelDashboard = () => {
 
     try {
       await condotelAPI.delete(condotelId);
-      alert("Đã vô hiệu hóa condotel thành công!");
+      toastSuccess("Đã vô hiệu hóa condotel thành công!");
       // Refresh danh sách
       await fetchCondotels();
     } catch (err: any) {
-      console.error("Error deleting condotel:", err);
-      const message = err.response?.data?.message || err.response?.data?.error;
-      alert(message || "Không thể vô hiệu hóa condotel. Vui lòng thử lại sau.");
+      const message = err.response?.data?.message || err.response?.data?.error || "Không thể vô hiệu hóa condotel. Vui lòng thử lại sau.";
+      toastError(message);
     }
   };
 

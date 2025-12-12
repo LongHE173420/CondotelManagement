@@ -28,6 +28,11 @@ export interface HostPayoutDTO {
   bankName?: string; // Tên ngân hàng của host
   accountNumber?: string; // Số tài khoản ngân hàng của host
   accountHolderName?: string; // Tên chủ tài khoản của host
+  
+  // Thông tin về reject payout (nếu có)
+  isRejected?: boolean; // Đã bị từ chối thanh toán chưa
+  rejectedAt?: string; // DateTime khi bị từ chối
+  rejectReason?: string; // Lý do từ chối
 }
 
 // ProcessPayoutResponse - Response khi xử lý payout (theo HostPayoutResponseDTO mới)
@@ -72,6 +77,10 @@ const normalizePayout = (item: any): HostPayoutDTO => {
     bankName: item.BankName || item.bankName,
     accountNumber: item.AccountNumber || item.accountNumber,
     accountHolderName: item.AccountHolderName || item.accountHolderName,
+    // Thông tin về reject payout
+    isRejected: item.IsRejected !== undefined ? item.IsRejected : (item.isRejected !== undefined ? item.isRejected : false),
+    rejectedAt: item.RejectedAt || item.rejectedAt,
+    rejectReason: item.RejectionReason || item.RejectReason || item.rejectReason,
   };
 };
 
@@ -182,6 +191,35 @@ export const payoutAPI = {
     return payouts.map(normalizePayout);
   },
 
+  // GET /api/admin/payouts/rejected?hostId=1&fromDate=2025-01-01&toDate=2025-12-31 - Admin xem danh sách booking đã bị từ chối
+  // hostId (optional): Lọc theo host cụ thể
+  // fromDate, toDate (optional): Lọc theo khoảng thời gian từ chối (YYYY-MM-DD)
+  getAdminRejectedPayouts: async (options?: {
+    hostId?: number;
+    fromDate?: string; // YYYY-MM-DD
+    toDate?: string; // YYYY-MM-DD
+  }): Promise<HostPayoutDTO[]> => {
+    const params: any = {};
+    if (options?.hostId !== undefined && options?.hostId !== null) {
+      params.hostId = options.hostId;
+    }
+    if (options?.fromDate) {
+      params.fromDate = options.fromDate;
+    }
+    if (options?.toDate) {
+      params.toDate = options.toDate;
+    }
+    
+    const response = await axiosClient.get<any>("/admin/payouts/rejected", { params });
+    const data = response.data;
+    
+    // Normalize response từ backend (PascalCase -> camelCase)
+    // Response có thể có structure: { success: true, data: [...], total: 5, totalAmount: 25000000, summary: {...} }
+    const payouts = Array.isArray(data) ? data : (data.data || []);
+    
+    return payouts.map(normalizePayout);
+  },
+
   // POST /api/admin/payouts/process-all - Admin xử lý tất cả booking đủ điều kiện
   processAllPayouts: async (): Promise<ProcessPayoutResponse> => {
     const response = await axiosClient.post<any>("/admin/payouts/process-all");
@@ -192,6 +230,18 @@ export const payoutAPI = {
   confirmPayout: async (bookingId: number): Promise<ProcessPayoutResponse> => {
     const response = await axiosClient.post<any>(`/admin/payouts/${bookingId}/confirm`);
     return normalizeProcessResponse(response.data);
+  },
+
+  // POST /api/admin/payouts/{bookingId}/reject - Admin từ chối payout cho một booking cụ thể
+  rejectPayout: async (
+    bookingId: number,
+    reason: string
+  ): Promise<{ success: boolean; message: string }> => {
+    const response = await axiosClient.post<{ success: boolean; message: string }>(
+      `/admin/payouts/${bookingId}/reject`,
+      { reason }
+    );
+    return response.data;
   },
 };
 

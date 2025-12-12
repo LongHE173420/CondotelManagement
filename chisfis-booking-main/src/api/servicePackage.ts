@@ -49,9 +49,11 @@ export interface UpdateServicePackageDTO {
 export const servicePackageAPI = {
   // GET /api/host/service-packages - Lấy tất cả service packages của host
   getAll: async (): Promise<ServicePackageDTO[]> => {
-    const response = await axiosClient.get<any[]>("/host/service-packages");
+    const response = await axiosClient.get<any>("/host/service-packages");
     // Normalize response từ backend (PascalCase -> camelCase)
-    return response.data.map((item: any) => ({
+    // Handle both array and object with data property
+    const data = Array.isArray(response.data) ? response.data : (response.data?.data || []);
+    return data.map((item: any) => ({
       packageId: item.PackageId || item.packageId || item.ServicePackageId || item.servicePackageId,
       servicePackageId: item.ServicePackageId || item.servicePackageId || item.PackageId || item.packageId,
       name: item.Name || item.name || item.Title || item.title,

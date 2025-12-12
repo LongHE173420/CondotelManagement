@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from "react";
-import resortAPI, { ResortDTO } from "api/resort";
+import resortAPI, { ResortDTO, ResortUtilityRequestDTO, ResortUtilityDTO } from "api/resort";
 import locationAPI, { LocationDTO } from "api/location";
+import utilityAPI, { UtilityDTO } from "api/utility";
+import vietnamAddressAPI from "api/vietnamAddress";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
 import ButtonSecondary from "shared/Button/ButtonSecondary";
+import { toastError, toastSuccess } from "utils/toast";
 
 const PageAdminResorts: React.FC = () => {
   const [resorts, setResorts] = useState<ResortDTO[]>([]);
@@ -14,6 +17,8 @@ const PageAdminResorts: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingResort, setEditingResort] = useState<ResortDTO | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [showUtilitiesModal, setShowUtilitiesModal] = useState(false);
+  const [selectedResortForUtilities, setSelectedResortForUtilities] = useState<ResortDTO | null>(null);
 
   useEffect(() => {
     loadResorts();
@@ -28,8 +33,9 @@ const PageAdminResorts: React.FC = () => {
       const data = await resortAPI.getAllAdmin();
       setResorts(data);
     } catch (err: any) {
-      console.error("Failed to load resorts:", err);
-      setError(err.response?.data?.message || "Không thể tải danh sách resorts");
+      const errorMsg = err.response?.data?.message || "Không thể tải danh sách resorts";
+      setError(errorMsg);
+      toastError(errorMsg);
       setResorts([]);
     } finally {
       setLoading(false);
@@ -42,7 +48,7 @@ const PageAdminResorts: React.FC = () => {
       const data = await locationAPI.getAllAdmin();
       setLocations(data);
     } catch (err: any) {
-      console.error("Failed to load locations:", err);
+      toastError("Không thể tải danh sách địa điểm");
     } finally {
       setLoadingLocations(false);
     }
@@ -58,9 +64,11 @@ const PageAdminResorts: React.FC = () => {
       await resortAPI.deleteAdmin(id);
       setSuccess(`Đã xóa resort "${name}" thành công!`);
       await loadResorts();
+      toastSuccess(`Đã xóa resort "${name}" thành công!`);
     } catch (err: any) {
-      console.error("Failed to delete resort:", err);
-      setError(err.response?.data?.message || "Không thể xóa resort");
+      const errorMsg = err.response?.data?.message || "Không thể xóa resort";
+      setError(errorMsg);
+      toastError(errorMsg);
     } finally {
       setDeletingId(null);
     }
@@ -69,7 +77,7 @@ const PageAdminResorts: React.FC = () => {
   const getLocationName = (locationId?: number): string => {
     if (!locationId) return "-";
     const location = locations.find((loc) => loc.locationId === locationId);
-    return location ? location.locationName : `Location #${locationId}`;
+    return location ? (location.name || `Location #${locationId}`) : `Location #${locationId}`;
   };
 
   if (loading) {
@@ -244,6 +252,20 @@ const PageAdminResorts: React.FC = () => {
                           Sửa
                         </span>
                       </ButtonSecondary>
+                      <ButtonSecondary
+                        onClick={() => {
+                          setSelectedResortForUtilities(resort);
+                          setShowUtilitiesModal(true);
+                        }}
+                        className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-md hover:shadow-lg transition-all duration-300"
+                      >
+                        <span className="flex items-center gap-1">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                          </svg>
+                          Utilities
+                        </span>
+                      </ButtonSecondary>
                       <button
                         onClick={() => handleDelete(resort.resortId, resort.name)}
                         disabled={deletingId === resort.resortId}
@@ -296,6 +318,17 @@ const PageAdminResorts: React.FC = () => {
           }}
         />
       )}
+
+      {/* Utilities Management Modal */}
+      {showUtilitiesModal && selectedResortForUtilities && (
+        <ResortUtilitiesModal
+          resort={selectedResortForUtilities}
+          onClose={() => {
+            setShowUtilitiesModal(false);
+            setSelectedResortForUtilities(null);
+          }}
+        />
+      )}
     </div>
   );
 };
@@ -320,6 +353,13 @@ const ResortModal: React.FC<ResortModalProps> = ({ resort, locations, loadingLoc
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [selectedLocation, setSelectedLocation] = useState<LocationDTO | null>(null);
+  const [selectedWard, setSelectedWard] = useState<string>("");
+  const [selectedDistrict, setSelectedDistrict] = useState<string>("");
+  const [wardsList, setWardsList] = useState<string[]>([]);
+  const [districtsList, setDistrictsList] = useState<string[]>([]);
+  const [loadingWards, setLoadingWards] = useState(false);
+  const [loadingDistricts, setLoadingDistricts] = useState(false);
 
   // Prevent body scroll when modal is open
   useEffect(() => {
@@ -328,6 +368,70 @@ const ResortModal: React.FC<ResortModalProps> = ({ resort, locations, loadingLoc
       document.body.style.overflow = 'unset';
     };
   }, []);
+
+  // Load selected location details when locationId changes
+  useEffect(() => {
+    const loadLocationData = async () => {
+      if (formData.locationId) {
+        const location = locations.find(l => l.locationId === formData.locationId);
+        if (location) {
+          setSelectedLocation(location);
+          
+          // Nếu location có ward/district, set giá trị mặc định
+          if (location.ward) {
+            setSelectedWard(location.ward);
+          }
+          if (location.district) {
+            setSelectedDistrict(location.district);
+          }
+
+          // Load danh sách quận/huyện từ API bên ngoài (provinces.open-api.vn)
+          setLoadingDistricts(true);
+          setLoadingWards(true);
+          try {
+            // Thử lấy từ API bên ngoài trước
+            const externalDistricts = await vietnamAddressAPI.getDistrictsByProvinceName(location.name);
+            
+            if (externalDistricts.length > 0) {
+              setDistrictsList(externalDistricts);
+            } else {
+              // Fallback: thử lấy từ API internal
+              const internalDistricts = await locationAPI.getDistrictsByLocationIdPublic(location.locationId);
+              setDistrictsList(internalDistricts);
+            }
+            
+            // Wards sẽ được load khi chọn district
+            setWardsList([]);
+          } catch (err) {
+            // Fallback: thử lấy từ API internal
+            try {
+              const internalDistricts = await locationAPI.getDistrictsByLocationIdPublic(location.locationId);
+              setDistrictsList(internalDistricts);
+            } catch (fallbackErr) {
+              setDistrictsList([]);
+            }
+          } finally {
+            setLoadingDistricts(false);
+            setLoadingWards(false);
+          }
+        } else {
+          setSelectedLocation(null);
+          setSelectedWard("");
+          setSelectedDistrict("");
+          setDistrictsList([]);
+          setWardsList([]);
+        }
+      } else {
+        setSelectedLocation(null);
+        setSelectedWard("");
+        setSelectedDistrict("");
+        setDistrictsList([]);
+        setWardsList([]);
+      }
+    };
+
+    loadLocationData();
+  }, [formData.locationId, locations]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -340,17 +444,49 @@ const ResortModal: React.FC<ResortModalProps> = ({ resort, locations, loadingLoc
 
     setLoading(true);
     try {
+      // Tạo address đầy đủ: Xã/Phường, Quận/Huyện, Tỉnh/Thành phố, [địa chỉ chi tiết]
+      const addressParts: string[] = [];
+      
+      // Thêm Xã/Phường nếu có
+      if (selectedWard && selectedWard.trim()) {
+        addressParts.push(selectedWard.trim());
+      }
+      
+      // Thêm Quận/Huyện nếu có
+      if (selectedDistrict && selectedDistrict.trim()) {
+        addressParts.push(selectedDistrict.trim());
+      }
+      
+      // Thêm Tỉnh/Thành phố nếu có location
+      if (selectedLocation && selectedLocation.name) {
+        addressParts.push(selectedLocation.name);
+      }
+      
+      // Thêm địa chỉ chi tiết nếu có
+      if (formData.address && formData.address.trim()) {
+        addressParts.push(formData.address.trim());
+      }
+      
+      // Ghép tất cả bằng dấu phẩy
+      const fullAddress = addressParts.join(", ");
+
+      const submitData = {
+        ...formData,
+        address: fullAddress || formData.address || "",
+      };
+
       if (resort) {
-        await resortAPI.updateAdmin(resort.resortId, formData);
-        alert("Cập nhật resort thành công!");
+        await resortAPI.updateAdmin(resort.resortId, submitData);
+        toastSuccess("Cập nhật resort thành công!");
       } else {
-        await resortAPI.createAdmin(formData);
-        alert("Tạo resort thành công!");
+        await resortAPI.createAdmin(submitData);
+        toastSuccess("Tạo resort thành công!");
       }
       onSuccess();
     } catch (err: any) {
-      console.error("Failed to save resort:", err);
-      setError(err.response?.data?.message || "Không thể lưu resort. Vui lòng thử lại!");
+      const errorMsg = err.response?.data?.message || "Không thể lưu resort. Vui lòng thử lại!";
+      setError(errorMsg);
+      toastError(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -407,7 +543,7 @@ const ResortModal: React.FC<ResortModalProps> = ({ resort, locations, loadingLoc
 
               <div>
                 <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                  Location
+                  Tỉnh/Thành phố *
                 </label>
                 {loadingLocations ? (
                   <div className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-md bg-neutral-50 dark:bg-neutral-700">
@@ -418,16 +554,136 @@ const ResortModal: React.FC<ResortModalProps> = ({ resort, locations, loadingLoc
                     value={formData.locationId || ""}
                     onChange={(e) => setFormData((prev) => ({ ...prev, locationId: e.target.value ? parseInt(e.target.value) : undefined }))}
                     className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 dark:bg-neutral-700 dark:text-neutral-100"
+                    required
                   >
-                    <option value="">-- Chọn Location (Tùy chọn) --</option>
+                    <option value="">-- Chọn Tỉnh/Thành phố --</option>
                     {locations.map((location) => (
                       <option key={location.locationId} value={location.locationId}>
-                        {location.locationName}
+                        {location.name || `Location #${location.locationId}`}
                       </option>
                     ))}
                   </select>
                 )}
               </div>
+
+              {/* Luôn hiển thị Quận/Huyện khi đã chọn location */}
+              {selectedLocation && (
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                    Quận/Huyện
+                  </label>
+                  {loadingDistricts ? (
+                    <div className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-md bg-neutral-50 dark:bg-neutral-700">
+                      <span className="text-sm text-neutral-500">Đang tải danh sách quận/huyện...</span>
+                    </div>
+                  ) : districtsList.length > 0 ? (
+                    <select
+                      value={selectedDistrict}
+                      onChange={async (e) => {
+                        const districtName = e.target.value;
+                        setSelectedDistrict(districtName);
+                        setSelectedWard(""); // Reset ward khi đổi district
+                        
+                        // Load danh sách xã/phường từ API bên ngoài
+                        if (districtName && selectedLocation) {
+                          setLoadingWards(true);
+                          try {
+                            const externalWards = await vietnamAddressAPI.getWardsByProvinceAndDistrict(
+                              selectedLocation.name,
+                              districtName
+                            );
+                            
+                            if (externalWards.length > 0) {
+                              setWardsList(externalWards);
+                            } else {
+                              // Fallback: thử lấy từ API internal
+                              const internalWards = await locationAPI.getWardsByLocationIdPublic(selectedLocation.locationId);
+                              setWardsList(internalWards);
+                            }
+                          } catch (err) {
+                            // Fallback: thử lấy từ API internal
+                            try {
+                              const internalWards = await locationAPI.getWardsByLocationIdPublic(selectedLocation.locationId);
+                              setWardsList(internalWards);
+                            } catch (fallbackErr) {
+                              setWardsList([]);
+                            }
+                          } finally {
+                            setLoadingWards(false);
+                          }
+                        } else {
+                          setWardsList([]);
+                        }
+                      }}
+                      className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 dark:bg-neutral-700 dark:text-neutral-100"
+                    >
+                      <option value="">-- Chọn Quận/Huyện --</option>
+                      {districtsList.map((district, index) => (
+                        <option key={index} value={district}>
+                          {district}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <>
+                      <input
+                        type="text"
+                        value={selectedDistrict}
+                        onChange={(e) => setSelectedDistrict(e.target.value)}
+                        placeholder={`Nhập quận/huyện thuộc ${selectedLocation.name}`}
+                        className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 dark:bg-neutral-700 dark:text-neutral-100"
+                      />
+                      {selectedLocation.district && (
+                        <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                          Gợi ý: {selectedLocation.district}
+                        </p>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* Luôn hiển thị Xã/Phường khi đã chọn location và district */}
+              {selectedLocation && selectedDistrict && (
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                    Xã/Phường
+                  </label>
+                  {loadingWards ? (
+                    <div className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-md bg-neutral-50 dark:bg-neutral-700">
+                      <span className="text-sm text-neutral-500">Đang tải danh sách xã/phường...</span>
+                    </div>
+                  ) : wardsList.length > 0 ? (
+                    <select
+                      value={selectedWard}
+                      onChange={(e) => setSelectedWard(e.target.value)}
+                      className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 dark:bg-neutral-700 dark:text-neutral-100"
+                    >
+                      <option value="">-- Chọn Xã/Phường --</option>
+                      {wardsList.map((ward, index) => (
+                        <option key={index} value={ward}>
+                          {ward}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <>
+                      <input
+                        type="text"
+                        value={selectedWard}
+                        onChange={(e) => setSelectedWard(e.target.value)}
+                        placeholder={`Nhập xã/phường thuộc ${selectedDistrict}, ${selectedLocation.name}`}
+                        className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 dark:bg-neutral-700 dark:text-neutral-100"
+                      />
+                      {selectedLocation.ward && (
+                        <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                          Gợi ý: {selectedLocation.ward}
+                        </p>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
@@ -477,6 +733,388 @@ const ResortModal: React.FC<ResortModalProps> = ({ resort, locations, loadingLoc
                 <ButtonSecondary onClick={onClose}>Hủy</ButtonSecondary>
                 <ButtonPrimary type="submit" disabled={loading}>
                   {loading ? "Đang lưu..." : resort ? "Cập nhật" : "Tạo mới"}
+                </ButtonPrimary>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Resort Utilities Modal Component
+interface ResortUtilitiesModalProps {
+  resort: ResortDTO;
+  onClose: () => void;
+}
+
+const ResortUtilitiesModal: React.FC<ResortUtilitiesModalProps> = ({ resort, onClose }) => {
+  const [resortUtilities, setResortUtilities] = useState<ResortUtilityDTO[]>([]);
+  const [allUtilities, setAllUtilities] = useState<UtilityDTO[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadingUtilities, setLoadingUtilities] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [deletingUtilityId, setDeletingUtilityId] = useState<number | null>(null);
+
+  useEffect(() => {
+    loadData();
+  }, [resort.resortId]);
+
+  const loadData = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const [utilitiesData, allUtilitiesData] = await Promise.all([
+        resortAPI.getUtilitiesByResortAdmin(resort.resortId),
+        utilityAPI.getAllAdmin(),
+      ]);
+      setResortUtilities(utilitiesData);
+      setAllUtilities(allUtilitiesData);
+    } catch (err: any) {
+      const errorMsg = err.response?.data?.message || "Không thể tải danh sách utilities";
+      setError(errorMsg);
+      toastError(errorMsg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddUtility = async (utilityData: ResortUtilityRequestDTO) => {
+    setLoadingUtilities(true);
+    setError("");
+    try {
+      await resortAPI.addUtility(resort.resortId, utilityData);
+      setSuccess("Thêm utility thành công!");
+      await loadData();
+      setShowAddModal(false);
+      toastSuccess("Thêm utility thành công!");
+    } catch (err: any) {
+      const errorMsg = err.response?.data?.message || "Không thể thêm utility";
+      setError(errorMsg);
+      toastError(errorMsg);
+    } finally {
+      setLoadingUtilities(false);
+    }
+  };
+
+  const handleRemoveUtility = async (utilityId: number) => {
+    if (!window.confirm("Bạn có chắc chắn muốn xóa utility này khỏi resort?")) {
+      return;
+    }
+
+    setDeletingUtilityId(utilityId);
+    setError("");
+    try {
+      await resortAPI.removeUtility(resort.resortId, utilityId);
+      setSuccess("Xóa utility thành công!");
+      await loadData();
+      toastSuccess("Xóa utility thành công!");
+    } catch (err: any) {
+      const errorMsg = err.response?.data?.message || "Không thể xóa utility";
+      setError(errorMsg);
+      toastError(errorMsg);
+    } finally {
+      setDeletingUtilityId(null);
+    }
+  };
+
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, []);
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto" style={{ position: 'fixed', width: '100%', height: '100%' }}>
+      <div className="flex items-center justify-center min-h-screen px-4 py-4">
+        <div
+          className="fixed inset-0 transition-opacity bg-gray-900 bg-opacity-50 backdrop-blur-sm"
+          onClick={onClose}
+        ></div>
+
+        <div className="relative bg-white dark:bg-neutral-800 rounded-2xl shadow-2xl transform transition-all w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+          <div className="sticky top-0 bg-white dark:bg-neutral-800 border-b border-neutral-200 dark:border-neutral-700 px-6 py-4 flex items-center justify-between z-10">
+            <h3 className="text-xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+              Quản lý Utilities - {resort.name}
+            </h3>
+            <button
+              onClick={onClose}
+              className="text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200 transition-colors p-2 hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded-lg"
+            >
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <div className="px-6 py-6">
+            {error && (
+              <div className="mb-4 p-3 bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-200 rounded-lg text-sm">
+                {error}
+              </div>
+            )}
+
+            {success && (
+              <div className="mb-4 p-3 bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-200 rounded-lg text-sm">
+                {success}
+              </div>
+            )}
+
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">
+                Danh sách Utilities ({resortUtilities.length})
+              </h4>
+              <ButtonPrimary
+                onClick={() => setShowAddModal(true)}
+                className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+              >
+                <span className="flex items-center gap-2">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Thêm Utility
+                </span>
+              </ButtonPrimary>
+            </div>
+
+            {loading ? (
+              <div className="flex justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-4 border-green-200 dark:border-green-800 border-t-green-600"></div>
+              </div>
+            ) : resortUtilities.length === 0 ? (
+              <div className="text-center py-8 text-neutral-500 dark:text-neutral-400">
+                Chưa có utility nào cho resort này
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {resortUtilities.map((utility) => (
+                  <div
+                    key={utility.utilityId}
+                    className="p-4 bg-neutral-50 dark:bg-neutral-700/50 rounded-lg border border-neutral-200 dark:border-neutral-600"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h5 className="font-semibold text-neutral-900 dark:text-neutral-100 mb-1">
+                          {utility.name}
+                        </h5>
+                        {utility.description && (
+                          <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-2">
+                            {utility.description}
+                          </p>
+                        )}
+                        {utility.category && (
+                          <span className="inline-block px-2 py-1 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded">
+                            {utility.category}
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => handleRemoveUtility(utility.utilityId)}
+                        disabled={deletingUtilityId === utility.utilityId}
+                        className="ml-4 px-3 py-1 text-sm bg-red-500 hover:bg-red-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {deletingUtilityId === utility.utilityId ? "Đang xóa..." : "Xóa"}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Add Utility Modal */}
+      {showAddModal && (
+        <AddUtilityToResortModal
+          resort={resort}
+          allUtilities={allUtilities}
+          existingUtilityIds={resortUtilities.map(u => u.utilityId)}
+          onClose={() => setShowAddModal(false)}
+          onAdd={handleAddUtility}
+          loading={loadingUtilities}
+        />
+      )}
+    </div>
+  );
+};
+
+// Add Utility to Resort Modal
+interface AddUtilityToResortModalProps {
+  resort: ResortDTO;
+  allUtilities: UtilityDTO[];
+  existingUtilityIds: number[];
+  onClose: () => void;
+  onAdd: (utility: ResortUtilityRequestDTO) => void;
+  loading: boolean;
+}
+
+const AddUtilityToResortModal: React.FC<AddUtilityToResortModalProps> = ({
+  resort,
+  allUtilities,
+  existingUtilityIds,
+  onClose,
+  onAdd,
+  loading,
+}) => {
+  const [formData, setFormData] = useState<ResortUtilityRequestDTO>({
+    utilityId: 0,
+    status: "Active",
+    operatingHours: "",
+    cost: undefined,
+    descriptionDetail: "",
+    maximumCapacity: undefined,
+  });
+  const [error, setError] = useState("");
+
+  const availableUtilities = allUtilities.filter(u => !existingUtilityIds.includes(u.utilityId));
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+
+    if (!formData.utilityId || formData.utilityId === 0) {
+      setError("Vui lòng chọn utility!");
+      return;
+    }
+
+    onAdd(formData);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] overflow-y-auto" style={{ position: 'fixed', width: '100%', height: '100%' }}>
+      <div className="flex items-center justify-center min-h-screen px-4 py-4">
+        <div
+          className="fixed inset-0 transition-opacity bg-gray-900 bg-opacity-50 backdrop-blur-sm"
+          onClick={onClose}
+        ></div>
+
+        <div className="relative bg-white dark:bg-neutral-800 rounded-2xl shadow-2xl transform transition-all w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div className="sticky top-0 bg-white dark:bg-neutral-800 border-b border-neutral-200 dark:border-neutral-700 px-6 py-4 flex items-center justify-between z-10">
+            <h3 className="text-xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+              Thêm Utility cho {resort.name}
+            </h3>
+            <button
+              onClick={onClose}
+              className="text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200 transition-colors p-2 hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded-lg"
+            >
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <div className="px-6 py-6">
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                  Utility *
+                </label>
+                <select
+                  value={formData.utilityId || ""}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, utilityId: parseInt(e.target.value) }))}
+                  className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-neutral-700 dark:text-neutral-100"
+                  required
+                >
+                  <option value="">-- Chọn Utility --</option>
+                  {availableUtilities.map((utility) => (
+                    <option key={utility.utilityId} value={utility.utilityId}>
+                      {utility.name} {utility.category ? `(${utility.category})` : ""}
+                    </option>
+                  ))}
+                </select>
+                {availableUtilities.length === 0 && (
+                  <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                    Tất cả utilities đã được thêm vào resort này
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                  Trạng thái
+                </label>
+                <select
+                  value={formData.status || "Active"}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, status: e.target.value }))}
+                  className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-neutral-700 dark:text-neutral-100"
+                >
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                  Giờ hoạt động
+                </label>
+                <input
+                  type="text"
+                  value={formData.operatingHours || ""}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, operatingHours: e.target.value }))}
+                  placeholder="Ví dụ: 8:00 - 22:00"
+                  className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-neutral-700 dark:text-neutral-100"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                    Chi phí (VNĐ)
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.cost || ""}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, cost: e.target.value ? parseInt(e.target.value) : undefined }))}
+                    placeholder="0"
+                    min="0"
+                    className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-neutral-700 dark:text-neutral-100"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                    Sức chứa tối đa
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.maximumCapacity || ""}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, maximumCapacity: e.target.value ? parseInt(e.target.value) : undefined }))}
+                    placeholder="0"
+                    min="0"
+                    className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-neutral-700 dark:text-neutral-100"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                  Mô tả chi tiết
+                </label>
+                <textarea
+                  value={formData.descriptionDetail || ""}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, descriptionDetail: e.target.value }))}
+                  rows={3}
+                  placeholder="Mô tả chi tiết về utility này trong resort..."
+                  className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-neutral-700 dark:text-neutral-100"
+                />
+              </div>
+
+              {error && (
+                <div className="p-3 bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-200 rounded-lg text-sm">
+                  {error}
+                </div>
+              )}
+
+              <div className="flex items-center justify-end space-x-3 pt-4">
+                <ButtonSecondary onClick={onClose}>Hủy</ButtonSecondary>
+                <ButtonPrimary type="submit" disabled={loading}>
+                  {loading ? "Đang thêm..." : "Thêm Utility"}
                 </ButtonPrimary>
               </div>
             </form>
