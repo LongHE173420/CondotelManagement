@@ -40,9 +40,6 @@ const HostPackageContent: React.FC = () => {
     }
   };
 
-  // API hủy package đã bị vô hiệu hóa ở backend
-  // Host không thể hủy package, chỉ có thể nâng cấp bằng cách mua gói mới
-
   const formatDate = (dateString: string | undefined) => {
     if (!dateString) return "N/A";
     try {
@@ -64,8 +61,12 @@ const HostPackageContent: React.FC = () => {
         className: "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400",
       },
       Pending: {
-        label: "Đang chờ",
+        label: "Đang chờ thanh toán",
         className: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400",
+      },
+      Inactive: {
+        label: "Chưa kích hoạt",
+        className: "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300",
       },
       Cancelled: {
         label: "Đã hủy",
@@ -73,7 +74,7 @@ const HostPackageContent: React.FC = () => {
       },
       Expired: {
         label: "Hết hạn",
-        className: "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300",
+        className: "bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400",
       },
     };
 
@@ -87,6 +88,11 @@ const HostPackageContent: React.FC = () => {
         {statusInfo.label}
       </span>
     );
+  };
+
+  const handleRetryPayment = () => {
+    // Luôn chuyển đến trang pricing khi nhấn "Tiếp tục thanh toán"
+    navigate("/pricing");
   };
 
   if (loading) {
@@ -112,8 +118,8 @@ const HostPackageContent: React.FC = () => {
             Quản lý gói đăng ký Host của bạn
           </p>
         </div>
-        {!currentPackage && (
-          <ButtonPrimary 
+        {(!currentPackage || currentPackage.status === "Inactive") && (
+          <ButtonPrimary
             onClick={() => navigate("/pricing")}
             className="bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
           >
@@ -162,7 +168,7 @@ const HostPackageContent: React.FC = () => {
           <p className="text-neutral-600 dark:text-neutral-400 mb-6">
             Đăng ký gói để bắt đầu đăng căn hộ và quản lý doanh thu.
           </p>
-          <ButtonPrimary 
+          <ButtonPrimary
             onClick={() => navigate("/pricing")}
             className="bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600"
           >
@@ -231,8 +237,47 @@ const HostPackageContent: React.FC = () => {
             </div>
           </div>
 
-          {currentPackage.status === "Active" && (
-            <div className="pt-6 border-t border-neutral-200 dark:border-neutral-700">
+          {/* Hiển thị thông báo và nút hành động theo trạng thái */}
+          <div className="pt-6 border-t border-neutral-200 dark:border-neutral-700">
+            {currentPackage.status === "Inactive" ? (
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-4">
+                <div className="flex items-start">
+                  <svg
+                    className="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5 mr-3 flex-shrink-0"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-yellow-900 dark:text-yellow-200">
+                      Gói chưa được kích hoạt
+                    </p>
+                    <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
+                      Bạn đã chọn gói này nhưng chưa hoàn tất thanh toán.
+                      Vui lòng thanh toán để kích hoạt gói.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center justify-end mt-4">
+                  <ButtonPrimary
+                    onClick={handleRetryPayment}
+                    className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600"
+                  >
+                    <span className="flex items-center gap-2">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
+                      Tiếp tục thanh toán
+                    </span>
+                  </ButtonPrimary>
+                </div>
+              </div>
+            ) : currentPackage.status === "Active" ? (
               <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
                 <div className="flex items-start">
                   <svg
@@ -251,27 +296,84 @@ const HostPackageContent: React.FC = () => {
                       Nâng cấp gói của bạn
                     </p>
                     <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
-                      Bạn không thể hủy gói hiện tại. Để có thêm quyền lợi, bạn có thể nâng cấp lên gói cao hơn. 
+                      Bạn không thể hủy gói hiện tại. Để có thêm quyền lợi, bạn có thể nâng cấp lên gói cao hơn.
                       Gói cũ sẽ tự động được thay thế khi bạn thanh toán gói mới thành công.
                     </p>
                   </div>
                 </div>
+                <div className="flex items-center justify-end mt-4">
+                  <ButtonPrimary
+                    onClick={() => navigate("/pricing")}
+                    className="bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
+                  >
+                    <span className="flex items-center gap-2">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                      </svg>
+                      Nâng cấp gói
+                    </span>
+                  </ButtonPrimary>
+                </div>
               </div>
-              <div className="flex items-center justify-end">
-                <ButtonPrimary
-                  onClick={() => navigate("/pricing")}
-                  className="bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
-                >
-                  <span className="flex items-center gap-2">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                    </svg>
-                    Nâng cấp gói
-                  </span>
-                </ButtonPrimary>
+            ) : currentPackage.status === "Pending" ? (
+              <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-4 mb-4">
+                <div className="flex items-start">
+                  <svg
+                    className="w-5 h-5 text-purple-600 dark:text-purple-400 mt-0.5 mr-3 flex-shrink-0"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-purple-900 dark:text-purple-200">
+                      Đang chờ xác nhận thanh toán
+                    </p>
+                    <p className="text-sm text-purple-700 dark:text-purple-300 mt-1">
+                      Gói của bạn đang chờ hệ thống xác nhận thanh toán.
+                      Vui lòng chờ trong giây lát hoặc liên hệ hỗ trợ nếu quá lâu.
+                    </p>
+                  </div>
+                </div>
               </div>
-            </div>
-          )}
+            ) : currentPackage.status === "Expired" && (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-4">
+                <div className="flex items-start">
+                  <svg
+                    className="w-5 h-5 text-red-600 dark:text-red-400 mt-0.5 mr-3 flex-shrink-0"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-red-900 dark:text-red-200">
+                      Gói đã hết hạn
+                    </p>
+                    <p className="text-sm text-red-700 dark:text-red-300 mt-1">
+                      Gói của bạn đã hết hạn. Vui lòng đăng ký gói mới để tiếp tục sử dụng dịch vụ.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center justify-end mt-4">
+                  <ButtonPrimary
+                    onClick={() => navigate("/pricing")}
+                    className="bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600"
+                  >
+                    Đăng ký gói mới
+                  </ButtonPrimary>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -279,4 +381,3 @@ const HostPackageContent: React.FC = () => {
 };
 
 export default HostPackageContent;
-

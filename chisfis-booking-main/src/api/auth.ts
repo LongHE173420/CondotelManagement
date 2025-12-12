@@ -44,12 +44,12 @@ export interface HostPublicProfile {
 
 // Dành riêng cho Host đăng ký
 export interface HostRegisterRequest {
-  PhoneContact: string;
-  Address?: string;
-  CompanyName?: string;
-  BankName: string;
-  AccountNumber: string;
-  AccountHolderName: string;
+   PhoneContact: string;
+    Address?: string; 
+    CompanyName?: string; 
+    BankName: string;
+    AccountNumber: string;
+    AccountHolderName: string;
 }
 
 // =====================

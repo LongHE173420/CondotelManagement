@@ -12,7 +12,7 @@ export interface PackageDto {
 
 export interface HostPackageDetailsDto {
     packageName: string;
-    status: string;
+    status: "Active" | "Inactive" | "Pending" | "Cancelled" | "Expired";
     startDate: string;
     endDate: string;
     maxListings: number;
@@ -36,6 +36,11 @@ export interface PurchasePackageRequestDto {
     packageId: number;
 }
 
+export interface PaymentUrlResponseDto {
+    paymentUrl: string;
+    orderCode: number;
+}
+
 export const packageAPI = {
     getAllPackages: async (): Promise<PackageDto[]> => {
         const response = await axiosClient.get<PackageDto[]>("/Package");
@@ -51,7 +56,6 @@ export const packageAPI = {
         }
     },
 
-    // TRẢ VỀ THÔNG TIN ĐỂ GỌI PAYOS
     purchasePackage: async (packageId: number): Promise<HostPackageDetailsDto> => {
         const response = await axiosClient.post<HostPackageDetailsDto>(
             "/host/packages/purchase",
@@ -60,7 +64,13 @@ export const packageAPI = {
         return response.data;
     },
 
-    // POST /api/host/packages/cancel - Hủy package và hoàn tiền
+    getPaymentUrl: async (orderCode: number): Promise<PaymentUrlResponseDto> => {
+        const response = await axiosClient.get<PaymentUrlResponseDto>(
+            `/host/packages/payment-url/${orderCode}`
+        );
+        return response.data;
+    },
+
     cancelPackage: async (): Promise<CancelPackageResponseDto> => {
         const response = await axiosClient.post<CancelPackageResponseDto>("/host/packages/cancel");
         return response.data;
