@@ -67,7 +67,6 @@ const PageAdminRefund = () => {
   // STATE CHO MODAL XÁC NHẬN
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   const [selectedBookingId, setSelectedBookingId] = useState<number | null>(null);
-  const [refundType, setRefundType] = useState<"auto" | "manual">("auto");
   const [refundReason, setRefundReason] = useState("");
   const [processing, setProcessing] = useState(false);
 
@@ -224,7 +223,7 @@ const PageAdminRefund = () => {
   }, [selectedQR, confirmModalOpen]);
 
   // --- HÀM MỞ MODAL XÁC NHẬN ---
-  const openConfirmModal = async (bookingId: number, type: "auto" | "manual") => {
+  const openConfirmModal = async (bookingId: number) => {
     // Đảm bảo bookingId là number, không phải string format
     let numericId: number;
     if (typeof bookingId === 'number') {
@@ -236,66 +235,27 @@ const PageAdminRefund = () => {
     }
     
     setSelectedBookingId(numericId);
-    setRefundType(type);
     setRefundReason("");
     setConfirmModalOpen(true);
     
-    // Nếu là manual refund, generate QR code ngay
-    if (type === "manual") {
-      const selectedRequest = requests.find(req => req.bookingId === numericId);
-      if (selectedRequest?.bankInfo) {
-        setLoadingQRModal(true);
-        setQrUrlModal("");
-        try {
-          const url = await generateQRUrl(selectedRequest, "print");
-          setQrUrlModal(url);
-        } catch (error) {
-          toastError("Không thể tạo QR code cho modal");
-        } finally {
-          setLoadingQRModal(false);
-        }
-      } else {
-        setQrUrlModal("");
+    // Generate QR code ngay
+    const selectedRequest = requests.find(req => req.bookingId === numericId);
+    if (selectedRequest?.bankInfo) {
+      setLoadingQRModal(true);
+      setQrUrlModal("");
+      try {
+        const url = await generateQRUrl(selectedRequest, "print");
+        setQrUrlModal(url);
+      } catch (error) {
+        toastError("Không thể tạo QR code cho modal");
+      } finally {
+        setLoadingQRModal(false);
       }
     } else {
-      // Reset QR URL khi mở modal auto
       setQrUrlModal("");
     }
   };
 
-  // --- HÀM THỰC HIỆN HOÀN TIỀN TỰ ĐỘNG (Cas API) ---
-  const handleAutoRefund = async () => {
-    if (!selectedBookingId) return;
-
-    // Đảm bảo bookingId là number
-    let numericId: number;
-    if (typeof selectedBookingId === 'number') {
-      numericId = selectedBookingId;
-    } else if (typeof selectedBookingId === 'string') {
-      numericId = parseInt(String(selectedBookingId).replace(/BOOK-/gi, ''), 10);
-    } else {
-      numericId = selectedBookingId as number;
-    }
-    
-    setProcessing(true);
-    try {
-      const result = await adminAPI.refundBooking(numericId, refundReason || undefined);
-      
-      if (result.success) {
-        toastSuccess(result.message || "Hoàn tiền tự động thành công!");
-        setConfirmModalOpen(false);
-        setSelectedBookingId(null);
-        loadRefundRequests(); // Reload danh sách
-      } else {
-        toastError(result.message || "Không thể hoàn tiền tự động. Vui lòng thử lại.");
-      }
-    } catch (err: any) {
-      const errorMsg = err.response?.data?.message || err.message || "Đã có lỗi xảy ra khi hoàn tiền tự động";
-      toastError(errorMsg);
-    } finally {
-      setProcessing(false);
-    }
-  };
 
   // --- HÀM XÁC NHẬN CHUYỂN TIỀN THỦ CÔNG ---
   const handleConfirmManual = async () => {
@@ -731,15 +691,8 @@ const PageAdminRefund = () => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       {req.status === "Pending" ? (
                           <div className="flex flex-col gap-2">
-                            <button
-                              onClick={() => openConfirmModal(req.bookingId, "auto")}
-                              className="bg-blue-600 text-white px-3 py-1.5 rounded-md text-xs hover:bg-blue-700 shadow-sm transition-colors font-medium"
-                              title="Hoàn tiền tự động qua Cas API"
-                            >
-                              💰 Hoàn tự động
-                            </button>
                         <button
-                              onClick={() => openConfirmModal(req.bookingId, "manual")}
+                              onClick={() => openConfirmModal(req.bookingId)}
                               className="bg-green-600 text-white px-3 py-1.5 rounded-md text-xs hover:bg-green-700 shadow-sm transition-colors font-medium"
                               title="Xác nhận đã chuyển tiền thủ công"
                         >
@@ -832,16 +785,14 @@ const PageAdminRefund = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm" style={{ position: 'fixed', width: '100%', height: '100%' }}>
             <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-2xl p-6 w-full max-w-2xl mx-4 transform transition-all animate-fadeIn max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-bold text-gray-900 mb-4">
-                {refundType === "auto" ? "Hoàn tiền tự động?" : "Xác nhận đã chuyển khoản?"}
+                Xác nhận đã chuyển khoản?
             </h3>
               <p className="text-gray-600 mb-4">
-                {refundType === "auto" 
-                  ? "Bạn có muốn hoàn tiền tự động cho khách hàng qua Cas Transfer API? Hệ thống sẽ tự động chuyển tiền vào tài khoản ngân hàng của khách hàng."
-                  : "Bạn xác nhận rằng đã chuyển tiền thành công cho khách hàng này qua ngân hàng? Hành động này sẽ cập nhật trạng thái đơn hàng thành \"Đã hoàn tiền\"."}
+                Bạn xác nhận rằng đã chuyển tiền thành công cho khách hàng này qua ngân hàng? Hành động này sẽ cập nhật trạng thái đơn hàng thành "Đã hoàn tiền".
               </p>
               
               {/* Hiển thị QR code khi xác nhận thủ công */}
-              {refundType === "manual" && selectedRequest?.bankInfo && (
+              {selectedRequest?.bankInfo && (
                 <div className="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
                   <h4 className="text-sm font-semibold text-gray-700 mb-3">📱 QR Code chuyển khoản</h4>
                   
@@ -905,19 +856,6 @@ const PageAdminRefund = () => {
                 </div>
               )}
               
-              {refundType === "auto" && (
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Lý do hoàn tiền (tùy chọn)</label>
-                  <textarea
-                    value={refundReason}
-                    onChange={(e) => setRefundReason(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-                    rows={3}
-                    placeholder="Nhập lý do hoàn tiền..."
-                  />
-                </div>
-              )}
-              
             <div className="flex justify-end space-x-3">
               <button
                   onClick={() => {
@@ -932,11 +870,11 @@ const PageAdminRefund = () => {
                 Hủy bỏ
               </button>
               <button
-                  onClick={refundType === "auto" ? handleAutoRefund : handleConfirmManual}
+                  onClick={handleConfirmManual}
                   disabled={processing}
                   className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 font-medium shadow-sm transition-colors disabled:opacity-50"
               >
-                  {processing ? "Đang xử lý..." : refundType === "auto" ? "Hoàn tiền tự động" : "Xác nhận ngay"}
+                  {processing ? "Đang xử lý..." : "Xác nhận ngay"}
               </button>
             </div>
           </div>

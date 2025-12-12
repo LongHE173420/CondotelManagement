@@ -382,13 +382,6 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
       // If booking dates are fully within promotion period, consider it active (regardless of status/isActive)
       if (bookingWithinPromotion) {
         // Promotion dates fully contain booking dates
-          bookingStart: startDate,
-          bookingEnd: endDate,
-          promoStart,
-          promoEnd,
-          status: promo.status,
-          isActive: promo.isActive,
-        });
         return true;
       }
       

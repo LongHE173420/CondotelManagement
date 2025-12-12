@@ -231,15 +231,14 @@ const PageRequestRefund = () => {
         throw new Error("Booking không có số tiền hợp lệ để hoàn tiền.");
       }
 
-      // Log refund request details (removed console.log for production)
       // console.log("💰 Đang gửi yêu cầu hoàn tiền với thông tin:", {
-        bookingId: currentBooking.bookingId,
-        status: currentBooking.status,
-        totalPrice: currentBooking.totalPrice,
-        bankName,
-        accountNumber: accountNumber.substring(0, 3) + "***", // Ẩn thông tin nhạy cảm
-        accountHolder: accountHolder.substring(0, 3) + "***", // Ẩn thông tin nhạy cảm
-      });
+      //   bookingId: currentBooking.bookingId,
+      //   status: currentBooking.status,
+      //   totalPrice: currentBooking.totalPrice,
+      //   bankName,
+      //   accountNumber: accountNumber.substring(0, 3) + "***", // Ẩn thông tin nhạy cảm
+      //   accountHolder: accountHolder.substring(0, 3) + "***", // Ẩn thông tin nhạy cảm
+      // });
 
       const result = await bookingAPI.refundBooking(currentBooking.bookingId, {
         bankName,

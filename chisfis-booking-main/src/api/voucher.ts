@@ -15,7 +15,45 @@ export interface VoucherDTO {
   minimumOrderAmount?: number;
   createdAt?: string;
   updatedAt?: string;
+  condotelId?: number;
+  condotelName?: string;
 }
+
+// Helper function để normalize voucher từ PascalCase sang camelCase
+const normalizeVoucher = (item: any): VoucherDTO => {
+  const normalized: VoucherDTO = {
+    voucherId: item.VoucherId || item.voucherId || item.voucherID,
+    code: item.Code || item.code,
+    description: item.Description || item.description,
+    discountPercentage: item.DiscountPercentage !== undefined && item.DiscountPercentage !== null 
+      ? item.DiscountPercentage 
+      : (item.discountPercentage !== undefined && item.discountPercentage !== null ? item.discountPercentage : undefined),
+    discountAmount: item.DiscountAmount !== undefined && item.DiscountAmount !== null
+      ? item.DiscountAmount
+      : (item.discountAmount !== undefined && item.discountAmount !== null ? item.discountAmount : undefined),
+    startDate: item.StartDate || item.startDate,
+    endDate: item.EndDate || item.endDate,
+    // Map status to isActive: "Active" = true, others = false
+    isActive: item.IsActive !== undefined 
+      ? item.IsActive 
+      : (item.Status || item.status || "").toLowerCase() === "active",
+    usageLimit: item.UsageLimit !== undefined ? item.UsageLimit : item.usageLimit,
+    usedCount: item.UsedCount !== undefined ? item.UsedCount : item.usedCount,
+    minimumOrderAmount: item.MinimumOrderAmount !== undefined ? item.MinimumOrderAmount : item.minimumOrderAmount,
+    createdAt: item.CreatedAt || item.createdAt,
+    updatedAt: item.UpdatedAt || item.updatedAt,
+  };
+  
+  // Add additional fields from response (condotelName, condotelId)
+  if (item.CondotelName || item.condotelName) {
+    normalized.condotelName = item.CondotelName || item.condotelName;
+  }
+  if (item.CondotelID || item.condotelID || item.condotelId) {
+    normalized.condotelId = item.CondotelID || item.condotelID || item.condotelId;
+  }
+  
+  return normalized;
+};
 
 export interface VoucherCreateDTO {
   code: string;
@@ -57,21 +95,7 @@ export const voucherAPI = {
       : (data.data || []);
     
     // Normalize each voucher from PascalCase to camelCase
-    return vouchers.map((item: any) => ({
-      voucherId: item.VoucherId || item.voucherId,
-      code: item.Code || item.code,
-      description: item.Description || item.description,
-      discountPercentage: item.DiscountPercentage !== undefined ? item.DiscountPercentage : item.discountPercentage,
-      discountAmount: item.DiscountAmount !== undefined ? item.DiscountAmount : item.discountAmount,
-      startDate: item.StartDate || item.startDate,
-      endDate: item.EndDate || item.endDate,
-      isActive: item.IsActive !== undefined ? item.IsActive : item.isActive,
-      usageLimit: item.UsageLimit !== undefined ? item.UsageLimit : item.usageLimit,
-      usedCount: item.UsedCount !== undefined ? item.UsedCount : item.usedCount,
-      minimumOrderAmount: item.MinimumOrderAmount !== undefined ? item.MinimumOrderAmount : item.minimumOrderAmount,
-      createdAt: item.CreatedAt || item.createdAt,
-      updatedAt: item.UpdatedAt || item.updatedAt,
-    }));
+    return vouchers.map((item: any) => normalizeVoucher(item));
   },
 
   // POST /api/host/vouchers - Tạo voucher mới
@@ -114,21 +138,7 @@ export const voucherAPI = {
     const data = response.data;
     
     // Normalize response từ PascalCase sang camelCase
-    return {
-      voucherId: data.VoucherId || data.voucherId,
-      code: data.Code || data.code,
-      description: data.Description || data.description,
-      discountPercentage: data.DiscountPercentage !== undefined ? data.DiscountPercentage : data.discountPercentage,
-      discountAmount: data.DiscountAmount !== undefined ? data.DiscountAmount : data.discountAmount,
-      startDate: data.StartDate || data.startDate,
-      endDate: data.EndDate || data.endDate,
-      isActive: data.IsActive !== undefined ? data.IsActive : data.isActive,
-      usageLimit: data.UsageLimit !== undefined ? data.UsageLimit : data.usageLimit,
-      usedCount: data.UsedCount !== undefined ? data.UsedCount : data.usedCount,
-      minimumOrderAmount: data.MinimumOrderAmount !== undefined ? data.MinimumOrderAmount : data.minimumOrderAmount,
-      createdAt: data.CreatedAt || data.createdAt,
-      updatedAt: data.UpdatedAt || data.updatedAt,
-    };
+    return normalizeVoucher(data);
   },
 
   // PUT /api/host/vouchers/{id} - Cập nhật voucher
@@ -172,21 +182,7 @@ export const voucherAPI = {
     const data = response.data;
     
     // Normalize response từ PascalCase sang camelCase
-    return {
-      voucherId: data.VoucherId || data.voucherId,
-      code: data.Code || data.code,
-      description: data.Description || data.description,
-      discountPercentage: data.DiscountPercentage !== undefined ? data.DiscountPercentage : data.discountPercentage,
-      discountAmount: data.DiscountAmount !== undefined ? data.DiscountAmount : data.discountAmount,
-      startDate: data.StartDate || data.startDate,
-      endDate: data.EndDate || data.endDate,
-      isActive: data.IsActive !== undefined ? data.IsActive : data.isActive,
-      usageLimit: data.UsageLimit !== undefined ? data.UsageLimit : data.usageLimit,
-      usedCount: data.UsedCount !== undefined ? data.UsedCount : data.usedCount,
-      minimumOrderAmount: data.MinimumOrderAmount !== undefined ? data.MinimumOrderAmount : data.minimumOrderAmount,
-      createdAt: data.CreatedAt || data.createdAt,
-      updatedAt: data.UpdatedAt || data.updatedAt,
-    };
+    return normalizeVoucher(data);
   },
 
   // DELETE /api/host/vouchers/{id} - Xóa voucher
@@ -204,21 +200,7 @@ export const voucherAPI = {
       ? data 
       : (data.data || []);
     
-    return vouchers.map((item: any) => ({
-      voucherId: item.VoucherId || item.voucherId,
-      code: item.Code || item.code,
-      description: item.Description || item.description,
-      discountPercentage: item.DiscountPercentage !== undefined ? item.DiscountPercentage : item.discountPercentage,
-      discountAmount: item.DiscountAmount !== undefined ? item.DiscountAmount : item.discountAmount,
-      startDate: item.StartDate || item.startDate,
-      endDate: item.EndDate || item.endDate,
-      isActive: item.IsActive !== undefined ? item.IsActive : item.isActive,
-      usageLimit: item.UsageLimit !== undefined ? item.UsageLimit : item.usageLimit,
-      usedCount: item.UsedCount !== undefined ? item.UsedCount : item.usedCount,
-      minimumOrderAmount: item.MinimumOrderAmount !== undefined ? item.MinimumOrderAmount : item.minimumOrderAmount,
-      createdAt: item.CreatedAt || item.createdAt,
-      updatedAt: item.UpdatedAt || item.updatedAt,
-    }));
+    return vouchers.map((item: any) => normalizeVoucher(item));
   },
 
   // POST /api/vouchers/auto-create/{bookingId} - Tự động tạo voucher sau khi booking hoàn thành
@@ -233,28 +215,21 @@ export const voucherAPI = {
     return {
       success: data.Success !== undefined ? data.Success : data.success !== undefined ? data.success : false,
       message: data.Message || data.message || "",
-      data: data.Data || data.data ? (Array.isArray(data.Data || data.data) ? (data.Data || data.data).map((item: any) => ({
-        voucherId: item.VoucherId || item.voucherId,
-        code: item.Code || item.code,
-        description: item.Description || item.description,
-        discountPercentage: item.DiscountPercentage !== undefined ? item.DiscountPercentage : item.discountPercentage,
-        discountAmount: item.DiscountAmount !== undefined ? item.DiscountAmount : item.discountAmount,
-        startDate: item.StartDate || item.startDate,
-        endDate: item.EndDate || item.endDate,
-        isActive: item.IsActive !== undefined ? item.IsActive : item.isActive,
-        usageLimit: item.UsageLimit !== undefined ? item.UsageLimit : item.usageLimit,
-        usedCount: item.UsedCount !== undefined ? item.UsedCount : item.usedCount,
-        minimumOrderAmount: item.MinimumOrderAmount !== undefined ? item.MinimumOrderAmount : item.minimumOrderAmount,
-        createdAt: item.CreatedAt || item.createdAt,
-        updatedAt: item.UpdatedAt || item.updatedAt,
-      })) : []) : undefined,
+      data: data.Data || data.data ? (Array.isArray(data.Data || data.data) ? (data.Data || data.data).map((item: any) => normalizeVoucher(item)) : []) : undefined,
     };
   },
 
   // GET /api/tenant/vouchers - Lấy vouchers available cho tenant
   getAvailableForTenant: async (): Promise<VoucherDTO[]> => {
-    const response = await axiosClient.get<VoucherDTO[]>(`/tenant/vouchers`);
-    return response.data || [];
+    const response = await axiosClient.get<any>(`/tenant/vouchers`);
+    const data = response.data;
+    
+    // Normalize response (handle both array and object with data property)
+    const vouchers = Array.isArray(data) 
+      ? data 
+      : (data.data || []);
+    
+    return vouchers.map((item: any) => normalizeVoucher(item));
   },
 
   // GET /api/vouchers/my - Lấy vouchers của user hiện tại (cần đăng nhập)
@@ -275,38 +250,7 @@ export const voucherAPI = {
     }
     
     // Normalize each voucher from backend format to VoucherDTO
-    return vouchers.map((item: any) => {
-      const normalized: any = {
-        voucherId: item.VoucherId || item.voucherId || item.voucherID,
-        code: item.Code || item.code,
-        description: item.Description || item.description,
-        discountPercentage: item.DiscountPercentage !== undefined && item.DiscountPercentage !== null 
-          ? item.DiscountPercentage 
-          : (item.discountPercentage !== undefined && item.discountPercentage !== null ? item.discountPercentage : undefined),
-        discountAmount: item.DiscountAmount !== undefined && item.DiscountAmount !== null
-          ? item.DiscountAmount
-          : (item.discountAmount !== undefined && item.discountAmount !== null ? item.discountAmount : undefined),
-        startDate: item.StartDate || item.startDate,
-        endDate: item.EndDate || item.endDate,
-        // Map status to isActive: "Active" = true, others = false
-        isActive: (item.Status || item.status || "").toLowerCase() === "active",
-        usageLimit: item.UsageLimit !== undefined ? item.UsageLimit : item.usageLimit,
-        usedCount: item.UsedCount !== undefined ? item.UsedCount : item.usedCount,
-        minimumOrderAmount: item.MinimumOrderAmount !== undefined ? item.MinimumOrderAmount : item.minimumOrderAmount,
-        createdAt: item.CreatedAt || item.createdAt,
-        updatedAt: item.UpdatedAt || item.updatedAt,
-      };
-      
-      // Add additional fields from response (condotelName, etc.)
-      if (item.CondotelName || item.condotelName) {
-        normalized.condotelName = item.CondotelName || item.condotelName;
-      }
-      if (item.CondotelID || item.condotelID || item.condotelId) {
-        normalized.condotelId = item.CondotelID || item.condotelID || item.condotelId;
-      }
-      
-      return normalized;
-    });
+    return vouchers.map((item: any) => normalizeVoucher(item));
   },
 
   // ========== VOUCHER SETTINGS APIs ==========
