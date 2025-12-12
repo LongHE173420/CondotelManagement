@@ -2,17 +2,20 @@ import { DEMO_POSTS } from "data/posts";
 import { PostDataType } from "data/types";
 import React, { useState, useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
-import blogAPI, { BlogPostDetailDTO, BlogPostSummaryDTO } from "api/blog";
+import blogAPI, { BlogPostDetailDTO } from "api/blog";
 import Avatar from "shared/Avatar/Avatar";
 import Badge from "shared/Badge/Badge";
+import ButtonPrimary from "shared/Button/ButtonPrimary";
+import ButtonSecondary from "shared/Button/ButtonSecondary";
+import Comment from "shared/Comment/Comment";
 import NcImage from "shared/NcImage/NcImage";
 import SocialsList from "shared/SocialsList/SocialsList";
+import Textarea from "shared/Textarea/Textarea";
 import { Helmet } from "react-helmet";
 
 const BlogSingle = () => {
   const { slug } = useParams<{ slug: string }>();
   const [post, setPost] = useState<BlogPostDetailDTO | null>(null);
-  const [relatedPosts, setRelatedPosts] = useState<PostDataType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -26,26 +29,9 @@ const BlogSingle = () => {
 
       try {
         setLoading(true);
-
-        // 1. Load bài viết chính
         const postData = await blogAPI.getPostBySlug(slug);
         if (postData) {
           setPost(postData);
-
-          // 2. Load tất cả bài viết để tìm bài viết liên quan
-          const allPosts = await blogAPI.getPublishedPosts();
-
-          // 3. Lọc bài viết liên quan (cùng category, loại trừ bài hiện tại)
-          const related = allPosts
-            .filter(p =>
-              p.postId !== postData.postId && // Không lấy bài hiện tại
-              p.categoryName === postData.categoryName // Cùng category
-            )
-            .slice(0, 4); // Lấy tối đa 4 bài
-
-          // 4. Convert sang PostDataType
-          const convertedRelatedPosts = related.map(post => convertToPostDataType(post));
-          setRelatedPosts(convertedRelatedPosts);
         } else {
           setError("Bài viết không tồn tại hoặc chưa được xuất bản");
         }
@@ -58,43 +44,6 @@ const BlogSingle = () => {
     };
     loadPost();
   }, [slug]);
-
-  // Helper function để convert BlogPostSummaryDTO sang PostDataType
-  const convertToPostDataType = (post: BlogPostSummaryDTO): PostDataType => {
-    return {
-      id: post.postId,
-      title: post.title,
-      href: `/blog-single/${post.slug}`,
-      featuredImage: post.featuredImageUrl || "/images/placeholder.png",
-      desc: "",
-      date: post.publishedAt || new Date().toISOString(),
-      commentCount: 0,
-      viewdCount: 0,
-      readingTime: 5,
-      postType: "standard",
-      author: {
-        id: 0,
-        firstName: post.authorName?.split(" ")[0] || "Admin",
-        lastName: post.authorName?.split(" ").slice(1).join(" ") || "",
-        displayName: post.authorName || "Admin",
-        avatar: "",
-        count: 0,
-        desc: "",
-        jobName: "Author",
-        href: "/",
-      },
-      categories: post.categoryName
-        ? [
-          {
-            id: 0,
-            name: post.categoryName,
-            href: `/blog?category=${post.categoryName}`,
-            taxonomy: "category",
-          },
-        ]
-        : [],
-    };
-  };
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return "";
@@ -147,7 +96,7 @@ const BlogSingle = () => {
                     <>
                       <span className="mx-2 font-semibold">·</span>
                       <span className="text-neutral-700 dark:text-neutral-300">
-                        {Math.ceil(post.content.length / 1000)} phút đọc
+                        {Math.ceil(post.content.length / 1000)} min read
                       </span>
                     </>
                   )}
@@ -184,6 +133,7 @@ const BlogSingle = () => {
   };
 
   const renderTags = () => {
+    // BlogPostDetailDTO doesn't have tags field, so we return null
     return null;
   };
 
@@ -193,16 +143,16 @@ const BlogSingle = () => {
     return (
       <div className="max-w-screen-md mx-auto ">
         <div className="nc-SingleAuthor flex">
-          <Avatar
-            sizeClass="w-11 h-11 md:w-24 md:h-24"
+          <Avatar 
+            sizeClass="w-11 h-11 md:w-24 md:h-24" 
             userName={post.authorName || "Admin"}
           />
           <div className="flex flex-col ml-3 max-w-lg sm:ml-5 space-y-1">
             <span className="text-xs text-neutral-400 uppercase tracking-wider">
-              VIẾT BỞI
+              WRITEN BY
             </span>
             <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-200">
-              <a href="/blog">{post.authorName || "Admin"}</a>
+              <a href="/">{post.authorName || "Admin"}</a>
             </h2>
           </div>
         </div>
@@ -210,40 +160,77 @@ const BlogSingle = () => {
     );
   };
 
-  const renderPostRelated = (postData: PostDataType) => {
+  const renderCommentForm = () => {
+    return (
+      <div className="max-w-screen-md mx-auto pt-5">
+        <h3 className="text-xl font-semibold text-neutral-800 dark:text-neutral-200">
+          Responses (14)
+        </h3>
+        <form className="nc-SingleCommentForm mt-5">
+          <Textarea />
+          <div className="mt-2 space-x-3">
+            <ButtonPrimary>Submit</ButtonPrimary>
+            <ButtonSecondary>Cancel</ButtonSecondary>
+          </div>
+        </form>
+      </div>
+    );
+  };
+
+  const renderCommentLists = () => {
+    return (
+      <div className="max-w-screen-md mx-auto">
+        <ul className="nc-SingleCommentLists space-y-5">
+          <li>
+            <Comment />
+            <ul className="pl-4 mt-5 space-y-5 md:pl-11">
+              <li>
+                <Comment isSmall />
+              </li>
+            </ul>
+          </li>
+          <li>
+            <Comment />
+            <ul className="pl-4 mt-5 space-y-5 md:pl-11">
+              <li>
+                <Comment isSmall />
+              </li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+    );
+  };
+
+  const renderPostRelated = (post: PostDataType) => {
     return (
       <div
-        key={postData.id}
+        key={post.id}
         className="relative aspect-w-3 aspect-h-4 rounded-3xl overflow-hidden group"
       >
-        <Link to={postData.href} />
+        <Link to={post.href} />
         <NcImage
           className="object-cover w-full h-full transform group-hover:scale-105 transition-transform duration-300"
-          src={postData.featuredImage}
-          alt={postData.title}
+          src={post.featuredImage}
         />
         <div>
           <div className="absolute bottom-0 inset-x-0 h-1/2 bg-gradient-to-t from-black"></div>
         </div>
         <div className="flex flex-col justify-end items-start text-xs text-neutral-300 space-y-2.5 p-4">
-          {postData.categories && postData.categories.length > 0 && (
-            <Badge name={postData.categories[0].name} />
-          )}
+          <Badge name="Categories" />
           <h2 className="block text-lg font-semibold text-white ">
-            <span className="line-clamp-2">{postData.title}</span>
+            <span className="line-clamp-2">{post.title}</span>
           </h2>
 
           <div className="flex">
             <span className="block text-neutral-200 hover:text-white font-medium truncate">
-              {postData.author.displayName}
+              {post.author.displayName}
             </span>
             <span className="mx-1.5 font-medium">·</span>
-            <span className="font-normal truncate">
-              {formatDate(postData.date)}
-            </span>
+            <span className="font-normal truncate">{post.date}</span>
           </div>
         </div>
-        <Link to={postData.href} />
+        <Link to={post.href} />
       </div>
     );
   };
@@ -301,19 +288,19 @@ const BlogSingle = () => {
         {renderTags()}
         <div className="max-w-screen-md mx-auto border-b border-t border-neutral-100 dark:border-neutral-700"></div>
         {renderAuthor()}
+        {renderCommentForm()}
+        {renderCommentLists()}
       </div>
-
-      {/* PHẦN BÀI VIẾT LIÊN QUAN - DÙNG DỮ LIỆU THẬT */}
-      {relatedPosts.length > 0 && (
-        <div className="relative bg-neutral-100 dark:bg-neutral-800 py-16 lg:py-28 mt-16 lg:mt-24">
-          <div className="container">
-            <h2 className="text-3xl font-semibold">Bài viết liên quan</h2>
-            <div className="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8">
-              {relatedPosts.map(renderPostRelated)}
-            </div>
+      <div className="relative bg-neutral-100 dark:bg-neutral-800 py-16 lg:py-28 mt-16 lg:mt-24">
+        <div className="container ">
+          <h2 className="text-3xl font-semibold">Related posts</h2>
+          <div className="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8">
+            {/*  */}
+            {DEMO_POSTS.filter((_, i) => i < 4).map(renderPostRelated)}
+            {/*  */}
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 };

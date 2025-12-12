@@ -17,11 +17,11 @@ const convertToPostDataType = (post: BlogPostSummaryDTO): PostDataType => {
     title: post.title,
     href: `/blog-single/${post.slug}`,
     featuredImage: post.featuredImageUrl || "/images/placeholder.png",
-    desc: "",
+    desc: "", // Summary doesn't have excerpt, will be empty
     date: post.publishedAt || new Date().toISOString(),
-    commentCount: 0, // Đặt là 0 để ẩn comment
-    viewdCount: 0,
-    readingTime: 5,
+    commentCount: 0, // Summary doesn't have commentCount
+    viewdCount: 0, // Summary doesn't have viewCount
+    readingTime: 5, // Default reading time
     postType: "standard",
     author: {
       id: 0,
@@ -96,8 +96,10 @@ const BlogPage: React.FC = () => {
         <title>Blog || Fiscondotel</title>
       </Helmet>
 
+      {/* ======== BG GLASS ======== */}
       <BgGlassmorphism />
-      
+      {/* ======== ALL SECTIONS ======== */}
+      {/* ======= START CONTAINER ============= */}
       <div className="container relative">
         {error && (
           <div className="pt-12 pb-4">
@@ -107,6 +109,7 @@ const BlogPage: React.FC = () => {
           </div>
         )}
 
+        {/* Create Blog Button for Authenticated Users */}
         {isAuthenticated && (
           <div className="pt-12 pb-4 flex justify-end">
             <Link
@@ -121,14 +124,17 @@ const BlogPage: React.FC = () => {
           </div>
         )}
 
+        {/* === SECTION 1 === */}
         {MAGAZINE1_POSTS.length > 0 && (
           <div className="pt-12 pb-16 lg:pb-28">
             <SectionMagazine5 posts={MAGAZINE1_POSTS} />
           </div>
         )}
 
+        {/* === SECTION 1 === */}
         <SectionAds />
 
+        {/* === SECTION 8 === */}
         {LATEST_POSTS.length > 0 && (
           <SectionLatestPosts posts={LATEST_POSTS} className="py-16 lg:py-28" />
         )}
@@ -141,6 +147,7 @@ const BlogPage: React.FC = () => {
           </div>
         )}
 
+        {/* === SECTION 1 === */}
         <SectionSubscribe2 className="pb-16 lg:pb-28" />
       </div>
     </div>

@@ -44,15 +44,13 @@ const PageBlogEdit = () => {
       try {
         setLoading(true);
         const postId = parseInt(id);
-
+        
         // Load post
         const post = await blogAPI.adminGetPostById(postId);
         if (post) {
           setTitle(post.title);
           setContent(post.content);
           setFeaturedImage(post.featuredImageUrl || null);
-          setStatus(post.status || "Draft");
-          setCategoryId(post.categoryId);
           // Note: Backend DTOs don't have status or categoryId in detail, 
           // so we'll need to get them from the post if available
         } else {
@@ -224,7 +222,7 @@ const PageBlogEdit = () => {
     try {
       const postId = parseInt(id);
       let featuredImageUrl: string | undefined = undefined;
-
+      
       // Upload featured image if changed
       if (featuredImageFile) {
         try {
@@ -263,7 +261,7 @@ const PageBlogEdit = () => {
   // Handle delete
   const handleDelete = async () => {
     if (!id) return;
-
+    
     if (window.confirm("Bạn có chắc chắn muốn xóa bài viết này không? Hành động này không thể hoàn tác.")) {
       try {
         setIsLoading(true);
@@ -484,4 +482,4 @@ const PageBlogEdit = () => {
   );
 };
 
-export default PageBlogEdit;
+export default PageBlogEdit; // <-- 2. ĐỔI TÊN EXPORT tui
