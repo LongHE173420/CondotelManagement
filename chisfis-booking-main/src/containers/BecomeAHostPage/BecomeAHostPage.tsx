@@ -12,7 +12,7 @@ const BecomeAHostPage: React.FC = () => {
     const { reloadUser } = useAuth();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
-
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     const [formData, setFormData] = useState<HostRegisterRequest>({
         PhoneContact: "",
         Address: "",
@@ -21,9 +21,74 @@ const BecomeAHostPage: React.FC = () => {
         AccountNumber: "",
         AccountHolderName: "",
     });
+    const validateField = (name: string, value: string): string => {
+        switch (name) {
+            case "PhoneContact":
+                const cleanPhone = value.replace(/\s/g, '');
+                if (!cleanPhone) return "Số điện thoại là bắt buộc";
+                if (!/^[0-9]{10}$/.test(cleanPhone)) return "Số điện thoại phải là 10 chữ số";
+                return "";
 
+            case "BankName":
+                if (!value.trim()) return "Tên ngân hàng là bắt buộc";
+                if (value.length > 100) return "Tên ngân hàng tối đa 100 ký tự";
+                return "";
+
+            case "AccountNumber":
+                const cleanAccount = value.replace(/\s/g, '');
+                if (!cleanAccount) return "Số tài khoản là bắt buộc";
+                if (!/^[0-9]+$/.test(cleanAccount)) return "Số tài khoản chỉ được chứa số";
+                if (cleanAccount.length > 50) return "Số tài khoản tối đa 50 ký tự";
+                return "";
+
+            case "AccountHolderName":
+                if (!value.trim()) return "Tên chủ tài khoản là bắt buộc";
+                if (value.length > 100) return "Tên chủ tài khoản tối đa 100 ký tự";
+                return "";
+
+            case "Address":
+                if (value && value.length > 500) return "Địa chỉ tối đa 500 ký tự";
+                return "";
+
+            case "CompanyName":
+                if (value && value.length > 200) return "Tên công ty tối đa 200 ký tự";
+                return "";
+
+            default:
+                return "";
+        }
+    };
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
+
+        // Xử lý format số điện thoại
+        if (name === "PhoneContact") {
+            // Chỉ cho phép số và khoảng trắng
+            const numericValue = value.replace(/[^\d\s]/g, '');
+            setFormData(prev => ({ ...prev, [name]: numericValue }));
+            return;
+        }
+
+        // Xử lý format số tài khoản
+        if (name === "AccountNumber") {
+            // Chỉ cho phép số và khoảng trắng
+            const numericValue = value.replace(/[^\d\s]/g, '');
+            setFormData(prev => ({ ...prev, [name]: numericValue }));
+            return;
+        }
+
+        // Xử lý tên chủ tài khoản (viết hoa không dấu)
+        if (name === "AccountHolderName") {
+            const upperValue = value.toUpperCase();
+            // Loại bỏ dấu tiếng Việt
+            const noAccentValue = upperValue
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .replace(/[^A-Z\s]/g, '');
+            setFormData(prev => ({ ...prev, [name]: noAccentValue }));
+            return;
+        }
+
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
@@ -32,31 +97,117 @@ const BecomeAHostPage: React.FC = () => {
         setLoading(true);
         setError("");
 
-        if (!formData.PhoneContact?.trim() ||
-            !formData.BankName?.trim() ||
-            !formData.AccountNumber?.trim() ||
-            !formData.AccountHolderName?.trim()) {
-            setError("Vui lòng điền đầy đủ các trường có dấu (*).");
+        // Client-side validation chi tiết hơn
+        const errors: string[] = [];
+
+        // Kiểm tra từng trường bắt buộc
+        if (!formData.PhoneContact?.trim()) {
+            errors.push("Số điện thoại là bắt buộc");
+        } else {
+            const phoneRegex = /^[0-9]{10,20}$/;
+            const cleanPhone = formData.PhoneContact.replace(/\s/g, '');
+            if (!phoneRegex.test(cleanPhone)) {
+                errors.push("Số điện thoại phải là 10-20 chữ số");
+            }
+        }
+
+        if (!formData.BankName?.trim()) {
+            errors.push("Tên ngân hàng là bắt buộc");
+        } else if (formData.BankName.length > 100) {
+            errors.push("Tên ngân hàng tối đa 100 ký tự");
+        }
+
+        if (!formData.AccountNumber?.trim()) {
+            errors.push("Số tài khoản là bắt buộc");
+        } else {
+            const accountRegex = /^[0-9]+$/;
+            const cleanAccount = formData.AccountNumber.replace(/\s/g, '');
+            if (!accountRegex.test(cleanAccount)) {
+                errors.push("Số tài khoản chỉ được chứa số");
+            } else if (cleanAccount.length > 50) {
+                errors.push("Số tài khoản tối đa 50 ký tự");
+            }
+        }
+
+        if (!formData.AccountHolderName?.trim()) {
+            errors.push("Tên chủ tài khoản là bắt buộc");
+        } else if (formData.AccountHolderName.length > 100) {
+            errors.push("Tên chủ tài khoản tối đa 100 ký tự");
+        }
+
+        // Kiểm tra các trường tùy chọn
+        if (formData.Address && formData.Address.length > 500) {
+            errors.push("Địa chỉ tối đa 500 ký tự");
+        }
+
+        if (formData.CompanyName && formData.CompanyName.length > 200) {
+            errors.push("Tên công ty tối đa 200 ký tự");
+        }
+
+        // Hiển thị lỗi nếu có
+        if (errors.length > 0) {
+            setError(errors.join("\n"));
             setLoading(false);
             return;
         }
 
         try {
-            const response = await authAPI.registerAsHost(formData);
+            // Format dữ liệu trước khi gửi
+            const payload = {
+                ...formData,
+                PhoneContact: formData.PhoneContact.replace(/\s/g, ''),
+                AccountNumber: formData.AccountNumber.replace(/\s/g, ''),
+                // Xử lý optional fields
+                Address: formData.Address?.trim() || undefined,
+                CompanyName: formData.CompanyName?.trim() || undefined,
+            };
+
+            const response = await authAPI.registerAsHost(payload);
+
             toast.success(response.message || "Đăng ký Host thành công! Chuyển sang chọn gói dịch vụ...");
 
             await reloadUser();
             navigate("/pricing");
         } catch (err: any) {
-            let errorMessage = err.response?.data?.message || "Đã xảy ra lỗi khi đăng ký.";
+            let errorMessage = "Đã xảy ra lỗi khi đăng ký.";
+            let validationErrors: string[] = [];
 
-            if (err.response?.status === 400 && err.response.data?.errors) {
-                const errors = err.response.data.errors;
-                const list = Object.values(errors).flat().join("\n");
-                errorMessage = list || errorMessage;
+            if (err.response?.status === 400) {
+                // Xử lý lỗi validation từ backend (ModelState)
+                if (err.response.data?.errors) {
+                    const errors = err.response.data.errors;
+
+                    // Chuyển đổi object errors thành array
+                    Object.values(errors).forEach((errorArray: any) => {
+                        if (Array.isArray(errorArray)) {
+                            validationErrors.push(...errorArray);
+                        } else {
+                            validationErrors.push(errorArray);
+                        }
+                    });
+
+                    if (validationErrors.length > 0) {
+                        errorMessage = validationErrors.join("\n");
+                    }
+                }
+                // Hiển thị message đơn giản
+                else if (err.response.data?.message) {
+                    errorMessage = err.response.data.message;
+                }
+            }
+            else if (err.response?.status === 401) {
+                errorMessage = "Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.";
+                toast.error(errorMessage);
+                setTimeout(() => navigate("/login"), 2000);
+                setLoading(false);
+                return;
+            }
+            else if (err.response?.status === 500) {
+                errorMessage = "Lỗi hệ thống. Vui lòng thử lại sau.";
             }
 
             setError(errorMessage);
+            toast.error(errorMessage);
         } finally {
             setLoading(false);
         }
