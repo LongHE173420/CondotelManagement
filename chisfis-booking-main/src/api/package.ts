@@ -13,7 +13,7 @@ export interface PackageDto {
 
 export interface HostPackageDetailsDto {
     packageName: string;
-    status: "Active" | "Inactive" | "Pending" | "Cancelled" | "Expired";
+    status: "Active" | "Inactive" | "Pending" | "PendingPayment" | "Cancelled" | "Expired";
     startDate: string;
     endDate: string;
     maxListings: number;

@@ -16,6 +16,10 @@ export interface BlogPostSummaryDTO {
   AuthorName?: string;
   categoryName: string;
   CategoryName?: string;
+  categoryId?: number;
+  CategoryId?: number;
+  status?: string;
+  Status?: string;
 }
 
 export interface BlogPostDetailDTO extends BlogPostSummaryDTO {
@@ -59,6 +63,8 @@ const normalizePostSummary = (item: any): BlogPostSummaryDTO => {
     publishedAt: item.publishedAt ?? item.PublishedAt,
     authorName: item.authorName ?? item.AuthorName ?? "",
     categoryName: item.categoryName ?? item.CategoryName ?? "",
+    categoryId: item.categoryId ?? item.CategoryId,
+    status: item.status ?? item.Status ?? "Draft",
   };
 };
 
@@ -106,7 +112,7 @@ export const blogAPI = {
   },
 
   // ========== USER ENDPOINTS ==========
-  
+
   // POST /api/blog/posts - User tạo blog post mới (trải nghiệm)
   createPost: async (dto: AdminBlogCreateDTO): Promise<BlogPostDetailDTO> => {
     // Map camelCase sang PascalCase để khớp với backend
@@ -115,11 +121,11 @@ export const blogAPI = {
       Content: dto.content || dto.Content || "",
       Status: dto.status || dto.Status || "Draft",
     };
-    
+
     if (dto.featuredImageUrl || dto.FeaturedImageUrl) {
       requestData.FeaturedImageUrl = dto.featuredImageUrl || dto.FeaturedImageUrl;
     }
-    
+
     if (dto.categoryId !== undefined || dto.CategoryId !== undefined) {
       requestData.CategoryId = dto.categoryId ?? dto.CategoryId ?? null;
     }
@@ -142,7 +148,7 @@ export const blogAPI = {
   },
 
   // ========== ADMIN ENDPOINTS ==========
-  
+
   // GET /api/admin/blog/posts - Lấy tất cả posts cho admin (bao gồm draft)
   adminGetAllPosts: async (): Promise<BlogPostSummaryDTO[]> => {
     try {
@@ -151,12 +157,12 @@ export const blogAPI = {
     } catch (error: any) {
       // Nếu endpoint chưa có, fallback về published posts
       if (error.response?.status === 404) {
-        return blogAPI.getPublishedPosts();
+        return blogAPI.adminGetAllPosts();
       }
       throw error;
     }
   },
-  
+
   // GET /api/admin/blog/posts/{postId} - Lấy post detail cho admin
   adminGetPostById: async (postId: number): Promise<BlogPostDetailDTO | null> => {
     try {
@@ -178,11 +184,11 @@ export const blogAPI = {
       content: dto.content || dto.Content || "",
       status: dto.status || dto.Status || "Draft",
     };
-    
+
     if (dto.featuredImageUrl || dto.FeaturedImageUrl) {
       requestData.featuredImageUrl = dto.featuredImageUrl || dto.FeaturedImageUrl || "";
     }
-    
+
     if (dto.categoryId !== undefined || dto.CategoryId !== undefined) {
       const catId = dto.categoryId ?? dto.CategoryId;
       if (catId !== null && catId !== undefined) {
@@ -204,11 +210,11 @@ export const blogAPI = {
       content: dto.content || dto.Content || "",
       status: dto.status || dto.Status || "Draft",
     };
-    
+
     if (dto.featuredImageUrl || dto.FeaturedImageUrl) {
       requestData.featuredImageUrl = dto.featuredImageUrl || dto.FeaturedImageUrl || "";
     }
-    
+
     if (dto.categoryId !== undefined || dto.CategoryId !== undefined) {
       const catId = dto.categoryId ?? dto.CategoryId;
       if (catId !== null && catId !== undefined) {
@@ -247,15 +253,15 @@ export const blogAPI = {
       const response = await axiosClient.post<any>("/admin/blog/categories", {
         Name: name,
       });
-      
+
       // Backend CreatedAtAction có thể trả về object trong response.data
       // Hoặc có thể là response.data trực tiếp
       const categoryData = response.data;
-      
+
       if (!categoryData) {
         throw new Error("Không nhận được dữ liệu từ server");
       }
-      
+
       return normalizeCategory(categoryData);
     } catch (error: any) {
       console.error("Error creating category:", error);
