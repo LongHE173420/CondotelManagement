@@ -310,10 +310,7 @@ const ServicePackageModal: React.FC<ServicePackageModalProps> = ({
     name: servicePackage?.name || servicePackage?.title || "",
     description: servicePackage?.description || "",
     price: servicePackage?.price || 0,
-    duration: servicePackage?.duration || undefined,
-    durationUnit: servicePackage?.durationUnit || "month",
-    features: servicePackage?.features?.join("\n") || "",
-    isActive: servicePackage?.isActive !== undefined ? servicePackage.isActive : true,
+    isActive: servicePackage?.isActive !== undefined ? servicePackage.isActive : (servicePackage?.status === "Active"),
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -342,20 +339,13 @@ const ServicePackageModal: React.FC<ServicePackageModalProps> = ({
 
     setLoading(true);
     try {
-      // Parse features from textarea (one per line)
-      const featuresList = formData.features
-        .split("\n")
-        .map((f) => f.trim())
-        .filter((f) => f.length > 0);
-
+      // Chỉ gửi các trường mà backend hỗ trợ (name, description, price, status)
       const packageData: CreateServicePackageDTO | UpdateServicePackageDTO = {
         name: formData.name.trim(),
         description: formData.description?.trim() || undefined,
         price: formData.price,
-        duration: formData.duration,
-        durationUnit: formData.durationUnit,
-        features: featuresList.length > 0 ? featuresList : undefined,
-        isActive: formData.isActive,
+        // Map isActive sang status khi update
+        ...(servicePackage ? { status: formData.isActive ? "Active" : "Inactive" } : {}),
       };
 
       if (servicePackage) {
@@ -453,76 +443,22 @@ const ServicePackageModal: React.FC<ServicePackageModalProps> = ({
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                    Giá (VNĐ) *
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={formData.price || ""}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, price: Number(e.target.value) }))
-                    }
-                    className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-neutral-700 dark:text-neutral-100"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                    Thời hạn
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={formData.duration || ""}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        duration: e.target.value ? Number(e.target.value) : undefined,
-                      }))
-                    }
-                    className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-neutral-700 dark:text-neutral-100"
-                    placeholder="30"
-                  />
-                </div>
-              </div>
-
               <div>
                 <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                  Đơn vị thời hạn
+                  Giá (VNĐ) *
                 </label>
-                <select
-                  value={formData.durationUnit}
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={formData.price || ""}
                   onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, durationUnit: e.target.value }))
+                    setFormData((prev) => ({ ...prev, price: Number(e.target.value) }))
                   }
                   className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-neutral-700 dark:text-neutral-100"
-                >
-                  <option value="day">Ngày</option>
-                  <option value="month">Tháng</option>
-                  <option value="year">Năm</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                  Tính năng (mỗi dòng một tính năng)
-                </label>
-                <textarea
-                  value={formData.features}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, features: e.target.value }))
-                  }
-                  rows={5}
-                  className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-neutral-700 dark:text-neutral-100"
-                  placeholder="Tính năng 1&#10;Tính năng 2&#10;Tính năng 3"
+                  required
+                  placeholder="Nhập giá dịch vụ"
                 />
-                <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
-                  Mỗi tính năng trên một dòng
-                </p>
               </div>
 
               <div>

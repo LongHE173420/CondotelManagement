@@ -83,11 +83,12 @@ const HostVoucherContent: React.FC = () => {
     setLoadingSettings(true);
     try {
       const settingsData = await voucherAPI.getSettings();
-      setSettings(settingsData);
+      setSettings(settingsData); // Có thể là null nếu chưa có setting
     } catch (err: any) {
       const errorMsg = err.response?.data?.message || "Không thể tải cài đặt";
       setError(errorMsg);
       toastError(errorMsg);
+      setSettings(null);
     } finally {
       setLoadingSettings(false);
     }
@@ -96,8 +97,8 @@ const HostVoucherContent: React.FC = () => {
   const handleSaveSettings = async (newSettings: HostVoucherSettingDTO) => {
     setSavingSettings(true);
     try {
-      await voucherAPI.saveSettings(newSettings);
-      setSettings(newSettings);
+      const savedSettings = await voucherAPI.saveSettings(newSettings);
+      setSettings(savedSettings);
       setShowSettings(false);
       toastSuccess("Cập nhật cài đặt thành công!");
     } catch (err: any) {
@@ -689,24 +690,62 @@ const VoucherSettingsModal: React.FC<VoucherSettingsModalProps> = ({
   onSave,
 }) => {
   const [formData, setFormData] = useState<HostVoucherSettingDTO>({
-    autoGenerateVouchers: false,
-    defaultDiscountPercentage: undefined,
-    defaultDiscountAmount: undefined,
+    autoGenerate: false,
+    discountPercentage: undefined,
+    discountAmount: undefined,
     validMonths: 3, // Mặc định 3 tháng theo spec
-    defaultUsageLimit: undefined,
-    defaultMinimumOrderAmount: undefined,
-    voucherPrefix: "",
-    voucherLength: 8,
+    usageLimit: undefined,
   });
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (settings) {
-      setFormData(settings);
+      // Map từ settings cũ sang format mới
+      setFormData({
+        autoGenerate: settings.autoGenerate !== undefined ? settings.autoGenerate : (settings.autoGenerateVouchers || false),
+        discountPercentage: settings.discountPercentage !== undefined ? settings.discountPercentage : settings.defaultDiscountPercentage,
+        discountAmount: settings.discountAmount !== undefined ? settings.discountAmount : settings.defaultDiscountAmount,
+        validMonths: settings.validMonths || 3,
+        usageLimit: settings.usageLimit !== undefined ? settings.usageLimit : settings.defaultUsageLimit,
+      });
     }
   }, [settings]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
+    
+    // Validation theo spec
+    // Phải có ít nhất một trong hai: DiscountAmount HOẶC DiscountPercentage
+    if (!formData.discountAmount && !formData.discountPercentage) {
+      setError("Vui lòng nhập ít nhất một trong hai: Giảm giá theo số tiền HOẶC Giảm giá theo %");
+      return;
+    }
+    
+    // Validation discountAmount: 0 - 100,000,000
+    if (formData.discountAmount !== undefined && (formData.discountAmount < 0 || formData.discountAmount > 100000000)) {
+      setError("Giảm giá theo số tiền phải từ 0 đến 100,000,000 VNĐ");
+      return;
+    }
+    
+    // Validation discountPercentage: 0 - 100
+    if (formData.discountPercentage !== undefined && (formData.discountPercentage < 0 || formData.discountPercentage > 100)) {
+      setError("Giảm giá theo % phải từ 0 đến 100%");
+      return;
+    }
+    
+    // Validation validMonths: 1 - 24
+    if (!formData.validMonths || formData.validMonths < 1 || formData.validMonths > 24) {
+      setError("Thời hạn voucher phải từ 1 đến 24 tháng");
+      return;
+    }
+    
+    // Validation usageLimit: 1 - 1000 (nếu có)
+    if (formData.usageLimit !== undefined && (formData.usageLimit < 1 || formData.usageLimit > 1000)) {
+      setError("Giới hạn sử dụng phải từ 1 đến 1000 lần");
+      return;
+    }
+    
     onSave(formData);
   };
 
@@ -740,68 +779,78 @@ const VoucherSettingsModal: React.FC<VoucherSettingsModalProps> = ({
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Auto Generate Vouchers */}
+          {/* Auto Generate - BẮT BUỘC */}
           <div>
             <label className="flex items-center space-x-3 cursor-pointer">
               <input
                 type="checkbox"
-                checked={formData.autoGenerateVouchers || false}
+                checked={formData.autoGenerate || false}
                 onChange={(e) =>
-                  setFormData({ ...formData, autoGenerateVouchers: e.target.checked })
+                  setFormData({ ...formData, autoGenerate: e.target.checked })
                 }
                 className="w-5 h-5 text-primary-600 border-neutral-300 rounded focus:ring-primary-500"
+                required
               />
               <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                Tự động tạo voucher
+                Tự động tạo voucher <span className="text-red-500">*</span>
               </span>
             </label>
             <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1 ml-8">
-              Tự động tạo voucher mới khi có điều kiện
+              Tự động tạo voucher khi booking chuyển sang Status = "Completed"
             </p>
           </div>
 
-          {/* Default Discount Percentage */}
+          {/* Discount Percentage - Optional (0-100%) */}
           <div>
             <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-              Giảm giá mặc định (%)
+              Giảm giá theo % (Tùy chọn)
             </label>
             <input
               type="number"
               min="0"
               max="100"
-              value={formData.defaultDiscountPercentage || ""}
+              step="0.01"
+              value={formData.discountPercentage !== undefined ? formData.discountPercentage : ""}
               onChange={(e) =>
                 setFormData({
                   ...formData,
-                  defaultDiscountPercentage: e.target.value ? Number(e.target.value) : undefined,
+                  discountPercentage: e.target.value ? Number(e.target.value) : undefined,
                 })
               }
               className="w-full px-4 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-neutral-700 dark:text-neutral-100"
-              placeholder="Nhập % giảm giá mặc định"
+              placeholder="Nhập % giảm giá (0-100)"
             />
+            <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
+              Phải có ít nhất một trong hai: Giảm giá theo % HOẶC Giảm giá theo số tiền
+            </p>
           </div>
 
-          {/* Default Discount Amount */}
+          {/* Discount Amount - Optional (0-100,000,000) */}
           <div>
             <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-              Giảm giá mặc định (VND)
+              Giảm giá theo số tiền (VNĐ) (Tùy chọn)
             </label>
             <input
               type="number"
               min="0"
-              value={formData.defaultDiscountAmount || ""}
+              max="100000000"
+              step="1000"
+              value={formData.discountAmount !== undefined ? formData.discountAmount : ""}
               onChange={(e) =>
                 setFormData({
                   ...formData,
-                  defaultDiscountAmount: e.target.value ? Number(e.target.value) : undefined,
+                  discountAmount: e.target.value ? Number(e.target.value) : undefined,
                 })
               }
               className="w-full px-4 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-neutral-700 dark:text-neutral-100"
-              placeholder="Nhập số tiền giảm giá mặc định"
+              placeholder="Nhập số tiền giảm giá (0-100,000,000)"
             />
+            <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
+              Phải có ít nhất một trong hai: Giảm giá theo % HOẶC Giảm giá theo số tiền
+            </p>
           </div>
 
-          {/* Valid Months - Thời hạn voucher (tháng) theo spec */}
+          {/* Valid Months - BẮT BUỘC (1-24 tháng) */}
           <div>
             <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
               Thời hạn voucher (tháng) <span className="text-red-500">*</span>
@@ -809,7 +858,7 @@ const VoucherSettingsModal: React.FC<VoucherSettingsModalProps> = ({
             <input
               type="number"
               min="1"
-              max="12"
+              max="24"
               value={formData.validMonths || 3}
               onChange={(e) =>
                 setFormData({
@@ -818,89 +867,43 @@ const VoucherSettingsModal: React.FC<VoucherSettingsModalProps> = ({
                 })
               }
               className="w-full px-4 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-neutral-700 dark:text-neutral-100"
-              placeholder="Nhập số tháng (1-12)"
+              placeholder="Nhập số tháng (1-24)"
               required
             />
             <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
-              Voucher sẽ có thời hạn bằng số tháng này khi tự động tạo
+              Voucher sẽ có thời hạn bằng số tháng này khi tự động tạo (1-24 tháng)
             </p>
           </div>
 
-          {/* Default Usage Limit */}
+          {/* Usage Limit - Optional (1-1000) */}
           <div>
             <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-              Giới hạn sử dụng mặc định
+              Giới hạn sử dụng (Tùy chọn)
             </label>
             <input
               type="number"
               min="1"
-              value={formData.defaultUsageLimit || ""}
+              max="1000"
+              value={formData.usageLimit !== undefined ? formData.usageLimit : ""}
               onChange={(e) =>
                 setFormData({
                   ...formData,
-                  defaultUsageLimit: e.target.value ? Number(e.target.value) : undefined,
+                  usageLimit: e.target.value ? Number(e.target.value) : undefined,
                 })
               }
               className="w-full px-4 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-neutral-700 dark:text-neutral-100"
-              placeholder="Nhập số lần sử dụng tối đa"
+              placeholder="Nhập số lần sử dụng tối đa (1-1000)"
             />
+            <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
+              Số lần sử dụng tối đa cho mỗi voucher (1-1000)
+            </p>
           </div>
 
-          {/* Default Minimum Order Amount */}
-          <div>
-            <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-              Đơn hàng tối thiểu mặc định (VND)
-            </label>
-            <input
-              type="number"
-              min="0"
-              value={formData.defaultMinimumOrderAmount || ""}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  defaultMinimumOrderAmount: e.target.value ? Number(e.target.value) : undefined,
-                })
-              }
-              className="w-full px-4 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-neutral-700 dark:text-neutral-100"
-              placeholder="Nhập giá trị đơn hàng tối thiểu"
-            />
-          </div>
-
-          {/* Voucher Prefix */}
-          <div>
-            <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-              Tiền tố mã voucher
-            </label>
-            <input
-              type="text"
-              value={formData.voucherPrefix || ""}
-              onChange={(e) =>
-                setFormData({ ...formData, voucherPrefix: e.target.value })
-              }
-              className="w-full px-4 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-neutral-700 dark:text-neutral-100"
-              placeholder="VD: SALE, PROMO, etc."
-            />
-          </div>
-
-          {/* Voucher Length */}
-          <div>
-            <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-              Độ dài mã voucher
-            </label>
-            <input
-              type="number"
-              min="4"
-              max="20"
-              value={formData.voucherLength || 8}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  voucherLength: e.target.value ? Number(e.target.value) : 8,
-                })
-              }
-              className="w-full px-4 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-neutral-700 dark:text-neutral-100"
-            />
-          </div>
+          {error && (
+            <div className="p-3 bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-200 rounded-lg text-sm">
+              {error}
+            </div>
+          )}
 
           {/* Actions */}
           <div className="flex justify-end space-x-3 pt-4 border-t border-neutral-200 dark:border-neutral-700">

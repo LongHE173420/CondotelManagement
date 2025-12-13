@@ -69,17 +69,24 @@ export interface VoucherCreateDTO {
 }
 
 // Host Voucher Settings DTO
-// Theo spec: autoGenerate, discountAmount/Percentage, validMonths, usageLimit
+// Theo spec: GET /api/host/settings/voucher trả về { settingID, hostID, discountAmount, discountPercentage, autoGenerate, validMonths, usageLimit }
 export interface HostVoucherSettingDTO {
-  autoGenerateVouchers?: boolean; // autoGenerate
-  defaultDiscountPercentage?: number; // discountPercentage
-  defaultDiscountAmount?: number; // discountAmount
-  validMonths?: number; // Thời hạn voucher (tháng) - theo spec
-  defaultUsageLimit?: number; // usageLimit
+  settingID?: number; // ID của setting
+  hostID?: number; // ID của host
+  discountAmount?: number; // Giảm giá theo số tiền (0 - 100,000,000)
+  discountPercentage?: number; // Giảm giá theo % (0 - 100)
+  autoGenerate: boolean; // BẮT BUỘC: Bật/tắt tự động phát voucher
+  validMonths: number; // BẮT BUỘC: Thời hạn voucher (1-24 tháng)
+  usageLimit?: number; // Optional: Số lần sử dụng (1-1000)
+  
+  // Backward compatibility fields
+  autoGenerateVouchers?: boolean; // Alias cho autoGenerate
+  defaultDiscountPercentage?: number; // Alias cho discountPercentage
+  defaultDiscountAmount?: number; // Alias cho discountAmount
+  defaultUsageLimit?: number; // Alias cho usageLimit
   defaultMinimumOrderAmount?: number;
   voucherPrefix?: string;
   voucherLength?: number;
-  // Add other settings as needed based on backend
 }
 
 // API Calls
@@ -254,70 +261,94 @@ export const voucherAPI = {
   },
 
   // ========== VOUCHER SETTINGS APIs ==========
-  // GET /api/host/settings/voucher - Lấy voucher settings của host
-  getSettings: async (): Promise<HostVoucherSettingDTO> => {
+  // GET /api/host/settings/voucher - Lấy cấu hình auto generate voucher của host hiện tại
+  // Response: { success: true, data: { settingID, hostID, discountAmount, discountPercentage, autoGenerate, validMonths, usageLimit } } hoặc { success: true, data: null }
+  getSettings: async (): Promise<HostVoucherSettingDTO | null> => {
     const response = await axiosClient.get<any>("/host/settings/voucher");
-    const data = response.data;
+    const responseData = response.data;
+    
+    // Backend trả về { success: true, data: {...} } hoặc { success: true, data: null }
+    const data = responseData.data;
+    
+    // Nếu data là null, trả về null
+    if (!data) {
+      return null;
+    }
     
     // Normalize response từ backend (PascalCase -> camelCase)
-    // Theo spec: autoGenerate, discountAmount/Percentage, validMonths, usageLimit
     return {
-      autoGenerateVouchers: data.AutoGenerateVouchers !== undefined ? data.AutoGenerateVouchers : data.autoGenerateVouchers,
-      defaultDiscountPercentage: data.DefaultDiscountPercentage !== undefined ? data.DefaultDiscountPercentage : data.defaultDiscountPercentage,
-      defaultDiscountAmount: data.DefaultDiscountAmount !== undefined ? data.DefaultDiscountAmount : data.defaultDiscountAmount,
+      settingID: data.SettingID || data.settingID,
+      hostID: data.HostID || data.hostID,
+      discountAmount: data.DiscountAmount !== undefined && data.DiscountAmount !== null ? data.DiscountAmount : data.discountAmount,
+      discountPercentage: data.DiscountPercentage !== undefined && data.DiscountPercentage !== null ? data.DiscountPercentage : data.discountPercentage,
+      autoGenerate: data.AutoGenerate !== undefined ? data.AutoGenerate : (data.autoGenerate !== undefined ? data.autoGenerate : false),
       validMonths: data.ValidMonths !== undefined ? data.ValidMonths : data.validMonths,
-      defaultUsageLimit: data.DefaultUsageLimit !== undefined ? data.DefaultUsageLimit : data.defaultUsageLimit,
-      defaultMinimumOrderAmount: data.DefaultMinimumOrderAmount !== undefined ? data.DefaultMinimumOrderAmount : data.defaultMinimumOrderAmount,
-      voucherPrefix: data.VoucherPrefix || data.voucherPrefix,
-      voucherLength: data.VoucherLength !== undefined ? data.VoucherLength : data.voucherLength,
+      usageLimit: data.UsageLimit !== undefined ? data.UsageLimit : data.usageLimit,
+      // Backward compatibility
+      autoGenerateVouchers: data.AutoGenerate !== undefined ? data.AutoGenerate : (data.autoGenerate !== undefined ? data.autoGenerate : false),
+      defaultDiscountPercentage: data.DiscountPercentage !== undefined && data.DiscountPercentage !== null ? data.DiscountPercentage : data.discountPercentage,
+      defaultDiscountAmount: data.DiscountAmount !== undefined && data.DiscountAmount !== null ? data.DiscountAmount : data.discountAmount,
+      defaultUsageLimit: data.UsageLimit !== undefined ? data.UsageLimit : data.usageLimit,
     };
   },
 
-  // POST /api/host/settings/voucher - Lưu voucher settings của host
-  // Theo spec: Khi autoGenerate = true, tự động tạo voucher cho tất cả condotel của host
-  // Gửi email thông báo cho customer, Voucher có thời hạn = validMonths tháng
+  // POST /api/host/settings/voucher - Lưu cài đặt tự động phát voucher khi booking completed
+  // Request: { discountAmount?, discountPercentage?, autoGenerate (BẮT BUỘC), validMonths (BẮT BUỘC), usageLimit? }
+  // Validation: Phải có ít nhất một trong hai: DiscountAmount HOẶC DiscountPercentage
+  // Response: { success: true, message: "...", data: { settingID, hostID, discountAmount, discountPercentage, autoGenerate, validMonths, usageLimit } }
   saveSettings: async (settings: HostVoucherSettingDTO): Promise<HostVoucherSettingDTO> => {
     // Map camelCase sang PascalCase để khớp với backend C# DTO
     const requestData: any = {};
     
-    if (settings.autoGenerateVouchers !== undefined) {
-      requestData.AutoGenerateVouchers = settings.autoGenerateVouchers;
-    }
-    if (settings.defaultDiscountPercentage !== undefined) {
-      requestData.DefaultDiscountPercentage = settings.defaultDiscountPercentage;
-    }
-    if (settings.defaultDiscountAmount !== undefined) {
-      requestData.DefaultDiscountAmount = settings.defaultDiscountAmount;
-    }
+    // BẮT BUỘC: autoGenerate
+    requestData.AutoGenerate = settings.autoGenerate !== undefined ? settings.autoGenerate : settings.autoGenerateVouchers;
+    
+    // BẮT BUỘC: validMonths
     if (settings.validMonths !== undefined) {
       requestData.ValidMonths = settings.validMonths;
     }
-    if (settings.defaultUsageLimit !== undefined) {
-      requestData.DefaultUsageLimit = settings.defaultUsageLimit;
+    
+    // Optional: discountAmount (0 - 100,000,000)
+    if (settings.discountAmount !== undefined) {
+      requestData.DiscountAmount = settings.discountAmount;
+    } else if (settings.defaultDiscountAmount !== undefined) {
+      requestData.DiscountAmount = settings.defaultDiscountAmount;
     }
-    if (settings.defaultMinimumOrderAmount !== undefined) {
-      requestData.DefaultMinimumOrderAmount = settings.defaultMinimumOrderAmount;
+    
+    // Optional: discountPercentage (0 - 100)
+    if (settings.discountPercentage !== undefined) {
+      requestData.DiscountPercentage = settings.discountPercentage;
+    } else if (settings.defaultDiscountPercentage !== undefined) {
+      requestData.DiscountPercentage = settings.defaultDiscountPercentage;
     }
-    if (settings.voucherPrefix) {
-      requestData.VoucherPrefix = settings.voucherPrefix;
-    }
-    if (settings.voucherLength !== undefined) {
-      requestData.VoucherLength = settings.voucherLength;
+    
+    // Optional: usageLimit (1 - 1000)
+    if (settings.usageLimit !== undefined) {
+      requestData.UsageLimit = settings.usageLimit;
+    } else if (settings.defaultUsageLimit !== undefined) {
+      requestData.UsageLimit = settings.defaultUsageLimit;
     }
     
     const response = await axiosClient.post<any>("/host/settings/voucher", requestData);
-    const data = response.data;
+    const responseData = response.data;
+    
+    // Backend trả về { success: true, message: "...", data: {...} }
+    const data = responseData.data || responseData;
     
     // Normalize response từ backend (PascalCase -> camelCase)
     return {
-      autoGenerateVouchers: data.AutoGenerateVouchers !== undefined ? data.AutoGenerateVouchers : data.autoGenerateVouchers,
-      defaultDiscountPercentage: data.DefaultDiscountPercentage !== undefined ? data.DefaultDiscountPercentage : data.defaultDiscountPercentage,
-      defaultDiscountAmount: data.DefaultDiscountAmount !== undefined ? data.DefaultDiscountAmount : data.defaultDiscountAmount,
+      settingID: data.SettingID || data.settingID,
+      hostID: data.HostID || data.hostID,
+      discountAmount: data.DiscountAmount !== undefined && data.DiscountAmount !== null ? data.DiscountAmount : data.discountAmount,
+      discountPercentage: data.DiscountPercentage !== undefined && data.DiscountPercentage !== null ? data.DiscountPercentage : data.discountPercentage,
+      autoGenerate: data.AutoGenerate !== undefined ? data.AutoGenerate : data.autoGenerate,
       validMonths: data.ValidMonths !== undefined ? data.ValidMonths : data.validMonths,
-      defaultUsageLimit: data.DefaultUsageLimit !== undefined ? data.DefaultUsageLimit : data.defaultUsageLimit,
-      defaultMinimumOrderAmount: data.DefaultMinimumOrderAmount !== undefined ? data.DefaultMinimumOrderAmount : data.defaultMinimumOrderAmount,
-      voucherPrefix: data.VoucherPrefix || data.voucherPrefix,
-      voucherLength: data.VoucherLength !== undefined ? data.VoucherLength : data.voucherLength,
+      usageLimit: data.UsageLimit !== undefined ? data.UsageLimit : data.usageLimit,
+      // Backward compatibility
+      autoGenerateVouchers: data.AutoGenerate !== undefined ? data.AutoGenerate : data.autoGenerate,
+      defaultDiscountPercentage: data.DiscountPercentage !== undefined && data.DiscountPercentage !== null ? data.DiscountPercentage : data.discountPercentage,
+      defaultDiscountAmount: data.DiscountAmount !== undefined && data.DiscountAmount !== null ? data.DiscountAmount : data.discountAmount,
+      defaultUsageLimit: data.UsageLimit !== undefined ? data.UsageLimit : data.usageLimit,
     };
   },
 };

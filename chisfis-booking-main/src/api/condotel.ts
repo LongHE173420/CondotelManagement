@@ -751,19 +751,11 @@ export const condotelAPI = {
     return response.data;
   },
 
-  // DELETE /api/condotel/{id} - "Xóa" condotel bằng cách chuyển status sang "Inactive"
-  delete: async (id: number): Promise<CondotelDetailDTO> => {
-    // Lấy thông tin condotel hiện tại
-    const currentCondotel = await axiosClient.get<CondotelDetailDTO>(`/host/condotel/${id}`).then(res => res.data);
-
-    // Cập nhật status thành "Inactive" thay vì xóa thật sự
-    const updatedCondotel: CondotelDetailDTO = {
-      ...currentCondotel,
-      status: "Inactive",
-    };
-
-    // Gọi API update để thay đổi status
-    const response = await axiosClient.put<CondotelDetailDTO>(`/host/condotel/${id}`, updatedCondotel);
+  // DELETE /api/host/condotel/{id} - Xóa mềm (soft delete) condotel
+  // Backend sẽ tự động đổi status sang "Inactive"
+  // Yêu cầu: Role "Host" và condotel phải thuộc về host đó
+  delete: async (id: number): Promise<{ success: boolean; message?: string }> => {
+    const response = await axiosClient.delete<{ success: boolean; message?: string }>(`/host/condotel/${id}`);
     return response.data;
   },
 

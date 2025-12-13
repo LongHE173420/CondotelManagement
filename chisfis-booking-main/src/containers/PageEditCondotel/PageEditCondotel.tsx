@@ -76,6 +76,7 @@ const PageEditCondotel: React.FC = () => {
   const [resorts, setResorts] = useState<ResortDTO[]>([]);
   const [amenities, setAmenities] = useState<AmenityDTO[]>([]);
   const [utilities, setUtilities] = useState<UtilityDTO[]>([]);
+  const [resortUtilities, setResortUtilities] = useState<UtilityDTO[]>([]); // Utilities của resort được chọn
 
   // Upload
   const [imgUrl, setImgUrl] = useState("");
@@ -149,8 +150,9 @@ const PageEditCondotel: React.FC = () => {
           hygieneStandards: d.hygieneStandards,
         })));
         // Extract amenityIds and utilityIds from arrays
+        const existingUtilityIds = (data.utilities || []).map((u: any) => u.utilityId || u.UtilityId);
         setAmenityIds((data.amenities || []).map((a: any) => a.amenityId || a.AmenityId));
-        setUtilityIds((data.utilities || []).map((u: any) => u.utilityId || u.UtilityId));
+        setUtilityIds(existingUtilityIds);
 
         // Load options for dropdowns
         const [resortsData, amenitiesData, utilitiesData] = await Promise.all([
@@ -158,9 +160,26 @@ const PageEditCondotel: React.FC = () => {
           amenityAPI.getAll().catch(() => []),
           utilityAPI.getAll().catch(() => []),
         ]);
-        setResorts(resortsData);
+        
+        // Sắp xếp resorts: resort hiện tại lên đầu
+        const sortedResorts = [...resortsData].sort((a, b) => {
+          if (a.resortId === data.resortId) return -1;
+          if (b.resortId === data.resortId) return 1;
+          return 0;
+        });
+        setResorts(sortedResorts);
         setAmenities(amenitiesData);
         setUtilities(utilitiesData);
+        
+        // Load utilities của resort hiện tại nếu có (chỉ để hiển thị, không override utilities đã chọn)
+        if (data.resortId) {
+          try {
+            const resortUtils = await utilityAPI.getByResort(data.resortId);
+            setResortUtilities(resortUtils);
+          } catch (err) {
+            console.error("Failed to load resort utilities:", err);
+          }
+        }
       } catch (e: any) {
         const errorMsg = e?.response?.data?.message || e?.message || "Không thể tải condotel";
         setError(errorMsg);
@@ -171,6 +190,32 @@ const PageEditCondotel: React.FC = () => {
     };
     load();
   }, [id, user, navigate]);
+
+  // Load utilities khi resortId thay đổi
+  useEffect(() => {
+    const loadResortUtilities = async () => {
+      if (resortId) {
+        try {
+          const resortUtils = await utilityAPI.getByResort(resortId);
+          setResortUtilities(resortUtils);
+          // Tự động chọn utilities của resort (merge với utilities đã chọn)
+          const resortUtilityIds = resortUtils.map(u => u.utilityId);
+          setUtilityIds(prev => {
+            // Merge: giữ utilities đã chọn và thêm utilities của resort mới
+            const mergedSet = new Set([...prev, ...resortUtilityIds]);
+            return Array.from(mergedSet);
+          });
+        } catch (err) {
+          console.error("Failed to load resort utilities:", err);
+          setResortUtilities([]);
+        }
+      } else {
+        setResortUtilities([]);
+      }
+    };
+    
+    loadResortUtilities();
+  }, [resortId]);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -322,6 +367,54 @@ const PageEditCondotel: React.FC = () => {
       )}
 
       <form onSubmit={handleSave} className="space-y-6">
+        {/* Resort Selection - Đẩy lên đầu */}
+        <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-lg border border-neutral-200 dark:border-neutral-700 overflow-hidden">
+          <div className="px-6 py-4 border-b border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-900/50">
+            <h2 className="text-xl font-semibold text-neutral-900 dark:text-neutral-100 flex items-center gap-2">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+              </svg>
+              Chọn Resort
+            </h2>
+          </div>
+          <div className="p-6">
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+                Resort *
+              </label>
+              <select
+                value={resortId || ""}
+                onChange={(e) => setResortId(e.target.value ? Number(e.target.value) : undefined)}
+                className="w-full px-4 py-3 border border-neutral-300 dark:border-neutral-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-neutral-700 dark:text-neutral-100"
+              >
+                <option value="">-- Chọn Resort --</option>
+                {resorts.map((resort) => (
+                  <option key={resort.resortId} value={resort.resortId}>
+                    {resort.name}
+                  </option>
+                ))}
+              </select>
+              {resortId && resortUtilities.length > 0 && (
+                <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                  <p className="text-sm font-medium text-blue-900 dark:text-blue-200 mb-2">
+                    Utilities của resort này:
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {resortUtilities.map((utility) => (
+                      <span
+                        key={utility.utilityId}
+                        className="px-2 py-1 bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 rounded-md text-xs font-medium"
+                      >
+                        {utility.name}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
         {/* Thông tin cơ bản */}
         <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-lg border border-neutral-200 dark:border-neutral-700 overflow-hidden">
           <div className="px-6 py-4 border-b border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-900/50">
@@ -422,24 +515,6 @@ const PageEditCondotel: React.FC = () => {
                   </div>
                 </label>
               </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-                Resort
-              </label>
-              <select
-                value={resortId || ""}
-                onChange={(e) => setResortId(e.target.value ? Number(e.target.value) : undefined)}
-                className="w-full px-4 py-3 border border-neutral-300 dark:border-neutral-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-neutral-700 dark:text-neutral-100"
-              >
-                <option value="">-- Chọn Resort --</option>
-                {resorts.map((resort) => (
-                  <option key={resort.resortId} value={resort.resortId}>
-                    {resort.name}
-                  </option>
-                ))}
-              </select>
             </div>
           </div>
         </div>
@@ -765,25 +840,43 @@ const PageEditCondotel: React.FC = () => {
             <div>
               <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-3">
                 Dịch vụ (Utilities)
+                {resortId && resortUtilities.length > 0 && (
+                  <span className="ml-2 text-xs text-blue-600 dark:text-blue-400">
+                    (Đã tự động chọn utilities của resort)
+                  </span>
+                )}
               </label>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-h-60 overflow-y-auto p-3 border border-neutral-200 dark:border-neutral-700 rounded-xl">
-                {utilities.map((utility) => (
-                  <label key={utility.utilityId} className="flex items-center space-x-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={utilityIds.includes(utility.utilityId)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setUtilityIds([...utilityIds, utility.utilityId]);
-                        } else {
-                          setUtilityIds(utilityIds.filter(id => id !== utility.utilityId));
-                        }
-                      }}
-                      className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
-                    />
-                    <span className="text-sm text-neutral-700 dark:text-neutral-300">{utility.name}</span>
-                  </label>
-                ))}
+                {utilities.map((utility) => {
+                  const isResortUtility = resortUtilities.some(ru => ru.utilityId === utility.utilityId);
+                  return (
+                    <label 
+                      key={utility.utilityId} 
+                      className={`flex items-center space-x-2 cursor-pointer p-2 rounded ${
+                        isResortUtility ? "bg-blue-50 dark:bg-blue-900/20" : ""
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={utilityIds.includes(utility.utilityId)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setUtilityIds([...utilityIds, utility.utilityId]);
+                          } else {
+                            setUtilityIds(utilityIds.filter(id => id !== utility.utilityId));
+                          }
+                        }}
+                        className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
+                      />
+                      <span className={`text-sm ${isResortUtility ? "font-medium text-blue-700 dark:text-blue-300" : "text-neutral-700 dark:text-neutral-300"}`}>
+                        {utility.name}
+                        {isResortUtility && (
+                          <span className="ml-1 text-xs text-blue-600 dark:text-blue-400">(Resort)</span>
+                        )}
+                      </span>
+                    </label>
+                  );
+                })}
               </div>
             </div>
           </div>
