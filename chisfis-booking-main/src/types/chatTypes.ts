@@ -15,6 +15,8 @@ export interface ChatConversation {
     lastMessage?: ChatMessage;
     userAId?: number;
     userBId?: number;
+    otherUserName?: string; 
+    unreadCount?: number;
 }
 
 export interface ChatMessageDto {
