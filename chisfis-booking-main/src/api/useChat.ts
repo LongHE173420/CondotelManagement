@@ -1,45 +1,24 @@
 // src/api/useChat.ts
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { HubConnection, HubConnectionBuilder, HubConnectionState, LogLevel } from '@microsoft/signalr';
 import { ChatConversation, ChatMessageDto } from '../types/chatTypes';
 import axios from 'axios';
-import logger from 'utils/logger';
 
-// Lấy base URL từ environment variable (giống như axiosClient.ts)
-// REACT_APP_API_URL thường có dạng: http://localhost:7216/api hoặc https://api.example.com/api
-// Ta cần lấy phần base (bỏ /api) để tạo HUB_URL và API_URL
+// --- CẤU HÌNH URL ---
 const getBaseUrl = (): string => {
-  const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:7216/api';
-  // Nếu REACT_APP_API_URL có /api ở cuối, bỏ nó đi để lấy base URL
-  const baseUrl = apiUrl.replace(/\/api\/?$/, '');
-  return baseUrl;
+    // Nếu biến môi trường có dạng "http://localhost:7216/api", ta cắt bỏ "/api"
+    const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:7216/api';
+    return apiUrl.replace(/\/api\/?$/, '');
 };
 
 const BASE_URL = getBaseUrl();
 const API_URL = `${BASE_URL}/api/Chat`;
+// Lưu ý: Kiểm tra lại backend của bạn mapHub là "/chatHub" hay "/hubs/chat". 
+// Dựa trên code cũ bạn gửi thì có vẻ là "/hubs/chat" hoặc "/chatHub". 
+// Tôi để mặc định theo chuẩn thường dùng, nếu lỗi 404 hãy đổi lại thành `${BASE_URL}/hubs/chat`
 const HUB_URL = `${BASE_URL}/hubs/chat`;
 
-logger.info('🔧 Chat API URLs:', { API_URL, HUB_URL, BASE_URL });
-if (!process.env.REACT_APP_API_URL) {
-  logger.warn('⚠️ REACT_APP_API_URL không được set, đang dùng default URLs');
-}
-
-interface UseChatReturn {
-    conversations: ChatConversation[];
-    messages: ChatMessageDto[];
-    currentConvId: number | null;
-    unreadCounts: Record<number, number>;
-    setCurrentConvId: (id: number | null) => void;
-    setMessages: React.Dispatch<React.SetStateAction<ChatMessageDto[]>>;
-    loadConversations: () => Promise<void>;
-    openChatWithUser: (targetUserId: number) => Promise<void>;
-    sendMessage: (conversationId: number, content: string) => void;
-    connection: HubConnection | null;
-    isConnected: boolean;
-
-}
-
-export const useChat = (currentUserId: number): UseChatReturn => {
+export const useChat = (currentUserId: number) => {
     const [connection, setConnection] = useState<HubConnection | null>(null);
     const [conversations, setConversations] = useState<ChatConversation[]>([]);
     const [messages, setMessages] = useState<ChatMessageDto[]>([]);
@@ -47,12 +26,7 @@ export const useChat = (currentUserId: number): UseChatReturn => {
     const [unreadCounts, setUnreadCounts] = useState<Record<number, number>>({});
     const [isConnected, setIsConnected] = useState(false);
 
-    const currentConvIdRef = useRef<number | null>(null);
-    useEffect(() => {
-        currentConvIdRef.current = currentConvId;
-    }, [currentConvId]);
-
-    // Tạo SignalR connection
+    // 1. Khởi tạo SignalR Connection
     useEffect(() => {
         if (currentUserId <= 0) return;
 
@@ -65,167 +39,168 @@ export const useChat = (currentUserId: number): UseChatReturn => {
             .build();
 
         setConnection(newConnection);
-
-        return () => {
-            newConnection.stop();
-            setIsConnected(false);
-        };
     }, [currentUserId]);
 
-    // Lắng nghe tin nhắn realtime
+    // 2. KẾT NỐI VÀ LẮNG NGHE SỰ KIỆN
     useEffect(() => {
         if (!connection) return;
 
-        connection.off('ReceiveMessage'); // đảm bảo không đăng ký nhiều lần
+        const startConnection = async () => {
+            try {
+                if (connection.state === HubConnectionState.Disconnected) {
+                    await connection.start();
+                    console.log('✅ SignalR Connected to:', HUB_URL);
+                    setIsConnected(true);
+                }
+            } catch (err) {
+                console.error('❌ SignalR Connection Error:', err);
+                // Có thể retry logic ở đây nếu muốn
+            }
+        };
 
-        // 2. SỬA ReceiveMessage – THÊM KIỂM TRA TRÁNH TRÙNG + SẮP XẾP CHUẨN
+        startConnection();
+
+        // Xử lý sự kiện nhận tin nhắn mới
+  
+
         connection.on('ReceiveMessage', (messageDto: ChatMessageDto) => {
+            // A. Cập nhật danh sách tin nhắn
             setMessages(prev => {
-                // Nếu đã có messageId thật → dùng nó để check trùng
-                if (messageDto.messageId) {
-                    if (prev.some(m => m.messageId === messageDto.messageId)) {
-                        return prev; // đã có rồi → bỏ qua
-                    }
-                } else {
-                    // Nếu chưa có messageId (rất hiếm), check bằng nội dung + thời gian gần giống
-                    const isDup = prev.some(m =>
-                        m.content === messageDto.content &&
-                        m.senderId === messageDto.senderId &&
-                        Math.abs(new Date(m.sentAt).getTime() - new Date(messageDto.sentAt).getTime()) < 3000
-                    );
-                    if (isDup) return prev;
+                // 1. Nếu tin nhắn này ĐÃ CÓ ID THẬT trong list rồi -> Bỏ qua (chống trùng tuyệt đối)
+                if (prev.some(m => m.messageId === messageDto.messageId && m.messageId !== 0)) {
+                    return prev;
                 }
 
-                const newMsgs = [...prev, messageDto];
+                // 2. Tìm tin nhắn giả lập (Optimistic) để THAY THẾ
+                // (Tìm tin có ID=0, cùng nội dung, cùng người gửi, lệch giờ < 5s)
+                const optimisticIndex = prev.findIndex(m =>
+                    (m.messageId === 0 || !m.messageId) && // Tin giả thường ID = 0
+                    m.content === messageDto.content &&
+                    m.senderId === messageDto.senderId &&
+                    Math.abs(new Date(m.sentAt).getTime() - new Date(messageDto.sentAt).getTime()) < 5000
+                );
 
-                // Sắp xếp chuẩn: ưu tiên thời gian, nếu bằng thì messageId lớn hơn nằm dưới
-                return newMsgs.sort((a, b) => {
-                    const timeDiff = new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime();
-                    if (timeDiff !== 0) return timeDiff;
-                    return (a.messageId || 0) - (b.messageId || 0);
-                });
+                if (optimisticIndex !== -1) {
+                    // ✅ TÌM THẤY: Thay thế tin giả bằng tin thật (để cập nhật ID chuẩn)
+                    const newMsgs = [...prev];
+                    newMsgs[optimisticIndex] = messageDto;
+                    return newMsgs;
+                }
+
+                // 3. Nếu không phải tin mình vừa gửi -> Thêm mới vào cuối
+                const newMsgs = [...prev, messageDto];
+                return newMsgs.sort((a, b) => new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime());
             });
 
-            // Cập nhật sidebar (giữ nguyên, tốt rồi)
-            setConversations(prev => prev.map(c => {
-                if (c.conversationId !== messageDto.conversationId) return c;
-                return { ...c, lastMessage: messageDto };
-            }).sort((a, b) =>
-                new Date(b.lastMessage?.sentAt || 0).getTime() - new Date(a.lastMessage?.sentAt || 0).getTime()
-            ));
-        });
-
-
-
-
-
-        if (connection.state === HubConnectionState.Disconnected) {
-            // Trường hợp 1: Chưa kết nối -> Thì bắt đầu kết nối
-            connection.start()
-                .then(() => {
-                    logger.info('✅ SignalR Connected!', { hubUrl: HUB_URL });
-                    setIsConnected(true); // Báo ra ngoài là đã xong
-                })
-                .catch((err: any) => {
-                    logger.error('❌ SignalR Connection Failed:', err, { hubUrl: HUB_URL });
+            // B. Cập nhật Sidebar (Logic cũ giữ nguyên)
+            setConversations(prev => {
+                const updated = prev.map(c => {
+                    if (c.conversationId !== messageDto.conversationId) return c;
+                    return {
+                        ...c,
+                        lastMessage: messageDto,
+                        unreadCount: (messageDto.senderId !== currentUserId) ? (c as any).unreadCount + 1 : (c as any).unreadCount
+                    };
                 });
-        }
-        else if (connection.state === HubConnectionState.Connected) {
-            // Trường hợp 2: Đã kết nối rồi (do React render lại) -> Báo luôn là true
-            setIsConnected(true);
-        }
+                return updated.sort((a, b) =>
+                    new Date(b.lastMessage?.sentAt || 0).getTime() - new Date(a.lastMessage?.sentAt || 0).getTime()
+                );
+            });
+        });
 
         return () => {
             connection.off('ReceiveMessage');
+            connection.stop();
         };
     }, [connection, currentUserId]);
 
-    const loadConversations = async () => {
+    // 3. API: Load danh sách hội thoại
+    const loadConversations = useCallback(async () => {
         if (currentUserId <= 0) return;
         try {
             const token = localStorage.getItem('token');
-            const res = await axios.get<any[]>(`${API_URL}/conversations`, {
+            const res = await axios.get<ChatConversation[]>(`${API_URL}/conversations`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-
             setConversations(res.data);
 
+            // Map unread counts
             const counts: Record<number, number> = {};
-            res.data.forEach((conv: any) => {
-                counts[conv.conversationId] = conv.unreadCount || 0;
-            });
+            res.data.forEach((c: any) => counts[c.conversationId] = c.unreadCount || 0);
             setUnreadCounts(counts);
-        } catch (err: any) {
-            logger.error('Load conversations error:', err.response?.data || err.message, { apiUrl: API_URL });
-        }
-    };
-    const loadMessages = async (conversationId: number) => {
-        try {
-            const token = localStorage.getItem('token');
-            const res = await axios.get<ChatMessageDto[]>(
-                `${API_URL}/messages/${conversationId}`,
-                {
-                    headers: { Authorization: `Bearer ${token}` }
-                }
-            );
-
-            // SẮP XẾP THEO THỜI GIAN TĂNG ĐỂ UI KHÔNG LOẠN
-            const sorted = res.data.sort((a, b) => {
-                const timeA = new Date(a.sentAt).getTime();
-                const timeB = new Date(b.sentAt).getTime();
-                if (timeA !== timeB) return timeA - timeB;
-                return (a.messageId || 0) - (b.messageId || 0);
-            });
-
-            setMessages(sorted);
-        } catch (err: any) {
-            logger.error("Load messages error:", err.response?.data || err.message, { conversationId });
-        }
-    };
-
-
-    const openChatWithUser = async (targetUserId: number) => {
-        if (!connection || currentUserId <= 0) return;
-
-        try {
-            const convId = await connection.invoke('GetOrCreateDirectConversation', targetUserId) as number;
-
-            setCurrentConvId(convId);
-            setUnreadCounts(prev => ({ ...prev, [convId]: 0 }));
-
-            // 1) Load lịch sử tin nhắn
-            await loadMessages(convId);
-
-            // 2) Join phòng sau khi load_messages
-            if (connection.state === HubConnectionState.Connected) {
-                await connection.invoke('JoinConversation', convId);
-            }
 
         } catch (err) {
-            logger.error('Open chat error:', err, { targetUserId, currentUserId });
+            console.error("Load conversations failed:", err);
         }
-    };
+    }, [currentUserId]);
 
-
-
-    // 1. SỬA HÀM sendMessage – KHÔNG THÊM TEMP MESSAGE NỮA
-    const sendMessage = (conversationId: number, content: string) => {
-        if (!connection || connection.state !== HubConnectionState.Connected) {
-            logger.error("SignalR not connected!", { connectionState: connection?.state });
-            return;
-        }
-        if (!content.trim()) return;
-
-        // ĐÃ BỎ DÒNG NÀY: không thêm tempMessage nữa
-        // setMessages(prev => [...prev, tempMessage]);
-
-        connection.invoke("SendMessage", conversationId, content.trim())
-            .catch((err: any) => {
-                logger.error("Send message error:", err, { conversationId, contentLength: content.length });
-                alert("Gửi tin nhắn thất bại, vui lòng thử lại!");
+    // 4. API: Load tin nhắn của 1 hội thoại
+    const loadMessages = useCallback(async (conversationId: number) => {
+        try {
+            const token = localStorage.getItem('token');
+            const res = await axios.get<ChatMessageDto[]>(`${API_URL}/messages/${conversationId}?take=100`, {
+                headers: { Authorization: `Bearer ${token}` }
             });
+            // Sắp xếp tăng dần theo thời gian (cũ trên, mới dưới)
+            const sorted = res.data.sort((a: any, b: any) => new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime());
+            setMessages(sorted);
+        } catch (err) {
+            console.error("Load messages failed:", err);
+        }
+    }, []);
+
+    // 5. Gửi tin nhắn
+    // Trong file src/api/useChat.ts
+
+    const sendMessage = async (conversationId: number, content: string) => {
+        // Kiểm tra kỹ: Phải có connection VÀ trạng thái phải là Connected
+        if (connection && connection.state === HubConnectionState.Connected) {
+            try {
+                await connection.invoke("SendMessage", conversationId, content);
+            } catch (err) {
+                console.error("Send failed:", err);
+                // Có thể thêm logic retry hoặc thông báo toast error ở đây
+            }
+        } else {
+            console.warn("⚠️ SignalR chưa sẵn sàng. Đang thử kết nối lại...");
+
+            // Logic tự động reconnect nếu bị rớt mạng (Optional)
+            try {
+                if (connection && connection.state === HubConnectionState.Disconnected) {
+                    await connection.start();
+                    await connection.invoke("SendMessage", conversationId, content); // Gửi lại sau khi connect
+                } else {
+                    alert("Mất kết nối máy chủ. Vui lòng tải lại trang.");
+                }
+            } catch (e) {
+                console.error("Reconnect failed:", e);
+            }
+        }
     };
 
+    // 6. QUAN TRỌNG: Mở chat với User bất kỳ (Logic cho nút "Nhắn tin" ở trang Detail)
+    const openChatWithUser = async (targetUserId: number) => {
+        if (!connection || !isConnected) return;
+        try {
+            // a. Lấy hoặc tạo ConversationId từ Server
+            const convId = await connection.invoke('GetOrCreateDirectConversation', targetUserId);
+
+            // b. Join group chat
+            await connection.invoke('JoinConversation', convId);
+
+            // c. Load lịch sử tin nhắn
+            await loadMessages(convId);
+
+            // d. Set state hiển thị
+            setCurrentConvId(convId);
+
+            // e. Refresh lại sidebar để thấy hội thoại mới
+            await loadConversations();
+
+        } catch (err) {
+            console.error("Error opening chat with user:", err);
+        }
+    };
 
     return {
         conversations,
@@ -235,9 +210,10 @@ export const useChat = (currentUserId: number): UseChatReturn => {
         setCurrentConvId,
         setMessages,
         loadConversations,
-        openChatWithUser,
+        loadMessages, // Export hàm này để dùng bên ngoài nếu cần
         sendMessage,
-        connection,
-        isConnected
+        openChatWithUser, // Hàm quan trọng mới
+        isConnected,
+        connection
     };
 };
