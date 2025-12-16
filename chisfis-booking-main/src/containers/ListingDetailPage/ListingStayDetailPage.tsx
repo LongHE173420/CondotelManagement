@@ -493,9 +493,21 @@ const ListingStayDetailPage: FC = () => {
             </div>
           </div>
           {/* Icon Chat với Host */}
-          {user && data?.hostId && (
+          {data?.hostId && (
             <button
-              onClick={() => navigate(`/chat?hostId=${data.hostId}`)}
+              onClick={() => {
+                if (!user) {
+                  toastWarning("Vui lòng đăng nhập để chat với host");
+                  navigate("/login");
+                  return;
+                }
+                // Không cho host chat với chính mình
+                if (user.userId === data.hostId) {
+                  toastWarning("Bạn không thể chat với chính mình");
+                  return;
+                }
+                navigate(`/chat?hostId=${data.hostId}`);
+              }}
               className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors shadow-md hover:shadow-lg"
               title="Chat với host"
             >

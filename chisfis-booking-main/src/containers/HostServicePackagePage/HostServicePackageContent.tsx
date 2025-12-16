@@ -315,6 +315,27 @@ const ServicePackageModal: React.FC<ServicePackageModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // Update formData when servicePackage changes
+  useEffect(() => {
+    if (servicePackage) {
+      console.log("📦 Loading servicePackage into form:", servicePackage);
+      console.log("📦 Package ID:", servicePackage.packageId || servicePackage.servicePackageId);
+      setFormData({
+        name: servicePackage.name || servicePackage.title || "",
+        description: servicePackage.description || "",
+        price: servicePackage.price || 0,
+        isActive: servicePackage.isActive !== undefined ? servicePackage.isActive : (servicePackage.status === "Active"),
+      });
+    } else {
+      setFormData({
+        name: "",
+        description: "",
+        price: 0,
+        isActive: true,
+      });
+    }
+  }, [servicePackage]);
+
   // Prevent body scroll when modal is open
   useEffect(() => {
     document.body.style.overflow = 'hidden';
@@ -350,13 +371,24 @@ const ServicePackageModal: React.FC<ServicePackageModalProps> = ({
 
       if (servicePackage) {
         // Update service package
-        const packageId = servicePackage.packageId || servicePackage.servicePackageId;
-        if (!packageId || packageId <= 0) {
-          setError("Không tìm thấy ID gói dịch vụ để cập nhật");
+        // Thử nhiều cách để lấy ID
+        const packageId = servicePackage.packageId 
+          || servicePackage.servicePackageId 
+          || (servicePackage as any).serviceId
+          || (servicePackage as any).id
+          || (servicePackage as any).Id;
+        
+        console.log("🔍 Debug - ServicePackage object:", servicePackage);
+        console.log("🔍 Debug - PackageId:", packageId);
+        
+        if (!packageId || packageId <= 0 || isNaN(Number(packageId))) {
+          console.error("❌ Invalid package ID:", packageId, "from servicePackage:", servicePackage);
+          setError("Không tìm thấy ID gói dịch vụ để cập nhật. Vui lòng tải lại trang và thử lại.");
           setLoading(false);
           return;
         }
-        await servicePackageAPI.update(packageId, packageData);
+        
+        await servicePackageAPI.update(Number(packageId), packageData);
         alert("Cập nhật gói dịch vụ thành công!");
       } else {
         // Create service package
