@@ -92,11 +92,53 @@ export interface HostVoucherSettingDTO {
 // API Calls
 export const voucherAPI = {
   // GET /api/host/vouchers - Lấy tất cả vouchers của host
-  getAll: async (): Promise<VoucherDTO[]> => {
-    const response = await axiosClient.get<any>("/host/vouchers");
+  // Hỗ trợ pagination: pageNumber, pageSize
+  getAll: async (filters?: {
+    pageNumber?: number;
+    pageSize?: number;
+  }): Promise<VoucherDTO[] | { data: VoucherDTO[]; pagination?: any }> => {
+    const params: any = {};
+    if (filters?.pageNumber) params.pageNumber = filters.pageNumber;
+    if (filters?.pageSize) params.pageSize = filters.pageSize;
+    
+    const response = await axiosClient.get<any>("/host/vouchers", { params });
     const data = response.data;
     
-    // Normalize response (handle both array and object with data property)
+    // Check if response has pagination info
+    if (data && typeof data === 'object' && 'pagination' in data) {
+      // Paginated response: { data: [...], pagination: {...} }
+      let vouchers: any[] = [];
+      if (Array.isArray(data.data)) {
+        vouchers = data.data;
+      } else if (Array.isArray(data)) {
+        vouchers = data;
+      }
+      
+      return {
+        data: vouchers.map((item: any) => normalizeVoucher(item)),
+        pagination: data.pagination,
+      };
+    }
+    
+    // Check for success wrapper: { success: true, data: [...], pagination: {...} }
+    if (data && typeof data === 'object' && 'success' in data && 'data' in data) {
+      let vouchers: any[] = [];
+      if (Array.isArray(data.data)) {
+        vouchers = data.data;
+      }
+      
+      const result: any = {
+        data: vouchers.map((item: any) => normalizeVoucher(item)),
+      };
+      
+      if ('pagination' in data) {
+        result.pagination = data.pagination;
+      }
+      
+      return result;
+    }
+    
+    // Legacy format: just array or { data: [...] }
     const vouchers = Array.isArray(data) 
       ? data 
       : (data.data || []);

@@ -207,9 +207,6 @@ const PageAdminResorts: React.FC = () => {
                     Địa chỉ
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wider">
-                    Thành phố / Quốc gia
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wider">
                     Hành động
                   </th>
                 </tr>
@@ -233,9 +230,6 @@ const PageAdminResorts: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 text-sm text-neutral-500 dark:text-neutral-400">
                       {resort.address || "-"}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500 dark:text-neutral-400">
-                      {resort.city || "-"} {resort.country ? `, ${resort.country}` : ""}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm space-x-2">
                       <ButtonSecondary
@@ -348,8 +342,6 @@ const ResortModal: React.FC<ResortModalProps> = ({ resort, locations, loadingLoc
     description: resort?.description || "",
     locationId: resort?.locationId,
     address: resort?.address || "",
-    city: resort?.city || "",
-    country: resort?.country || "",
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -697,31 +689,6 @@ const ResortModal: React.FC<ResortModalProps> = ({ resort, locations, loadingLoc
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                    Thành phố
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.city || ""}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, city: e.target.value }))}
-                    className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 dark:bg-neutral-700 dark:text-neutral-100"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                    Quốc gia
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.country || ""}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, country: e.target.value }))}
-                    className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 dark:bg-neutral-700 dark:text-neutral-100"
-                  />
-                </div>
-              </div>
 
               {error && (
                 <div className="p-3 bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-200 rounded-lg text-sm whitespace-pre-line">

@@ -749,8 +749,8 @@ const ListingStayDetailPage: FC = () => {
       return;
     }
 
-    // Tính số đêm
-    const nights = rangeDates.endDate.diff(rangeDates.startDate, "days");
+    // Tính số đêm - normalize dates to start of day to ensure accurate night calculation
+    const nights = moment(rangeDates.endDate).startOf('day').diff(moment(rangeDates.startDate).startOf('day'), "days");
     if (nights <= 0) {
       showValidationError("Ngày check-out phải sau ngày check-in");
       return;
@@ -857,9 +857,9 @@ const ListingStayDetailPage: FC = () => {
   };
 
   const renderSidebar = () => {
-    // Tính số đêm
+    // Tính số đêm - normalize dates to start of day to ensure accurate night calculation
     const nights = rangeDates.startDate && rangeDates.endDate
-      ? rangeDates.endDate.diff(rangeDates.startDate, "days")
+      ? moment(rangeDates.endDate).startOf('day').diff(moment(rangeDates.startDate).startOf('day'), "days")
       : 0;
     
     // Tính giá cơ bản cho 1 đêm (có thể từ activePrice hoặc pricePerNight)

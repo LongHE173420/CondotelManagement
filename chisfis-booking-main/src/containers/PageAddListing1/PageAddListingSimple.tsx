@@ -15,7 +15,7 @@ import ButtonPrimary from "shared/Button/ButtonPrimary";
 import ButtonSecondary from "shared/Button/ButtonSecondary";
 import FormItem from "./FormItem";
 import NcInputNumber from "components/NcInputNumber/NcInputNumber";
-import { toastSuccess, toastWarning, showErrorMessage } from "utils/toast";
+import { toastSuccess, toastWarning, toastError, showErrorMessage } from "utils/toast";
 
 interface ImageDTO {
   imageUrl: string;
@@ -229,11 +229,11 @@ const PageAddListingSimple: FC = () => {
     // Validate files
     for (const file of fileArray) {
       if (!file.type.startsWith("image/")) {
-        setError(`File ${file.name} không phải là ảnh hợp lệ!`);
+        toastError(`File ${file.name} không phải là ảnh hợp lệ!`);
         return;
       }
       if (file.size > 10 * 1024 * 1024) {
-        setError(`File ${file.name} quá lớn (tối đa 10MB)!`);
+        toastError(`File ${file.name} quá lớn (tối đa 10MB)!`);
         return;
       }
     }
@@ -254,10 +254,7 @@ const PageAddListingSimple: FC = () => {
         }
       } catch (err: any) {
         console.error("Upload image error:", err);
-        setError((prev) => 
-          prev ? `${prev}\n${file.name}: ${err.response?.data?.message || err.message}` 
-               : `Không thể upload ảnh ${file.name}: ${err.response?.data?.message || err.message}`
-        );
+        toastError(`Không thể upload ảnh ${file.name}: ${err.response?.data?.message || err.message}`);
         return null;
       }
     });
@@ -305,26 +302,31 @@ const PageAddListingSimple: FC = () => {
 
   const handleAddPrice = () => {
     if (!priceStartDate || !priceEndDate) {
-      setError("Vui lòng nhập đầy đủ ngày bắt đầu và ngày kết thúc!");
+      toastError("Vui lòng nhập đầy đủ ngày bắt đầu và ngày kết thúc!");
       return;
     }
 
     if (basePrice <= 0) {
-      setError("Vui lòng nhập giá lớn hơn 0!");
+      toastError("Vui lòng nhập giá lớn hơn 0!");
       return;
     }
 
     // Validate StartDate < EndDate
     const startDate = new Date(priceStartDate);
     const endDate = new Date(priceEndDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Reset time to start of day for comparison
     
     if (startDate >= endDate) {
-      setError(`Ngày bắt đầu (${priceStartDate}) phải nhỏ hơn ngày kết thúc (${priceEndDate}).`);
+      toastError(`Ngày bắt đầu (${priceStartDate}) phải nhỏ hơn ngày kết thúc (${priceEndDate}).`);
       return;
     }
-
-    // Clear previous errors
-    setError("");
+    
+    // Kiểm tra endDate không được ở quá khứ
+    if (endDate < today) {
+      toastError("Ngày kết thúc không được ở quá khứ!");
+      return;
+    }
     
     setPrices((arr) => [
       ...arr,
@@ -416,29 +418,34 @@ const PageAddListingSimple: FC = () => {
     }
 
     // Validation
+    if (!resortId) {
+      toastError("Vui lòng chọn resort!");
+      return;
+    }
+
     if (!name.trim()) {
-      setError("Vui lòng nhập tên condotel!");
+      toastError("Vui lòng nhập tên condotel!");
       return;
     }
 
     if (!pricePerNight || pricePerNight <= 0) {
-      setError("Vui lòng nhập giá mỗi đêm hợp lệ!");
+      toastError("Vui lòng nhập giá mỗi đêm hợp lệ!");
       return;
     }
 
     if (!beds || beds <= 0) {
-      setError("Vui lòng nhập số giường!");
+      toastError("Vui lòng nhập số giường!");
       return;
     }
 
     if (!bathrooms || bathrooms <= 0) {
-      setError("Vui lòng nhập số phòng tắm!");
+      toastError("Vui lòng nhập số phòng tắm!");
       return;
     }
 
     // Validate prices
     if (prices.length > 0 && !validatePrices()) {
-      setError("Vui lòng kiểm tra lại thông tin giá. Ngày bắt đầu phải nhỏ hơn ngày kết thúc.");
+      toastError("Vui lòng kiểm tra lại thông tin giá. Ngày bắt đầu phải nhỏ hơn ngày kết thúc.");
       return;
     }
 
@@ -447,7 +454,7 @@ const PageAddListingSimple: FC = () => {
       // Validate location - lấy từ resort
       const finalLocationId = formData.locationId;
       if (!finalLocationId) {
-        setError("Không tìm thấy địa điểm từ resort. Vui lòng chọn resort có địa điểm!");
+        toastError("Không tìm thấy địa điểm từ resort. Vui lòng chọn resort có địa điểm!");
         setLoading(false);
         return;
       }
@@ -527,7 +534,7 @@ const PageAddListingSimple: FC = () => {
         errorMessage = err.message;
       }
 
-      setError(errorMessage);
+      toastError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -543,13 +550,51 @@ const PageAddListingSimple: FC = () => {
         <div className="max-w-4xl mx-auto">
           <h1 className="text-3xl font-bold mb-8">Thêm Condotel mới</h1>
 
-          {error && (
-            <div className="mb-6 p-4 bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-200 rounded-lg">
-              {error}
-            </div>
-          )}
-
           <form onSubmit={handleSubmit} className="space-y-8">
+            {/* ResortId - Đưa lên đầu */}
+            <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg p-6 space-y-6">
+              <h2 className="text-xl font-semibold mb-4">Chọn Resort <span className="text-red-500">*</span></h2>
+              <FormItem label="Resort">
+                {loadingResorts ? (
+                  <div className="flex items-center space-x-2">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary-600"></div>
+                    <span className="text-sm text-neutral-500">Đang tải danh sách resort...</span>
+                  </div>
+                ) : (
+                  <Select
+                    value={resortId || ""}
+                    onChange={(e) => setResortId(e.target.value ? Number(e.target.value) : undefined)}
+                    required
+                  >
+                    {resorts.map((resort) => (
+                      <option key={resort.resortId} value={resort.resortId}>
+                        {resort.name}
+                        {resort.address && ` - ${resort.address}`}
+                        {resort.city && `, ${resort.city}`}
+                      </option>
+                    ))}
+                  </Select>
+                )}
+                <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                  Vui lòng chọn resort cho condotel
+                </p>
+              </FormItem>
+
+              {resortId && (() => {
+                const selectedResort = resorts.find(r => r.resortId === resortId);
+                return selectedResort ? (
+                  <div className="p-4 bg-neutral-100 dark:bg-neutral-700 rounded-lg">
+                    <h3 className="font-semibold mb-2">Thông tin resort đã chọn:</h3>
+                    <p className="text-sm"><strong>Tên:</strong> {selectedResort.name}</p>
+                    {selectedResort.description && <p className="text-sm"><strong>Mô tả:</strong> {selectedResort.description}</p>}
+                    {selectedResort.address && <p className="text-sm"><strong>Địa chỉ:</strong> {selectedResort.address}</p>}
+                    {selectedResort.city && <p className="text-sm"><strong>Thành phố:</strong> {selectedResort.city}</p>}
+                    {selectedResort.country && <p className="text-sm"><strong>Quốc gia:</strong> {selectedResort.country}</p>}
+                  </div>
+                ) : null;
+              })()}
+            </div>
+
             {/* Basic Information */}
             <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg p-6 space-y-6">
               <h2 className="text-xl font-semibold mb-4">Thông tin cơ bản</h2>
@@ -1002,50 +1047,6 @@ const PageAddListingSimple: FC = () => {
                   </ul>
                 </div>
               )}
-            </div>
-
-            {/* ResortId */}
-            <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg p-6 space-y-6">
-              <h2 className="text-xl font-semibold mb-4">Resort (Tùy chọn)</h2>
-              <FormItem label="Chọn Resort">
-                {loadingResorts ? (
-                  <div className="flex items-center space-x-2">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary-600"></div>
-                    <span className="text-sm text-neutral-500">Đang tải danh sách resort...</span>
-                  </div>
-                ) : (
-                  <Select
-                    value={resortId || ""}
-                    onChange={(e) => setResortId(e.target.value ? Number(e.target.value) : undefined)}
-                  >
-                    <option value="">-- Không chọn resort --</option>
-                    {resorts.map((resort) => (
-                      <option key={resort.resortId} value={resort.resortId}>
-                        {resort.name}
-                        {resort.address && ` - ${resort.address}`}
-                        {resort.city && `, ${resort.city}`}
-                      </option>
-                    ))}
-                  </Select>
-                )}
-                <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
-                  Nếu condotel thuộc một resort, chọn resort từ danh sách
-                </p>
-              </FormItem>
-
-              {resortId && (() => {
-                const selectedResort = resorts.find(r => r.resortId === resortId);
-                return selectedResort ? (
-                  <div className="p-4 bg-neutral-100 dark:bg-neutral-700 rounded-lg">
-                    <h3 className="font-semibold mb-2">Thông tin resort đã chọn:</h3>
-                    <p className="text-sm"><strong>Tên:</strong> {selectedResort.name}</p>
-                    {selectedResort.description && <p className="text-sm"><strong>Mô tả:</strong> {selectedResort.description}</p>}
-                    {selectedResort.address && <p className="text-sm"><strong>Địa chỉ:</strong> {selectedResort.address}</p>}
-                    {selectedResort.city && <p className="text-sm"><strong>Thành phố:</strong> {selectedResort.city}</p>}
-                    {selectedResort.country && <p className="text-sm"><strong>Quốc gia:</strong> {selectedResort.country}</p>}
-                  </div>
-                ) : null;
-              })()}
             </div>
 
             {/* Submit Buttons */}

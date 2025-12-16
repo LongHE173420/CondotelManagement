@@ -3,7 +3,7 @@ import axiosClient from "./axiosClient";
 // DTOs từ backend ServicePackage
 // ServicePackage gồm 6 trường chính: ServiceID, Name, Description, Price, Status, HostID
 export interface ServicePackageDTO {
-  servicePackageId: number; // ServiceID
+  servicePackageId?: number; // ServiceID - có thể undefined nếu chưa có ID từ API
   name: string; // Name
   description?: string; // Description
   price: number; // Price
@@ -48,11 +48,44 @@ export interface UpdateServicePackageDTO {
 
 // Helper function để normalize service package từ PascalCase sang camelCase
 const normalizeServicePackage = (item: any): ServicePackageDTO => {
-  const servicePackageId = item.ServicePackageId || item.servicePackageId || item.Id || item.id;
+  // Tìm ID từ nhiều nguồn có thể - kiểm tra tất cả các field có thể
+  const possibleIds = [
+    item.ServicePackageId,
+    item.servicePackageId,
+    item.ServicePackageID,
+    item.servicePackageID,
+    item.Id,
+    item.id,
+    item.ID,
+    item.ServiceID,
+    item.serviceID,
+    item.ServiceId,
+    item.serviceId,
+    item.PackageId,
+    item.packageId,
+    item.PackageID,
+    item.packageID
+  ];
+  
+  // Tìm ID hợp lệ đầu tiên
+  let servicePackageId: number | undefined = undefined;
+  for (const id of possibleIds) {
+    if (id !== undefined && id !== null && !isNaN(Number(id)) && Number(id) > 0) {
+      servicePackageId = Number(id);
+      break;
+    }
+  }
+  
+  // Debug log nếu không tìm thấy ID
+  if (!servicePackageId) {
+    console.warn("⚠️ No valid ID found in service package:", item);
+    console.warn("⚠️ Available keys:", Object.keys(item));
+  }
+  
   const status = item.Status || item.status || "Active";
   
   return {
-    servicePackageId: servicePackageId,
+    servicePackageId: servicePackageId, // Có thể undefined nếu không tìm thấy ID
     packageId: servicePackageId, // Alias cho backward compatibility
     serviceId: item.ServiceId || item.serviceId,
     hostId: item.HostId !== undefined ? item.HostId : item.hostId,
@@ -88,7 +121,23 @@ export const servicePackageAPI = {
       ? data 
       : (data.data || []);
     
-    return packages.map((item: any) => normalizeServicePackage(item));
+    // Debug: Log raw response để xem structure
+    console.log("🔍 Raw API response:", response.data);
+    console.log("🔍 Packages array:", packages);
+    if (packages.length > 0) {
+      console.log("🔍 First package raw data:", packages[0]);
+      console.log("🔍 First package keys:", Object.keys(packages[0]));
+    }
+    
+    return packages.map((item: any) => {
+      const normalized = normalizeServicePackage(item);
+      console.log("🔍 Normalized package:", {
+        raw: item,
+        normalized: normalized,
+        idFound: normalized.servicePackageId || normalized.packageId
+      });
+      return normalized;
+    });
   },
 
   // GET /api/host/service-packages/{id} - Lấy chi tiết một service package
@@ -163,23 +212,49 @@ export const servicePackageAPI = {
   // DELETE /api/host/service-packages/{id} - Xóa service package (soft delete)
   // Quyền: Role "Host"
   // Logic: Đổi Status = "Inactive" thay vì xóa khỏi database
+  // Response có thể là:
+  // - { success: true, message: "Xóa thành công" } - khi không được sử dụng
+  // - { success: true, message: "Gói dịch vụ đã được vô hiệu hóa (đang được sử dụng trong booking)" } - khi đang được sử dụng
+  // - { success: false, message: "Bạn không có quyền xóa gói dịch vụ này" } - khi không có quyền (403)
   delete: async (id: number): Promise<{ success: boolean; message?: string }> => {
-    const response = await axiosClient.delete<any>(`/host/service-packages/${id}`);
-    const data = response.data;
-    
-    // Backend có thể trả về { success, message } hoặc chỉ message
-    if (data.success !== undefined) {
+    try {
+      const response = await axiosClient.delete<any>(`/host/service-packages/${id}`);
+      const data = response.data;
+      
+      // Backend trả về { success, message }
       return {
-        success: data.success,
-        message: data.message || data.Message,
+        success: data.success !== undefined ? data.success : true,
+        message: data.message || data.Message || "Đã xóa service package thành công",
       };
+    } catch (error: any) {
+      // Xử lý các lỗi HTTP
+      if (error.response) {
+        const status = error.response.status;
+        const data = error.response.data;
+        
+        // 403 Forbidden - Không có quyền
+        if (status === 403) {
+          return {
+            success: false,
+            message: data?.message || data?.Message || "Bạn không có quyền xóa gói dịch vụ này",
+          };
+        }
+        
+        // 404 Not Found - Không tìm thấy
+        if (status === 404) {
+          return {
+            success: false,
+            message: data?.message || data?.Message || "Không tìm thấy gói dịch vụ",
+          };
+        }
+        
+        // Các lỗi khác
+        throw error;
+      }
+      
+      // Lỗi network hoặc lỗi khác
+      throw error;
     }
-    
-    // Nếu không có success field, coi như thành công nếu không có lỗi
-    return {
-      success: true,
-      message: data.message || data.Message || "Đã xóa service package thành công",
-    };
   },
 
   // GET /api/tenant/condotels/{id}/service-packages - Lấy danh sách service packages của một condotel (cho tenant xem khi đặt phòng)

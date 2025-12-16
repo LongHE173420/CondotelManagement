@@ -4,16 +4,18 @@ import { useAuth } from "contexts/AuthContext";
 import servicePackageAPI, { ServicePackageDTO, CreateServicePackageDTO, UpdateServicePackageDTO } from "api/servicePackage";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
 import ButtonSecondary from "shared/Button/ButtonSecondary";
+import { toastSuccess, toastError, toastWarning } from "utils/toast";
 
 const HostServicePackageContent: React.FC = () => {
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [servicePackages, setServicePackages] = useState<ServicePackageDTO[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingPackage, setEditingPackage] = useState<ServicePackageDTO | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [packageToDelete, setPackageToDelete] = useState<{ id: number; name: string } | null>(null);
 
   useEffect(() => {
     // Check if user is Host
@@ -26,41 +28,84 @@ const HostServicePackageContent: React.FC = () => {
 
   const loadData = async () => {
     setLoading(true);
-    setError("");
     try {
       const packagesData = await servicePackageAPI.getAll();
+      console.log("📦 Loaded service packages:", packagesData);
+      // Log để debug ID
+      packagesData.forEach((pkg, idx) => {
+        const computedId = getPackageId(pkg, idx);
+        console.log(`Package ${idx} (${pkg.name || pkg.title}):`, {
+          packageId: pkg.packageId,
+          servicePackageId: pkg.servicePackageId,
+          computedId: computedId,
+          type: typeof computedId,
+          willBeDisabled: typeof computedId === 'string'
+        });
+      });
       setServicePackages(packagesData);
     } catch (err: any) {
       console.error("Failed to load service packages:", err);
-      setError(err.response?.data?.message || "Không thể tải danh sách gói dịch vụ");
+      toastError(err.response?.data?.message || "Không thể tải danh sách gói dịch vụ");
       setServicePackages([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = async (packageId: number | string, name: string) => {
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa gói dịch vụ "${name}"?`)) {
-      return;
-    }
-
+  const handleDeleteClick = (packageId: number | string, name: string) => {
     // Chỉ cho phép xóa nếu có ID hợp lệ (number)
     if (typeof packageId === 'string') {
-      alert("Không thể xóa gói dịch vụ chưa có ID hợp lệ");
+      toastWarning("Không thể xóa gói dịch vụ chưa có ID hợp lệ");
       return;
     }
 
+    // Mở modal xác nhận
+    setPackageToDelete({ id: packageId, name });
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!packageToDelete) return;
+
+    const packageId = packageToDelete.id;
+    const name = packageToDelete.name;
+
+    setShowDeleteModal(false);
     setDeletingId(packageId);
     try {
-      await servicePackageAPI.delete(packageId);
+      const result = await servicePackageAPI.delete(packageId);
+      
+      // Reload data để cập nhật danh sách (gói dịch vụ đã bị vô hiệu hóa sẽ không hiển thị)
       await loadData();
-      alert("Xóa gói dịch vụ thành công!");
+      
+      // Xử lý response dựa trên success và message
+      if (result.success) {
+        // Kiểm tra message để hiển thị thông báo phù hợp
+        const message = result.message || "Xóa gói dịch vụ thành công!";
+        
+        // Nếu message chứa "đang được sử dụng" hoặc "vô hiệu hóa" -> hiển thị warning
+        if (message.includes("đang được sử dụng") || message.includes("vô hiệu hóa")) {
+          toastWarning(message);
+        } else {
+          // Thông thường là "Xóa thành công"
+          toastSuccess(message);
+        }
+      } else {
+        // Nếu success = false (ví dụ: không có quyền)
+        toastError(result.message || "Không thể xóa gói dịch vụ");
+      }
     } catch (err: any) {
-      console.error("Failed to delete service package:", err);
-      alert(err.response?.data?.message || "Không thể xóa gói dịch vụ");
+      const errorMsg = err.response?.data?.message || err.response?.data?.Message || err.message || "Không thể xóa gói dịch vụ";
+      toastError(errorMsg);
     } finally {
       setDeletingId(null);
+      setPackageToDelete(null);
     }
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteModal(false);
+    setPackageToDelete(null);
   };
 
   const formatCurrency = (amount: number | undefined) => {
@@ -72,7 +117,16 @@ const HostServicePackageContent: React.FC = () => {
   };
 
   const getPackageId = (pkg: ServicePackageDTO, index: number): number | string => {
-    return pkg.packageId || pkg.servicePackageId || `temp-${index}`;
+    // Ưu tiên packageId, sau đó servicePackageId
+    const id = pkg.packageId || pkg.servicePackageId;
+    
+    // Nếu có ID và là number hợp lệ, trả về number
+    if (id !== undefined && id !== null && !isNaN(Number(id)) && Number(id) > 0) {
+      return Number(id);
+    }
+    
+    // Nếu không có ID hợp lệ, trả về string temp
+    return `temp-${index}`;
   };
 
   return (
@@ -98,25 +152,6 @@ const HostServicePackageContent: React.FC = () => {
           </span>
         </ButtonPrimary>
       </div>
-
-      {error && (
-        <div className="mb-6 p-6 bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 border-l-4 border-red-500 text-red-800 dark:text-red-200 rounded-xl shadow-lg backdrop-blur-sm">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <span>{error}</span>
-            </div>
-            <button
-              onClick={loadData}
-              className="ml-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium transition-colors"
-            >
-              Thử lại
-            </button>
-          </div>
-        </div>
-      )}
 
       {loading ? (
         <div className="flex flex-col items-center justify-center py-20">
@@ -155,10 +190,22 @@ const HostServicePackageContent: React.FC = () => {
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {servicePackages.map((pkg, index) => {
             const packageId = getPackageId(pkg, index);
+            // Debug log
+            if (index === 0) {
+              console.log("🔍 First package debug:", {
+                pkg: pkg,
+                packageId: packageId,
+                type: typeof packageId,
+                packageIdValue: pkg.packageId,
+                servicePackageIdValue: pkg.servicePackageId,
+                willBeDisabled: typeof packageId === 'string' || (typeof packageId === 'number' && deletingId === packageId)
+              });
+            }
             return (
               <div
                 key={packageId}
-                className="bg-gradient-to-br from-white to-cyan-50/30 dark:from-neutral-800 dark:to-cyan-900/10 rounded-2xl shadow-xl p-6 border border-cyan-200/50 dark:border-cyan-800/50 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1"
+                className="bg-gradient-to-br from-white to-cyan-50/30 dark:from-neutral-800 dark:to-cyan-900/10 rounded-2xl shadow-xl p-6 border border-cyan-200/50 dark:border-cyan-800/50 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 relative"
+                style={{ overflow: 'visible' }}
               >
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex-1">
@@ -229,7 +276,7 @@ const HostServicePackageContent: React.FC = () => {
                   )}
                 </div>
 
-                <div className="flex items-center space-x-2 pt-4 border-t border-cyan-200 dark:border-cyan-800">
+                <div className="flex items-center space-x-2 pt-4 border-t border-cyan-200 dark:border-cyan-800 relative z-10">
                   <ButtonSecondary
                     onClick={() => setEditingPackage(pkg)}
                     className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-md hover:shadow-lg transition-all duration-300"
@@ -242,16 +289,34 @@ const HostServicePackageContent: React.FC = () => {
                     </span>
                   </ButtonSecondary>
                   <button
-                    onClick={() => {
-                      if (typeof packageId === 'number') {
-                        handleDelete(packageId, pkg.name || pkg.title || "");
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      console.log("🔴 Delete button clicked!");
+                      console.log("packageId:", packageId, "type:", typeof packageId);
+                      console.log("deletingId:", deletingId);
+                      console.log("pkg:", pkg);
+                      
+                      if (typeof packageId === 'string') {
+                        console.warn("⚠️ Cannot delete: packageId is string");
+                        toastWarning("Không thể xóa gói dịch vụ chưa có ID hợp lệ");
+                        return;
                       }
+                      
+                      if (deletingId === packageId) {
+                        console.warn("⚠️ Already deleting this package");
+                        return;
+                      }
+                      
+                      console.log("✅ Calling handleDelete with:", packageId, pkg.name || pkg.title || "");
+                      handleDeleteClick(packageId, pkg.name || pkg.title || "");
                     }}
-                    disabled={deletingId === packageId || typeof packageId === 'string'}
-                    className="px-4 py-2 text-sm font-bold bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-lg shadow-md hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                    title={typeof packageId === 'string' ? 'Không thể xóa gói dịch vụ chưa có ID hợp lệ' : undefined}
+                    disabled={typeof packageId === 'string' || (typeof packageId === 'number' && deletingId === packageId)}
+                    className="px-4 py-2 text-sm font-bold bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 active:from-red-700 active:to-red-800 text-white rounded-lg shadow-md hover:shadow-lg active:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-md flex items-center gap-2 relative z-20"
+                    title={typeof packageId === 'string' ? 'Không thể xóa gói dịch vụ chưa có ID hợp lệ' : deletingId === packageId ? 'Đang xóa...' : 'Xóa gói dịch vụ'}
                   >
-                    {deletingId === packageId ? (
+                    {typeof packageId === 'number' && deletingId === packageId ? (
                       <>
                         <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -290,6 +355,73 @@ const HostServicePackageContent: React.FC = () => {
           }}
         />
       )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && packageToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-2xl max-w-md w-full mx-4 transform transition-all">
+            <div className="p-6">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="flex-shrink-0 w-12 h-12 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center">
+                  <svg className="w-6 h-6 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-bold text-neutral-900 dark:text-neutral-100">
+                    Xác nhận xóa gói dịch vụ
+                  </h3>
+                </div>
+                <button
+                  onClick={handleDeleteCancel}
+                  className="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="mb-6">
+                <p className="text-neutral-700 dark:text-neutral-300 mb-4">
+                  Bạn có chắc chắn muốn xóa gói dịch vụ <span className="font-bold text-red-600 dark:text-red-400">"{packageToDelete.name}"</span>?
+                </p>
+                <div className="bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-400 dark:border-amber-600 p-4 rounded-lg">
+                  <p className="text-sm text-amber-800 dark:text-amber-200 mb-2">
+                    <strong>Lưu ý:</strong> Gói dịch vụ sẽ được đánh dấu là "Inactive" thay vì xóa hoàn toàn.
+                  </p>
+                  <p className="text-sm text-amber-700 dark:text-amber-300">
+                    Nếu gói dịch vụ đang được sử dụng trong booking, nó sẽ được vô hiệu hóa nhưng vẫn giữ lại dữ liệu.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3">
+                <ButtonSecondary onClick={handleDeleteCancel}>
+                  Hủy
+                </ButtonSecondary>
+                <ButtonPrimary
+                  onClick={handleDeleteConfirm}
+                  className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700"
+                  disabled={deletingId === packageToDelete.id}
+                >
+                  {deletingId === packageToDelete.id ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Đang xóa...
+                    </>
+                  ) : (
+                    "Xóa"
+                  )}
+                </ButtonPrimary>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -313,7 +445,6 @@ const ServicePackageModal: React.FC<ServicePackageModalProps> = ({
     isActive: servicePackage?.isActive !== undefined ? servicePackage.isActive : (servicePackage?.status === "Active"),
   });
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
 
   // Update formData when servicePackage changes
   useEffect(() => {
@@ -346,15 +477,14 @@ const ServicePackageModal: React.FC<ServicePackageModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
 
     // Validation
     if (!formData.name || !formData.name.trim()) {
-      setError("Vui lòng nhập tên gói dịch vụ!");
+      toastError("Vui lòng nhập tên gói dịch vụ!");
       return;
     }
     if (!formData.price || formData.price <= 0) {
-      setError("Vui lòng nhập giá hợp lệ!");
+      toastError("Vui lòng nhập giá hợp lệ!");
       return;
     }
 
@@ -383,17 +513,17 @@ const ServicePackageModal: React.FC<ServicePackageModalProps> = ({
         
         if (!packageId || packageId <= 0 || isNaN(Number(packageId))) {
           console.error("❌ Invalid package ID:", packageId, "from servicePackage:", servicePackage);
-          setError("Không tìm thấy ID gói dịch vụ để cập nhật. Vui lòng tải lại trang và thử lại.");
+          toastError("Không tìm thấy ID gói dịch vụ để cập nhật. Vui lòng tải lại trang và thử lại.");
           setLoading(false);
           return;
         }
         
         await servicePackageAPI.update(Number(packageId), packageData);
-        alert("Cập nhật gói dịch vụ thành công!");
+        toastSuccess("Cập nhật gói dịch vụ thành công!");
       } else {
         // Create service package
         await servicePackageAPI.create(packageData as CreateServicePackageDTO);
-        alert("Tạo gói dịch vụ thành công!");
+        toastSuccess("Tạo gói dịch vụ thành công!");
       }
       onSuccess();
     } catch (err: any) {
@@ -415,7 +545,7 @@ const ServicePackageModal: React.FC<ServicePackageModalProps> = ({
       } else if (err.message) {
         errorMessage = err.message;
       }
-      setError(errorMessage);
+      toastError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -493,27 +623,6 @@ const ServicePackageModal: React.FC<ServicePackageModalProps> = ({
                 />
               </div>
 
-              <div>
-                <label className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    checked={formData.isActive}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, isActive: e.target.checked }))
-                    }
-                    className="rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
-                  />
-                  <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                    Kích hoạt ngay
-                  </span>
-                </label>
-              </div>
-
-              {error && (
-                <div className="p-3 bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-200 rounded-lg text-sm whitespace-pre-line">
-                  {error}
-                </div>
-              )}
 
               <div className="flex items-center justify-end space-x-3 pt-4">
                 <ButtonSecondary onClick={onClose}>Hủy</ButtonSecondary>
@@ -530,6 +639,7 @@ const ServicePackageModal: React.FC<ServicePackageModalProps> = ({
 };
 
 export default HostServicePackageContent;
+
 
 
 

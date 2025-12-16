@@ -11,6 +11,7 @@ const HostVoucherContent: React.FC = () => {
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [vouchers, setVouchers] = useState<VoucherDTO[]>([]);
+  const [allVouchers, setAllVouchers] = useState<VoucherDTO[]>([]); // Store all vouchers for client-side pagination
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
@@ -20,6 +21,12 @@ const HostVoucherContent: React.FC = () => {
   const [settings, setSettings] = useState<HostVoucherSettingDTO | null>(null);
   const [loadingSettings, setLoadingSettings] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
+  
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(9);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
 
   useEffect(() => {
     // Check if user is Host
@@ -27,24 +34,101 @@ const HostVoucherContent: React.FC = () => {
       navigate("/");
       return;
     }
-    loadData();
   }, [isAuthenticated, user, navigate]);
 
   const loadData = async () => {
     setLoading(true);
     setError("");
     try {
-      const vouchersData = await voucherAPI.getAll();
-      setVouchers(vouchersData);
+      const result = await voucherAPI.getAll({
+        pageNumber: currentPage,
+        pageSize: pageSize,
+      });
+      
+      // Handle both paginated and non-paginated responses
+      if (result && typeof result === 'object' && 'data' in result) {
+        // Paginated response: { data: [...], pagination: {...} }
+        const vouchersData = Array.isArray(result.data) ? result.data : [];
+        
+        if (result.pagination) {
+          // Server-side pagination
+          const pag = result.pagination;
+          const totalPagesValue = pag.totalPages || pag.TotalPages || Math.ceil((pag.totalCount || pag.TotalCount || vouchersData.length) / pageSize);
+          const totalCountValue = pag.totalCount || pag.TotalCount || vouchersData.length;
+          
+          setVouchers(vouchersData);
+          setTotalPages(totalPagesValue);
+          setTotalCount(totalCountValue);
+          setAllVouchers([]); // Clear client-side cache
+        } else {
+          // No pagination info, treat as all data - use client-side pagination
+          setAllVouchers(vouchersData);
+          
+          const startIndex = (currentPage - 1) * pageSize;
+          const endIndex = startIndex + pageSize;
+          const paginatedData = vouchersData.slice(startIndex, endIndex);
+          
+          setVouchers(paginatedData);
+          setTotalPages(Math.ceil(vouchersData.length / pageSize));
+          setTotalCount(vouchersData.length);
+        }
+      } else if (Array.isArray(result)) {
+        // Legacy format: just array - client-side pagination
+        setAllVouchers(result);
+        
+        const startIndex = (currentPage - 1) * pageSize;
+        const endIndex = startIndex + pageSize;
+        const paginatedData = result.slice(startIndex, endIndex);
+        
+        setVouchers(paginatedData);
+        setTotalPages(Math.ceil(result.length / pageSize));
+        setTotalCount(result.length);
+      } else {
+        // Fallback
+        setVouchers([]);
+        setAllVouchers([]);
+        setTotalPages(1);
+        setTotalCount(0);
+      }
     } catch (err: any) {
       const errorMsg = err.response?.data?.message || "Không thể tải danh sách voucher";
       setError(errorMsg);
       toastError(errorMsg);
       setVouchers([]);
+      setAllVouchers([]);
+      setTotalPages(1);
+      setTotalCount(0);
     } finally {
       setLoading(false);
     }
   };
+  
+  // Refetch vouchers when page changes (only if server-side pagination)
+  // If client-side pagination, just slice the array
+  useEffect(() => {
+    // Check if user is Host before loading
+    if (!isAuthenticated || user?.roleName !== "Host") {
+      return;
+    }
+
+    if (allVouchers.length > 0) {
+      // Client-side pagination - just slice the array
+      const startIndex = (currentPage - 1) * pageSize;
+      const endIndex = startIndex + pageSize;
+      const paginatedData = allVouchers.slice(startIndex, endIndex);
+      setVouchers(paginatedData);
+    } else {
+      // Server-side pagination - fetch from API
+      loadData();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage, isAuthenticated, user]);
+  
+  // Reset to page 1 when filters change (if any filters are added later)
+  useEffect(() => {
+    setCurrentPage(1);
+    setAllVouchers([]); // Clear client-side cache when filters change
+  }, []); // Add filter dependencies here if filters are added later
 
   const handleDelete = async (voucherId: number, code: string) => {
     if (!window.confirm(`Bạn có chắc chắn muốn xóa voucher "${code}"?`)) {
@@ -54,6 +138,9 @@ const HostVoucherContent: React.FC = () => {
     setDeletingId(voucherId);
     try {
       await voucherAPI.delete(voucherId);
+      // Reset to page 1 and reload
+      setCurrentPage(1);
+      setAllVouchers([]); // Clear client-side cache
       await loadData();
       toastSuccess("Xóa voucher thành công!");
     } catch (err: any) {
@@ -122,9 +209,6 @@ const HostVoucherContent: React.FC = () => {
           }}>
             ⚙️ Cài đặt
           </ButtonSecondary>
-          <ButtonPrimary onClick={() => setShowAddModal(true)}>
-            + Thêm voucher
-          </ButtonPrimary>
         </div>
       </div>
 
@@ -271,6 +355,87 @@ const HostVoucherContent: React.FC = () => {
         </div>
       )}
 
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="mt-8 flex items-center justify-between bg-white/80 dark:bg-neutral-800/80 backdrop-blur-sm rounded-2xl shadow-xl p-4 border border-white/20 dark:border-neutral-700/50">
+          <div className="text-sm text-neutral-600 dark:text-neutral-400">
+            Hiển thị {((currentPage - 1) * pageSize) + 1} - {Math.min(currentPage * pageSize, totalCount)} trong tổng số {totalCount} voucher
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage(1)}
+              disabled={currentPage === 1}
+              className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                currentPage === 1
+                  ? "text-gray-400 cursor-not-allowed bg-gray-100 dark:bg-gray-800"
+                  : "text-white bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 shadow-md hover:shadow-lg"
+              }`}
+            >
+              Đầu
+            </button>
+            <button
+              onClick={() => setCurrentPage(currentPage - 1)}
+              disabled={currentPage === 1}
+              className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                currentPage === 1
+                  ? "text-gray-400 cursor-not-allowed bg-gray-100 dark:bg-gray-800"
+                  : "text-white bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 shadow-md hover:shadow-lg"
+              }`}
+            >
+              Trước
+            </button>
+            
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+              if (
+                page === 1 ||
+                page === totalPages ||
+                (page >= currentPage - 1 && page <= currentPage + 1)
+              ) {
+                return (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={`px-4 py-2 text-sm font-bold rounded-lg transition-all duration-300 ${
+                      currentPage === page
+                        ? "text-white bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg scale-105"
+                        : "text-neutral-700 dark:text-neutral-300 bg-white dark:bg-neutral-700 hover:bg-blue-50 dark:hover:bg-neutral-600 shadow-md hover:shadow-lg"
+                    }`}
+                  >
+                    {page}
+                  </button>
+                );
+              } else if (page === currentPage - 2 || page === currentPage + 2) {
+                return <span key={page} className="px-2 text-gray-400">...</span>;
+              }
+              return null;
+            })}
+            
+            <button
+              onClick={() => setCurrentPage(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                currentPage === totalPages
+                  ? "text-gray-400 cursor-not-allowed bg-gray-100 dark:bg-gray-800"
+                  : "text-white bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 shadow-md hover:shadow-lg"
+              }`}
+            >
+              Sau
+            </button>
+            <button
+              onClick={() => setCurrentPage(totalPages)}
+              disabled={currentPage === totalPages}
+              className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                currentPage === totalPages
+                  ? "text-gray-400 cursor-not-allowed bg-gray-100 dark:bg-gray-800"
+                  : "text-white bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 shadow-md hover:shadow-lg"
+              }`}
+            >
+              Cuối
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Add/Edit Modal */}
       {(showAddModal || editingVoucher) && (
         <VoucherModal
@@ -374,9 +539,28 @@ const VoucherModal: React.FC<VoucherModalProps> = ({
       toastWarning("Ngày bắt đầu và kết thúc là bắt buộc");
       return;
     }
-    if (new Date(formData.startDate) >= new Date(formData.endDate)) {
+    const startDate = new Date(formData.startDate);
+    const endDate = new Date(formData.endDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Reset time to start of day for comparison
+    
+    if (startDate >= endDate) {
       setError("Ngày kết thúc phải sau ngày bắt đầu!");
       toastWarning("Ngày kết thúc phải sau ngày bắt đầu");
+      return;
+    }
+    
+    // Kiểm tra endDate không được ở quá khứ
+    if (endDate < today) {
+      setError("Ngày kết thúc không được ở quá khứ!");
+      toastWarning("Ngày kết thúc không được ở quá khứ");
+      return;
+    }
+    
+    // Kiểm tra startDate không được ở quá khứ (nếu đang tạo mới)
+    if (!voucher && startDate < today) {
+      setError("Ngày bắt đầu không được ở quá khứ!");
+      toastWarning("Ngày bắt đầu không được ở quá khứ");
       return;
     }
     // Ít nhất một trong: DiscountAmount hoặc DiscountPercentage (theo spec)

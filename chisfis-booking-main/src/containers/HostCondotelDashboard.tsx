@@ -23,6 +23,7 @@ const HostCondotelDashboard = () => {
   const { user, isAuthenticated } = useAuth();
   const [condotels, setCondotels] = useState<CondotelDTO[]>([]);
   const [bookings, setBookings] = useState<BookingDTO[]>([]);
+  const [allBookings, setAllBookings] = useState<BookingDTO[]>([]); // Store all bookings for client-side pagination
   const [loading, setLoading] = useState(false);
   const [bookingsLoading, setBookingsLoading] = useState(false);
   const [updatingStatusId, setUpdatingStatusId] = useState<number | null>(null);
@@ -40,6 +41,12 @@ const HostCondotelDashboard = () => {
   const [startDateTo, setStartDateTo] = useState("");
   const [sortBy, setSortBy] = useState<"bookingDate" | "startDate" | "endDate" | "totalPrice">("bookingDate");
   const [sortDescending, setSortDescending] = useState(true);
+  
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
 
   // Ensure only Host can access
   useEffect(() => {
@@ -59,8 +66,11 @@ const HostCondotelDashboard = () => {
   }, [activeTab]);
   
   // Refetch bookings when filters change (with debounce for searchTerm)
+  // Reset to page 1 when filters change
   useEffect(() => {
     if (activeTab === "bookings") {
+      setCurrentPage(1); // Reset to page 1 when filters change
+      setAllBookings([]); // Clear client-side cache when filters change
       const timeoutId = setTimeout(() => {
         fetchBookings();
       }, searchTerm ? 500 : 0); // Debounce 500ms for search, immediate for other filters
@@ -69,6 +79,14 @@ const HostCondotelDashboard = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTerm, statusFilter, condotelFilter, bookingDateFrom, bookingDateTo, startDateFrom, startDateTo, sortBy, sortDescending]);
+  
+  // Refetch bookings when page changes
+  useEffect(() => {
+    if (activeTab === "bookings") {
+      fetchBookings();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage]);
 
   const fetchCondotels = async () => {
     try {
@@ -85,7 +103,10 @@ const HostCondotelDashboard = () => {
   const fetchBookings = async () => {
     try {
       setBookingsLoading(true);
-      const filters: any = {};
+      const filters: any = {
+        pageNumber: currentPage,
+        pageSize: pageSize,
+      };
       if (searchTerm.trim()) filters.searchTerm = searchTerm.trim();
       if (statusFilter) filters.status = statusFilter;
       if (condotelFilter) filters.condotelId = condotelFilter;
@@ -96,11 +117,66 @@ const HostCondotelDashboard = () => {
       if (sortBy) filters.sortBy = sortBy;
       filters.sortDescending = sortDescending;
       
-      const data = await bookingAPI.getHostBookings(Object.keys(filters).length > 0 ? filters : undefined);
-      setBookings(data);
+      console.log("📋 Fetching bookings with filters:", filters);
+      const result = await bookingAPI.getHostBookings(filters);
+      console.log("📋 Bookings API result:", result);
+      
+      // Handle both paginated and non-paginated responses
+      if (result && typeof result === 'object' && 'data' in result) {
+        // Paginated response: { data: [...], pagination: {...} }
+        const bookingsData = Array.isArray(result.data) ? result.data : [];
+        
+        if (result.pagination) {
+          // Server-side pagination
+          const pag = result.pagination;
+          const totalPagesValue = pag.totalPages || pag.TotalPages || Math.ceil((pag.totalCount || pag.TotalCount || bookingsData.length) / pageSize);
+          const totalCountValue = pag.totalCount || pag.TotalCount || bookingsData.length;
+          
+          console.log("✅ Server-side pagination - page", currentPage, "of", totalPagesValue, "total:", totalCountValue, "items");
+          
+          setBookings(bookingsData);
+          setTotalPages(totalPagesValue);
+          setTotalCount(totalCountValue);
+          setAllBookings([]); // Clear client-side cache
+        } else {
+          // No pagination info, treat as all data - use client-side pagination
+          console.log("⚠️ No pagination info, using client-side pagination for", bookingsData.length, "items");
+          setAllBookings(bookingsData);
+          
+          const startIndex = (currentPage - 1) * pageSize;
+          const endIndex = startIndex + pageSize;
+          const paginatedData = bookingsData.slice(startIndex, endIndex);
+          
+          setBookings(paginatedData);
+          setTotalPages(Math.ceil(bookingsData.length / pageSize));
+          setTotalCount(bookingsData.length);
+        }
+      } else if (Array.isArray(result)) {
+        // Legacy format: just array - client-side pagination
+        console.log("⚠️ Legacy format - array with", result.length, "items, applying client-side pagination");
+        setAllBookings(result); // Store all bookings
+        
+        const startIndex = (currentPage - 1) * pageSize;
+        const endIndex = startIndex + pageSize;
+        const paginatedData = result.slice(startIndex, endIndex);
+        
+        setBookings(paginatedData);
+        setTotalPages(Math.ceil(result.length / pageSize));
+        setTotalCount(result.length);
+      } else {
+        // Fallback
+        console.warn("❌ Unknown result format:", result);
+        setBookings([]);
+        setAllBookings([]);
+        setTotalPages(1);
+        setTotalCount(0);
+      }
     } catch (err: any) {
+      console.error("❌ Error fetching bookings:", err);
       toastError("Không thể tải danh sách booking");
       setBookings([]);
+      setTotalPages(1);
+      setTotalCount(0);
     } finally {
       setBookingsLoading(false);
     }
@@ -116,6 +192,16 @@ const HostCondotelDashboard = () => {
     setStartDateTo("");
     setSortBy("bookingDate");
     setSortDescending(true);
+    setCurrentPage(1); // Reset to page 1 when resetting filters
+    setAllBookings([]); // Clear client-side cache
+  };
+  
+  const handlePageChange = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+      // Scroll to top of bookings section
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   // Format số tiền
@@ -714,8 +800,9 @@ const HostCondotelDashboard = () => {
               <p className="text-neutral-600 dark:text-neutral-400 text-lg">Chưa có đặt phòng nào.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto bg-white/80 dark:bg-neutral-800/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 dark:border-neutral-700/50">
-              <table className="min-w-full divide-y divide-neutral-200 dark:divide-neutral-700">
+            <>
+              <div className="overflow-x-auto bg-white/80 dark:bg-neutral-800/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 dark:border-neutral-700/50">
+                <table className="min-w-full divide-y divide-neutral-200 dark:divide-neutral-700">
                 <thead className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-neutral-700 dark:to-neutral-800">
                   <tr>
                     <th className="px-6 py-4 text-left text-xs font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wider">
@@ -802,7 +889,89 @@ const HostCondotelDashboard = () => {
                   ))}
                 </tbody>
               </table>
-            </div>
+              </div>
+              
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="mt-6 flex items-center justify-between bg-white/80 dark:bg-neutral-800/80 backdrop-blur-sm rounded-2xl shadow-xl p-4 border border-white/20 dark:border-neutral-700/50">
+                  <div className="text-sm text-neutral-600 dark:text-neutral-400">
+                    Hiển thị {((currentPage - 1) * pageSize) + 1} - {Math.min(currentPage * pageSize, totalCount)} trong tổng số {totalCount} đặt phòng
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handlePageChange(1)}
+                      disabled={currentPage === 1}
+                      className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                        currentPage === 1
+                          ? "text-gray-400 cursor-not-allowed bg-gray-100 dark:bg-gray-800"
+                          : "text-white bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 shadow-md hover:shadow-lg"
+                      }`}
+                    >
+                      Đầu
+                    </button>
+                    <button
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                        currentPage === 1
+                          ? "text-gray-400 cursor-not-allowed bg-gray-100 dark:bg-gray-800"
+                          : "text-white bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 shadow-md hover:shadow-lg"
+                      }`}
+                    >
+                      Trước
+                    </button>
+                    
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                      if (
+                        page === 1 ||
+                        page === totalPages ||
+                        (page >= currentPage - 1 && page <= currentPage + 1)
+                      ) {
+                        return (
+                          <button
+                            key={page}
+                            onClick={() => handlePageChange(page)}
+                            className={`px-4 py-2 text-sm font-bold rounded-lg transition-all duration-300 ${
+                              currentPage === page
+                                ? "text-white bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg scale-105"
+                                : "text-neutral-700 dark:text-neutral-300 bg-white dark:bg-neutral-700 hover:bg-blue-50 dark:hover:bg-neutral-600 shadow-md hover:shadow-lg"
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        );
+                      } else if (page === currentPage - 2 || page === currentPage + 2) {
+                        return <span key={page} className="px-2 text-gray-400">...</span>;
+                      }
+                      return null;
+                    })}
+                    
+                    <button
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                      className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                        currentPage === totalPages
+                          ? "text-gray-400 cursor-not-allowed bg-gray-100 dark:bg-gray-800"
+                          : "text-white bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 shadow-md hover:shadow-lg"
+                      }`}
+                    >
+                      Sau
+                    </button>
+                    <button
+                      onClick={() => handlePageChange(totalPages)}
+                      disabled={currentPage === totalPages}
+                      className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                        currentPage === totalPages
+                          ? "text-gray-400 cursor-not-allowed bg-gray-100 dark:bg-gray-800"
+                          : "text-white bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 shadow-md hover:shadow-lg"
+                      }`}
+                    >
+                      Cuối
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       ) : (

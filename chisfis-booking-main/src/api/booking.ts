@@ -409,7 +409,9 @@ export const bookingAPI = {
     condotelId?: number;
     sortBy?: "bookingDate" | "startDate" | "endDate" | "totalPrice";
     sortDescending?: boolean;
-  }): Promise<BookingDTO[]> => {
+    pageNumber?: number;
+    pageSize?: number;
+  }): Promise<BookingDTO[] | { data: BookingDTO[]; pagination?: any }> => {
     const params: any = {};
     
     // Thêm các query parameters nếu có
@@ -423,23 +425,69 @@ export const bookingAPI = {
       if (filters.condotelId !== undefined) params.condotelId = filters.condotelId;
       if (filters.sortBy) params.sortBy = filters.sortBy;
       if (filters.sortDescending !== undefined) params.sortDescending = filters.sortDescending;
+      if (filters.pageNumber) params.pageNumber = filters.pageNumber;
+      if (filters.pageSize) params.pageSize = filters.pageSize;
     }
     
+    console.log("🔍 API Call - /host/booking with params:", params);
     const response = await axiosClient.get<any>("/host/booking", { params });
-    // Normalize response từ backend (PascalCase -> camelCase)
-    // Handle both array and object with data property
+    console.log("🔍 API Response:", response.data);
+    
+    // Check if response has pagination info
+    if (response.data && typeof response.data === 'object' && 'pagination' in response.data) {
+      // Paginated response: { data: [...], pagination: {...} }
+      let data: any[] = [];
+      if (Array.isArray(response.data.data)) {
+        data = response.data.data;
+      } else if (Array.isArray(response.data)) {
+        data = response.data;
+      }
+      
+      console.log("✅ Paginated response - data:", data.length, "items, pagination:", response.data.pagination);
+      
+      return {
+        data: data.map((item: any) => normalizeBooking(item)),
+        pagination: response.data.pagination,
+      };
+    }
+    
+    // Check for success wrapper: { success: true, data: [...], pagination: {...} }
+    if (response.data && typeof response.data === 'object' && 'success' in response.data && 'data' in response.data) {
+      let data: any[] = [];
+      if (Array.isArray(response.data.data)) {
+        data = response.data.data;
+      }
+      
+      const result: any = {
+        data: data.map((item: any) => normalizeBooking(item)),
+      };
+      
+      if ('pagination' in response.data) {
+        result.pagination = response.data.pagination;
+        console.log("✅ Success wrapper with pagination - data:", data.length, "items, pagination:", response.data.pagination);
+      } else {
+        console.log("✅ Success wrapper without pagination - data:", data.length, "items");
+      }
+      
+      return result;
+    }
+    
+    // Legacy format: just array or { data: [...] }
     let data: any[] = [];
     if (Array.isArray(response.data)) {
       data = response.data;
+      console.log("⚠️ Legacy format - array with", data.length, "items");
     } else if (response.data && Array.isArray(response.data.data)) {
       data = response.data.data;
+      console.log("⚠️ Legacy format - data array with", data.length, "items");
     } else if (response.data && typeof response.data === 'object') {
       // If response.data is a single object, wrap it in array
       data = [response.data];
+      console.log("⚠️ Legacy format - single object wrapped in array");
     }
     
     if (!Array.isArray(data)) {
-      console.warn("getHostBookings: response.data is not an array:", response.data);
+      console.warn("❌ getHostBookings: response.data is not an array:", response.data);
       return [];
     }
     

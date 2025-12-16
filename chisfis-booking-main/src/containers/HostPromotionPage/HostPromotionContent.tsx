@@ -400,8 +400,25 @@ const PromotionModal: React.FC<PromotionModalProps> = ({
       setError("Vui lòng chọn ngày bắt đầu và kết thúc!");
       return;
     }
-    if (new Date(formData.startDate) >= new Date(formData.endDate)) {
+    const startDate = new Date(formData.startDate);
+    const endDate = new Date(formData.endDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Reset time to start of day for comparison
+    
+    if (startDate >= endDate) {
       setError("Ngày kết thúc phải sau ngày bắt đầu!");
+      return;
+    }
+    
+    // Kiểm tra endDate không được ở quá khứ
+    if (endDate < today) {
+      setError("Ngày kết thúc không được ở quá khứ!");
+      return;
+    }
+    
+    // Kiểm tra startDate không được ở quá khứ (nếu đang tạo mới)
+    if (!promotion && startDate < today) {
+      setError("Ngày bắt đầu không được ở quá khứ!");
       return;
     }
     if (!formData.discountPercentage) {
