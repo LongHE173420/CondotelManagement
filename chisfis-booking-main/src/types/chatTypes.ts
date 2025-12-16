@@ -28,6 +28,7 @@ export interface ChatConversation {
     userAId?: number;
     userBId?: number;
     otherUser?: ChatUser; // Thông tin user đối phương
+    otherUserName?: string; // Fallback tên user đối phương
     unreadCount?: number;
 }
 

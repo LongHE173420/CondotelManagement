@@ -15,6 +15,7 @@ import PageAdminResorts from "containers/PageAdminResorts/PageAdminResorts";
 import AdminPackagesPage from "containers/PageAdminPackages/AdminPackagesPage";
 import PageAdminUtilities from "containers/PageAdminUtilities/PageAdminUtilities";
 import PageAdminReports from "containers/PageAdminReports/PageAdminReports";
+import PageChat from "containers/ChatPage/PageChat";
 import { Link } from "react-router-dom";
 
 
@@ -22,7 +23,7 @@ export interface AdminPageProps {
   className?: string;
 }
 
-type AdminTab = "dashboard" | "accounts" | "profile" | "blog" | "reviews" | "refunds" | "payouts" | "locations" | "resorts" | "packages" | "utilities" | "reports";
+type AdminTab = "dashboard" | "accounts" | "profile" | "blog" | "reviews" | "refunds" | "payouts" | "locations" | "resorts" | "packages" | "utilities" | "reports" | "chat";
 
 const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
   const { isAdmin, isLoading } = useAuth();
@@ -32,7 +33,7 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
 
   // Sync tab with URL
   useEffect(() => {
-    if (tabParam && ["dashboard", "accounts", "profile", "blog", "reviews", "refunds", "payouts", "locations", "resorts", "packages", "utilities", "reports"].includes(tabParam)) {
+    if (tabParam && ["dashboard", "accounts", "profile", "blog", "reviews", "refunds", "payouts", "locations", "resorts", "packages", "utilities", "reports", "chat"].includes(tabParam)) {
       setActiveTab(tabParam);
     }
   }, [tabParam]);
@@ -382,6 +383,24 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
             </button>
           </nav>
         </div>
+        {/* --- Nút Chat Mới Thêm --- */}
+            <button
+              onClick={() => handleTabChange("chat")}
+              className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${
+                activeTab === "chat"
+                  ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-105"
+                  : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-blue-600 dark:hover:text-blue-400"
+              }`}
+            >
+              <span className="flex items-center gap-2">
+                {/* Icon Chat Bubble */}
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+                Chat
+              </span>
+            </button>
+            {/* ------------------------- */}
 
         {error && activeTab === "dashboard" && (
           <div className="mb-6 p-6 bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 border-l-4 border-red-500 text-red-800 dark:text-red-200 rounded-xl shadow-lg backdrop-blur-sm">
@@ -555,6 +574,11 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
               </p>
             </div>
             <AccountPage noLayout={true} />
+          </div>
+          ) : activeTab === "chat" ? (
+          <div className="bg-white dark:bg-neutral-800 rounded-2xl p-6 shadow-xl h-[800px]">
+             {/* Nhớ import PageChat ở trên đầu file nhé */}
+             <PageChat /> 
           </div>
         ) : (
           <>
