@@ -77,6 +77,7 @@ const PageEditCondotel: React.FC = () => {
   const [amenities, setAmenities] = useState<AmenityDTO[]>([]);
   const [utilities, setUtilities] = useState<UtilityDTO[]>([]);
   const [resortUtilities, setResortUtilities] = useState<UtilityDTO[]>([]); // Utilities của resort được chọn
+  const [originalCondotelUtilities, setOriginalCondotelUtilities] = useState<UtilityDTO[]>([]); // Utilities ban đầu từ condotel data
 
   // Upload
   const [imgUrl, setImgUrl] = useState("");
@@ -109,7 +110,11 @@ const PageEditCondotel: React.FC = () => {
         setBeds(data.beds || 1);
         setBathrooms(data.bathrooms || 1);
         setPricePerNight(data.pricePerNight || 0);
-        setResortId(data.resortId);
+        // Set resortId ngay lập tức để dropdown hiển thị đúng
+        const initialResortId = data.resortId;
+        if (initialResortId) {
+          setResortId(initialResortId);
+        }
         
         setImages((data.images || []).map((it: any) => ({ imageUrl: it.imageUrl, caption: it.caption })));
         setPrices((data.prices || []).map((p: any) => {
@@ -155,31 +160,92 @@ const PageEditCondotel: React.FC = () => {
         setUtilityIds(existingUtilityIds);
 
         // Load options for dropdowns
-        const [resortsData, amenitiesData, utilitiesData] = await Promise.all([
-          resortAPI.getAll().catch(() => []),
+        // Note: Không có API /api/host/utility để lấy tất cả utilities
+        // Chỉ load amenities và resorts, utilities sẽ được load từ resort và condotel data
+        const [resortsData, amenitiesData] = await Promise.all([
+          resortAPI.getAll().catch(() => [] as ResortDTO[]),
           amenityAPI.getAll().catch(() => []),
-          utilityAPI.getAll().catch(() => []),
         ]);
+        
+        // Đảm bảo resortId được set trước khi sắp xếp
+        const currentResortId = initialResortId || data.resortId;
+        
+        // Đảm bảo resort hiện tại có trong danh sách
+        // Nếu không có, load resort đó riêng và thêm vào
+        if (currentResortId) {
+          const hasCurrentResort = resortsData.some(r => r.resortId === currentResortId);
+          if (!hasCurrentResort) {
+            try {
+              const currentResort = await resortAPI.getById(currentResortId);
+              resortsData.unshift(currentResort); // Thêm vào đầu danh sách
+            } catch (err) {
+              console.error("Failed to load current resort:", err);
+            }
+          }
+        }
         
         // Sắp xếp resorts: resort hiện tại lên đầu
         const sortedResorts = [...resortsData].sort((a, b) => {
-          if (a.resortId === data.resortId) return -1;
-          if (b.resortId === data.resortId) return 1;
+          if (a.resortId === currentResortId) return -1;
+          if (b.resortId === currentResortId) return 1;
           return 0;
         });
         setResorts(sortedResorts);
-        setAmenities(amenitiesData);
-        setUtilities(utilitiesData);
         
-        // Load utilities của resort hiện tại nếu có (chỉ để hiển thị, không override utilities đã chọn)
+        // Đảm bảo resortId được set lại sau khi đã có danh sách resorts
+        if (currentResortId) {
+          setResortId(currentResortId);
+        }
+        
+        setAmenities(amenitiesData);
+        
+        // Load utilities từ resort và condotel data
+        // Kết hợp utilities từ resort và utilities đã chọn từ condotel
+        const allUtilities: UtilityDTO[] = [];
+        
+        // 1. Load utilities của resort hiện tại nếu có
         if (data.resortId) {
           try {
             const resortUtils = await utilityAPI.getByResort(data.resortId);
             setResortUtilities(resortUtils);
+            // Thêm utilities của resort vào danh sách
+            resortUtils.forEach(util => {
+              if (!allUtilities.some(u => u.utilityId === util.utilityId)) {
+                allUtilities.push(util);
+              }
+            });
           } catch (err) {
             console.error("Failed to load resort utilities:", err);
           }
         }
+        
+        // 2. Thêm utilities đã được chọn từ condotel data (nếu chưa có trong danh sách)
+        const condotelUtilities: UtilityDTO[] = [];
+        if (data.utilities && Array.isArray(data.utilities)) {
+          data.utilities.forEach((util: any) => {
+            const utilityId = util.utilityId || util.UtilityId;
+            const utilityName = util.name || util.Name || `Utility #${utilityId}`;
+            const utilityDesc = util.description || util.Description;
+            const utilityCategory = util.category || util.Category;
+            
+            const utility: UtilityDTO = {
+              utilityId: utilityId,
+              name: utilityName,
+              description: utilityDesc,
+              category: utilityCategory,
+            };
+            
+            condotelUtilities.push(utility);
+            
+            if (!allUtilities.some(u => u.utilityId === utilityId)) {
+              allUtilities.push(utility);
+            }
+          });
+        }
+        
+        // Lưu utilities ban đầu từ condotel data để sử dụng khi đổi resort
+        setOriginalCondotelUtilities(condotelUtilities);
+        setUtilities(allUtilities);
       } catch (e: any) {
         const errorMsg = e?.response?.data?.message || e?.message || "Không thể tải condotel";
         setError(errorMsg);
@@ -198,24 +264,61 @@ const PageEditCondotel: React.FC = () => {
         try {
           const resortUtils = await utilityAPI.getByResort(resortId);
           setResortUtilities(resortUtils);
-          // Tự động chọn utilities của resort (merge với utilities đã chọn)
-          const resortUtilityIds = resortUtils.map(u => u.utilityId);
-          setUtilityIds(prev => {
-            // Merge: giữ utilities đã chọn và thêm utilities của resort mới
-            const mergedSet = new Set([...prev, ...resortUtilityIds]);
-            return Array.from(mergedSet);
+          
+          // Tính toán utilityIds mới và utilities để hiển thị
+          setUtilityIds(currentIds => {
+            // Tự động chọn utilities của resort mới (merge với utilities đã chọn)
+            const resortUtilityIds = resortUtils.map(u => u.utilityId);
+            const mergedSet = new Set([...currentIds, ...resortUtilityIds]);
+            const newUtilityIds = Array.from(mergedSet);
+            
+            // Cập nhật danh sách utilities để hiển thị:
+            // 1. Utilities của resort mới (luôn hiển thị) - đây là danh sách chính
+            const updatedUtilities: UtilityDTO[] = [...resortUtils];
+            
+            // 2. Thêm utilities đã chọn từ condotel data ban đầu (nếu không thuộc resort mới)
+            // Chỉ thêm những utilities đã được chọn (có trong newUtilityIds) và không thuộc resort mới
+            originalCondotelUtilities.forEach(util => {
+              const isInResort = resortUtils.some(ru => ru.utilityId === util.utilityId);
+              const isAlreadyAdded = updatedUtilities.some(u => u.utilityId === util.utilityId);
+              const isSelected = newUtilityIds.includes(util.utilityId);
+              
+              // Chỉ thêm nếu: không thuộc resort mới, chưa có trong danh sách, và đã được chọn
+              if (!isInResort && !isAlreadyAdded && isSelected) {
+                updatedUtilities.push(util);
+              }
+            });
+            
+            // Cập nhật utilities ngay lập tức
+            setUtilities(updatedUtilities);
+            
+            return newUtilityIds;
           });
         } catch (err) {
           console.error("Failed to load resort utilities:", err);
           setResortUtilities([]);
+          // Nếu lỗi, vẫn giữ utilities hiện tại
         }
       } else {
         setResortUtilities([]);
+        // Nếu không có resort, chỉ hiển thị utilities đã chọn từ condotel data
+        if (originalCondotelUtilities.length > 0) {
+          setUtilities(originalCondotelUtilities);
+        } else {
+          // Nếu không có originalCondotelUtilities, giữ utilities hiện tại
+          setUtilities(prev => prev);
+        }
       }
     };
     
-    loadResortUtilities();
+    // Chỉ load khi resortId thay đổi và đã có originalCondotelUtilities được set
+    // Hoặc load ngay nếu resortId có giá trị
+    if (resortId !== undefined) {
+      loadResortUtilities();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resortId]);
+
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -270,12 +373,38 @@ const PageEditCondotel: React.FC = () => {
 
   const removeImage = (index: number) => setImages((arr) => arr.filter((_, i) => i !== index));
 
+  // Validate prices
+  const validatePrices = (): boolean => {
+    for (let i = 0; i < prices.length; i++) {
+      const price = prices[i];
+      if (!price.startDate || !price.endDate) {
+        continue; // Skip if dates are empty
+      }
+
+      const startDate = new Date(price.startDate);
+      const endDate = new Date(price.endDate);
+
+      if (startDate >= endDate) {
+        setError(`Prices[${i}]: Ngày bắt đầu (${price.startDate}) phải nhỏ hơn ngày kết thúc (${price.endDate}).`);
+        return false;
+      }
+    }
+    return true;
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!id) return;
+    setError("");
+    
     if (!name.trim()) { setError("Vui lòng nhập tên condotel"); return; }
     if (pricePerNight <= 0) { setError("Giá mỗi đêm phải > 0"); return; }
     if (beds <= 0 || bathrooms <= 0) { setError("Số giường/phòng tắm phải > 0"); return; }
+    
+    // Validate prices
+    if (prices.length > 0 && !validatePrices()) {
+      return;
+    }
 
     setSaving(true);
     setError("");
@@ -383,33 +512,21 @@ const PageEditCondotel: React.FC = () => {
                 Resort *
               </label>
               <select
-                value={resortId || ""}
+                value={resortId !== undefined && resortId !== null ? String(resortId) : ""}
                 onChange={(e) => setResortId(e.target.value ? Number(e.target.value) : undefined)}
                 className="w-full px-4 py-3 border border-neutral-300 dark:border-neutral-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-neutral-700 dark:text-neutral-100"
               >
                 <option value="">-- Chọn Resort --</option>
                 {resorts.map((resort) => (
-                  <option key={resort.resortId} value={resort.resortId}>
+                  <option key={resort.resortId} value={String(resort.resortId)}>
                     {resort.name}
                   </option>
                 ))}
               </select>
-              {resortId && resortUtilities.length > 0 && (
-                <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                  <p className="text-sm font-medium text-blue-900 dark:text-blue-200 mb-2">
-                    Utilities của resort này:
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {resortUtilities.map((utility) => (
-                      <span
-                        key={utility.utilityId}
-                        className="px-2 py-1 bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 rounded-md text-xs font-medium"
-                      >
-                        {utility.name}
-                      </span>
-                    ))}
-                  </div>
-                </div>
+              {resortId !== undefined && resortId !== null && (
+                <p className="mt-2 text-xs text-neutral-500 dark:text-neutral-400">
+                  ✓ Resort hiện tại: <span className="font-medium text-blue-600 dark:text-blue-400">{resorts.find(r => r.resortId === resortId)?.name || `Resort #${resortId}`}</span>
+                </p>
               )}
             </div>
           </div>
@@ -564,40 +681,61 @@ const PageEditCondotel: React.FC = () => {
             </h2>
           </div>
           <div className="p-6 space-y-4">
-            {prices.map((price, index) => (
-              <div key={index} className="p-4 border border-neutral-200 dark:border-neutral-700 rounded-xl space-y-3">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-                      Ngày bắt đầu
-                    </label>
-                    <Input
-                      type="date"
-                      value={price.startDate}
-                      onChange={(e) => {
-                        const newPrices = [...prices];
-                        newPrices[index].startDate = e.target.value;
-                        setPrices(newPrices);
-                      }}
-                      className="w-full"
-                    />
+            {prices.map((price, index) => {
+              const startDate = price.startDate ? new Date(price.startDate) : null;
+              const endDate = price.endDate ? new Date(price.endDate) : null;
+              const hasDateError = !!(startDate && endDate && startDate >= endDate);
+              
+              return (
+                <div key={index} className={`p-4 border rounded-xl space-y-3 ${
+                  hasDateError 
+                    ? "border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/20" 
+                    : "border-neutral-200 dark:border-neutral-700"
+                }`}>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+                        Ngày bắt đầu
+                      </label>
+                      <Input
+                        type="date"
+                        value={price.startDate}
+                        onChange={(e) => {
+                          const newPrices = [...prices];
+                          newPrices[index].startDate = e.target.value;
+                          setPrices(newPrices);
+                          setError(""); // Clear error when user edits
+                        }}
+                        className={`w-full ${hasDateError ? "border-red-500" : ""}`}
+                      />
+                      {hasDateError && (
+                        <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                          ⚠️ Ngày bắt đầu phải nhỏ hơn ngày kết thúc
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+                        Ngày kết thúc
+                      </label>
+                      <Input
+                        type="date"
+                        value={price.endDate}
+                        onChange={(e) => {
+                          const newPrices = [...prices];
+                          newPrices[index].endDate = e.target.value;
+                          setPrices(newPrices);
+                          setError(""); // Clear error when user edits
+                        }}
+                        className={`w-full ${hasDateError ? "border-red-500" : ""}`}
+                      />
+                      {hasDateError && (
+                        <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                          ⚠️ Ngày kết thúc phải lớn hơn ngày bắt đầu
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-                      Ngày kết thúc
-                    </label>
-                    <Input
-                      type="date"
-                      value={price.endDate}
-                      onChange={(e) => {
-                        const newPrices = [...prices];
-                        newPrices[index].endDate = e.target.value;
-                        setPrices(newPrices);
-                      }}
-                      className="w-full"
-                    />
-                  </div>
-                </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
@@ -647,15 +785,92 @@ const PageEditCondotel: React.FC = () => {
                     />
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setPrices(prices.filter((_, i) => i !== index))}
-                  className="text-red-600 hover:text-red-700 text-sm font-medium"
-                >
-                  Xóa giá này
-                </button>
+                <div className="flex justify-end gap-2 pt-2 border-t border-neutral-200 dark:border-neutral-700">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      // Validate price trước khi lưu
+                      if (!price.startDate || !price.endDate) {
+                        setError("Vui lòng nhập đầy đủ ngày bắt đầu và ngày kết thúc");
+                        return;
+                      }
+                      const startDate = new Date(price.startDate);
+                      const endDate = new Date(price.endDate);
+                      if (startDate >= endDate) {
+                        setError("Ngày bắt đầu phải nhỏ hơn ngày kết thúc");
+                        return;
+                      }
+                      
+                      // Lưu ngay giá này vào backend (lưu toàn bộ condotel bao gồm giá này)
+                      try {
+                        setSaving(true);
+                        setError("");
+                        if (!id) return;
+                        
+                        // Validate price trước khi lưu
+                        if (!price.startDate || !price.endDate) {
+                          setError("Vui lòng nhập đầy đủ ngày bắt đầu và ngày kết thúc");
+                          setSaving(false);
+                          return;
+                        }
+                        const startDate = new Date(price.startDate);
+                        const endDate = new Date(price.endDate);
+                        if (startDate >= endDate) {
+                          setError("Ngày bắt đầu phải nhỏ hơn ngày kết thúc");
+                          setSaving(false);
+                          return;
+                        }
+                        
+                        const payload: CondotelDetailDTO = {
+                          condotelId: Number(id),
+                          hostId: user?.userId || 0,
+                          resortId: resortId,
+                          name: name.trim(),
+                          description: description.trim() || undefined,
+                          pricePerNight,
+                          beds,
+                          bathrooms,
+                          status,
+                          images: images.length ? images.map((i, idx) => ({ imageId: idx, imageUrl: i.imageUrl, caption: i.caption })) : undefined,
+                          prices: prices.length > 0 ? prices : undefined, // Gửi tất cả giá
+                          details: details.length > 0 ? details : undefined,
+                        } as CondotelDetailDTO;
+
+                        const updatePayload: any = {
+                          ...payload,
+                          amenityIds: amenityIds.length > 0 ? amenityIds : undefined,
+                          utilityIds: utilityIds.length > 0 ? utilityIds : undefined,
+                        };
+
+                        await condotelAPI.update(Number(id), updatePayload);
+                        toastSuccess("Đã lưu giá thành công!");
+                        // Reload data để cập nhật priceId
+                        const data = await condotelAPI.getByIdForHost(Number(id));
+                        if (data.prices) {
+                          setPrices(data.prices);
+                        }
+                      } catch (err: any) {
+                        setError(err?.response?.data?.message || err.message || "Không thể lưu giá");
+                      } finally {
+                        setSaving(false);
+                      }
+                    }}
+                    disabled={saving || hasDateError}
+                    className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {saving ? "Đang lưu..." : "💾 Lưu giá này"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPrices(prices.filter((_, i) => i !== index))}
+                    className="px-4 py-2 text-red-600 hover:text-red-700 text-sm font-medium"
+                  >
+                    Xóa giá này
+                  </button>
+                </div>
               </div>
-            ))}
+              );
+            })}
             <ButtonSecondary
               type="button"
               onClick={() => setPrices([...prices, {
@@ -777,13 +992,58 @@ const PageEditCondotel: React.FC = () => {
                     placeholder="Vệ sinh tốt, khử trùng định kỳ..."
                   />
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setDetails(details.filter((_, i) => i !== index))}
-                  className="text-red-600 hover:text-red-700 text-sm font-medium"
-                >
-                  Xóa chi tiết này
-                </button>
+                <div className="flex justify-end gap-2 pt-2 border-t border-neutral-200 dark:border-neutral-700">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      // Lưu ngay detail này vào backend (lưu toàn bộ condotel bao gồm detail này)
+                      try {
+                        setSaving(true);
+                        setError("");
+                        if (!id) return;
+                        
+                        const payload: CondotelDetailDTO = {
+                          condotelId: Number(id),
+                          hostId: user?.userId || 0,
+                          resortId: resortId,
+                          name: name.trim(),
+                          description: description.trim() || undefined,
+                          pricePerNight,
+                          beds,
+                          bathrooms,
+                          status,
+                          images: images.length ? images.map((i, idx) => ({ imageId: idx, imageUrl: i.imageUrl, caption: i.caption })) : undefined,
+                          prices: prices.length > 0 ? prices : undefined,
+                          details: details.length > 0 ? details : undefined, // Gửi tất cả details
+                        } as CondotelDetailDTO;
+
+                        const updatePayload: any = {
+                          ...payload,
+                          amenityIds: amenityIds.length > 0 ? amenityIds : undefined,
+                          utilityIds: utilityIds.length > 0 ? utilityIds : undefined,
+                        };
+
+                        await condotelAPI.update(Number(id), updatePayload);
+                        toastSuccess("Đã lưu chi tiết phòng thành công!");
+                      } catch (err: any) {
+                        setError(err?.response?.data?.message || err.message || "Không thể lưu chi tiết phòng");
+                      } finally {
+                        setSaving(false);
+                      }
+                    }}
+                    disabled={saving}
+                    className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {saving ? "Đang lưu..." : "💾 Lưu chi tiết này"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDetails(details.filter((_, i) => i !== index))}
+                    className="px-4 py-2 text-red-600 hover:text-red-700 text-sm font-medium"
+                  >
+                    Xóa chi tiết này
+                  </button>
+                </div>
               </div>
             ))}
             <ButtonSecondary

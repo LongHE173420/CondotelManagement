@@ -175,6 +175,127 @@ export const adminAPI = {
     );
     return response.data;
   },
+
+  // ========== ADMIN REPORTS APIs ==========
+  // POST /api/admin/reports - Tạo báo cáo
+  createReport: async (reportData: AdminReportCreateDTO): Promise<AdminReportResponseDTO> => {
+    const response = await axiosClient.post<AdminReportResponseDTO>("/admin/reports", reportData);
+    return response.data;
+  },
+
+  // GET /api/admin/reports - Lấy tất cả báo cáo
+  getAllReports: async (): Promise<AdminReportListDTO[]> => {
+    const response = await axiosClient.get<AdminReportListDTO[]>("/admin/reports");
+    return response.data;
+  },
+
+  // GET /api/admin/reports/{id} - Lấy báo cáo theo ID
+  getReportById: async (reportId: number): Promise<AdminReportResponseDTO> => {
+    const response = await axiosClient.get<AdminReportResponseDTO>(`/admin/reports/${reportId}`);
+    return response.data;
+  },
+
+  // GET /api/admin/reports/admin/{adminId} - Lấy báo cáo theo admin
+  getReportsByAdmin: async (adminId: number): Promise<AdminReportListDTO[]> => {
+    const response = await axiosClient.get<AdminReportListDTO[]>(`/admin/reports/admin/${adminId}`);
+    return response.data;
+  },
+
+  // GET /api/admin/reports/host/{hostId} - Lấy báo cáo theo host
+  getReportsByHost: async (hostId: number): Promise<AdminReportListDTO[]> => {
+    const response = await axiosClient.get<AdminReportListDTO[]>(`/admin/reports/host/${hostId}`);
+    return response.data;
+  },
+
+  // DELETE /api/admin/reports/{id} - Xóa báo cáo
+  deleteReport: async (reportId: number): Promise<{ message: string }> => {
+    const response = await axiosClient.delete<{ message: string }>(`/admin/reports/${reportId}`);
+    return response.data;
+  },
+
+  // GET /api/admin/reports/hosts - Lấy tất cả hosts active để frontend chọn
+  getHostsForReports: async (): Promise<HostListItemDTO[]> => {
+    const response = await axiosClient.get<{ success: boolean; data: HostListItemDTO[] } | HostListItemDTO[]>("/admin/reports/hosts");
+    const data = response.data;
+    
+    // Handle response format: { success: true, data: [...] } or array
+    if (data && typeof data === 'object' && 'success' in data && 'data' in data) {
+      return (data as { success: boolean; data: HostListItemDTO[] }).data;
+    } else if (Array.isArray(data)) {
+      return data;
+    }
+    return [];
+  },
 };
+
+// ========== ADMIN REPORT DTOs ==========
+export interface AdminReportCreateDTO {
+  reportType: "HostReport" | "RevenueReport" | "AllHostsReport";
+  hostId?: number | null; // Optional: null = tất cả hosts, có giá trị = host cụ thể
+  fromDate?: string; // Required for HostReport (YYYY-MM-DD)
+  toDate?: string; // Required for HostReport (YYYY-MM-DD)
+  year?: number; // Required for RevenueReport and AllHostsReport
+  month?: number | null; // Optional for RevenueReport and AllHostsReport (1-12)
+}
+
+export interface AdminReportResponseDTO {
+  reportId: number;
+  reportType: string;
+  adminId: number;
+  adminName?: string;
+  hostId?: number;
+  hostName?: string;
+  fromDate?: string;
+  toDate?: string;
+  year?: number;
+  month?: number;
+  fileName: string;
+  filePath: string;
+  createdAt: string;
+  status?: string;
+}
+
+export interface AdminReportListDTO {
+  reportId: number;
+  reportType: string;
+  adminId: number;
+  adminName?: string;
+  hostId?: number;
+  hostName?: string;
+  fromDate?: string;
+  toDate?: string;
+  year?: number;
+  month?: number;
+  fileName: string;
+  createdAt: string;
+  generatedDate?: string; // DateTime khi tạo báo cáo
+  status?: string;
+}
+
+export interface HostListItemDTO {
+  hostId: number;
+  hostName: string;
+  companyName?: string;
+  email?: string;
+  status: string;
+}
+
+export interface AdminReportResponseDTO {
+  reportId: number;
+  reportType: string;
+  adminId: number;
+  adminName?: string;
+  hostId?: number;
+  hostName?: string;
+  fromDate?: string;
+  toDate?: string;
+  year?: number;
+  month?: number;
+  fileName: string;
+  filePath: string;
+  createdAt: string;
+  generatedDate?: string; // DateTime khi tạo báo cáo
+  status?: string;
+}
 
 export default adminAPI;

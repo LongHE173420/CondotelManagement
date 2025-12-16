@@ -94,6 +94,22 @@ export interface CondotelDTO {
   activePrice?: PriceDTO | null; // Price đang active (nếu có)
 }
 
+// Pagination response
+export interface PaginationInfo {
+  pageNumber: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
+}
+
+export interface PagedResult<T> {
+  success: boolean;
+  data: T[];
+  pagination: PaginationInfo;
+}
+
 // CondotelDetailDTO - Full details for detail/update
 export interface CondotelDetailDTO {
   condotelId: number;
@@ -184,6 +200,8 @@ export interface CondotelSearchQuery {
   maxPrice?: number; // Maximum price per night
   beds?: number; // Minimum number of beds (>=)
   bathrooms?: number; // Minimum number of bathrooms (>=)
+  pageNumber?: number; // Page number (default: 1)
+  pageSize?: number; // Page size (default: 10, max: 100)
 }
 
 // Helper functions to normalize data (shared across API calls)
@@ -243,8 +261,8 @@ const normalizePromotion = (promo: any): PromotionDTO | null => {
 
 // API Calls
 export const condotelAPI = {
-  // GET /api/tenant/condotels?name=abc&location=abc&locationId=123&fromDate=...&toDate=...&minPrice=...&maxPrice=...&beds=...&bathrooms=... - Tìm kiếm condotel (public, không cần đăng nhập)
-  search: async (query?: CondotelSearchQuery): Promise<CondotelDTO[]> => {
+  // GET /api/tenant/condotels?name=abc&location=abc&locationId=123&fromDate=...&toDate=...&minPrice=...&maxPrice=...&beds=...&bathrooms=...&pageNumber=1&pageSize=10 - Tìm kiếm condotel (public, không cần đăng nhập)
+  search: async (query?: CondotelSearchQuery): Promise<PagedResult<CondotelDTO>> => {
     const params: any = {};
     if (query?.name) {
       params.name = query.name.trim();
@@ -279,22 +297,44 @@ export const condotelAPI = {
     if (query?.bathrooms !== undefined && query?.bathrooms !== null) {
       params.bathrooms = query.bathrooms;
     }
+    // Pagination
+    if (query?.pageNumber !== undefined && query?.pageNumber !== null) {
+      params.pageNumber = query.pageNumber;
+    }
+    if (query?.pageSize !== undefined && query?.pageSize !== null) {
+      params.pageSize = query.pageSize;
+    }
 
     try {
       const response = await axiosClient.get<any>("/tenant/condotels", { params });
 
-      // Normalize response - handle both array, object with data property, and success wrapper
+      // Normalize response - handle pagination response
       let data: any[] = [];
+      let pagination: PaginationInfo | undefined = undefined;
+      
       if (Array.isArray(response.data)) {
+        // Legacy format: just array
         data = response.data;
       } else if (response.data && typeof response.data === 'object') {
-        // Handle { success: true, data: [...] } wrapper
+        // Handle { success: true, data: [...], pagination: {...} } wrapper
         if ('data' in response.data) {
           if (Array.isArray(response.data.data)) {
             data = response.data.data;
           } else {
             data = [];
           }
+        }
+        // Extract pagination if exists
+        if ('pagination' in response.data) {
+          const pag = response.data.pagination;
+          pagination = {
+            pageNumber: pag.pageNumber || pag.PageNumber || 1,
+            pageSize: pag.pageSize || pag.PageSize || 10,
+            totalCount: pag.totalCount || pag.TotalCount || 0,
+            totalPages: pag.totalPages || pag.TotalPages || 0,
+            hasPreviousPage: pag.hasPreviousPage !== undefined ? pag.hasPreviousPage : (pag.HasPreviousPage !== undefined ? pag.HasPreviousPage : false),
+            hasNextPage: pag.hasNextPage !== undefined ? pag.hasNextPage : (pag.HasNextPage !== undefined ? pag.HasNextPage : false),
+          };
         }
       }
 
@@ -340,7 +380,28 @@ export const condotelAPI = {
         };
       });
 
-      return mapped;
+      // Return paginated result
+      if (pagination) {
+        return {
+          success: true,
+          data: mapped,
+          pagination: pagination,
+        };
+      } else {
+        // Fallback: return as paginated result with default pagination
+        return {
+          success: true,
+          data: mapped,
+          pagination: {
+            pageNumber: 1,
+            pageSize: mapped.length,
+            totalCount: mapped.length,
+            totalPages: 1,
+            hasPreviousPage: false,
+            hasNextPage: false,
+          },
+        };
+      }
     } catch (error: any) {
       throw error;
     }
@@ -349,7 +410,8 @@ export const condotelAPI = {
   // GET /api/tenant/condotels - Lấy tất cả condotels (public, không cần đăng nhập)
   // Alias for search with no parameters
   getAll: async (): Promise<CondotelDTO[]> => {
-    return condotelAPI.search();
+    const result = await condotelAPI.search();
+    return result.data;
   },
 
   // GET /api/tenant/condotels/{id} - Lấy chi tiết condotel (public, không cần đăng nhập)
@@ -420,12 +482,14 @@ export const condotelAPI = {
 
   // GET /api/tenant/condotels?location=... - Tìm kiếm condotel theo location (sử dụng endpoint mới)
   getCondotelsByLocation: async (locationName?: string): Promise<CondotelDTO[]> => {
-    return condotelAPI.search({ location: locationName });
+    const result = await condotelAPI.search({ location: locationName });
+    return result.data;
   },
 
   // GET /api/tenant/condotels?locationId=... - Tìm kiếm condotel theo location ID (public, không cần đăng nhập)
   getCondotelsByLocationId: async (locationId: number): Promise<CondotelDTO[]> => {
-    return condotelAPI.search({ locationId });
+    const result = await condotelAPI.search({ locationId });
+    return result.data;
   },
 
   // GET /api/tenant/condotels/host/{hostId} - Lấy condotels theo host ID (public, không cần đăng nhập)
@@ -543,7 +607,8 @@ export const condotelAPI = {
   // GET /api/tenant/condotels?location=... - Tìm kiếm condotel theo location (public, AllowAnonymous)
   // Alias for getCondotelsByLocation - sử dụng endpoint mới
   getCondotelsByLocationPublic: async (locationName?: string): Promise<CondotelDTO[]> => {
-    return condotelAPI.search({ location: locationName });
+    const result = await condotelAPI.search({ location: locationName });
+    return result.data;
   },
 
   // GET /api/host/condotel - Lấy tất cả condotels của host (cần đăng nhập)
@@ -623,10 +688,22 @@ export const condotelAPI = {
       description: rawActivePrice.Description || rawActivePrice.description,
     } : null;
 
+    // Normalize resortId - kiểm tra nhiều trường hợp
+    let normalizedResortId: number | undefined = undefined;
+    if (actualData.ResortId !== undefined && actualData.ResortId !== null) {
+      normalizedResortId = actualData.ResortId;
+    } else if (actualData.resortId !== undefined && actualData.resortId !== null) {
+      normalizedResortId = actualData.resortId;
+    } else if (actualData.Resort?.ResortId !== undefined && actualData.Resort?.ResortId !== null) {
+      normalizedResortId = actualData.Resort.ResortId;
+    } else if (actualData.resort?.resortId !== undefined && actualData.resort?.resortId !== null) {
+      normalizedResortId = actualData.resort.resortId;
+    }
+
     const result = {
       condotelId: actualData.CondotelId || actualData.condotelId,
       hostId: actualData.HostId || actualData.hostId,
-      resortId: actualData.ResortId !== undefined ? actualData.ResortId : (actualData.resortId !== undefined ? actualData.resortId : undefined),
+      resortId: normalizedResortId,
       name: actualData.Name || actualData.name || "",
       description: actualData.Description || actualData.description || "",
       pricePerNight: actualData.PricePerNight !== undefined ? actualData.PricePerNight : (actualData.pricePerNight !== undefined ? actualData.pricePerNight : 0),

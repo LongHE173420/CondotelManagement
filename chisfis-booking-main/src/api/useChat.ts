@@ -144,14 +144,14 @@ export const useChat = (currentUserId: number): UseChatReturn => {
         if (currentUserId <= 0) return;
         try {
             const token = localStorage.getItem('token');
-            const res = await axios.get<any[]>(`${API_URL}/conversations`, {
+            const res = await axios.get<ChatConversation[]>(`${API_URL}/conversations`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
             setConversations(res.data);
 
             const counts: Record<number, number> = {};
-            res.data.forEach((conv: any) => {
+            res.data.forEach((conv) => {
                 counts[conv.conversationId] = conv.unreadCount || 0;
             });
             setUnreadCounts(counts);

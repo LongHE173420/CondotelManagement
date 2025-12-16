@@ -14,6 +14,7 @@ import PageAdminLocations from "containers/PageAdminLocations/PageAdminLocations
 import PageAdminResorts from "containers/PageAdminResorts/PageAdminResorts";
 import AdminPackagesPage from "containers/PageAdminPackages/AdminPackagesPage";
 import PageAdminUtilities from "containers/PageAdminUtilities/PageAdminUtilities";
+import PageAdminReports from "containers/PageAdminReports/PageAdminReports";
 import { Link } from "react-router-dom";
 
 
@@ -21,7 +22,7 @@ export interface AdminPageProps {
   className?: string;
 }
 
-type AdminTab = "dashboard" | "accounts" | "profile" | "blog" | "reviews" | "refunds" | "payouts" | "locations" | "resorts" | "packages" | "utilities";
+type AdminTab = "dashboard" | "accounts" | "profile" | "blog" | "reviews" | "refunds" | "payouts" | "locations" | "resorts" | "packages" | "utilities" | "reports";
 
 const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
   const { isAdmin, isLoading } = useAuth();
@@ -31,7 +32,7 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
 
   // Sync tab with URL
   useEffect(() => {
-    if (tabParam && ["dashboard", "accounts", "profile", "blog", "reviews", "refunds", "payouts", "locations", "resorts", "packages", "utilities"].includes(tabParam)) {
+    if (tabParam && ["dashboard", "accounts", "profile", "blog", "reviews", "refunds", "payouts", "locations", "resorts", "packages", "utilities", "reports"].includes(tabParam)) {
       setActiveTab(tabParam);
     }
   }, [tabParam]);
@@ -350,6 +351,21 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
               </span>
             </button>
             <button
+              onClick={() => handleTabChange("reports")}
+              className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${
+                activeTab === "reports"
+                  ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-105"
+                  : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-blue-600 dark:hover:text-blue-400"
+              }`}
+            >
+              <span className="flex items-center gap-2">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Báo cáo
+              </span>
+            </button>
+            <button
               onClick={() => handleTabChange("profile")}
               className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${
                 activeTab === "profile"
@@ -493,6 +509,10 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
         ) : activeTab === "utilities" ? (
           <div className="space-y-6">
             <PageAdminUtilities />
+          </div>
+        ) : activeTab === "reports" ? (
+          <div className="space-y-6">
+            <PageAdminReports />
           </div>
         ) : activeTab === "blog" ? (
           <div className="space-y-6">

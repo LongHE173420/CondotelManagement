@@ -116,8 +116,8 @@ const ListingStayPage: FC<ListingStayPageProps> = ({ className = "" }) => {
         }
         
         // Always fetch all condotels to get count
-        const condotels = await condotelAPI.search(searchQuery);
-        setPropertyCount(condotels.length);
+        const result = await condotelAPI.search(searchQuery);
+        setPropertyCount(result.pagination.totalCount);
       } catch (err) {
         console.error("Error fetching condotel count:", err);
         setPropertyCount(0);

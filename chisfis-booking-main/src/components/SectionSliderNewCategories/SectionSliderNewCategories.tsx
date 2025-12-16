@@ -121,9 +121,39 @@ const SectionSliderNewCategories: FC<SectionSliderNewCategoriesProps> = ({
   }, [UNIQUE_CLASS]);
 
   useEffect(() => {
-    setTimeout(() => {
-      MY_GLIDEJS.mount();
+    // Check if element exists before mounting
+    const element = document.querySelector(`.${UNIQUE_CLASS}`);
+    if (!element) {
+      console.warn(`Glide element not found: .${UNIQUE_CLASS}`);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      // Double check element still exists
+      const checkElement = document.querySelector(`.${UNIQUE_CLASS}`);
+      if (checkElement && MY_GLIDEJS) {
+        try {
+          MY_GLIDEJS.mount();
+        } catch (error) {
+          console.error("Error mounting Glide:", error);
+        }
+      }
     }, 100);
+
+    // Cleanup function
+    return () => {
+      clearTimeout(timer);
+      if (MY_GLIDEJS) {
+        try {
+          // Glide.js doesn't have destroy method, use unmount instead
+          if (typeof (MY_GLIDEJS as any).unmount === 'function') {
+            (MY_GLIDEJS as any).unmount();
+          }
+        } catch (error) {
+          console.error("Error unmounting Glide:", error);
+        }
+      }
+    };
   }, [MY_GLIDEJS, UNIQUE_CLASS]);
 
   const renderCard = (item: TaxonomyType, index: number) => {

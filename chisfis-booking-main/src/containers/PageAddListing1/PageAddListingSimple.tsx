@@ -78,6 +78,7 @@ const PageAddListingSimple: FC = () => {
     priceType: string;
     description: string;
   }>>(formData.prices || []);
+  const [priceErrors, setPriceErrors] = useState<{ [index: number]: string }>({});
   const [priceStartDate, setPriceStartDate] = useState("");
   const [priceEndDate, setPriceEndDate] = useState("");
   const [basePrice, setBasePrice] = useState<number>(0);
@@ -159,9 +160,8 @@ const PageAddListingSimple: FC = () => {
           // Reset utilityIds khi đổi resort
           setUtilityIds([]);
         } else {
-          // Nếu không có resort, load tất cả utilities của host
-          const utilitiesData = await utilityAPI.getAll();
-          setUtilities(utilitiesData);
+          // Nếu không có resort, không load utilities (không có API để lấy tất cả utilities cho Host)
+          setUtilities([]);
         }
       } catch (err) {
         console.error("Error loading utilities:", err);
@@ -304,23 +304,46 @@ const PageAddListingSimple: FC = () => {
   };
 
   const handleAddPrice = () => {
-    if (priceStartDate && priceEndDate && basePrice > 0) {
-      setPrices((arr) => [
-        ...arr,
-        {
-          startDate: priceStartDate,
-          endDate: priceEndDate,
-          basePrice: basePrice,
-          priceType: priceType,
-          description: priceDescription.trim() || "Giá cơ bản",
-        },
-      ]);
-      setPriceStartDate("");
-      setPriceEndDate("");
-      setBasePrice(0);
-      setPriceType("Thường");
-      setPriceDescription("");
+    if (!priceStartDate || !priceEndDate) {
+      setError("Vui lòng nhập đầy đủ ngày bắt đầu và ngày kết thúc!");
+      return;
     }
+
+    if (basePrice <= 0) {
+      setError("Vui lòng nhập giá lớn hơn 0!");
+      return;
+    }
+
+    // Validate StartDate < EndDate
+    const startDate = new Date(priceStartDate);
+    const endDate = new Date(priceEndDate);
+    
+    if (startDate >= endDate) {
+      setError(`Ngày bắt đầu (${priceStartDate}) phải nhỏ hơn ngày kết thúc (${priceEndDate}).`);
+      return;
+    }
+
+    // Clear previous errors
+    setError("");
+    
+    setPrices((arr) => [
+      ...arr,
+      {
+        startDate: priceStartDate,
+        endDate: priceEndDate,
+        basePrice: basePrice,
+        priceType: priceType,
+        description: priceDescription.trim() || "Giá cơ bản",
+      },
+    ]);
+    setPriceStartDate("");
+    setPriceEndDate("");
+    setBasePrice(0);
+    setPriceType("Thường");
+    setPriceDescription("");
+    
+    // Clear price errors for the new price
+    setPriceErrors({});
   };
 
   const handleRemovePrice = (index: number) => {
@@ -359,9 +382,33 @@ const PageAddListingSimple: FC = () => {
     }).format(price);
   };
 
+  // Validate prices
+  const validatePrices = (): boolean => {
+    const errors: { [index: number]: string } = {};
+    let hasError = false;
+
+    prices.forEach((price, index) => {
+      if (!price.startDate || !price.endDate) {
+        return; // Skip if dates are empty
+      }
+
+      const startDate = new Date(price.startDate);
+      const endDate = new Date(price.endDate);
+
+      if (startDate >= endDate) {
+        errors[index] = `Ngày bắt đầu (${price.startDate}) phải nhỏ hơn ngày kết thúc (${price.endDate}).`;
+        hasError = true;
+      }
+    });
+
+    setPriceErrors(errors);
+    return !hasError;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setPriceErrors({});
 
     if (!user) {
       toastWarning("Bạn cần đăng nhập để thêm condotel!");
@@ -386,6 +433,12 @@ const PageAddListingSimple: FC = () => {
 
     if (!bathrooms || bathrooms <= 0) {
       setError("Vui lòng nhập số phòng tắm!");
+      return;
+    }
+
+    // Validate prices
+    if (prices.length > 0 && !validatePrices()) {
+      setError("Vui lòng kiểm tra lại thông tin giá. Ngày bắt đầu phải nhỏ hơn ngày kết thúc.");
       return;
     }
 
@@ -838,27 +891,50 @@ const PageAddListingSimple: FC = () => {
                 <div className="space-y-2">
                   <label className="block text-sm font-medium">Danh sách giá đã thêm ({prices.length})</label>
                   <ul className="space-y-2">
-                    {prices.map((price, index) => (
-                      <li
-                        key={index}
-                        className="flex items-center justify-between p-3 bg-neutral-100 dark:bg-neutral-700 rounded"
-                      >
-                        <div className="text-sm">
-                          <span className="font-medium">{formatDate(price.startDate)} - {formatDate(price.endDate)}</span>
-                          <span className="ml-2 text-neutral-600 dark:text-neutral-400">
-                            {formatPrice(price.basePrice)} ({price.priceType})
-                          </span>
-                          <p className="text-xs text-neutral-500 mt-1">{price.description}</p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleRemovePrice(index)}
-                          className="text-red-500 hover:text-red-700 text-sm"
+                    {prices.map((price, index) => {
+                      const error = priceErrors[index];
+                      const startDate = new Date(price.startDate);
+                      const endDate = new Date(price.endDate);
+                      const hasDateError = price.startDate && price.endDate && startDate >= endDate;
+                      
+                      return (
+                        <li
+                          key={index}
+                          className={`flex items-start justify-between p-3 rounded ${
+                            error || hasDateError
+                              ? "bg-red-50 dark:bg-red-900/20 border border-red-300 dark:border-red-700"
+                              : "bg-neutral-100 dark:bg-neutral-700"
+                          }`}
                         >
-                          Xóa
-                        </button>
-                      </li>
-                    ))}
+                          <div className="flex-1 text-sm">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">{formatDate(price.startDate)} - {formatDate(price.endDate)}</span>
+                              <span className="ml-2 text-neutral-600 dark:text-neutral-400">
+                                {formatPrice(price.basePrice)} ({price.priceType})
+                              </span>
+                            </div>
+                            <p className="text-xs text-neutral-500 mt-1">{price.description}</p>
+                            {(error || hasDateError) && (
+                              <p className="text-xs text-red-600 dark:text-red-400 mt-2 font-medium">
+                                ⚠️ {error || `Ngày bắt đầu phải nhỏ hơn ngày kết thúc`}
+                              </p>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleRemovePrice(index);
+                              const newErrors = { ...priceErrors };
+                              delete newErrors[index];
+                              setPriceErrors(newErrors);
+                            }}
+                            className="text-red-500 hover:text-red-700 text-sm ml-2"
+                          >
+                            Xóa
+                          </button>
+                        </li>
+                      );
+                    })}
                   </ul>
                 </div>
               )}

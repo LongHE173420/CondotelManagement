@@ -180,6 +180,17 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
         const detail = await condotelAPI.getById(state.condotelId);
         setCondotelDetail(detail);
         
+        // Validation: Kiểm tra xem user có phải là host của condotel không
+        if (user && detail.hostId && user.userId === detail.hostId) {
+          setError("Chủ căn hộ không thể tự đặt căn hộ của chính mình. Vui lòng chọn căn hộ khác.");
+          toastError("Chủ căn hộ không thể tự đặt căn hộ của chính mình.");
+          // Redirect về trang chi tiết condotel sau 3 giây
+          setTimeout(() => {
+            navigate(`/listing-stay-detail/${state.condotelId}`);
+          }, 3000);
+          return;
+        }
+        
         // Load promotions from condotel detail
         let loadedPromotions: PromotionDTO[] = [];
         
@@ -705,9 +716,25 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
         if (errorData?.message) {
           errorMessage = errorData.message;
           
-          // Check if error is related to promotion or voucher
+          // Check if error is related to host booking own condotel
           const errorMessageLower = errorMessage.toLowerCase();
-          if (errorMessageLower.includes("promotion") || errorMessageLower.includes("khuyến mãi")) {
+          if (errorMessageLower.includes("chủ căn hộ không thể tự đặt") || 
+              errorMessageLower.includes("host") && errorMessageLower.includes("tự đặt") ||
+              errorMessageLower.includes("cannot book own condotel")) {
+            // Host cố gắng đặt condotel của chính mình
+            toastError("Chủ căn hộ không thể tự đặt căn hộ của chính mình.");
+            setError("Chủ căn hộ không thể tự đặt căn hộ của chính mình. Vui lòng chọn căn hộ khác.");
+            // Redirect về trang chi tiết condotel sau 3 giây
+            setTimeout(() => {
+              if (state?.condotelId) {
+                navigate(`/listing-stay-detail/${state.condotelId}`);
+              } else {
+                navigate("/");
+              }
+            }, 3000);
+            setLoading(false);
+            return;
+          } else if (errorMessageLower.includes("promotion") || errorMessageLower.includes("khuyến mãi")) {
             // Có thể promotion không hợp lệ, thử lại không có promotion
             const sentPromotionId = bookingData?.promotionId;
             if (sentPromotionId) {
