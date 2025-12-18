@@ -164,12 +164,16 @@ const RoutesContent = () => {
   const WIN_WIDTH = useWindowSize().width || window.innerWidth;
   const isAdminRoute = location.pathname.startsWith("/admin");
   const isHostRoute = location.pathname.startsWith("/host-dashboard");
-  
+
   // Block admin from accessing non-admin pages
   // Allow login, signup, forgot-password, and chat pages (for customer support)
   const allowedPathsForAdmin = ["/login", "/signup", "/forgot-pass", "/chat"];
-  const isAllowedPath = allowedPathsForAdmin.includes(location.pathname);
-  
+  const isAllowedPath =
+    allowedPathsForAdmin.includes(location.pathname) ||
+    location.pathname.startsWith("/manage-blog") ||
+    location.pathname.startsWith("/manage-vouchers") ||
+    location.pathname.startsWith("/manage-locations");
+
   // If admin tries to access non-admin pages (except allowed paths), redirect to /admin
   if (!isLoading && isAdmin && !isAdminRoute && !isAllowedPath) {
     return <Navigate to="/admin" replace />;
