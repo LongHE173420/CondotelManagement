@@ -14,7 +14,8 @@ import PageAdminLocations from "containers/PageAdminLocations/PageAdminLocations
 import PageAdminResorts from "containers/PageAdminResorts/PageAdminResorts";
 import AdminPackagesPage from "containers/PageAdminPackages/AdminPackagesPage";
 import PageAdminUtilities from "containers/PageAdminUtilities/PageAdminUtilities";
-import PageChat from "containers/ChatPage/PageChat"; // Hoặc đường dẫn đúng tới file chat của bạn
+import PageAdminReports from "containers/PageAdminReports/PageAdminReports";
+import PageChat from "containers/ChatPage/PageChat";
 import { Link } from "react-router-dom";
 
 
@@ -22,7 +23,7 @@ export interface AdminPageProps {
   className?: string;
 }
 
-type AdminTab = "dashboard" | "accounts" | "profile" | "blog" | "reviews" | "refunds" | "payouts" | "locations" | "resorts" | "packages" | "utilities" | "chat";
+type AdminTab = "dashboard" | "accounts" | "profile" | "blog" | "reviews" | "refunds" | "payouts" | "locations" | "resorts" | "packages" | "utilities" | "reports" | "chat";
 
 const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
   const { isAdmin, isLoading } = useAuth();
@@ -32,7 +33,7 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
 
   // Sync tab with URL
   useEffect(() => {
-    if (tabParam && ["dashboard", "accounts", "profile", "blog", "reviews", "refunds", "payouts", "locations", "resorts", "packages", "utilities"].includes(tabParam)) {
+    if (tabParam && ["dashboard", "accounts", "profile", "blog", "reviews", "refunds", "payouts", "locations", "resorts", "packages", "utilities", "reports", "chat"].includes(tabParam)) {
       setActiveTab(tabParam);
     }
   }, [tabParam]);
@@ -202,8 +203,8 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
             <button
               onClick={() => handleTabChange("dashboard")}
               className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${activeTab === "dashboard"
-                  ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-105"
-                  : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-blue-600 dark:hover:text-blue-400"
+                ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-105"
+                : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-blue-600 dark:hover:text-blue-400"
                 }`}
             >
               <span className="flex items-center gap-2">
@@ -216,8 +217,8 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
             <button
               onClick={() => handleTabChange("accounts")}
               className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${activeTab === "accounts"
-                  ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-105"
-                  : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-blue-600 dark:hover:text-blue-400"
+                ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-105"
+                : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-blue-600 dark:hover:text-blue-400"
                 }`}
             >
               <span className="flex items-center gap-2">
@@ -230,8 +231,8 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
             <button
               onClick={() => handleTabChange("blog")}
               className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${activeTab === "blog"
-                  ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-105"
-                  : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-blue-600 dark:hover:text-blue-400"
+                ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-105"
+                : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-blue-600 dark:hover:text-blue-400"
                 }`}
             >
               <span className="flex items-center gap-2">
@@ -244,8 +245,8 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
             <button
               onClick={() => handleTabChange("reviews")}
               className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${activeTab === "reviews"
-                  ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-105"
-                  : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-blue-600 dark:hover:text-blue-400"
+                ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-105"
+                : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-blue-600 dark:hover:text-blue-400"
                 }`}
             >
               <span className="flex items-center gap-2">
@@ -258,8 +259,8 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
             <button
               onClick={() => handleTabChange("refunds")}
               className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${activeTab === "refunds"
-                  ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-105"
-                  : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-blue-600 dark:hover:text-blue-400"
+                ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-105"
+                : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-blue-600 dark:hover:text-blue-400"
                 }`}
             >
               <span className="flex items-center gap-2">
@@ -272,8 +273,8 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
             <button
               onClick={() => handleTabChange("payouts")}
               className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${activeTab === "payouts"
-                  ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-105"
-                  : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-blue-600 dark:hover:text-blue-400"
+                ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-105"
+                : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-blue-600 dark:hover:text-blue-400"
                 }`}
             >
               <span className="flex items-center gap-2">
@@ -286,8 +287,8 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
             <button
               onClick={() => handleTabChange("locations")}
               className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${activeTab === "locations"
-                  ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-105"
-                  : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-blue-600 dark:hover:text-blue-400"
+                ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-105"
+                : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-blue-600 dark:hover:text-blue-400"
                 }`}
             >
               <span className="flex items-center gap-2">
@@ -301,8 +302,8 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
             <button
               onClick={() => handleTabChange("resorts")}
               className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${activeTab === "resorts"
-                  ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-105"
-                  : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-blue-600 dark:hover:text-blue-400"
+                ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-105"
+                : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-blue-600 dark:hover:text-blue-400"
                 }`}
             >
               <span className="flex items-center gap-2">
@@ -315,8 +316,8 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
             <button
               onClick={() => handleTabChange("packages")}
               className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${activeTab === "packages"
-                  ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-105"
-                  : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-blue-600 dark:hover:text-blue-400"
+                ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-105"
+                : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-blue-600 dark:hover:text-blue-400"
                 }`}
             >
               <span className="flex items-center gap-2">
@@ -329,8 +330,8 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
             <button
               onClick={() => handleTabChange("utilities")}
               className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${activeTab === "utilities"
-                  ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-105"
-                  : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-blue-600 dark:hover:text-blue-400"
+                ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-105"
+                : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-blue-600 dark:hover:text-blue-400"
                 }`}
             >
               <span className="flex items-center gap-2">
@@ -341,10 +342,24 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
               </span>
             </button>
             <button
-              onClick={() => handleTabChange("profile")}
-              className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${activeTab === "profile"
+              onClick={() => handleTabChange("reports")}
+              className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${activeTab === "reports"
                   ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-105"
                   : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-blue-600 dark:hover:text-blue-400"
+                }`}
+            >
+              <span className="flex items-center gap-2">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Báo cáo
+              </span>
+            </button>
+            <button
+              onClick={() => handleTabChange("profile")}
+              className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${activeTab === "profile"
+                ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-105"
+                : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-blue-600 dark:hover:text-blue-400"
                 }`}
             >
               <span className="flex items-center gap-2">
@@ -360,8 +375,8 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
         <button
           onClick={() => handleTabChange("chat")}
           className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${activeTab === "chat"
-              ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-105"
-              : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-blue-600 dark:hover:text-blue-400"
+            ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-105"
+            : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-blue-600 dark:hover:text-blue-400"
             }`}
         >
           <span className="flex items-center gap-2">
@@ -500,6 +515,10 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
         ) : activeTab === "utilities" ? (
           <div className="space-y-6">
             <PageAdminUtilities />
+          </div>
+        ) : activeTab === "reports" ? (
+          <div className="space-y-6">
+            <PageAdminReports />
           </div>
         ) : activeTab === "blog" ? (
           <div className="space-y-6">
@@ -673,12 +692,12 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
                             <div className="flex items-center space-x-4">
                               <div
                                 className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-white shadow-lg ${index === 0
-                                    ? "bg-gradient-to-br from-yellow-400 to-orange-500"
-                                    : index === 1
-                                      ? "bg-gradient-to-br from-gray-400 to-gray-600"
-                                      : index === 2
-                                        ? "bg-gradient-to-br from-orange-500 to-red-600"
-                                        : "bg-gradient-to-br from-blue-500 to-blue-600"
+                                  ? "bg-gradient-to-br from-yellow-400 to-orange-500"
+                                  : index === 1
+                                    ? "bg-gradient-to-br from-gray-400 to-gray-600"
+                                    : index === 2
+                                      ? "bg-gradient-to-br from-orange-500 to-red-600"
+                                      : "bg-gradient-to-br from-blue-500 to-blue-600"
                                   }`}
                               >
                                 {index + 1}
@@ -729,12 +748,12 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
                             <div className="flex items-center space-x-4">
                               <div
                                 className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-white shadow-lg ${index === 0
-                                    ? "bg-gradient-to-br from-blue-500 to-blue-600"
-                                    : index === 1
-                                      ? "bg-gradient-to-br from-green-500 to-emerald-600"
-                                      : index === 2
-                                        ? "bg-gradient-to-br from-purple-500 to-pink-600"
-                                        : "bg-gradient-to-br from-orange-500 to-red-600"
+                                  ? "bg-gradient-to-br from-blue-500 to-blue-600"
+                                  : index === 1
+                                    ? "bg-gradient-to-br from-green-500 to-emerald-600"
+                                    : index === 2
+                                      ? "bg-gradient-to-br from-purple-500 to-pink-600"
+                                      : "bg-gradient-to-br from-orange-500 to-red-600"
                                   }`}
                               >
                                 {tenant.tenantName.substring(0, 2).toUpperCase()}

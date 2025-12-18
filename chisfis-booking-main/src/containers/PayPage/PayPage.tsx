@@ -195,7 +195,8 @@ const PayPage: FC<PayPageProps> = ({ className = "" }) => {
     const isSuccess = status === "success" && booking.status === "Confirmed";
     const startDate = moment(booking.startDate);
     const endDate = moment(booking.endDate);
-    const nights = endDate.diff(startDate, "days");
+    // Normalize dates to start of day to ensure accurate night calculation
+    const nights = endDate.startOf('day').diff(startDate.startOf('day'), "days");
 
     return (
       <div className="w-full flex flex-col sm:rounded-2xl sm:border border-neutral-200 dark:border-neutral-700 space-y-8 px-0 sm:p-6 xl:p-8">

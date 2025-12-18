@@ -1,5 +1,6 @@
 import React from "react";
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation, Navigate } from "react-router-dom";
+import { useAuth } from "contexts/AuthContext";
 import { Page } from "./types";
 import ScrollToTop from "./ScrollToTop";
 import Footer from "shared/Footer/Footer";
@@ -159,9 +160,20 @@ export const pages: Page[] = [
 
 const RoutesContent = () => {
   const location = useLocation();
+  const { isAdmin, isLoading } = useAuth();
   const WIN_WIDTH = useWindowSize().width || window.innerWidth;
   const isAdminRoute = location.pathname.startsWith("/admin");
   const isHostRoute = location.pathname.startsWith("/host-dashboard");
+  
+  // Block admin from accessing non-admin pages
+  // Allow login, signup, forgot-password, and chat pages (for customer support)
+  const allowedPathsForAdmin = ["/login", "/signup", "/forgot-pass", "/chat"];
+  const isAllowedPath = allowedPathsForAdmin.includes(location.pathname);
+  
+  // If admin tries to access non-admin pages (except allowed paths), redirect to /admin
+  if (!isLoading && isAdmin && !isAdminRoute && !isAllowedPath) {
+    return <Navigate to="/admin" replace />;
+  }
 
   return (
     <>

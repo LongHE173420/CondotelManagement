@@ -348,7 +348,6 @@ const PromotionModal: React.FC<PromotionModalProps> = ({
     name: promotion?.name || "",
     description: promotion?.description || "",
     discountPercentage: promotion?.discountPercentage || undefined,
-    discountAmount: promotion?.discountAmount || undefined,
     startDate: promotion?.startDate || "",
     endDate: promotion?.endDate || "",
     isActive: promotion?.isActive !== undefined ? promotion.isActive : true,
@@ -401,12 +400,29 @@ const PromotionModal: React.FC<PromotionModalProps> = ({
       setError("Vui lòng chọn ngày bắt đầu và kết thúc!");
       return;
     }
-    if (new Date(formData.startDate) >= new Date(formData.endDate)) {
+    const startDate = new Date(formData.startDate);
+    const endDate = new Date(formData.endDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Reset time to start of day for comparison
+    
+    if (startDate >= endDate) {
       setError("Ngày kết thúc phải sau ngày bắt đầu!");
       return;
     }
-    if (!formData.discountPercentage && !formData.discountAmount) {
-      setError("Vui lòng nhập phần trăm giảm giá hoặc số tiền giảm giá!");
+    
+    // Kiểm tra endDate không được ở quá khứ
+    if (endDate < today) {
+      setError("Ngày kết thúc không được ở quá khứ!");
+      return;
+    }
+    
+    // Kiểm tra startDate không được ở quá khứ (nếu đang tạo mới)
+    if (!promotion && startDate < today) {
+      setError("Ngày bắt đầu không được ở quá khứ!");
+      return;
+    }
+    if (!formData.discountPercentage) {
+      setError("Vui lòng nhập phần trăm giảm giá!");
       return;
     }
 
@@ -419,7 +435,6 @@ const PromotionModal: React.FC<PromotionModalProps> = ({
           name: formData.name.trim(),
           description: formData.description?.trim(),
           discountPercentage: formData.discountPercentage,
-          discountAmount: formData.discountAmount,
           startDate: formData.startDate,
           endDate: formData.endDate,
           isActive: formData.isActive,
@@ -433,7 +448,6 @@ const PromotionModal: React.FC<PromotionModalProps> = ({
           name: formData.name.trim(),
           description: formData.description?.trim(),
           discountPercentage: formData.discountPercentage,
-          discountAmount: formData.discountAmount,
           startDate: formData.startDate,
           endDate: formData.endDate,
           isActive: formData.isActive,
@@ -558,31 +572,12 @@ const PromotionModal: React.FC<PromotionModalProps> = ({
                       setFormData((prev) => ({
                         ...prev,
                         discountPercentage: e.target.value ? Number(e.target.value) : undefined,
-                        discountAmount: undefined, // Clear discountAmount if percentage is set
                       }))
                     }
                     className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-neutral-700 dark:text-neutral-100"
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                    Giảm giá (VNĐ)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={formData.discountAmount || ""}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        discountAmount: e.target.value ? Number(e.target.value) : undefined,
-                        discountPercentage: undefined, // Clear percentage if amount is set
-                      }))
-                    }
-                    className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-neutral-700 dark:text-neutral-100"
-                  />
-                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">

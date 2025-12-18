@@ -126,7 +126,9 @@ export const useChat = (currentUserId: number) => {
 
             // Map unread counts
             const counts: Record<number, number> = {};
-            res.data.forEach((c: any) => counts[c.conversationId] = c.unreadCount || 0);
+            res.data.forEach((conv) => {
+                counts[conv.conversationId] = conv.unreadCount || 0;
+            });
             setUnreadCounts(counts);
 
         } catch (err) {

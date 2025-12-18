@@ -25,23 +25,77 @@ const ModalPhotos: FC<ModalPhotosProps> = ({
   let completeButtonRef = useRef(null);
 
   let MY_GLIDEJS = useMemo(() => {
-    return new Glide(`.${UNIQUE_CLASS}`, {
-      // @ts-ignore
-      direction:
-        document.querySelector("html")?.getAttribute("dir") === "rtl"
-          ? "rtl"
-          : "ltr",
-      gap: 10,
-      perView: 1,
-      startAt: initFocus,
-    });
+    // Check if element exists before creating Glide instance
+    // Note: Element might not exist yet during initial render
+    try {
+      return new Glide(`.${UNIQUE_CLASS}`, {
+        // @ts-ignore
+        direction:
+          document.querySelector("html")?.getAttribute("dir") === "rtl"
+            ? "rtl"
+            : "ltr",
+        gap: 10,
+        perView: 1,
+        startAt: initFocus,
+      });
+    } catch (error) {
+      console.error("Error creating Glide instance:", error);
+      return null;
+    }
   }, [UNIQUE_CLASS, initFocus]);
 
   useEffect(() => {
-    if (!isOpen) return;
-    setTimeout(() => {
-      MY_GLIDEJS.mount();
-    }, 10);
+    if (!isOpen || !MY_GLIDEJS) {
+      return;
+    }
+
+    const checkAndMount = () => {
+      const element = document.querySelector(`.${UNIQUE_CLASS}`);
+      if (!element) {
+        console.warn(`Glide element not found: .${UNIQUE_CLASS}`);
+        return false;
+      }
+
+      // Check if element has valid dimensions
+      const rect = element.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) {
+        console.warn(`Glide element has zero dimensions: .${UNIQUE_CLASS}`);
+        return false;
+      }
+
+      if (!MY_GLIDEJS) {
+        console.warn("Glide instance is null");
+        return false;
+      }
+
+      try {
+        MY_GLIDEJS.mount();
+        return true;
+      } catch (error) {
+        console.error("Error mounting Glide:", error);
+        return false;
+      }
+    };
+
+    // Try to mount after modal is fully rendered
+    const timer = setTimeout(() => {
+      checkAndMount();
+    }, 100);
+
+    // Cleanup function
+    return () => {
+      clearTimeout(timer);
+      if (MY_GLIDEJS) {
+        try {
+          const element = document.querySelector(`.${UNIQUE_CLASS}`);
+          if (element && typeof (MY_GLIDEJS as any).unmount === 'function') {
+            (MY_GLIDEJS as any).unmount();
+          }
+        } catch (error) {
+          console.error("Error unmounting Glide:", error);
+        }
+      }
+    };
   }, [MY_GLIDEJS, isOpen, UNIQUE_CLASS]);
 
   const renderSlider = () => {

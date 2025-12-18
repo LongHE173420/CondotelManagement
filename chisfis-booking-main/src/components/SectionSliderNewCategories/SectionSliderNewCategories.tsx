@@ -92,38 +92,101 @@ const SectionSliderNewCategories: FC<SectionSliderNewCategoriesProps> = ({
     "SectionSliderNewCategories__" + uniqueClassName + useNcId();
 
   let MY_GLIDEJS = useMemo(() => {
-    return new Glide(`.${UNIQUE_CLASS}`, {
-      perView: itemPerRow,
-      gap: 32,
-      bound: true,
-      breakpoints: {
-        1280: {
-          perView: itemPerRow - 1,
+    // Note: Element might not exist yet during useMemo, we'll check in useEffect
+    try {
+      return new Glide(`.${UNIQUE_CLASS}`, {
+        perView: itemPerRow,
+        gap: 32,
+        bound: true,
+        breakpoints: {
+          1280: {
+            perView: itemPerRow - 1,
+          },
+          1024: {
+            gap: 20,
+            perView: itemPerRow - 1,
+          },
+          768: {
+            gap: 20,
+            perView: itemPerRow - 2,
+          },
+          640: {
+            gap: 20,
+            perView: itemPerRow - 3,
+          },
+          500: {
+            gap: 20,
+            perView: 1.3,
+          },
         },
-        1024: {
-          gap: 20,
-          perView: itemPerRow - 1,
-        },
-        768: {
-          gap: 20,
-          perView: itemPerRow - 2,
-        },
-        640: {
-          gap: 20,
-          perView: itemPerRow - 3,
-        },
-        500: {
-          gap: 20,
-          perView: 1.3,
-        },
-      },
-    });
-  }, [UNIQUE_CLASS]);
+      });
+    } catch (error) {
+      console.error("Error creating Glide instance:", error);
+      return null;
+    }
+  }, [UNIQUE_CLASS, itemPerRow]);
 
   useEffect(() => {
-    setTimeout(() => {
-      MY_GLIDEJS.mount();
-    }, 100);
+    if (!MY_GLIDEJS) {
+      return;
+    }
+
+    // Check if element exists before mounting
+    const checkAndMount = () => {
+      const element = document.querySelector(`.${UNIQUE_CLASS}`);
+      if (!element) {
+        console.warn(`Glide element not found: .${UNIQUE_CLASS}`);
+        return false;
+      }
+
+      // Check if element has valid dimensions
+      const rect = element.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) {
+        console.warn(`Glide element has zero dimensions: .${UNIQUE_CLASS}`);
+        return false;
+      }
+
+      if (!MY_GLIDEJS) {
+        console.warn("Glide instance is null");
+        return false;
+      }
+
+      try {
+        MY_GLIDEJS.mount();
+        return true;
+      } catch (error) {
+        console.error("Error mounting Glide:", error);
+        return false;
+      }
+    };
+
+    // Try to mount immediately, if fails, retry after a delay
+    let mounted = checkAndMount();
+    let timer: NodeJS.Timeout | null = null;
+
+    if (!mounted) {
+      timer = setTimeout(() => {
+        checkAndMount();
+      }, 200);
+    }
+
+    // Cleanup function
+    return () => {
+      if (timer) {
+        clearTimeout(timer);
+      }
+      if (MY_GLIDEJS) {
+        try {
+          // Check if element still exists before unmounting
+          const element = document.querySelector(`.${UNIQUE_CLASS}`);
+          if (element && typeof (MY_GLIDEJS as any).unmount === 'function') {
+            (MY_GLIDEJS as any).unmount();
+          }
+        } catch (error) {
+          console.error("Error unmounting Glide:", error);
+        }
+      }
+    };
   }, [MY_GLIDEJS, UNIQUE_CLASS]);
 
   const renderCard = (item: TaxonomyType, index: number) => {

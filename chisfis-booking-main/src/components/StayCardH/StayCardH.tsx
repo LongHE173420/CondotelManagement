@@ -32,6 +32,9 @@ const StayCardH: FC<StayCardHProps> = ({
     reviewStart,
     reviewCount,
     id,
+    maxGuests,
+    bedrooms,
+    bathrooms,
   } = data;
 
   const renderSliderGallery = () => {
@@ -53,40 +56,48 @@ const StayCardH: FC<StayCardHProps> = ({
     return (
       <div className="hidden sm:grid grid-cols-3 gap-2">
         <div className="space-y-3">
-          <div className="flex items-center space-x-3">
-            <i className="las la-user text-lg"></i>
-            <span className="text-sm text-neutral-500 dark:text-neutral-400">
-              6 guests
-            </span>
-          </div>
-          <div className="flex items-center space-x-3">
-            <i className="las la-bed text-lg"></i>
-            <span className="text-sm text-neutral-500 dark:text-neutral-400">
-              6 beds
-            </span>
-          </div>
+          {maxGuests && maxGuests > 0 && (
+            <div className="flex items-center space-x-3">
+              <i className="las la-user text-lg"></i>
+              <span className="text-sm text-neutral-500 dark:text-neutral-400">
+                {maxGuests} khách
+              </span>
+            </div>
+          )}
+          {bedrooms && bedrooms > 0 && (
+            <div className="flex items-center space-x-3">
+              <i className="las la-bed text-lg"></i>
+              <span className="text-sm text-neutral-500 dark:text-neutral-400">
+                {bedrooms} giường
+              </span>
+            </div>
+          )}
         </div>
         <div className="space-y-3">
-          <div className="flex items-center space-x-3">
-            <i className="las la-bath text-lg"></i>
-            <span className="text-sm text-neutral-500 dark:text-neutral-400">
-              3 baths
-            </span>
-          </div>
+          {bathrooms && bathrooms > 0 && (
+            <div className="flex items-center space-x-3">
+              <i className="las la-bath text-lg"></i>
+              <span className="text-sm text-neutral-500 dark:text-neutral-400">
+                {bathrooms} phòng tắm
+              </span>
+            </div>
+          )}
           <div className="flex items-center space-x-3">
             <i className="las la-smoking-ban text-lg"></i>
             <span className="text-sm text-neutral-500 dark:text-neutral-400">
-              No smoking
+              Không hút thuốc
             </span>
           </div>
         </div>
         <div className="space-y-3">
-          <div className="flex items-center space-x-3">
-            <i className="las la-door-open text-lg"></i>
-            <span className="text-sm text-neutral-500 dark:text-neutral-400">
-              6 bedrooms
-            </span>
-          </div>
+          {bedrooms && bedrooms > 0 && (
+            <div className="flex items-center space-x-3">
+              <i className="las la-door-open text-lg"></i>
+              <span className="text-sm text-neutral-500 dark:text-neutral-400">
+                {bedrooms} phòng ngủ
+              </span>
+            </div>
+          )}
           <div className="flex items-center space-x-3">
             <i className="las la-wifi text-lg"></i>
             <span className="text-sm text-neutral-500 dark:text-neutral-400">
@@ -104,7 +115,7 @@ const StayCardH: FC<StayCardHProps> = ({
         <div className="space-y-2">
           <div className="text-sm text-neutral-500 dark:text-neutral-400">
             <span>
-              {listingCategory.name} in {address}
+              {listingCategory.name} tại {address}
             </span>
           </div>
           <div className="flex items-center space-x-2">
@@ -123,7 +134,7 @@ const StayCardH: FC<StayCardHProps> = ({
             {price}
             {` `}
             <span className="text-sm text-neutral-500 dark:text-neutral-400 font-normal">
-              /night
+              /đêm
             </span>
           </span>
         </div>
