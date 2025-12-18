@@ -22,7 +22,7 @@ export interface AdminPageProps {
   className?: string;
 }
 
-type AdminTab = "dashboard" | "accounts" | "profile" | "blog" | "reviews" | "refunds" | "payouts" | "locations" | "resorts" | "packages" | "utilities"|"chat";
+type AdminTab = "dashboard" | "accounts" | "profile" | "blog" | "reviews" | "refunds" | "payouts" | "locations" | "resorts" | "packages" | "utilities" | "chat";
 
 const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
   const { isAdmin, isLoading } = useAuth();
@@ -201,11 +201,10 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
           <nav className="flex flex-wrap gap-2" aria-label="Tabs">
             <button
               onClick={() => handleTabChange("dashboard")}
-              className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${
-                activeTab === "dashboard"
+              className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${activeTab === "dashboard"
                   ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-105"
                   : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-blue-600 dark:hover:text-blue-400"
-              }`}
+                }`}
             >
               <span className="flex items-center gap-2">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -216,11 +215,10 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
             </button>
             <button
               onClick={() => handleTabChange("accounts")}
-              className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${
-                activeTab === "accounts"
+              className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${activeTab === "accounts"
                   ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-105"
                   : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-blue-600 dark:hover:text-blue-400"
-              }`}
+                }`}
             >
               <span className="flex items-center gap-2">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -231,11 +229,10 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
             </button>
             <button
               onClick={() => handleTabChange("blog")}
-              className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${
-                activeTab === "blog"
+              className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${activeTab === "blog"
                   ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-105"
                   : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-blue-600 dark:hover:text-blue-400"
-              }`}
+                }`}
             >
               <span className="flex items-center gap-2">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -246,11 +243,10 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
             </button>
             <button
               onClick={() => handleTabChange("reviews")}
-              className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${
-                activeTab === "reviews"
+              className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${activeTab === "reviews"
                   ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-105"
                   : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-blue-600 dark:hover:text-blue-400"
-              }`}
+                }`}
             >
               <span className="flex items-center gap-2">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -261,11 +257,10 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
             </button>
             <button
               onClick={() => handleTabChange("refunds")}
-              className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${
-                activeTab === "refunds"
+              className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${activeTab === "refunds"
                   ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-105"
                   : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-blue-600 dark:hover:text-blue-400"
-              }`}
+                }`}
             >
               <span className="flex items-center gap-2">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -276,11 +271,10 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
             </button>
             <button
               onClick={() => handleTabChange("payouts")}
-              className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${
-                activeTab === "payouts"
+              className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${activeTab === "payouts"
                   ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-105"
                   : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-blue-600 dark:hover:text-blue-400"
-              }`}
+                }`}
             >
               <span className="flex items-center gap-2">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -291,11 +285,10 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
             </button>
             <button
               onClick={() => handleTabChange("locations")}
-              className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${
-                activeTab === "locations"
+              className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${activeTab === "locations"
                   ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-105"
                   : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-blue-600 dark:hover:text-blue-400"
-              }`}
+                }`}
             >
               <span className="flex items-center gap-2">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -307,11 +300,10 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
             </button>
             <button
               onClick={() => handleTabChange("resorts")}
-              className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${
-                activeTab === "resorts"
+              className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${activeTab === "resorts"
                   ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-105"
                   : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-blue-600 dark:hover:text-blue-400"
-              }`}
+                }`}
             >
               <span className="flex items-center gap-2">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -322,11 +314,10 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
             </button>
             <button
               onClick={() => handleTabChange("packages")}
-              className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${
-                activeTab === "packages"
+              className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${activeTab === "packages"
                   ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-105"
                   : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-blue-600 dark:hover:text-blue-400"
-              }`}
+                }`}
             >
               <span className="flex items-center gap-2">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -337,11 +328,10 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
             </button>
             <button
               onClick={() => handleTabChange("utilities")}
-              className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${
-                activeTab === "utilities"
+              className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${activeTab === "utilities"
                   ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-105"
                   : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-blue-600 dark:hover:text-blue-400"
-              }`}
+                }`}
             >
               <span className="flex items-center gap-2">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -352,11 +342,10 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
             </button>
             <button
               onClick={() => handleTabChange("profile")}
-              className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${
-                activeTab === "profile"
+              className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${activeTab === "profile"
                   ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-105"
                   : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-blue-600 dark:hover:text-blue-400"
-              }`}
+                }`}
             >
               <span className="flex items-center gap-2">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -368,23 +357,22 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
           </nav>
         </div>
         {/* --- Nút Chat Mới Thêm --- */}
-            <button
-              onClick={() => handleTabChange("chat")}
-              className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${
-                activeTab === "chat"
-                  ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-105"
-                  : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-blue-600 dark:hover:text-blue-400"
-              }`}
-            >
-              <span className="flex items-center gap-2">
-                {/* Icon Chat Bubble */}
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                </svg>
-                Chat
-              </span>
-            </button>
-            {/* ------------------------- */}
+        <button
+          onClick={() => handleTabChange("chat")}
+          className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${activeTab === "chat"
+              ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-105"
+              : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-blue-600 dark:hover:text-blue-400"
+            }`}
+        >
+          <span className="flex items-center gap-2">
+            {/* Icon Chat Bubble */}
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+            Chat
+          </span>
+        </button>
+        {/* ------------------------- */}
 
         {error && activeTab === "dashboard" && (
           <div className="mb-6 p-6 bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 border-l-4 border-red-500 text-red-800 dark:text-red-200 rounded-xl shadow-lg backdrop-blur-sm">
@@ -555,10 +543,10 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
             </div>
             <AccountPage noLayout={true} />
           </div>
-          ) : activeTab === "chat" ? (
+        ) : activeTab === "chat" ? (
           <div className="bg-white dark:bg-neutral-800 rounded-2xl p-6 shadow-xl h-[800px]">
-             {/* Nhớ import PageChat ở trên đầu file nhé */}
-             <PageChat /> 
+            {/* Nhớ import PageChat ở trên đầu file nhé */}
+            <PageChat />
           </div>
         ) : (
           <>
@@ -684,15 +672,14 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
                           >
                             <div className="flex items-center space-x-4">
                               <div
-                                className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-white shadow-lg ${
-                                  index === 0
+                                className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-white shadow-lg ${index === 0
                                     ? "bg-gradient-to-br from-yellow-400 to-orange-500"
                                     : index === 1
                                       ? "bg-gradient-to-br from-gray-400 to-gray-600"
                                       : index === 2
                                         ? "bg-gradient-to-br from-orange-500 to-red-600"
                                         : "bg-gradient-to-br from-blue-500 to-blue-600"
-                                }`}
+                                  }`}
                               >
                                 {index + 1}
                               </div>
@@ -741,15 +728,14 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
                           >
                             <div className="flex items-center space-x-4">
                               <div
-                                className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-white shadow-lg ${
-                                  index === 0
+                                className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-white shadow-lg ${index === 0
                                     ? "bg-gradient-to-br from-blue-500 to-blue-600"
                                     : index === 1
                                       ? "bg-gradient-to-br from-green-500 to-emerald-600"
                                       : index === 2
                                         ? "bg-gradient-to-br from-purple-500 to-pink-600"
                                         : "bg-gradient-to-br from-orange-500 to-red-600"
-                                }`}
+                                  }`}
                               >
                                 {tenant.tenantName.substring(0, 2).toUpperCase()}
                               </div>
@@ -787,3 +773,4 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
 };
 
 export default AdminPage;
+//hello 
