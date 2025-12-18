@@ -81,6 +81,9 @@ export interface LocationStates {
   "/terms"?: {};
   "/privacy"?: {};
   "/regulations"?: {};
+  "/admin/blog-requests": {};        
+  "/host-dashboard/blog/create-blog"?: {};   // Đường dẫn tạo mới
+  "/host-dashboard/blog/edit/:id"?: {};
 }
 
 export type PathName = keyof LocationStates;

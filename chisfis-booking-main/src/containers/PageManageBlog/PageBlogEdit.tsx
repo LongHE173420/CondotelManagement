@@ -51,12 +51,10 @@ const PageBlogEdit = () => {
           setTitle(post.title);
           setContent(post.content);
           setFeaturedImage(post.featuredImageUrl || null);
-          if (post.categoryId) {
-            setCategoryId(post.categoryId);
-          }
-          if (post.status) {
-            setStatus(post.status);
-          }
+          setStatus(post.status || "Draft");
+          setCategoryId(post.categoryId);
+          // Note: Backend DTOs don't have status or categoryId in detail, 
+          // so we'll need to get them from the post if available
         } else {
           alert("Không tìm thấy bài viết!");
           navigate("/manage-blog");
@@ -486,4 +484,4 @@ const PageBlogEdit = () => {
   );
 };
 
-export default PageBlogEdit; 
+export default PageBlogEdit;

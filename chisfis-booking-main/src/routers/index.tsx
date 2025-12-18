@@ -74,6 +74,8 @@ import PageChat from "containers/ChatPage/PageChat";
 import PageTerms from "containers/PageTerms/PageTerms";
 import PagePrivacy from "containers/PagePrivacy/PagePrivacy";
 import PageRegulations from "containers/PageRegulations/PageRegulations";
+import HostCreateBlog from "containers/HostCreateBlogPage/HostCreateBlog";
+import AdminBlogRequests from "containers/AdminPage/AdminBlogRequests";
 
 export const pages: Page[] = [
   { path: "/", exact: true, component: PageHome },
@@ -152,6 +154,7 @@ export const pages: Page[] = [
   { path: "/terms", component: PageTerms },
   { path: "/privacy", component: PagePrivacy },
   { path: "/regulations", component: PageRegulations },
+  { path: "/admin/blog-requests", component: AdminBlogRequests },
 ];
 
 const RoutesContent = () => {
@@ -236,6 +239,25 @@ const RoutesContent = () => {
 
           return <Route key={path} element={<Component />} path={path} />;
         })}
+        <Route
+          path="/host-dashboard/create-blog"
+          element={
+            <HostLayout>
+              <ProtectedRoute requireAuth={true} requireHost={true}>
+                <HostCreateBlog />
+              </ProtectedRoute>
+            </HostLayout>
+          }
+        /><Route
+          path="/host-dashboard/blog/edit/:id"
+          element={
+            <HostLayout>
+              <ProtectedRoute requireAuth={true} requireHost={true}>
+                <HostCreateBlog />
+              </ProtectedRoute>
+            </HostLayout>
+          }
+        />
 
         {/* Protected Admin Route */}
         <Route

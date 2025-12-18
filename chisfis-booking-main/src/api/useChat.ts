@@ -61,7 +61,7 @@ export const useChat = (currentUserId: number) => {
         startConnection();
 
         // Xử lý sự kiện nhận tin nhắn mới
-  
+
 
         connection.on('ReceiveMessage', (messageDto: ChatMessageDto) => {
             // A. Cập nhật danh sách tin nhắn
