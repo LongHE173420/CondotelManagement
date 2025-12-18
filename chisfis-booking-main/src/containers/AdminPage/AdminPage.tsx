@@ -344,8 +344,8 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
             <button
               onClick={() => handleTabChange("reports")}
               className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${activeTab === "reports"
-                  ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-105"
-                  : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-blue-600 dark:hover:text-blue-400"
+                ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-105"
+                : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-blue-600 dark:hover:text-blue-400"
                 }`}
             >
               <span className="flex items-center gap-2">
@@ -792,4 +792,4 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
 };
 
 export default AdminPage;
-//hello 
+//hello 111
