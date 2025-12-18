@@ -25,12 +25,30 @@ const HostCondotelDashboard = () => {
   const { user, isAuthenticated } = useAuth();
   const [condotels, setCondotels] = useState<CondotelDTO[]>([]);
   const [bookings, setBookings] = useState<BookingDTO[]>([]);
+  const [allBookings, setAllBookings] = useState<BookingDTO[]>([]); // Store all bookings for client-side pagination
   const [loading, setLoading] = useState(false);
   const [bookingsLoading, setBookingsLoading] = useState(false);
   const [updatingStatusId, setUpdatingStatusId] = useState<number | null>(null);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const activeTab = searchParams.get("tab") || "condotels";
+  
+  // Filter states
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("");
+  const [condotelFilter, setCondotelFilter] = useState<number | undefined>(undefined);
+  const [bookingDateFrom, setBookingDateFrom] = useState("");
+  const [bookingDateTo, setBookingDateTo] = useState("");
+  const [startDateFrom, setStartDateFrom] = useState("");
+  const [startDateTo, setStartDateTo] = useState("");
+  const [sortBy, setSortBy] = useState<"bookingDate" | "startDate" | "endDate" | "totalPrice">("bookingDate");
+  const [sortDescending, setSortDescending] = useState(true);
+  
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
 
   // Ensure only Host can access
   useEffect(() => {
@@ -43,10 +61,34 @@ const HostCondotelDashboard = () => {
     if (activeTab === "condotels") {
       fetchCondotels();
     } else if (activeTab === "bookings") {
+      fetchCondotels(); // Load condotels for filter dropdown
       fetchBookings();
     }
     // Reviews will be loaded by HostReviewContent component
   }, [activeTab]);
+  
+  // Refetch bookings when filters change (with debounce for searchTerm)
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    if (activeTab === "bookings") {
+      setCurrentPage(1); // Reset to page 1 when filters change
+      setAllBookings([]); // Clear client-side cache when filters change
+      const timeoutId = setTimeout(() => {
+        fetchBookings();
+      }, searchTerm ? 500 : 0); // Debounce 500ms for search, immediate for other filters
+      
+      return () => clearTimeout(timeoutId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm, statusFilter, condotelFilter, bookingDateFrom, bookingDateTo, startDateFrom, startDateTo, sortBy, sortDescending]);
+  
+  // Refetch bookings when page changes
+  useEffect(() => {
+    if (activeTab === "bookings") {
+      fetchBookings();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage]);
 
   const fetchCondotels = async () => {
     try {
@@ -63,13 +105,104 @@ const HostCondotelDashboard = () => {
   const fetchBookings = async () => {
     try {
       setBookingsLoading(true);
-      const data = await bookingAPI.getHostBookings();
-      setBookings(data);
+      const filters: any = {
+        pageNumber: currentPage,
+        pageSize: pageSize,
+      };
+      if (searchTerm.trim()) filters.searchTerm = searchTerm.trim();
+      if (statusFilter) filters.status = statusFilter;
+      if (condotelFilter) filters.condotelId = condotelFilter;
+      if (bookingDateFrom) filters.bookingDateFrom = bookingDateFrom;
+      if (bookingDateTo) filters.bookingDateTo = bookingDateTo;
+      if (startDateFrom) filters.startDateFrom = startDateFrom;
+      if (startDateTo) filters.startDateTo = startDateTo;
+      if (sortBy) filters.sortBy = sortBy;
+      filters.sortDescending = sortDescending;
+      
+      console.log("📋 Fetching bookings with filters:", filters);
+      const result = await bookingAPI.getHostBookings(filters);
+      console.log("📋 Bookings API result:", result);
+      
+      // Handle both paginated and non-paginated responses
+      if (result && typeof result === 'object' && 'data' in result) {
+        // Paginated response: { data: [...], pagination: {...} }
+        const bookingsData = Array.isArray(result.data) ? result.data : [];
+        
+        if (result.pagination) {
+          // Server-side pagination
+          const pag = result.pagination;
+          const totalPagesValue = pag.totalPages || pag.TotalPages || Math.ceil((pag.totalCount || pag.TotalCount || bookingsData.length) / pageSize);
+          const totalCountValue = pag.totalCount || pag.TotalCount || bookingsData.length;
+          
+          console.log("✅ Server-side pagination - page", currentPage, "of", totalPagesValue, "total:", totalCountValue, "items");
+          
+          setBookings(bookingsData);
+          setTotalPages(totalPagesValue);
+          setTotalCount(totalCountValue);
+          setAllBookings([]); // Clear client-side cache
+        } else {
+          // No pagination info, treat as all data - use client-side pagination
+          console.log("⚠️ No pagination info, using client-side pagination for", bookingsData.length, "items");
+          setAllBookings(bookingsData);
+          
+          const startIndex = (currentPage - 1) * pageSize;
+          const endIndex = startIndex + pageSize;
+          const paginatedData = bookingsData.slice(startIndex, endIndex);
+          
+          setBookings(paginatedData);
+          setTotalPages(Math.ceil(bookingsData.length / pageSize));
+          setTotalCount(bookingsData.length);
+        }
+      } else if (Array.isArray(result)) {
+        // Legacy format: just array - client-side pagination
+        console.log("⚠️ Legacy format - array with", result.length, "items, applying client-side pagination");
+        setAllBookings(result); // Store all bookings
+        
+        const startIndex = (currentPage - 1) * pageSize;
+        const endIndex = startIndex + pageSize;
+        const paginatedData = result.slice(startIndex, endIndex);
+        
+        setBookings(paginatedData);
+        setTotalPages(Math.ceil(result.length / pageSize));
+        setTotalCount(result.length);
+      } else {
+        // Fallback
+        console.warn("❌ Unknown result format:", result);
+        setBookings([]);
+        setAllBookings([]);
+        setTotalPages(1);
+        setTotalCount(0);
+      }
     } catch (err: any) {
+      console.error("❌ Error fetching bookings:", err);
       toastError("Không thể tải danh sách booking");
       setBookings([]);
+      setTotalPages(1);
+      setTotalCount(0);
     } finally {
       setBookingsLoading(false);
+    }
+  };
+  
+  const handleResetFilters = () => {
+    setSearchTerm("");
+    setStatusFilter("");
+    setCondotelFilter(undefined);
+    setBookingDateFrom("");
+    setBookingDateTo("");
+    setStartDateFrom("");
+    setStartDateTo("");
+    setSortBy("bookingDate");
+    setSortDescending(true);
+    setCurrentPage(1); // Reset to page 1 when resetting filters
+    setAllBookings([]); // Clear client-side cache
+  };
+  
+  const handlePageChange = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+      // Scroll to top of bookings section
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
@@ -238,10 +371,14 @@ const HostCondotelDashboard = () => {
     }
 
     try {
-      await condotelAPI.delete(condotelId);
-      toastSuccess("Đã vô hiệu hóa condotel thành công!");
-      // Refresh danh sách
-      await fetchCondotels();
+      const result = await condotelAPI.delete(condotelId);
+      if (result.success) {
+        toastSuccess(result.message || "Đã vô hiệu hóa condotel thành công!");
+        // Refresh danh sách
+        await fetchCondotels();
+      } else {
+        toastError(result.message || "Không thể vô hiệu hóa condotel. Vui lòng thử lại sau.");
+      }
     } catch (err: any) {
       const message = err.response?.data?.message || err.response?.data?.error || "Không thể vô hiệu hóa condotel. Vui lòng thử lại sau.";
       toastError(message);

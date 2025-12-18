@@ -97,30 +97,41 @@ const StaySearchForm: FC<StaySearchFormProps> = ({
     e.preventDefault();
     
     try {
-      // Get the latest location value from the form input as well
+      // Get the latest location value - prioritize state over input value
       const form = e.currentTarget as HTMLFormElement;
       const locationInput = form.querySelector('input[type="text"]') as HTMLInputElement;
-      const currentLocationValue = locationInput?.value?.trim() || locationInputValue?.trim() || "";
+      // Use locationInputValue state (which is updated by LocationInput onChange) as primary source
+      // Fallback to input value if state is not available
+      const currentLocationValue = (locationInputValue?.trim() || locationInput?.value?.trim() || "").trim();
+      
+      console.log("🔍 StaySearchForm - Submitting with location:", currentLocationValue);
+      console.log("🔍 StaySearchForm - locationInputValue state:", locationInputValue);
+      console.log("🔍 StaySearchForm - input value:", locationInput?.value);
       
       // Build search params - IMPORTANT: Set location FIRST, then dates
       const params = new URLSearchParams();
       
       // Set location FIRST to ensure it's not overwritten
-      if (currentLocationValue && currentLocationValue.trim()) {
-        const trimmedLocation = currentLocationValue.trim();
+      if (currentLocationValue && currentLocationValue.length > 0) {
         // Validate location is not a date format
-        if (!/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(trimmedLocation)) {
-          params.set("location", trimmedLocation);
+        const isDate = /^\d{1,2}[/-]\d{1,2}[/-]\d{4}$/.test(currentLocationValue) || /^\d{4}[/-]\d{1,2}[/-]\d{1,2}$/.test(currentLocationValue);
+        if (!isDate) {
+          params.set("location", currentLocationValue);
+          console.log("✅ StaySearchForm - Setting location param:", currentLocationValue);
+        } else {
+          console.log("⚠️ StaySearchForm - Location looks like date, skipping:", currentLocationValue);
         }
       }
       
       // Then set dates
       if (dateRangeValue.startDate) {
         params.set("startDate", dateRangeValue.startDate.format("YYYY-MM-DD"));
+        console.log("✅ StaySearchForm - Setting startDate:", dateRangeValue.startDate.format("YYYY-MM-DD"));
       }
       
       if (dateRangeValue.endDate) {
         params.set("endDate", dateRangeValue.endDate.format("YYYY-MM-DD"));
+        console.log("✅ StaySearchForm - Setting endDate:", dateRangeValue.endDate.format("YYYY-MM-DD"));
       }
       
       // Calculate total guests
@@ -131,41 +142,27 @@ const StaySearchForm: FC<StaySearchFormProps> = ({
       
       if (totalGuests > 0) {
         params.set("guests", totalGuests.toString());
+        console.log("✅ StaySearchForm - Setting guests:", totalGuests);
       }
 
-      // Navigate to listing-stay page with search params
-      const queryString = params.toString();
-      
-      // Validate: location should not be a date format
-      const locationParam = params.get("location");
-      if (locationParam && /^\d{2}\/\d{2}\/\d{4}$/.test(locationParam)) {
-        params.delete("location");
-        // Try to get location from state instead
-        if (currentLocationValue && !/^\d{2}\/\d{2}\/\d{4}$/.test(currentLocationValue)) {
-          params.set("location", currentLocationValue);
-        }
-      }
-      
+      // No need for _search flag - components will auto-search when params exist
+
       const finalQueryString = params.toString();
-      if (currentLocationValue && currentLocationValue.trim() && !/^\d{2}\/\d{2}\/\d{4}$/.test(currentLocationValue.trim())) {
-        // If location is provided and valid, navigate to map view
-        const finalUrl = `/listing-stay-map${finalQueryString ? `?${finalQueryString}` : ""}`;
-        navigate(finalUrl, { 
-          state: { 
-            searchParams: Object.fromEntries(params),
-            preserveQuery: true 
-          }
-        });
-      } else {
-        // Otherwise, navigate to list view
-        const finalUrl = `/listing-stay${finalQueryString ? `?${finalQueryString}` : ""}`;
-        navigate(finalUrl, { 
-          state: { 
-            searchParams: Object.fromEntries(params),
-            preserveQuery: true 
-          }
-        });
-      }
+      console.log("🔍 StaySearchForm - Final query string:", finalQueryString);
+      console.log("🔍 StaySearchForm - All params:", Object.fromEntries(params));
+      
+      // Navigate to listing-stay-map if location is provided, otherwise listing-stay
+      const hasLocation = params.get("location");
+      const targetPath = hasLocation ? "/listing-stay-map" : "/listing-stay";
+      const finalUrl = `${targetPath}${finalQueryString ? `?${finalQueryString}` : ""}`;
+      console.log("🔍 StaySearchForm - Navigating to:", finalUrl);
+      console.log("🔍 StaySearchForm - Has location:", hasLocation);
+      navigate(finalUrl, { 
+        state: { 
+          searchParams: Object.fromEntries(params),
+          preserveQuery: true 
+        }
+      });
     } catch (error) {
       // Fallback: navigate to listing page without params
       navigate("/listing-stay");

@@ -27,17 +27,24 @@ const normalizeUtility = (item: any): UtilityDTO => ({
 const utilityAPI = {
   // ========== HOST ENDPOINTS ==========
   
-  // GET /api/host/utility - Lấy danh sách utilities của host hiện tại
+  // GET /api/admin/utility/all - Lấy tất cả utilities (dùng cho host và admin)
   getAll: async (): Promise<UtilityDTO[]> => {
-    const response = await axiosClient.get<any>("/host/utility");
-    const data = response.data;
-    
-    // Normalize response (handle both array and object with data property)
-    const utilities = Array.isArray(data) 
-      ? data 
-      : (data.data || []);
-    
-    return utilities.map(normalizeUtility);
+    try {
+      // Thử dùng admin endpoint vì host endpoint không tồn tại
+      const response = await axiosClient.get<any>("/admin/utility/all");
+      const data = response.data;
+      
+      // Backend có thể trả về { success, data, message } hoặc array trực tiếp
+      const utilities = data.success && data.data 
+        ? data.data 
+        : (Array.isArray(data) ? data : (data.data || []));
+      
+      return utilities.map(normalizeUtility);
+    } catch (error) {
+      console.error("Failed to load utilities from /admin/utility/all, trying fallback:", error);
+      // Fallback: trả về mảng rỗng nếu cả hai endpoint đều fail
+      return [];
+    }
   },
 
   // GET /api/host/utility/resort/{resortId} - Lấy danh sách utilities theo resort
@@ -45,10 +52,15 @@ const utilityAPI = {
     const response = await axiosClient.get<any>(`/host/utility/resort/${resortId}`);
     const data = response.data;
     
-    // Normalize response (handle both array and object with data property)
-    const utilities = Array.isArray(data) 
-      ? data 
-      : (data.data || []);
+    // Handle response wrapper: { success: true, data: [...] } hoặc array trực tiếp
+    let utilities: any[] = [];
+    if (data.success && data.data && Array.isArray(data.data)) {
+      utilities = data.data;
+    } else if (Array.isArray(data)) {
+      utilities = data;
+    } else if (data.data && Array.isArray(data.data)) {
+      utilities = data.data;
+    }
     
     return utilities.map(normalizeUtility);
   },

@@ -207,6 +207,14 @@ export const hostAPI = {
       throw err;
     }
   },
+
+  // GET /api/host/report/download/{reportId} - Host tải file báo cáo
+  downloadReport: async (reportId: number): Promise<Blob> => {
+    const response = await axiosClient.get<Blob>(`/host/report/download/${reportId}`, {
+      responseType: 'blob',
+    });
+    return response.data as Blob;
+  },
 };
 
 export default hostAPI;

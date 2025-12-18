@@ -1,7 +1,10 @@
 // src/containers/ChatPage/PageChat.tsx
 import React, { useState, useEffect, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { useChat } from '../../api/useChat';
+import { useAuth } from '../../contexts/AuthContext';
+import axios from 'axios';
+import { ChatMessageDto } from '../../types/chatTypes';
 
 const ADMIN_ID = 1;
 
@@ -21,10 +24,13 @@ const useCurrentUser = () => {
 
 const PageChat: React.FC = () => {
     const { userId: currentUserId } = useCurrentUser();
-    const location = useLocation(); // Hook lấy dữ liệu điều hướng
-
-    // Nhận targetUserId từ trang Detail (nếu có)
-    const initialTargetId = location.state?.targetUserId;
+    const { user, isAdmin } = useAuth();
+    const location = useLocation();
+    const [searchParams] = useSearchParams();
+    
+    // Nhận targetUserId từ query parameter (hostId) hoặc state
+    const hostIdFromQuery = searchParams.get('hostId');
+    const initialTargetId = hostIdFromQuery || location.state?.targetUserId;
     const initialTargetName = location.state?.targetName || "Người dùng";
 
     const {
@@ -57,18 +63,24 @@ const PageChat: React.FC = () => {
 
     // --- LOGIC MỚI: TỰ ĐỘNG MỞ CHAT TỪ TRANG DETAIL ---
     useEffect(() => {
-        // Chỉ chạy khi đã kết nối SignalR thành công và có targetId từ router
+        // Chỉ chạy khi đã kết nối SignalR thành công và có targetId từ router hoặc query param
         if (isConnected && initialTargetId && currentUserId > 0) {
+            const targetId = Number(initialTargetId);
             // Không tự chat với chính mình
-            if (Number(initialTargetId) !== currentUserId) {
-                console.log("Auto opening chat with:", initialTargetId);
-                openChatWithUser(Number(initialTargetId));
+            if (targetId !== currentUserId && !isNaN(targetId)) {
+                console.log("Auto opening chat with:", targetId);
+                openChatWithUser(targetId);
 
-                // (Optional) Xóa state history để F5 không bị trigger lại logic này
-                window.history.replaceState({}, document.title);
+                // Xóa query parameter để tránh trigger lại khi F5
+                if (hostIdFromQuery) {
+                    window.history.replaceState({}, document.title, '/chat');
+                } else {
+                    // Xóa state history nếu dùng state
+                    window.history.replaceState({}, document.title);
+                }
             }
         }
-    }, [isConnected, initialTargetId, currentUserId]); // Bỏ openChatWithUser ra khỏi deps để tránh loop
+    }, [isConnected, initialTargetId, currentUserId, hostIdFromQuery, openChatWithUser]);
 
     // Xử lý khi chọn hội thoại từ Sidebar
     const handleSelectConversation = async (convId: number) => {
@@ -112,14 +124,41 @@ const PageChat: React.FC = () => {
         });
     };
 
-    // Helper: Lấy tên người chat cùng để hiển thị trên Header
-    const getPartnerName = (convId: number) => {
-        const conv = conversations.find(c => c.conversationId === convId);
-        if (conv) return conv.otherUserName || "Người dùng";
-        // Fallback: nếu chưa load kịp list mà đang chat với user từ trang Detail
-        if (initialTargetId && Number(initialTargetId) !== currentUserId) return initialTargetName;
-        return "Đang tải...";
+    const getPartnerName = (conv: any) => {
+        if (!conv) return "Hỗ trợ khách hàng";
+        // Ưu tiên sử dụng otherUser từ API
+        if (conv.otherUser && conv.otherUser.fullName) {
+            return conv.otherUser.fullName;
+        }
+        // Fallback về logic cũ nếu không có otherUser
+        const partnerId = conv.userAId === currentUserId ? conv.userBId : conv.userAId;
+        return partnerId === ADMIN_ID ? "Hỗ trợ khách hàng" : `User ${partnerId}`;
     };
+
+    const getPartnerImage = (conv: any) => {
+        if (!conv) return null;
+        // Ưu tiên sử dụng otherUser từ API
+        if (conv.otherUser && conv.otherUser.imageUrl) {
+            return conv.otherUser.imageUrl;
+        }
+        return null;
+    };
+
+    const getSenderName = (msg: any) => {
+        if (msg.sender && msg.sender.fullName) {
+            return msg.sender.fullName;
+        }
+        return msg.senderId === currentUserId ? "Bạn" : `User ${msg.senderId}`;
+    };
+
+    const getSenderImage = (msg: any) => {
+        if (msg.sender && msg.sender.imageUrl) {
+            return msg.sender.imageUrl;
+        }
+        return null;
+    };
+
+    const currentConv = conversations.find(c => c.conversationId === currentConvId);
 
     if (currentUserId <= 0) {
         return (
@@ -130,9 +169,11 @@ const PageChat: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-gray-100 py-6">
-            <div className="max-w-7xl mx-auto px-4">
-                <h1 className="text-3xl font-bold text-center mb-6 text-gray-800">Hệ thống tin nhắn</h1>
+        <div className="min-h-screen bg-gray-100">
+            <div className="max-w-7xl mx-auto px-4 py-8">
+                <h1 className="text-4xl font-bold text-center mb-10 text-gray-800">
+                    {isAdmin ? "Hỗ trợ khách hàng - Admin" : "Hỗ trợ khách hàng"}
+                </h1>
 
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[75vh]">
 
@@ -142,113 +183,196 @@ const PageChat: React.FC = () => {
                             Danh sách
                         </div>
 
-                        {/* Nút Chat với Admin (nếu không phải là Admin) */}
-                        {currentUserId !== ADMIN_ID && (
-                            <div className="p-3 border-b bg-blue-50">
+                        {!isAdmin && currentUserId !== ADMIN_ID && (
+                            <div className="p-4 border-b">
                                 <button
                                     onClick={() => openChatWithUser(ADMIN_ID)}
-                                    className="w-full py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-medium text-sm"
+                                    className="w-full py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition shadow-md"
                                 >
-                                    💬 Hỗ trợ khách hàng
+                                    Chat với hỗ trợ
                                 </button>
+                            </div>
+                        )}
+                        {isAdmin && (
+                            <div className="p-4 border-b bg-blue-50">
+                                <p className="text-sm text-blue-700 font-semibold text-center">
+                                    👨‍💼 Bạn đang ở chế độ Admin - Hỗ trợ khách hàng
+                                </p>
                             </div>
                         )}
 
                         <div className="flex-1 overflow-y-auto">
                             {conversations.length === 0 ? (
-                                <p className="text-center text-gray-400 py-10">Chưa có cuộc hội thoại nào.</p>
+                                <p className="text-center text-gray-400 py-10">Chưa có tin nhắn nào</p>
                             ) : (
-                                conversations.map(conv => (
-                                    <div
-                                        key={conv.conversationId}
-                                        onClick={() => handleSelectConversation(conv.conversationId)}
-                                        className={`p-4 border-b cursor-pointer hover:bg-gray-50 transition ${currentConvId === conv.conversationId ? 'bg-blue-50 border-l-4 border-blue-600' : ''
-                                            }`}
-                                    >
-                                        <div className="font-semibold text-gray-800">
-                                            {conv.otherUserName || "Unknown"}
+                                conversations.map(conv => {
+                                    const partnerImage = getPartnerImage(conv);
+                                    return (
+                                        <div
+                                            key={conv.conversationId}
+                                            onClick={() => handleSelectConversation(conv.conversationId)}
+                                            className={`p-4 border-b cursor-pointer transition-all ${currentConvId === conv.conversationId
+                                                ? 'bg-blue-50 border-l-4 border-blue-600'
+                                                : 'hover:bg-gray-50'
+                                                }`}
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                {partnerImage ? (
+                                                    <img
+                                                        src={partnerImage}
+                                                        alt={getPartnerName(conv)}
+                                                        className="w-12 h-12 rounded-full object-cover"
+                                                    />
+                                                ) : (
+                                                    <div className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center text-white font-semibold">
+                                                        {getPartnerName(conv).charAt(0).toUpperCase()}
+                                                    </div>
+                                                )}
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="font-semibold text-gray-800 truncate">
+                                                        {getPartnerName(conv)}
+                                                    </div>
+                                                    <p className="text-sm text-gray-500 truncate mt-1">
+                                                        {conv.lastMessage?.content || "Bắt đầu trò chuyện"}
+                                                    </p>
+                                                </div>
+                                                {conv.unreadCount && conv.unreadCount > 0 && (
+                                                    <div className="bg-blue-600 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
+                                                        {conv.unreadCount > 9 ? '9+' : conv.unreadCount}
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
-                                        <div className="text-sm text-gray-500 truncate mt-1">
-                                            {conv.lastMessage?.content || "..."}
-                                        </div>
-                                        <div className="text-xs text-gray-400 text-right mt-1">
-                                            {formatTime(conv.lastMessage?.sentAt as string)}
-                                        </div>
-                                    </div>
-                                ))
+                                    );
+                                })
                             )}
                         </div>
                     </div>
 
-                    {/* --- RIGHT CONTENT: KHUNG CHAT --- */}
-                    <div className="lg:col-span-3 bg-white rounded-2xl shadow-lg flex flex-col overflow-hidden">
-                        {currentConvId ? (
-                            <>
-                                {/* Chat Header */}
-                                <div className="p-4 border-b bg-white shadow-sm flex items-center justify-between z-10">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
-                                            {getPartnerName(currentConvId).charAt(0).toUpperCase()}
-                                        </div>
-                                        <div>
-                                            <h2 className="font-bold text-lg text-gray-800">{getPartnerName(currentConvId)}</h2>
-                                            <span className="text-xs text-green-500 flex items-center gap-1">
-                                                <span className="w-2 h-2 rounded-full bg-green-500"></span> Online
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Messages List */}
-                                <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50">
-                                    {messages.map((msg, index) => {
-                                        const isMine = msg.senderId === currentUserId;
-                                        return (
-                                            <div key={index} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
-                                                <div className={`max-w-[70%] px-5 py-3 rounded-2xl shadow-sm relative group ${isMine ? 'bg-blue-600 text-white rounded-tr-none' : 'bg-white text-gray-800 border border-gray-100 rounded-tl-none'
-                                                    }`}>
-                                                    <p className="text-sm leading-relaxed">{msg.content}</p>
-                                                    <p className={`text-[10px] mt-1 text-right ${isMine ? 'text-blue-200' : 'text-gray-400'}`}>
-                                                        {formatTime(msg.sentAt as string)}
-                                                    </p>
+                    {/* Khu vực chat chính */}
+                    <div className="lg:col-span-3">
+                        <div className="bg-white rounded-2xl shadow-xl h-[720px] flex flex-col overflow-hidden">
+                            {currentConvId ? (
+                                <>
+                                    {/* Header */}
+                                    <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-6 rounded-t-2xl">
+                                        <div className="flex items-center gap-4">
+                                            {getPartnerImage(currentConv) ? (
+                                                <img
+                                                    src={getPartnerImage(currentConv)!}
+                                                    alt={getPartnerName(currentConv)}
+                                                    className="w-12 h-12 rounded-full object-cover border-2 border-white"
+                                                />
+                                            ) : (
+                                                <div className="w-12 h-12 rounded-full bg-white bg-opacity-20 flex items-center justify-center text-white font-semibold text-xl">
+                                                    {getPartnerName(currentConv).charAt(0).toUpperCase()}
                                                 </div>
-                                            </div>
-                                        );
-                                    })}
-                                    <div ref={messagesEndRef} />
-                                </div>
-
-                                {/* Input Area */}
-                                <div className="p-4 bg-white border-t">
-                                    <div className="flex items-center gap-2 bg-gray-100 rounded-full px-4 py-2">
-                                        <input
-                                            type="text"
-                                            className="flex-1 bg-transparent focus:outline-none py-2 text-gray-700"
-                                            placeholder="Nhập tin nhắn..."
-                                            value={inputText}
-                                            onChange={(e) => setInputText(e.target.value)}
-                                            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                                        />
-                                        <button
-                                            onClick={handleSend}
-                                            disabled={!inputText.trim()}
-                                            className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition"
-                                        >
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                                <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
-                                            </svg>
-                                        </button>
+                                            )}
+                                            <h2 className="text-2xl font-bold">{getPartnerName(currentConv)}</h2>
+                                        </div>
                                     </div>
+
+                                    {/* Tin nhắn */}
+                                    <div className="flex-1 overflow-y-auto p-6 space-y-5 bg-gray-50">
+                                        {messages.length === 0 ? (
+                                            <p className="text-center text-gray-400">Chưa có tin nhắn, hãy bắt đầu cuộc trò chuyện!</p>
+                                        ) : (
+                                            messages.map(msg => {
+                                                const isMine = msg.senderId === currentUserId;
+                                                const senderImage = getSenderImage(msg);
+                                                return (
+                                                    <div
+                                                        key={msg.messageId || `${msg.sentAt}-${msg.senderId}`}
+                                                        className={`flex gap-3 ${isMine ? 'justify-end' : 'justify-start'}`}
+                                                    >
+                                                        {!isMine && (
+                                                            <div className="flex-shrink-0">
+                                                                {senderImage ? (
+                                                                    <img
+                                                                        src={senderImage}
+                                                                        alt={getSenderName(msg)}
+                                                                        className="w-10 h-10 rounded-full object-cover"
+                                                                    />
+                                                                ) : (
+                                                                    <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center text-gray-600 font-semibold text-sm">
+                                                                        {getSenderName(msg).charAt(0).toUpperCase()}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                        <div className={`flex flex-col ${isMine ? 'items-end' : 'items-start'} max-w-[75%]`}>
+                                                            {!isMine && (
+                                                                <span className="text-xs text-gray-500 mb-1 px-2">
+                                                                    {getSenderName(msg)}
+                                                                </span>
+                                                            )}
+                                                            <div
+                                                                className={`px-5 py-3 rounded-3xl shadow-md ${isMine
+                                                                    ? 'bg-blue-600 text-white'
+                                                                    : 'bg-white text-gray-800 border border-gray-200'
+                                                                    }`}
+                                                            >
+                                                                <p className="text-sm leading-relaxed break-words">{msg.content}</p>
+                                                                <p className={`text-xs mt-2 opacity-70 ${isMine ? 'text-right' : 'text-left'}`}>
+                                                                    {new Date(msg.sentAt).toLocaleTimeString('vi-VN', {
+                                                                        hour: '2-digit',
+                                                                        minute: '2-digit'
+                                                                    })}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        {isMine && (
+                                                            <div className="flex-shrink-0">
+                                                                {senderImage ? (
+                                                                    <img
+                                                                        src={senderImage}
+                                                                        alt={getSenderName(msg)}
+                                                                        className="w-10 h-10 rounded-full object-cover"
+                                                                    />
+                                                                ) : (
+                                                                    <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-semibold text-sm">
+                                                                        {getSenderName(msg).charAt(0).toUpperCase()}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })
+                                        )}
+                                        <div ref={messagesEndRef} />
+                                    </div>
+
+                                    {/* Input gửi tin nhắn */}
+                                    <div className="p-5 border-t bg-white">
+                                        <div className="flex gap-3">
+                                            <input
+                                                type="text"
+                                                value={inputText}
+                                                onChange={(e) => setInputText(e.target.value)}
+                                                onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
+                                                placeholder="Aa..."
+                                                className="flex-1 px-6 py-4 border border-gray-300 rounded-full focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition text-base"
+                                            />
+                                            <button
+                                                onClick={handleSend}
+                                                disabled={!inputText.trim()}
+                                                className="px-8 py-4 bg-blue-600 text-white rounded-full font-semibold hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition shadow-lg"
+                                            >
+                                                Gửi
+                                            </button>
+                                        </div>
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-20 w-20 mb-4 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                                    </svg>
+                                    <p className="text-lg">Chọn một cuộc hội thoại để bắt đầu</p>
                                 </div>
-                            </>
-                        ) : (
-                            <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-20 w-20 mb-4 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                                </svg>
-                                <p className="text-lg">Chọn một cuộc hội thoại để bắt đầu</p>
-                            </div>
-                        )}
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>

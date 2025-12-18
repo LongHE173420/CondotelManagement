@@ -23,17 +23,71 @@ const GallerySlider: FC<GallerySliderProps> = ({
   const UNIQUE_CLASS = `gallerySlider__${uniqueID}` + useNcId();
 
   let MY_GLIDEJS = useMemo(() => {
-    return new Glide(`.${UNIQUE_CLASS}`, {
-      perView: 1,
-      gap: 0,
-      keyboard: false,
-    });
+    // Note: Element might not exist yet during useMemo, we'll check in useEffect
+    try {
+      return new Glide(`.${UNIQUE_CLASS}`, {
+        perView: 1,
+        gap: 0,
+        keyboard: false,
+      });
+    } catch (error) {
+      console.error("Error creating Glide instance:", error);
+      return null;
+    }
   }, [UNIQUE_CLASS]);
 
   useEffect(() => {
-    setTimeout(() => {
-      MY_GLIDEJS.mount();
-    }, 10);
+    if (!MY_GLIDEJS) {
+      return;
+    }
+
+    const checkAndMount = () => {
+      const element = document.querySelector(`.${UNIQUE_CLASS}`);
+      if (!element) {
+        console.warn(`Glide element not found: .${UNIQUE_CLASS}`);
+        return false;
+      }
+
+      // Check if element has valid dimensions
+      const rect = element.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) {
+        console.warn(`Glide element has zero dimensions: .${UNIQUE_CLASS}`);
+        return false;
+      }
+
+      if (!MY_GLIDEJS) {
+        console.warn("Glide instance is null");
+        return false;
+      }
+
+      try {
+        MY_GLIDEJS.mount();
+        return true;
+      } catch (error) {
+        console.error("Error mounting Glide:", error);
+        return false;
+      }
+    };
+
+    // Try to mount after a short delay to ensure DOM is ready
+    const timer = setTimeout(() => {
+      checkAndMount();
+    }, 50);
+
+    // Cleanup function
+    return () => {
+      clearTimeout(timer);
+      if (MY_GLIDEJS) {
+        try {
+          const element = document.querySelector(`.${UNIQUE_CLASS}`);
+          if (element && typeof (MY_GLIDEJS as any).unmount === 'function') {
+            (MY_GLIDEJS as any).unmount();
+          }
+        } catch (error) {
+          console.error("Error unmounting Glide:", error);
+        }
+      }
+    };
   }, [MY_GLIDEJS, UNIQUE_CLASS, galleryImgs]);
 
   const renderDots = () => {

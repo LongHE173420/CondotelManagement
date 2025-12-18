@@ -4,6 +4,7 @@ import { useAuth } from "contexts/AuthContext";
 import walletAPI, { WalletDTO, WalletCreateDTO, WalletUpdateDTO } from "api/wallet";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
 import ButtonSecondary from "shared/Button/ButtonSecondary";
+import { toastSuccess, toastError } from "utils/toast";
 
 const HostWalletContent: React.FC = () => {
   const { user, isAuthenticated } = useAuth();
@@ -62,13 +63,25 @@ const HostWalletContent: React.FC = () => {
 
   const handleSetDefault = async (walletId: number) => {
     setSettingDefaultId(walletId);
+    setError("");
+    setSuccess("");
     try {
-      await walletAPI.setDefault(walletId);
-      setSuccess("Đã đặt tài khoản làm mặc định!");
-      await loadData();
+      const result = await walletAPI.setDefault(walletId);
+      if (result.success) {
+        const successMsg = result.message || "Đã đặt tài khoản làm mặc định thành công!";
+        setSuccess(successMsg);
+        toastSuccess(successMsg);
+        await loadData();
+      } else {
+        const errorMsg = result.message || "Không thể đặt tài khoản làm mặc định";
+        setError(errorMsg);
+        toastError(errorMsg);
+      }
     } catch (err: any) {
       console.error("Failed to set default wallet:", err);
-      setError(err.response?.data?.message || "Không thể đặt tài khoản làm mặc định");
+      const errorMsg = err.response?.data?.message || err.response?.data?.error || err.message || "Không thể đặt tài khoản làm mặc định";
+      setError(errorMsg);
+      toastError(errorMsg);
     } finally {
       setSettingDefaultId(null);
     }

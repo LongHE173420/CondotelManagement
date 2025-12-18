@@ -70,7 +70,6 @@ const PageAdminUtilities: React.FC = () => {
             Quản lý Utilities
           </h2>
           <p className="text-neutral-600 dark:text-neutral-400">
-            Quản lý tất cả utilities trong hệ thống (HostId = 0 cho system utilities)
           </p>
         </div>
         <ButtonPrimary 
@@ -265,7 +264,6 @@ const UtilityModal: React.FC<UtilityModalProps> = ({ utility, onClose, onSuccess
   const [formData, setFormData] = useState<UtilityCreateUpdateDTO>({
     name: utility?.name || "",
     description: utility?.description || "",
-    hostId: utility?.hostId !== undefined ? utility.hostId : 0, // Default to 0 for system utilities
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -295,7 +293,6 @@ const UtilityModal: React.FC<UtilityModalProps> = ({ utility, onClose, onSuccess
         await utilityAPI.updateAdmin(utility.utilityId, {
           name: formData.name.trim(),
           description: formData.description?.trim() || undefined,
-          hostId: formData.hostId,
         });
         alert("Cập nhật utility thành công!");
       } else {
@@ -303,7 +300,6 @@ const UtilityModal: React.FC<UtilityModalProps> = ({ utility, onClose, onSuccess
         await utilityAPI.createAdmin({
           name: formData.name.trim(),
           description: formData.description?.trim() || undefined,
-          hostId: formData.hostId || 0, // Default to 0 for system utilities
         });
         alert("Tạo utility thành công!");
       }
@@ -384,22 +380,6 @@ const UtilityModal: React.FC<UtilityModalProps> = ({ utility, onClose, onSuccess
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                  Host ID (0 = System Utility)
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  value={formData.hostId || 0}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, hostId: Number(e.target.value) }))}
-                  className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-md focus:outline-none focus:ring-2 focus:ring-rose-500 dark:bg-neutral-700 dark:text-neutral-100"
-                  placeholder="0"
-                />
-                <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
-                  Đặt HostId = 0 để tạo system utility (dùng chung cho tất cả hosts)
-                </p>
-              </div>
 
               {error && (
                 <div className="p-3 bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-200 rounded-lg text-sm whitespace-pre-line">

@@ -281,6 +281,75 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
     loadCondotelDetail();
   }, [state?.condotelId]);
 
+  // Auto-select first available promotion when user first enters checkout (if no promotion already selected)
+  useEffect(() => {
+    // Only auto-select if:
+    // 1. promotions are loaded
+    // 2. no promotion is currently selected
+    // 3. no activePromotionId was passed from detail page
+    // 4. user hasn't explicitly deselected promotion yet
+    if (promotions.length > 0 && !selectedPromotionId && !((state as any)?.activePromotionId)) {
+      // Check if there's an available promotion for current booking dates
+      const getAvailablePromos = () => {
+        if (!rangeDates.startDate || !rangeDates.endDate) return [];
+        
+        const startDate = rangeDates.startDate.format("YYYY-MM-DD");
+        const endDate = rangeDates.endDate.format("YYYY-MM-DD");
+        
+        return promotions.filter((promo) => {
+          const promoStart = moment(promo.startDate).format("YYYY-MM-DD");
+          const promoEnd = moment(promo.endDate).format("YYYY-MM-DD");
+          
+          // Check if booking is fully within promotion period
+          const isWithinPromotion = startDate >= promoStart && endDate <= promoEnd;
+          if (isWithinPromotion) {
+            return true;
+          }
+          
+          // Check if promotion is active
+          const isActive = 
+            promo.status === "Active" || 
+            promo.isActive === true;
+          
+          return isActive;
+        });
+      };
+      
+      const availablePromos = getAvailablePromos();
+      if (availablePromos.length > 0) {
+        setSelectedPromotionId(availablePromos[0].promotionId);
+      }
+    }
+  }, [promotions, selectedPromotionId, rangeDates, state]);
+
+  // Auto-deselect promotion if booking dates fall outside promotion period
+  useEffect(() => {
+    if (!selectedPromotionId || !rangeDates.startDate || !rangeDates.endDate) {
+      return;
+    }
+
+    const selectedPromo = promotions.find(p => p.promotionId === selectedPromotionId);
+    if (!selectedPromo) {
+      return;
+    }
+
+    const bookingStart = rangeDates.startDate.format("YYYY-MM-DD");
+    const bookingEnd = rangeDates.endDate.format("YYYY-MM-DD");
+    const promoStart = moment(selectedPromo.startDate).format("YYYY-MM-DD");
+    const promoEnd = moment(selectedPromo.endDate).format("YYYY-MM-DD");
+
+    // Check if booking dates are fully within promotion period
+    const isWithinPromotion = bookingStart >= promoStart && bookingEnd <= promoEnd;
+
+    if (!isWithinPromotion) {
+      // Deselect promotion and show warning
+      setSelectedPromotionId(null);
+      toastWarning(
+        `Ngày đặt phòng nằm ngoài khoảng khuyến mãi (${moment(promoStart).format("DD/MM/YYYY")} - ${moment(promoEnd).format("DD/MM/YYYY")}). Khuyến mãi đã được hủy bỏ.`
+      );
+    }
+  }, [rangeDates, selectedPromotionId, promotions]);
+
   // Load vouchers when condotelId changes
   useEffect(() => {
     const loadVouchers = async () => {
@@ -573,14 +642,13 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
       const startDateStr = rangeDates.startDate.format("YYYY-MM-DD");
       const endDateStr = rangeDates.endDate.format("YYYY-MM-DD");
 
-      // Auto-select promotion if available and not already selected
+      // Use selected promotion (if user chose one)
       const availablePromotions = getAvailablePromotions();
       let finalPromotionId = selectedPromotionId;
       
-      if ((!finalPromotionId || finalPromotionId <= 0) && availablePromotions.length > 0) {
-        finalPromotionId = availablePromotions[0].promotionId;
-        setSelectedPromotionId(finalPromotionId);
-      }
+      // DON'T auto-select promotion here
+      // If user explicitly chose not to use promotion (selectedPromotionId === null), respect that
+      // Only use promotion if user explicitly selected it
 
       // Step 0: Check availability before creating booking
       try {
@@ -757,9 +825,10 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
 
   const renderSidebar = () => {
     // Calculate nights and total price
-    const nights = state?.nights || (rangeDates.startDate && rangeDates.endDate
+    // Always calculate from rangeDates to ensure price recalculation when dates change
+    const nights = (rangeDates.startDate && rangeDates.endDate
       ? rangeDates.endDate.diff(rangeDates.startDate, "days")
-      : 0);
+      : state?.nights || 0);
     
     // Get base price per night: từ activePrice nếu có và nằm trong thời gian, nếu không thì từ pricePerNight
     const pricePerNight = state?.pricePerNight || 0;
@@ -781,14 +850,9 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
     const availablePromotions = getAvailablePromotions();
     let selectedPromotion = promotions.find(p => p.promotionId === selectedPromotionId) || null;
     
-    // If no promotion selected but there's an available one, use the first available
-    if (!selectedPromotion && availablePromotions.length > 0) {
-      selectedPromotion = availablePromotions[0];
-      // Auto-select it in state if not already selected
-      if (!selectedPromotionId || selectedPromotionId !== selectedPromotion.promotionId) {
-        setSelectedPromotionId(selectedPromotion.promotionId);
-      }
-    }
+    // DON'T auto-select promotion here - only use selected promotion if explicitly chosen
+    // Auto-selection should only happen during initial load (in useEffect)
+    // If user deselected promotion (selectedPromotionId === null), respect that choice
     
     // Calculate with both promotion and voucher
     const selectedVoucher = getSelectedVoucher();

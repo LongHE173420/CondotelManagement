@@ -113,6 +113,7 @@ const SectionGridHasMap: FC<SectionGridHasMapProps> = () => {
     }
   }
   
+  const searchName = params.get("name");
   const searchLocationId = params.get("locationId");
   const searchHostId = params.get("hostId");
   const searchFromDate = params.get("startDate");
@@ -136,6 +137,7 @@ const SectionGridHasMap: FC<SectionGridHasMapProps> = () => {
     bathrooms
   });
 
+  // Fetch condotels when URL params change
   useEffect(() => {
     const fetchCondotels = async () => {
       try {
@@ -149,34 +151,48 @@ const SectionGridHasMap: FC<SectionGridHasMapProps> = () => {
         // Build search query
         const searchQuery: any = {};
         
-        // Host ID filter (ưu tiên cao nhất)
+        // Name filter (highest priority for search)
+        const searchName = params.get("name");
+        if (searchName && searchName.trim()) {
+          searchQuery.name = searchName.trim();
+          console.log("🔍 Searching with name:", searchName.trim());
+        }
+        
+        // Host ID filter
         if (searchHostId) {
           const hostId = Number(searchHostId);
           if (!isNaN(hostId)) {
             searchQuery.hostId = hostId;
-            console.log("🔍 Using hostId:", hostId);
+            console.log("🔍 Searching with hostId:", hostId);
           }
         }
         
-        // Ưu tiên locationId hơn location string (chỉ nếu không có hostId)
-        if (!searchHostId) {
-          if (searchLocationId) {
-            const locationId = Number(searchLocationId);
-            if (!isNaN(locationId)) {
-              searchQuery.locationId = locationId;
-              console.log("🔍 Using locationId:", locationId);
-            }
-          } else if (searchLocation) {
-            searchQuery.location = searchLocation;
-            console.log("🔍 Using location:", searchLocation);
+        // Location filters (can work together with name and dates)
+        if (searchLocationId) {
+          const locationId = Number(searchLocationId);
+          if (!isNaN(locationId)) {
+            searchQuery.locationId = locationId;
+            console.log("🔍 Searching with locationId:", locationId);
+          }
+        }
+        if (searchLocation && searchLocation.trim()) {
+          // Validate location is not a date format
+          const locationValue = decodeURIComponent(searchLocation.trim());
+          const isDate = /^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}$/.test(locationValue) || /^\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}$/.test(locationValue);
+          if (!isDate) {
+            searchQuery.location = locationValue;
+            console.log("🔍 Searching with location:", locationValue);
           }
         }
         
+        // Date filters (can work with location and name)
         if (searchFromDate) {
           searchQuery.fromDate = searchFromDate;
+          console.log("🔍 Searching with fromDate:", searchFromDate);
         }
         if (searchToDate) {
           searchQuery.toDate = searchToDate;
+          console.log("🔍 Searching with toDate:", searchToDate);
         }
         
         // Add price filters
@@ -220,7 +236,8 @@ const SectionGridHasMap: FC<SectionGridHasMapProps> = () => {
             console.log("✅ Loaded condotels for host:", results.length);
           }
         } else {
-          results = await condotelAPI.search(searchQuery);
+          const searchResult = await condotelAPI.search(searchQuery);
+          results = searchResult.data;
           console.log("🔍 SectionGridHasMap - Results count:", results.length);
         }
         
@@ -235,7 +252,7 @@ const SectionGridHasMap: FC<SectionGridHasMapProps> = () => {
     };
 
     fetchCondotels();
-  }, [location.search, searchLocation, searchLocationId, searchHostId, searchFromDate, searchToDate, minPrice, maxPrice, beds, bathrooms]); // Trigger when any search param changes
+  }, [location.search, searchLocation, searchLocationId, searchHostId, searchFromDate, searchToDate, searchName, minPrice, maxPrice, beds, bathrooms]);
 
   // Convert condotels to StayDataType for display
   const stayListings: StayDataType[] = condotels.map(convertCondotelToStay);

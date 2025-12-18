@@ -25,7 +25,7 @@ import converSelectedDateToString from "utils/converSelectedDateToString";
 import { PencilSquareIcon } from "@heroicons/react/24/outline";
 import { useTranslation } from "i18n/LanguageContext";
 import { calculateFinalPrice } from "utils/priceCalculator";
-import { toastWarning, showValidationError } from "utils/toast";
+import { toastWarning, toastError, showValidationError } from "utils/toast";
 
 
 const ListingStayDetailPage: FC = () => {
@@ -475,21 +475,59 @@ const ListingStayDetailPage: FC = () => {
       <div className="listingSection__wrap">
         <h2 className="text-2xl font-semibold">{t.condotel.host || "Thông tin Host"}</h2>
         <div className="w-14 border-b border-neutral-200 dark:border-neutral-700"></div>
-        <div className="flex items-center space-x-4">
-          <Avatar
-            hasChecked
-            hasCheckedClass="w-4 h-4 -top-0.5 right-0.5"
-            sizeClass="h-14 w-14"
-            radius="rounded-full"
-            imgUrl={finalHostImageUrl || undefined}
-            userName={finalHostName}
-          />
-          <div>
-            <div className="block text-xl font-medium">{finalHostName}</div>
-            <div className="mt-1.5 flex items-center text-sm text-neutral-500 dark:text-neutral-400">
-              <StartRating /><span className="mx-2">·</span><span>Verified Host</span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <Avatar
+              hasChecked
+              hasCheckedClass="w-4 h-4 -top-0.5 right-0.5"
+              sizeClass="h-14 w-14"
+              radius="rounded-full"
+              imgUrl={finalHostImageUrl || undefined}
+              userName={finalHostName}
+            />
+            <div>
+              <div className="block text-xl font-medium">{finalHostName}</div>
+              <div className="mt-1.5 flex items-center text-sm text-neutral-500 dark:text-neutral-400">
+                <StartRating /><span className="mx-2">·</span><span>Verified Host</span>
+              </div>
             </div>
           </div>
+          {/* Icon Chat với Host */}
+          {data?.hostId && (
+            <button
+              onClick={() => {
+                if (!user) {
+                  toastWarning("Vui lòng đăng nhập để chat với host");
+                  navigate("/login");
+                  return;
+                }
+                // Không cho host chat với chính mình
+                if (user.userId === data.hostId) {
+                  toastWarning("Bạn không thể chat với chính mình");
+                  return;
+                }
+                navigate(`/chat?hostId=${data.hostId}`);
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors shadow-md hover:shadow-lg"
+              title="Chat với host"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="w-5 h-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                />
+              </svg>
+              <span className="text-sm font-medium">Chat với host</span>
+            </button>
+          )}
         </div>
       </div>
     );
@@ -698,14 +736,21 @@ const ListingStayDetailPage: FC = () => {
       return;
     }
 
+    // Validation: Kiểm tra xem user có phải là host của condotel không
+    if (data && data.hostId && user.userId === data.hostId) {
+      toastError("Chủ căn hộ không thể tự đặt căn hộ của chính mình.");
+      showValidationError("Chủ căn hộ không thể tự đặt căn hộ của chính mình. Vui lòng chọn căn hộ khác.");
+      return;
+    }
+
     // Kiểm tra đã chọn ngày chưa
     if (!rangeDates.startDate || !rangeDates.endDate) {
       showValidationError("Vui lòng chọn ngày check-in và check-out");
       return;
     }
 
-    // Tính số đêm
-    const nights = rangeDates.endDate.diff(rangeDates.startDate, "days");
+    // Tính số đêm - normalize dates to start of day to ensure accurate night calculation
+    const nights = moment(rangeDates.endDate).startOf('day').diff(moment(rangeDates.startDate).startOf('day'), "days");
     if (nights <= 0) {
       showValidationError("Ngày check-out phải sau ngày check-in");
       return;
@@ -812,9 +857,9 @@ const ListingStayDetailPage: FC = () => {
   };
 
   const renderSidebar = () => {
-    // Tính số đêm
+    // Tính số đêm - normalize dates to start of day to ensure accurate night calculation
     const nights = rangeDates.startDate && rangeDates.endDate
-      ? rangeDates.endDate.diff(rangeDates.startDate, "days")
+      ? moment(rangeDates.endDate).startOf('day').diff(moment(rangeDates.startDate).startOf('day'), "days")
       : 0;
     
     // Tính giá cơ bản cho 1 đêm (có thể từ activePrice hoặc pricePerNight)
@@ -979,9 +1024,17 @@ const ListingStayDetailPage: FC = () => {
           </div>
         </div>
 
-        <ButtonPrimary className="mt-4" onClick={handleBooking}>
-          Đặt ngay
-        </ButtonPrimary>
+        {data && data.hostId && user && user.userId === data.hostId ? (
+          <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+            <p className="text-sm text-yellow-800 dark:text-yellow-200 text-center">
+              ⚠️ Chủ căn hộ không thể tự đặt căn hộ của chính mình
+            </p>
+          </div>
+        ) : (
+          <ButtonPrimary className="mt-4" onClick={handleBooking}>
+            Đặt ngay
+          </ButtonPrimary>
+        )}
         <ButtonSecondary className="mt-2" href="/listing-stay">
           {t.condotel.viewMore || "Xem thêm chỗ ở"}
         </ButtonSecondary>
