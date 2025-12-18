@@ -27,8 +27,7 @@ export interface ChatConversation {
     lastMessage?: ChatLastMessage;
     userAId?: number;
     userBId?: number;
-    otherUser?: ChatUser; // Thông tin user đối phương
-    otherUserName?: string; // Fallback tên user đối phương
+    otherUserName?: string;
     unreadCount?: number;
 }
 

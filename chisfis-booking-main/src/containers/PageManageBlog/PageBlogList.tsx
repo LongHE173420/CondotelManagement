@@ -9,7 +9,8 @@ interface BlogPost {
     author: string;
     category: string;
     createdAt: string;
-    status?: string;
+    status: "Published" | "Draft"; // THÊM STATUS
+    publishedAt?: string; // THÊM TRƯỜNG NÀY
 }
 
 const PageBlogList = () => {
@@ -18,23 +19,34 @@ const PageBlogList = () => {
     const [error, setError] = useState("");
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedCategory, setSelectedCategory] = useState("");
+    const [selectedStatus, setSelectedStatus] = useState<string>(""); // THÊM FILTER STATUS
     const [categories, setCategories] = useState<{ id: number; name: string }[]>([]);
 
     useEffect(() => {
         const loadData = async () => {
             try {
                 setLoading(true);
+                // SỬA: DÙNG adminGetAllPosts THAY VÌ getPublishedPosts
                 const blogPosts = await blogAPI.adminGetAllPosts();
-                const convertedPosts: BlogPost[] = blogPosts.map((post: any) => ({
-                    id: post.postId,
-                    thumbnailUrl: post.featuredImageUrl,
-                    title: post.title,
-                    author: post.authorName,
-                    category: post.categoryName,
-                    createdAt: post.publishedAt
+
+                const convertedPosts: BlogPost[] = blogPosts.map((post: any) => {
+                    // Xác định status dựa trên publishedAt
+                    const status = post.publishedAt ? "Published" : "Draft";
+                    const createdAt = status === "Published"
                         ? new Date(post.publishedAt).toLocaleDateString("vi-VN")
-                        : "Chưa xuất bản",
-                }));
+                        : new Date().toLocaleDateString("vi-VN"); // Hoặc dùng CreatedAt từ backend nếu có
+
+                    return {
+                        id: post.postId,
+                        thumbnailUrl: post.featuredImageUrl,
+                        title: post.title,
+                        author: post.authorName,
+                        category: post.categoryName,
+                        createdAt: createdAt,
+                        status: status,
+                        publishedAt: post.publishedAt
+                    };
+                });
                 setPosts(convertedPosts);
 
                 const cats = await blogAPI.getCategories();
@@ -70,8 +82,25 @@ const PageBlogList = () => {
         const matchesSearch = post.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
             post.author.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesCategory = !selectedCategory || post.category === selectedCategory;
-        return matchesSearch && matchesCategory;
+        // THÊM FILTER THEO STATUS
+        const matchesStatus = !selectedStatus || post.status === selectedStatus;
+        return matchesSearch && matchesCategory && matchesStatus;
     });
+
+    // Thêm hàm format date (nếu bạn muốn hiển thị ngày tháng đầy đủ hơn)
+    const formatFullDate = (dateString?: string) => {
+        if (!dateString) return "Chưa xuất bản";
+        const date = new Date(dateString);
+        return date.toLocaleDateString("vi-VN", {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+    };
+
+    // Thống kê
+    const publishedCount = posts.filter(p => p.status === "Published").length;
+    const draftCount = posts.filter(p => p.status === "Draft").length;
 
     if (loading) {
         return (
@@ -90,13 +119,27 @@ const PageBlogList = () => {
             <div className="flex items-center justify-between mb-8 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-2xl p-6 border border-indigo-200/50 dark:border-indigo-800/50">
                 <div>
                     <h2 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">
-                        Quản lý Blog
+                        Quản lý Blog ({posts.length} bài viết)
                     </h2>
-                    <p className="text-neutral-600 dark:text-neutral-400">
-                        Quản lý tất cả bài viết blog trong hệ thống
-                    </p>
+                    <div className="flex gap-4 mt-2">
+                        <span className="px-3 py-1 bg-green-100 text-green-800 text-sm font-medium rounded-full">
+                            Đã xuất bản: {publishedCount}
+                        </span>
+                        <span className="px-3 py-1 bg-yellow-100 text-yellow-800 text-sm font-medium rounded-full">
+                            Bản nháp: {draftCount}
+                        </span>
+                    </div>
                 </div>
                 <div className="flex gap-3">
+                    <Link
+                        to="/admin/blog-requests"
+                        className="px-6 py-3 bg-gradient-to-r from-orange-400 to-amber-500 hover:from-orange-500 hover:to-amber-600 text-white rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 font-semibold flex items-center gap-2"
+                    >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                        </svg>
+                        Duyệt bài đăng
+                    </Link>
                     <Link
                         to="/manage-blog/categories"
                         className="px-6 py-3 bg-gradient-to-r from-gray-500 to-slate-500 hover:from-gray-600 hover:to-slate-600 text-white rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 font-semibold flex items-center gap-2"
@@ -157,6 +200,19 @@ const PageBlogList = () => {
                             <option key={cat.id} value={cat.name}>{cat.name}</option>
                         ))}
                     </select>
+                    {/* THÊM FILTER STATUS */}
+                    <select
+                        value={selectedStatus}
+                        onChange={(e) => setSelectedStatus(e.target.value)}
+                        className="px-4 py-3 border border-neutral-300 dark:border-neutral-600 rounded-xl bg-white dark:bg-neutral-700 dark:text-neutral-100 w-full md:w-auto flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                        <option value="">Tất cả trạng thái</option>
+                        <option value="Published">Đã xuất bản</option>
+                        <option value="Draft">Bản nháp</option>
+                    </select>
+                </div>
+                <div className="mt-4 text-sm text-neutral-600 dark:text-neutral-400">
+                    Hiển thị {filteredPosts.length}/{posts.length} bài viết
                 </div>
             </div>
 
@@ -170,6 +226,7 @@ const PageBlogList = () => {
                                 <th className="px-6 py-4 text-left text-xs font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wider">Tiêu đề</th>
                                 <th className="px-6 py-4 text-left text-xs font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wider">Tác giả</th>
                                 <th className="px-6 py-4 text-left text-xs font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wider">Danh mục</th>
+                                <th className="px-6 py-4 text-left text-xs font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wider">Trạng thái</th>
                                 <th className="px-6 py-4 text-left text-xs font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wider">Ngày tạo</th>
                                 <th className="px-6 py-4 text-left text-xs font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wider">Hành động</th>
                             </tr>
@@ -177,7 +234,7 @@ const PageBlogList = () => {
                         <tbody className="bg-white dark:bg-neutral-800 divide-y divide-neutral-200 dark:divide-neutral-700">
                             {filteredPosts.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="px-6 py-16 text-center">
+                                    <td colSpan={7} className="px-6 py-16 text-center">
                                         <div className="flex flex-col items-center justify-center">
                                             <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-2xl flex items-center justify-center shadow-lg">
                                                 <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -216,7 +273,18 @@ const PageBlogList = () => {
                                                 {post.category}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500 dark:text-neutral-400">{post.createdAt}</td>
+                                        {/* THÊM CỘT TRẠNG THÁI */}
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <span className={`px-3 py-1 rounded-lg text-xs font-bold ${post.status === "Published"
+                                                ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
+                                                : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300"
+                                                }`}>
+                                                {post.status === "Published" ? "Đã xuất bản" : "Bản nháp"}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500 dark:text-neutral-400">
+                                            {post.status === "Published" ? formatFullDate(post.publishedAt) : post.createdAt}
+                                        </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                             <div className="flex items-center space-x-2">
                                                 <Link
