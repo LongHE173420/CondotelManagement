@@ -15,7 +15,6 @@ import HostServicePackageContent from "containers/HostServicePackagePage/HostSer
 import HostPackageContent from "containers/HostPackagePage/HostPackageContent";
 import HostPayoutContent from "containers/HostPayoutPage/HostPayoutContent";
 import HostWalletContent from "containers/HostWalletPage/HostWalletContent";
-import HostVerificationContent from "containers/HostVerificationPage/HostVerificationContent";
 import HostAmenityContent from "containers/HostAmenityPage/HostAmenityContent";
 import { toastSuccess, toastError, toastWarning, toastInfo } from "utils/toast";
 
@@ -537,21 +536,6 @@ const HostCondotelDashboard = () => {
             </span>
           </button>
           <button
-            onClick={() => handleTabChange("verification")}
-            className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${
-              activeTab === "verification"
-                ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-105"
-                : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-blue-600 dark:hover:text-blue-400"
-            }`}
-          >
-            <span className="flex items-center gap-2">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-              </svg>
-              Xác thực CCCD
-            </span>
-          </button>
-          <button
             onClick={() => handleTabChange("amenities")}
             className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${
               activeTab === "amenities"
@@ -601,10 +585,6 @@ const HostCondotelDashboard = () => {
       ) : activeTab === "wallet" ? (
         <div className="mt-6 bg-white/80 dark:bg-neutral-800/80 backdrop-blur-sm rounded-2xl shadow-xl p-6 border border-white/20 dark:border-neutral-700/50">
           <HostWalletContent />
-        </div>
-      ) : activeTab === "verification" ? (
-        <div className="mt-6 bg-white/80 dark:bg-neutral-800/80 backdrop-blur-sm rounded-2xl shadow-xl p-6 border border-white/20 dark:border-neutral-700/50">
-          <HostVerificationContent />
         </div>
       ) : activeTab === "amenities" ? (
         <div className="mt-6 bg-white/80 dark:bg-neutral-800/80 backdrop-blur-sm rounded-2xl shadow-xl p-6 border border-white/20 dark:border-neutral-700/50">

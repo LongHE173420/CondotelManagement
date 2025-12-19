@@ -525,9 +525,18 @@ const PageTenantBookings = () => {
             <div className="max-w-7xl mx-auto bg-white p-6 md:p-8 rounded-2xl shadow-xl">
                 {/* --- Tiêu đề (Đã sửa) --- */}
                 <div className="flex flex-col md:flex-row justify-between items-center mb-6 pb-4 border-b border-gray-200">
-                    <h2 className="text-2xl font-bold text-gray-800 mb-4 md:mb-0 whitespace-nowrap">
-                        Danh sách đặt phòng của bạn
-                    </h2>
+                    <div className="flex items-center gap-4 mb-4 md:mb-0">
+                        <h2 className="text-2xl font-bold text-gray-800 whitespace-nowrap">
+                            Danh sách đặt phòng của bạn
+                        </h2>
+                        <button
+                            onClick={() => navigate("/refund-requests")}
+                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors text-sm whitespace-nowrap"
+                            title="Xem danh sách yêu cầu hoàn tiền của bạn"
+                        >
+                            🏦 Quản lý hoàn tiền
+                        </button>
+                    </div>
 
                     {/* --- Hộp Sắp xếp (Đã sửa) --- */}
                     <select 

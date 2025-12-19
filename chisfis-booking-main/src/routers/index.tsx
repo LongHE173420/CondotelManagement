@@ -48,6 +48,7 @@ import PageEditCondotel from "containers/PageEditCondotel/PageEditCondotel";
 import PageBookingHistory from "containers/PageBookingHistory/PageBookingHistory";
 import PageBookingHistoryDetail from "containers/PageBookingHistory/PageBookingHistoryDetail";
 import PageRequestRefund from "containers/PageRequestRefund/PageRequestRefund";
+import PageRefundRequests from "containers/PageRefundRequests/PageRefundRequests";
 import PageWriteReview from "containers/PageWriteReview/PageWriteReview";
 import PageMyReviews from "containers/PageMyReviews/PageMyReviews";
 import PageBlogList from "containers/PageManageBlog/PageBlogList";
@@ -122,6 +123,7 @@ export const pages: Page[] = [
   { path: "/booking-history", component: PageBookingHistory },
   { path: "/booking-history/:id", component: PageBookingHistoryDetail },
   { path: "/request-refund/:id", component: PageRequestRefund },
+  { path: "/refund-requests", component: PageRefundRequests },
   { path: "/write-review/:id", component: PageWriteReview },
   { path: "/my-reviews", component: PageMyReviews },
   //

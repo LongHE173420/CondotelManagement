@@ -148,15 +148,35 @@ const normalizeBooking = (item: BookingResponseRaw): BookingDTO => {
 export const bookingAPI = {
   // GET /api/booking/my - Lấy tất cả bookings của tenant hiện tại
   getMyBookings: async (): Promise<BookingDTO[]> => {
-    const response = await axiosClient.get<BookingResponseRaw[]>("/booking/my");
-    // Normalize response từ backend (PascalCase -> camelCase)
-    return response.data.map(normalizeBooking);
+    try {
+      const response = await axiosClient.get<BookingResponseRaw[]>("/booking/my");
+      // Normalize response từ backend (PascalCase -> camelCase)
+      return response.data.map(normalizeBooking);
+    } catch (error: any) {
+      console.error("❌ Error in getMyBookings API:", error);
+      console.error("❌ Error response:", error.response?.data);
+      console.error("❌ Status:", error.response?.status);
+      
+      // If endpoint doesn't exist or returns 500, log for debugging
+      if (error.response?.status === 500) {
+        console.warn("⚠️ Backend returned 500 error. Endpoint may not be implemented.");
+      }
+      
+      // Return empty array instead of throwing to allow graceful handling
+      return [];
+    }
   },
 
   // GET /api/booking/{id} - Lấy booking theo ID
   getBookingById: async (id: number): Promise<BookingDTO> => {
-    const response = await axiosClient.get<BookingResponseRaw>(`/booking/${id}`);
-    return normalizeBooking(response.data);
+    try {
+      const response = await axiosClient.get<BookingResponseRaw>(`/booking/${id}`);
+      return normalizeBooking(response.data);
+    } catch (error: any) {
+      console.error("❌ Error in getBookingById API:", error);
+      console.error("❌ Error response:", error.response?.data);
+      throw error;
+    }
   },
 
   // GET /api/booking/check-availability - Kiểm tra tính khả dụng
@@ -499,6 +519,31 @@ const response = await axiosClient.post(`/booking/${id}/refund`, payload);
       canRefund: data.CanRefund !== undefined ? data.CanRefund : data.canRefund,
       message: data.Message || data.message,
     };
+  },
+
+  // GET /api/booking/refund-requests/my - Lấy danh sách yêu cầu hoàn tiền của tenant hiện tại
+  getRefundRequests: async (): Promise<RefundRequestDTO[]> => {
+    try {
+      const response = await axiosClient.get<any[]>("/booking/refund-requests/my");
+      // Normalize response từ backend (PascalCase -> camelCase)
+      return response.data.map((item) => ({
+        refundRequestId: item.RefundRequestId ?? item.refundRequestId,
+        bookingId: item.BookingId ?? item.bookingId,
+        customerId: item.CustomerId ?? item.customerId,
+        status: item.Status ?? item.status,
+        reason: item.Reason ?? item.reason,
+        createdAt: item.CreatedAt ?? item.createdAt,
+        updatedAt: item.UpdatedAt ?? item.updatedAt,
+        attemptNumber: item.AttemptNumber ?? item.attemptNumber ?? 0,
+        appealReason: item.AppealReason ?? item.appealReason,
+        rejectionReason: item.RejectionReason ?? item.rejectionReason,
+        rejectedAt: item.RejectedAt ?? item.rejectedAt,
+        appealedAt: item.AppealedAt ?? item.appealedAt,
+      }));
+    } catch (error: any) {
+      console.error("❌ Error in getRefundRequests API:", error);
+      return [];
+    }
   },
 
   // POST /api/booking/refund-requests/{refundRequestId}/appeal - Kháng cáo yêu cầu hoàn tiền bị reject
