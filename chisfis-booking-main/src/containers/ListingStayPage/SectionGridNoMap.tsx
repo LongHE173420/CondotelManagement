@@ -1,6 +1,6 @@
 import React, { FC, useState, useEffect, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import StayCardH from "components/StayCardH";
+import StayCardH from "components/StayCardH/StayCardH";
 import { StayDataType } from "data/types";
 import TabFilters from "./TabFilters";
 import Heading2 from "components/Heading/Heading2";

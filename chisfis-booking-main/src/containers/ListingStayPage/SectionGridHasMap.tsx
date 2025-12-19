@@ -1,7 +1,7 @@
 import React, { FC, useState, useEffect, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import AnyReactComponent from "components/AnyReactComponent/AnyReactComponent";
-import StayCardH from "components/StayCardH";
+import StayCardH from "components/StayCardH/StayCardH";
 import GoogleMapReact from "google-map-react";
 import { StayDataType } from "data/types";
 import ButtonClose from "shared/ButtonClose/ButtonClose";
