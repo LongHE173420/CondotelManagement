@@ -121,21 +121,8 @@ export const servicePackageAPI = {
       ? data 
       : (data.data || []);
     
-    // Debug: Log raw response để xem structure
-    console.log("🔍 Raw API response:", response.data);
-    console.log("🔍 Packages array:", packages);
-    if (packages.length > 0) {
-      console.log("🔍 First package raw data:", packages[0]);
-      console.log("🔍 First package keys:", Object.keys(packages[0]));
-    }
-    
     return packages.map((item: any) => {
       const normalized = normalizeServicePackage(item);
-      console.log("🔍 Normalized package:", {
-        raw: item,
-        normalized: normalized,
-        idFound: normalized.servicePackageId || normalized.packageId
-      });
       return normalized;
     });
   },

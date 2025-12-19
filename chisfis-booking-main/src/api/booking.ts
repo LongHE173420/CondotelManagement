@@ -54,6 +54,22 @@ export interface UpdateBookingDTO {
   status?: string; // "Pending", "Confirmed", "Cancelled", "Completed"
 }
 
+// RefundRequestDTO từ backend - Yêu cầu hoàn tiền
+export interface RefundRequestDTO {
+  refundRequestId: number;
+  bookingId: number;
+  customerId: number;
+  status: string; // "Pending", "Completed", "Refunded", "Rejected", "Appealed"
+  reason?: string;
+  createdAt: string; // DateTime
+  updatedAt?: string; // DateTime
+  attemptNumber: number; // Lần thứ mấy appeal (0, 1, ...)
+  appealReason?: string; // Lý do kháng cáo
+  rejectionReason?: string; // Lý do từ chối hoàn tiền
+  rejectedAt?: string; // DateTime - Khi yêu cầu bị reject
+  appealedAt?: string; // DateTime - Khi customer appeal
+}
+
 export interface CheckAvailabilityResponse {
   condotelId: number;
   startDate: string; // DateOnly
@@ -132,15 +148,35 @@ const normalizeBooking = (item: BookingResponseRaw): BookingDTO => {
 export const bookingAPI = {
   // GET /api/booking/my - Lấy tất cả bookings của tenant hiện tại
   getMyBookings: async (): Promise<BookingDTO[]> => {
-    const response = await axiosClient.get<BookingResponseRaw[]>("/booking/my");
-    // Normalize response từ backend (PascalCase -> camelCase)
-    return response.data.map(normalizeBooking);
+    try {
+      const response = await axiosClient.get<BookingResponseRaw[]>("/booking/my");
+      // Normalize response từ backend (PascalCase -> camelCase)
+      return response.data.map(normalizeBooking);
+    } catch (error: any) {
+      console.error("❌ Error in getMyBookings API:", error);
+      console.error("❌ Error response:", error.response?.data);
+      console.error("❌ Status:", error.response?.status);
+      
+      // If endpoint doesn't exist or returns 500, log for debugging
+      if (error.response?.status === 500) {
+        console.warn("⚠️ Backend returned 500 error. Endpoint may not be implemented.");
+      }
+      
+      // Return empty array instead of throwing to allow graceful handling
+      return [];
+    }
   },
 
   // GET /api/booking/{id} - Lấy booking theo ID
   getBookingById: async (id: number): Promise<BookingDTO> => {
-    const response = await axiosClient.get<BookingResponseRaw>(`/booking/${id}`);
-    return normalizeBooking(response.data);
+    try {
+      const response = await axiosClient.get<BookingResponseRaw>(`/booking/${id}`);
+      return normalizeBooking(response.data);
+    } catch (error: any) {
+      console.error("❌ Error in getBookingById API:", error);
+      console.error("❌ Error response:", error.response?.data);
+      throw error;
+    }
   },
 
   // GET /api/booking/check-availability - Kiểm tra tính khả dụng
@@ -294,80 +330,15 @@ export const bookingAPI = {
         AccountHolder: bankInfo.accountHolder,
       } : {};
       
-      // Log payload (ẩn thông tin nhạy cảm)
-      console.log("📤 Sending refund request:", {
-        bookingId: id,
-        payload: {
-          BankCode: payload.BankCode,
-          AccountNumber: payload.AccountNumber ? payload.AccountNumber.substring(0, 3) + "***" : undefined,
-          AccountHolder: payload.AccountHolder ? payload.AccountHolder.substring(0, 3) + "***" : undefined,
-        },
-        hasBankInfo: !!bankInfo,
-        bankInfoProvided: {
-          bankName: bankInfo?.bankName,
-          hasAccountNumber: !!bankInfo?.accountNumber,
-          hasAccountHolder: !!bankInfo?.accountHolder,
-        }
-      });
+
       
-      // Log full payload để debug (chỉ trong development)
-      if (process.env.NODE_ENV === 'development') {
-        console.log("📤 Full payload (dev only):", JSON.stringify(payload, null, 2));
-      }
+const response = await axiosClient.post(`/booking/${id}/refund`, payload);
+      const responseData = (response.data as any)?.Data || (response.data as any)?.data || response.data || {};
       
-      const response = await axiosClient.post<any>(`/booking/${id}/refund`, payload);
-      const data = response.data;
-      
-      console.log("📥 Refund API response:", data);
-      console.log("📥 Full response data:", JSON.stringify(data, null, 2));
-      
-      // Log để verify bank info có được gửi và backend có nhận được không
-      if (bankInfo) {
-        const responseData = data.Data || data.data || {};
-        // Backend trả về BankInfo object với BankCode, AccountNumber, AccountHolder
-        const receivedBankInfo = responseData.BankInfo || responseData.bankInfo || {};
-        
-        console.log("🔍 Verifying bank info in request:", {
-          sent: {
-            BankCode: payload.BankCode,
-            AccountNumber: payload.AccountNumber ? payload.AccountNumber.substring(0, 3) + "***" : undefined,
-            AccountHolder: payload.AccountHolder ? payload.AccountHolder.substring(0, 3) + "***" : undefined,
-          },
-          received: {
-            BankCode: receivedBankInfo.BankCode || receivedBankInfo.bankCode,
-            AccountNumber: receivedBankInfo.AccountNumber || receivedBankInfo.accountNumber 
-              ? (receivedBankInfo.AccountNumber || receivedBankInfo.accountNumber).substring(0, 3) + "***" 
-              : undefined,
-            AccountHolder: receivedBankInfo.AccountHolder || receivedBankInfo.accountHolder
-              ? (receivedBankInfo.AccountHolder || receivedBankInfo.accountHolder).substring(0, 3) + "***"
-              : undefined,
-          },
-          responseData: responseData,
-          responseSuccess: data.Success !== undefined ? data.Success : data.success,
-          responseMessage: data.Message || data.message,
-        });
-        
-        // Verify bank info được lưu
-        const receivedBankCode = receivedBankInfo.BankCode || receivedBankInfo.bankCode;
-        if (receivedBankCode) {
-          console.log("✅ Bank info đã được lưu vào database và trả về trong response:", {
-            BankCode: receivedBankCode,
-            hasAccountNumber: !!(receivedBankInfo.AccountNumber || receivedBankInfo.accountNumber),
-            hasAccountHolder: !!(receivedBankInfo.AccountHolder || receivedBankInfo.accountHolder),
-          });
-        } else {
-          console.warn("⚠️ Backend response không chứa bank info. Có thể backend chưa lưu vào database.");
-        }
-      }
-      
-      // Backend trả về ServiceResult: { Success: bool, Message: string, Data?: any }
-      // Data có thể chứa BankInfo object với BankCode, AccountNumber, AccountHolder
-      const responseData = data.Data || data.data || {};
       return {
-        success: data.Success !== undefined ? data.Success : data.success !== undefined ? data.success : true,
-        message: data.Message || data.message,
+        success: (response.data as any)?.Success !== undefined ? (response.data as any)?.Success : (response.data as any)?.success !== undefined ? (response.data as any)?.success : true,
+        message: (response.data as any)?.Message || (response.data as any)?.message,
         data: responseData,
-        // Thêm bankInfo để dễ truy cập
         bankInfo: responseData.BankInfo || responseData.bankInfo || null,
       };
     } catch (error: any) {
@@ -429,9 +400,7 @@ export const bookingAPI = {
       if (filters.pageSize) params.pageSize = filters.pageSize;
     }
     
-    console.log("🔍 API Call - /host/booking with params:", params);
     const response = await axiosClient.get<any>("/host/booking", { params });
-    console.log("🔍 API Response:", response.data);
     
     // Check if response has pagination info
     if (response.data && typeof response.data === 'object' && 'pagination' in response.data) {
@@ -443,8 +412,7 @@ export const bookingAPI = {
         data = response.data;
       }
       
-      console.log("✅ Paginated response - data:", data.length, "items, pagination:", response.data.pagination);
-      
+
       return {
         data: data.map((item: any) => normalizeBooking(item)),
         pagination: response.data.pagination,
@@ -464,9 +432,6 @@ export const bookingAPI = {
       
       if ('pagination' in response.data) {
         result.pagination = response.data.pagination;
-        console.log("✅ Success wrapper with pagination - data:", data.length, "items, pagination:", response.data.pagination);
-      } else {
-        console.log("✅ Success wrapper without pagination - data:", data.length, "items");
       }
       
       return result;
@@ -476,18 +441,15 @@ export const bookingAPI = {
     let data: any[] = [];
     if (Array.isArray(response.data)) {
       data = response.data;
-      console.log("⚠️ Legacy format - array with", data.length, "items");
+
     } else if (response.data && Array.isArray(response.data.data)) {
       data = response.data.data;
-      console.log("⚠️ Legacy format - data array with", data.length, "items");
     } else if (response.data && typeof response.data === 'object') {
       // If response.data is a single object, wrap it in array
       data = [response.data];
-      console.log("⚠️ Legacy format - single object wrapped in array");
     }
     
     if (!Array.isArray(data)) {
-      console.warn("❌ getHostBookings: response.data is not an array:", response.data);
       return [];
     }
     
@@ -557,6 +519,78 @@ export const bookingAPI = {
       canRefund: data.CanRefund !== undefined ? data.CanRefund : data.canRefund,
       message: data.Message || data.message,
     };
+  },
+
+  // GET /api/booking/refund-requests/my - Lấy danh sách yêu cầu hoàn tiền của tenant hiện tại
+  getRefundRequests: async (): Promise<RefundRequestDTO[]> => {
+    try {
+      const response = await axiosClient.get<any[]>("/booking/refund-requests/my");
+      // Normalize response từ backend (PascalCase -> camelCase)
+      return response.data.map((item) => ({
+        refundRequestId: item.RefundRequestId ?? item.refundRequestId,
+        bookingId: item.BookingId ?? item.bookingId,
+        customerId: item.CustomerId ?? item.customerId,
+        status: item.Status ?? item.status,
+        reason: item.Reason ?? item.reason,
+        createdAt: item.CreatedAt ?? item.createdAt,
+        updatedAt: item.UpdatedAt ?? item.updatedAt,
+        attemptNumber: item.AttemptNumber ?? item.attemptNumber ?? 0,
+        appealReason: item.AppealReason ?? item.appealReason,
+        rejectionReason: item.RejectionReason ?? item.rejectionReason,
+        rejectedAt: item.RejectedAt ?? item.rejectedAt,
+        appealedAt: item.AppealedAt ?? item.appealedAt,
+      }));
+    } catch (error: any) {
+      console.error("❌ Error in getRefundRequests API:", error);
+      return [];
+    }
+  },
+
+  // POST /api/booking/refund-requests/{refundRequestId}/appeal - Kháng cáo yêu cầu hoàn tiền bị reject
+  appealRefundRequest: async (
+    refundRequestId: number,
+    appealReason: string
+  ): Promise<{ success: boolean; message?: string; data?: any }> => {
+    try {
+      if (!appealReason || appealReason.trim().length < 10 || appealReason.length > 500) {
+        return {
+          success: false,
+          message: "Lý do kháng cáo phải từ 10 đến 500 ký tự",
+        };
+      }
+
+      const payload = {
+        AppealReason: appealReason,
+      };
+
+      const response = await axiosClient.post<any>(
+        `/booking/refund-requests/${refundRequestId}/appeal`,
+        payload
+      );
+      const data = response.data;
+
+      return {
+        success: data.Success !== undefined ? data.Success : data.success !== undefined ? data.success : true,
+        message: data.Message || data.message,
+        data: data.Data || data.data,
+      };
+    } catch (error: any) {
+      console.error("❌ Error in appealRefundRequest API:", error);
+      console.error("❌ Error response:", error.response?.data);
+
+      if (error.response?.data) {
+        const serverData = error.response.data;
+        return {
+          success: false,
+          message: serverData.Message || serverData.message || "Kháng cáo hoàn tiền thất bại",
+        };
+      }
+
+      return {
+        success: false,
+        message: error.message || "Kháng cáo hoàn tiền thất bại",
+      };
+    }
   },
 };
 

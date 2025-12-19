@@ -5,6 +5,23 @@ import { condotelAPI, CondotelDTO, PromotionDTO } from "api/condotel";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
 import ButtonSecondary from "shared/Button/ButtonSecondary";
 import { toast } from "react-toastify";
+import { showSuccess, showError } from "utils/modalNotification";
+
+// Helper function to translate backend error messages to Vietnamese
+const translateErrorMessage = (message: string): string => {
+  const translations: { [key: string]: string } = {
+    "Promotion period overlaps": "Khoảng thời gian khuyến mãi bị trùng lặp với khuyến mãi khác",
+    "overlaps": "bị trùng lặp",
+    "with another promotion": "với khuyến mãi khác",
+  };
+
+  let translated = message;
+  for (const [english, vietnamese] of Object.entries(translations)) {
+    const regex = new RegExp(english, "gi");
+    translated = translated.replace(regex, vietnamese);
+  }
+  return translated;
+};
 
 const HostPromotionContent: React.FC = () => {
   const { user, isAuthenticated } = useAuth();
@@ -54,7 +71,7 @@ const HostPromotionContent: React.FC = () => {
       } catch (promoErr: any) {
         // Nếu endpoint getPromotions không có condotelId không work, 
         // thử lấy promotions từ từng condotel
-        console.log("Try loading promotions from individual condotels...");
+
         try {
           const allPromotions = await condotelAPI.getPromotions(); // ← Lấy hết luôn
           const promotionsWithNames = allPromotions.map((p: any) => {
@@ -245,16 +262,6 @@ const HostPromotionContent: React.FC = () => {
                     </span>
                   </div>
                 )}
-                {promotion.discountAmount && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-neutral-500 dark:text-neutral-400">
-                      Giảm giá:
-                    </span>
-                    <span className="text-lg font-bold text-green-600 dark:text-green-400">
-                      {formatCurrency(promotion.discountAmount)}
-                    </span>
-                  </div>
-                )}
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-neutral-500 dark:text-neutral-400">Từ:</span>
                   <span className="text-neutral-900 dark:text-neutral-100">
@@ -400,25 +407,8 @@ const PromotionModal: React.FC<PromotionModalProps> = ({
       setError("Vui lòng chọn ngày bắt đầu và kết thúc!");
       return;
     }
-    const startDate = new Date(formData.startDate);
-    const endDate = new Date(formData.endDate);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Reset time to start of day for comparison
-    
-    if (startDate >= endDate) {
+    if (new Date(formData.startDate) >= new Date(formData.endDate)) {
       setError("Ngày kết thúc phải sau ngày bắt đầu!");
-      return;
-    }
-    
-    // Kiểm tra endDate không được ở quá khứ
-    if (endDate < today) {
-      setError("Ngày kết thúc không được ở quá khứ!");
-      return;
-    }
-    
-    // Kiểm tra startDate không được ở quá khứ (nếu đang tạo mới)
-    if (!promotion && startDate < today) {
-      setError("Ngày bắt đầu không được ở quá khứ!");
       return;
     }
     if (!formData.discountPercentage) {
@@ -429,7 +419,7 @@ const PromotionModal: React.FC<PromotionModalProps> = ({
     setLoading(true);
     try {
       if (promotion) {
-        // Update promotion - PUT /api/promotion/{id}
+        // Update promotion
         await condotelAPI.updatePromotion(promotion.promotionId, {
           condotelId: formData.condotelId,
           name: formData.name.trim(),
@@ -440,9 +430,9 @@ const PromotionModal: React.FC<PromotionModalProps> = ({
           isActive: formData.isActive,
           status: formData.isActive ? "Active" : "Inactive",
         });
-        alert("Cập nhật promotion thành công!");
+        showSuccess("✅ Cập nhật promotion thành công!");
       } else {
-        // Create promotion - POST /api/promotion
+        // Create promotion
         await condotelAPI.createPromotion({
           condotelId: formData.condotelId,
           name: formData.name.trim(),
@@ -453,15 +443,19 @@ const PromotionModal: React.FC<PromotionModalProps> = ({
           isActive: formData.isActive,
           status: formData.isActive ? "Active" : "Inactive",
         });
-        alert("Tạo promotion thành công!");
+        showSuccess("✅ Tạo promotion thành công!");
       }
-      onSuccess();
+      // Delay slightly to show success message before closing
+      setTimeout(() => {
+        onSuccess();
+        onClose();
+      }, 500);
     } catch (err: any) {
       console.error("Failed to save promotion:", err);
-      let errorMessage = "Không thể lưu promotion. Vui lòng thử lại!";
+      let errorMessage = "❌ Không thể lưu promotion. Vui lòng thử lại!";
 
       if (err.response?.data?.message) {
-        errorMessage = err.response.data.message;
+        errorMessage = `❌ ${translateErrorMessage(err.response.data.message)}`;
       } else if (err.response?.data?.errors) {
         const errors = err.response.data.errors;
         const errorList = Object.entries(errors)
@@ -471,44 +465,40 @@ const PromotionModal: React.FC<PromotionModalProps> = ({
             return `${fieldName}: ${messageList}`;
           })
           .join("\n");
-        errorMessage = `Lỗi validation:\n${errorList}`;
+        errorMessage = `❌ Lỗi validation:\n${errorList}`;
       } else if (err.message) {
-        errorMessage = err.message;
+        errorMessage = `❌ ${err.message}`;
       }
       setError(errorMessage);
+      showError(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto" style={{ position: 'fixed', width: '100%', height: '100%' }}>
-      <div className="flex items-center justify-center min-h-screen px-4 py-4">
-        <div
-          className="fixed inset-0 transition-opacity bg-gray-900 bg-opacity-50 backdrop-blur-sm"
-          onClick={onClose}
-        ></div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ position: 'fixed', width: '100%', height: '100%' }}>
+      <div
+        className="fixed inset-0 transition-opacity bg-gray-900 bg-opacity-50 backdrop-blur-sm"
+        onClick={onClose}
+      ></div>
 
-        <div className="relative bg-white dark:bg-neutral-800 rounded-2xl shadow-2xl transform transition-all w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-          <div className="sticky top-0 bg-white dark:bg-neutral-800 border-b border-neutral-200 dark:border-neutral-700 px-6 py-4 flex items-center justify-between z-10">
-            <h3 className="text-xl font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
-              {promotion ? "Sửa Khuyến mãi" : "Thêm Khuyến mãi mới"}
-            </h3>
-            <button
-              onClick={onClose}
-              className="text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200 transition-colors p-2 hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded-lg"
-            >
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-          <div className="px-6 py-6">
-            <h3 className="text-lg font-medium text-neutral-900 dark:text-neutral-100 mb-4">
-              {promotion ? "Sửa Khuyến mãi" : "Thêm Khuyến mãi mới"}
-            </h3>
-
-            <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="relative bg-white dark:bg-neutral-800 rounded-2xl shadow-2xl transform transition-all w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="bg-white dark:bg-neutral-800 border-b border-neutral-200 dark:border-neutral-700 px-6 py-4 flex items-center justify-between flex-shrink-0">
+          <h3 className="text-xl font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
+            {promotion ? "Sửa Khuyến mãi" : "Thêm Khuyến mãi mới"}
+          </h3>
+          <button
+            onClick={onClose}
+            className="text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200 transition-colors p-2 hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded-lg flex-shrink-0"
+          >
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div className="overflow-y-auto flex-1 px-6 py-6">
+          <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
                   Condotel *
@@ -578,6 +568,7 @@ const PromotionModal: React.FC<PromotionModalProps> = ({
                   />
                 </div>
 
+
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -641,7 +632,6 @@ const PromotionModal: React.FC<PromotionModalProps> = ({
                 </ButtonPrimary>
               </div>
             </form>
-          </div>
         </div>
       </div>
     </div>

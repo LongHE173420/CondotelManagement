@@ -15,10 +15,7 @@ export interface StayCardHProps {
 
 const DEMO_DATA = DEMO_STAY_LISTINGS[0];
 
-const StayCardH: FC<StayCardHProps> = ({
-  className = "",
-  data = DEMO_DATA,
-}) => {
+const StayCardH: FC<StayCardHProps> = ({ className = "", data = DEMO_DATA }) => {
   const {
     galleryImgs,
     listingCategory,
@@ -40,12 +37,7 @@ const StayCardH: FC<StayCardHProps> = ({
   const renderSliderGallery = () => {
     return (
       <div className="relative flex-shrink-0 w-full md:w-72 ">
-        <GallerySlider
-          ratioClass="aspect-w-6 aspect-h-5"
-          galleryImgs={galleryImgs}
-          uniqueID={`StayCardH_${id}`}
-          href={href}
-        />
+        <GallerySlider ratioClass="aspect-w-6 aspect-h-5" galleryImgs={galleryImgs} uniqueID={`StayCardH_${id}`} href={href} />
         <BtnLikeIcon isLiked={like} className="absolute right-3 top-3" />
         {saleOff && <SaleOffBadge className="absolute left-3 top-3" />}
       </div>
@@ -59,17 +51,13 @@ const StayCardH: FC<StayCardHProps> = ({
           {maxGuests && maxGuests > 0 && (
             <div className="flex items-center space-x-3">
               <i className="las la-user text-lg"></i>
-              <span className="text-sm text-neutral-500 dark:text-neutral-400">
-                {maxGuests} khách
-              </span>
+              <span className="text-sm text-neutral-500 dark:text-neutral-400">{maxGuests} khách</span>
             </div>
           )}
           {bedrooms && bedrooms > 0 && (
             <div className="flex items-center space-x-3">
               <i className="las la-bed text-lg"></i>
-              <span className="text-sm text-neutral-500 dark:text-neutral-400">
-                {bedrooms} giường
-              </span>
+              <span className="text-sm text-neutral-500 dark:text-neutral-400">{bedrooms} giường</span>
             </div>
           )}
         </div>
@@ -77,36 +65,36 @@ const StayCardH: FC<StayCardHProps> = ({
           {bathrooms && bathrooms > 0 && (
             <div className="flex items-center space-x-3">
               <i className="las la-bath text-lg"></i>
-              <span className="text-sm text-neutral-500 dark:text-neutral-400">
-                {bathrooms} phòng tắm
-              </span>
+              <span className="text-sm text-neutral-500 dark:text-neutral-400">{bathrooms} phòng tắm</span>
             </div>
           )}
           <div className="flex items-center space-x-3">
             <i className="las la-smoking-ban text-lg"></i>
-            <span className="text-sm text-neutral-500 dark:text-neutral-400">
-              Không hút thuốc
-            </span>
+            <span className="text-sm text-neutral-500 dark:text-neutral-400">Không hút thuốc</span>
           </div>
         </div>
         <div className="space-y-3">
           {bedrooms && bedrooms > 0 && (
             <div className="flex items-center space-x-3">
               <i className="las la-door-open text-lg"></i>
-              <span className="text-sm text-neutral-500 dark:text-neutral-400">
-                {bedrooms} phòng ngủ
-              </span>
+              <span className="text-sm text-neutral-500 dark:text-neutral-400">{bedrooms} phòng ngủ</span>
             </div>
           )}
           <div className="flex items-center space-x-3">
             <i className="las la-wifi text-lg"></i>
-            <span className="text-sm text-neutral-500 dark:text-neutral-400">
-              Wifi
-            </span>
+            <span className="text-sm text-neutral-500 dark:text-neutral-400">Wifi</span>
           </div>
         </div>
       </div>
     );
+  };
+
+  const formatPrice = (rawPrice: string) => {
+    const parsed = Number(rawPrice);
+    if (!isNaN(parsed)) {
+      return `${parsed.toLocaleString("vi-VN")}đ`;
+    }
+    return rawPrice;
   };
 
   const renderContent = () => {
@@ -131,11 +119,8 @@ const StayCardH: FC<StayCardHProps> = ({
         <div className="flex justify-between items-end">
           <StartRating reviewCount={reviewCount} point={reviewStart} />
           <span className="text-base font-semibold text-secondary-500">
-            {price}
-            {` `}
-            <span className="text-sm text-neutral-500 dark:text-neutral-400 font-normal">
-              /đêm
-            </span>
+            {formatPrice(price)}{" "}
+            <span className="text-sm text-neutral-500 dark:text-neutral-400 font-normal">/đêm</span>
           </span>
         </div>
       </div>

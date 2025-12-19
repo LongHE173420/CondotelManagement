@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import blogAPI from "api/blog";
+import { showSuccess, showError } from "utils/modalNotification";
 
 interface BlogPost {
     id: number;
@@ -67,13 +68,13 @@ const PageBlogList = () => {
                 const success = await blogAPI.adminDeletePost(postId);
                 if (success) {
                     setPosts(currentPosts => currentPosts.filter(p => p.id !== postId));
-                    alert("Xóa bài viết thành công!");
+                    showSuccess("Xóa bài viết thành công!");
                 } else {
-                    alert("Không tìm thấy bài viết để xóa.");
+                    showError("Không tìm thấy bài viết để xóa.");
                 }
             } catch (err: any) {
                 console.error("Failed to delete post:", err);
-                alert(err.response?.data?.message || "Không thể xóa bài viết");
+                showError(err.response?.data?.message || "Không thể xóa bài viết");
             }
         }
     };

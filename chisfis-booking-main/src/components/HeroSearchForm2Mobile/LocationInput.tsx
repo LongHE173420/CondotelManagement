@@ -1,5 +1,6 @@
 import { MapPinIcon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 import React, { useState, useEffect, useRef, FC } from "react";
+import locationAPI from "api/location";
 
 interface Props {
   onClick?: () => void;
@@ -18,10 +19,25 @@ const LocationInput: FC<Props> = ({
   const [value, setValue] = useState("");
   const containerRef = useRef(null);
   const inputRef = useRef(null);
+  const [allLocations, setAllLocations] = useState<string[]>([]);
 
   useEffect(() => {
     setValue(defaultValue);
   }, [defaultValue]);
+
+  useEffect(() => {
+    const loadLocations = async () => {
+      try {
+        const locations = await locationAPI.getAllPublic();
+        const locationNames = locations.map(loc => loc.name).filter(Boolean) as string[];
+        setAllLocations(locationNames);
+      } catch (err) {
+        console.error("Error loading locations:", err);
+        setAllLocations([]);
+      }
+    };
+    loadLocations();
+  }, []);
 
   const handleSelectLocation = (item: string) => {
     // DO NOT REMOVE SETTIMEOUT FUNC
@@ -83,23 +99,13 @@ const LocationInput: FC<Props> = ({
           {value
             ? renderSearchValues({
                 heading: "Locations",
-                items: [
-                  "Afghanistan",
-                  "Albania",
-                  "Algeria",
-                  "American Samao",
-                  "Andorra",
-                ],
+                items: allLocations.filter((item) =>
+                  item.toLowerCase().includes(value.toLowerCase())
+                ),
               })
             : renderSearchValues({
                 heading: "Popular destinations",
-                items: [
-                  "Australia",
-                  "Canada",
-                  "Germany",
-                  "United Kingdom",
-                  "United Arab Emirates",
-                ],
+                items: allLocations.length > 0 ? allLocations.slice(0, 6) : [],
               })}
         </div>
       </div>

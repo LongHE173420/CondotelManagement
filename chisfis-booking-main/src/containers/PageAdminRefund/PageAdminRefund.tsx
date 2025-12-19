@@ -750,7 +750,7 @@ const PageAdminRefund = () => {
           onClick={() => setSelectedQR(null)}
         >
           <div 
-            className="bg-white dark:bg-neutral-800 p-6 rounded-2xl max-w-2xl w-full shadow-2xl relative max-h-[90vh] overflow-y-auto"
+            className="bg-white dark:bg-neutral-800 p-6 rounded-2xl max-w-3xl w-full shadow-2xl relative max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-lg font-bold text-center mb-4 text-gray-800">{selectedQR.title}</h3>
@@ -783,7 +783,7 @@ const PageAdminRefund = () => {
 
         return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm" style={{ position: 'fixed', width: '100%', height: '100%' }}>
-            <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-2xl p-6 w-full max-w-2xl mx-4 transform transition-all animate-fadeIn max-h-[90vh] overflow-y-auto">
+            <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-2xl p-6 w-full max-w-3xl mx-4 transform transition-all animate-fadeIn max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-bold text-gray-900 mb-4">
                 Xác nhận đã chuyển khoản?
             </h3>

@@ -25,9 +25,6 @@ const SectionGridAuthorBox: FC<SectionGridAuthorBoxProps> = ({
   // Use provided authors or fallback to demo data
   const displayAuthors = authors && authors.length > 0 ? authors : DEMO_DATA;
   
-  console.log("🏆 SectionGridAuthorBox - authors prop:", authors);
-  console.log("🏆 SectionGridAuthorBox - displayAuthors:", displayAuthors);
-  
   return (
     <div
       className={`nc-SectionGridAuthorBox relative ${className}`}

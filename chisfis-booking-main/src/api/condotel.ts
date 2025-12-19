@@ -94,22 +94,6 @@ export interface CondotelDTO {
   activePrice?: PriceDTO | null; // Price đang active (nếu có)
 }
 
-// Pagination response
-export interface PaginationInfo {
-  pageNumber: number;
-  pageSize: number;
-  totalCount: number;
-  totalPages: number;
-  hasPreviousPage: boolean;
-  hasNextPage: boolean;
-}
-
-export interface PagedResult<T> {
-  success: boolean;
-  data: T[];
-  pagination: PaginationInfo;
-}
-
 // CondotelDetailDTO - Full details for detail/update
 export interface CondotelDetailDTO {
   condotelId: number;
@@ -196,12 +180,13 @@ export interface CondotelSearchQuery {
   hostId?: number; // Host ID
   fromDate?: string; // DateOnly format: YYYY-MM-DD
   toDate?: string; // DateOnly format: YYYY-MM-DD
+  // Compatibility aliases for backends expecting start/end naming
+  startDate?: string;
+  endDate?: string;
   minPrice?: number; // Minimum price per night
   maxPrice?: number; // Maximum price per night
   beds?: number; // Minimum number of beds (>=)
   bathrooms?: number; // Minimum number of bathrooms (>=)
-  pageNumber?: number; // Page number (default: 1)
-  pageSize?: number; // Page size (default: 10, max: 100)
 }
 
 // Helper functions to normalize data (shared across API calls)
@@ -261,8 +246,8 @@ const normalizePromotion = (promo: any): PromotionDTO | null => {
 
 // API Calls
 export const condotelAPI = {
-  // GET /api/tenant/condotels?name=abc&location=abc&locationId=123&fromDate=...&toDate=...&minPrice=...&maxPrice=...&beds=...&bathrooms=...&pageNumber=1&pageSize=10 - Tìm kiếm condotel (public, không cần đăng nhập)
-  search: async (query?: CondotelSearchQuery): Promise<PagedResult<CondotelDTO>> => {
+  // GET /api/tenant/condotels?name=abc&location=abc&locationId=123&fromDate=...&toDate=...&minPrice=...&maxPrice=...&beds=...&bathrooms=... - Tìm kiếm condotel (public, không cần đăng nhập)
+  search: async (query?: CondotelSearchQuery): Promise<CondotelDTO[]> => {
     const params: any = {};
     if (query?.name) {
       params.name = query.name.trim();
@@ -279,11 +264,21 @@ export const condotelAPI = {
     if (query?.hostId !== undefined && query?.hostId !== null) {
       params.hostId = query.hostId;
     }
+    // Support both fromDate/toDate and startDate/endDate naming
     if (query?.fromDate) {
       params.fromDate = query.fromDate;
     }
     if (query?.toDate) {
       params.toDate = query.toDate;
+    }
+    if (query?.startDate) {
+      params.startDate = query.startDate;
+      // Also backfill fromDate to cover both backend expectations
+      params.fromDate = params.fromDate || query.startDate;
+    }
+    if (query?.endDate) {
+      params.endDate = query.endDate;
+      params.toDate = params.toDate || query.endDate;
     }
     if (query?.minPrice !== undefined && query?.minPrice !== null) {
       params.minPrice = query.minPrice;
@@ -297,44 +292,24 @@ export const condotelAPI = {
     if (query?.bathrooms !== undefined && query?.bathrooms !== null) {
       params.bathrooms = query.bathrooms;
     }
-    // Pagination
-    if (query?.pageNumber !== undefined && query?.pageNumber !== null) {
-      params.pageNumber = query.pageNumber;
-    }
-    if (query?.pageSize !== undefined && query?.pageSize !== null) {
-      params.pageSize = query.pageSize;
-    }
 
     try {
       const response = await axiosClient.get<any>("/tenant/condotels", { params });
 
-      // Normalize response - handle pagination response
+      // Normalize response - handle both array, object with data property, and success wrapper
       let data: any[] = [];
       let pagination: PaginationInfo | undefined = undefined;
 
       if (Array.isArray(response.data)) {
-        // Legacy format: just array
         data = response.data;
       } else if (response.data && typeof response.data === 'object') {
-        // Handle { success: true, data: [...], pagination: {...} } wrapper
+        // Handle { success: true, data: [...] } wrapper
         if ('data' in response.data) {
           if (Array.isArray(response.data.data)) {
             data = response.data.data;
           } else {
             data = [];
           }
-        }
-        // Extract pagination if exists
-        if ('pagination' in response.data) {
-          const pag = response.data.pagination;
-          pagination = {
-            pageNumber: pag.pageNumber || pag.PageNumber || 1,
-            pageSize: pag.pageSize || pag.PageSize || 10,
-            totalCount: pag.totalCount || pag.TotalCount || 0,
-            totalPages: pag.totalPages || pag.TotalPages || 0,
-            hasPreviousPage: pag.hasPreviousPage !== undefined ? pag.hasPreviousPage : (pag.HasPreviousPage !== undefined ? pag.HasPreviousPage : false),
-            hasNextPage: pag.hasNextPage !== undefined ? pag.hasNextPage : (pag.HasNextPage !== undefined ? pag.HasNextPage : false),
-          };
         }
       }
 
@@ -380,28 +355,7 @@ export const condotelAPI = {
         };
       });
 
-      // Return paginated result
-      if (pagination) {
-        return {
-          success: true,
-          data: mapped,
-          pagination: pagination,
-        };
-      } else {
-        // Fallback: return as paginated result with default pagination
-        return {
-          success: true,
-          data: mapped,
-          pagination: {
-            pageNumber: 1,
-            pageSize: mapped.length,
-            totalCount: mapped.length,
-            totalPages: 1,
-            hasPreviousPage: false,
-            hasNextPage: false,
-          },
-        };
-      }
+      return mapped;
     } catch (error: any) {
       throw error;
     }
@@ -410,8 +364,7 @@ export const condotelAPI = {
   // GET /api/tenant/condotels - Lấy tất cả condotels (public, không cần đăng nhập)
   // Alias for search with no parameters
   getAll: async (): Promise<CondotelDTO[]> => {
-    const result = await condotelAPI.search();
-    return result.data;
+    return condotelAPI.search();
   },
 
   // GET /api/tenant/condotels/{id} - Lấy chi tiết condotel (public, không cần đăng nhập)
@@ -482,14 +435,12 @@ export const condotelAPI = {
 
   // GET /api/tenant/condotels?location=... - Tìm kiếm condotel theo location (sử dụng endpoint mới)
   getCondotelsByLocation: async (locationName?: string): Promise<CondotelDTO[]> => {
-    const result = await condotelAPI.search({ location: locationName });
-    return result.data;
+    return condotelAPI.search({ location: locationName });
   },
 
   // GET /api/tenant/condotels?locationId=... - Tìm kiếm condotel theo location ID (public, không cần đăng nhập)
   getCondotelsByLocationId: async (locationId: number): Promise<CondotelDTO[]> => {
-    const result = await condotelAPI.search({ locationId });
-    return result.data;
+    return condotelAPI.search({ locationId });
   },
 
   // GET /api/tenant/condotels/host/{hostId} - Lấy condotels theo host ID (public, không cần đăng nhập)
@@ -607,8 +558,7 @@ export const condotelAPI = {
   // GET /api/tenant/condotels?location=... - Tìm kiếm condotel theo location (public, AllowAnonymous)
   // Alias for getCondotelsByLocation - sử dụng endpoint mới
   getCondotelsByLocationPublic: async (locationName?: string): Promise<CondotelDTO[]> => {
-    const result = await condotelAPI.search({ location: locationName });
-    return result.data;
+    return condotelAPI.search({ location: locationName });
   },
 
   // GET /api/host/condotel - Lấy tất cả condotels của host (cần đăng nhập)
@@ -688,22 +638,10 @@ export const condotelAPI = {
       description: rawActivePrice.Description || rawActivePrice.description,
     } : null;
 
-    // Normalize resortId - kiểm tra nhiều trường hợp
-    let normalizedResortId: number | undefined = undefined;
-    if (actualData.ResortId !== undefined && actualData.ResortId !== null) {
-      normalizedResortId = actualData.ResortId;
-    } else if (actualData.resortId !== undefined && actualData.resortId !== null) {
-      normalizedResortId = actualData.resortId;
-    } else if (actualData.Resort?.ResortId !== undefined && actualData.Resort?.ResortId !== null) {
-      normalizedResortId = actualData.Resort.ResortId;
-    } else if (actualData.resort?.resortId !== undefined && actualData.resort?.resortId !== null) {
-      normalizedResortId = actualData.resort.resortId;
-    }
-
     const result = {
       condotelId: actualData.CondotelId || actualData.condotelId,
       hostId: actualData.HostId || actualData.hostId,
-      resortId: normalizedResortId,
+      resortId: actualData.ResortId !== undefined ? actualData.ResortId : (actualData.resortId !== undefined ? actualData.resortId : undefined),
       name: actualData.Name || actualData.name || "",
       description: actualData.Description || actualData.description || "",
       pricePerNight: actualData.PricePerNight !== undefined ? actualData.PricePerNight : (actualData.pricePerNight !== undefined ? actualData.pricePerNight : 0),
@@ -828,11 +766,19 @@ export const condotelAPI = {
     return response.data;
   },
 
-  // DELETE /api/host/condotel/{id} - Xóa mềm (soft delete) condotel
-  // Backend sẽ tự động đổi status sang "Inactive"
-  // Yêu cầu: Role "Host" và condotel phải thuộc về host đó
-  delete: async (id: number): Promise<{ success: boolean; message?: string }> => {
-    const response = await axiosClient.delete<{ success: boolean; message?: string }>(`/host/condotel/${id}`);
+  // DELETE /api/condotel/{id} - "Xóa" condotel bằng cách chuyển status sang "Inactive"
+  delete: async (id: number): Promise<CondotelDetailDTO> => {
+    // Lấy thông tin condotel hiện tại
+    const currentCondotel = await axiosClient.get<CondotelDetailDTO>(`/host/condotel/${id}`).then(res => res.data);
+
+    // Cập nhật status thành "Inactive" thay vì xóa thật sự
+    const updatedCondotel: CondotelDetailDTO = {
+      ...currentCondotel,
+      status: "Inactive",
+    };
+
+    // Gọi API update để thay đổi status
+    const response = await axiosClient.put<CondotelDetailDTO>(`/host/condotel/${id}`, updatedCondotel);
     return response.data;
   },
 

@@ -33,10 +33,7 @@ const RevenueChart: React.FC<RevenueChartProps> = ({
       setLoading(true);
       setError("");
       try {
-        console.log("📈 [RevenueChart] Loading data with filters:", { year, month });
         const revenueData = await reportAPI.getRevenueReport(year, month);
-        console.log("📈 [RevenueChart] Received data:", revenueData);
-        console.log("📈 [RevenueChart] Data count:", revenueData.length);
         setData(revenueData);
       } catch (err: any) {
         console.error("📈 [RevenueChart] Failed to load revenue data:", err);
@@ -130,15 +127,11 @@ const RevenueChart: React.FC<RevenueChartProps> = ({
       revenue: item.revenue || 0,
       bookings: item.bookings || 0,
     };
-    console.log("📈 [RevenueChart] Chart data item:", formatted);
     return formatted;
   });
-  
-  console.log("📈 [RevenueChart] Final chartData:", chartData);
-  console.log("📈 [RevenueChart] ChartData length:", chartData.length);
 
   return (
-    <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg p-6">
+    <div>
       <div className="mb-4">
         <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">
           Biểu đồ doanh thu

@@ -108,15 +108,21 @@ const PageRequestRefund = () => {
           if (!canRequestRefund) {
             setError(`Booking đang ở trạng thái "${bookingData.status}" không thể hoàn tiền. Chỉ có thể hoàn tiền cho booking đã bị hủy SAU KHI ĐÃ THANH TOÁN (Cancelled với totalPrice > 0) hoặc đang ở trạng thái Pending/Confirmed/Completed/Refunded (nếu chưa có refund request completed).`);
           } else {
-            // Kiểm tra xem có trong vòng 2 ngày không
-            if (bookingData.createdAt) {
-              const createdDate = new Date(bookingData.createdAt);
+            // ✅ Kiểm tra xem có trong vòng 2 ngày TRƯỚC ngày check-in không
+            if (bookingData.startDate) {
+              const checkInDate = new Date(bookingData.startDate);
               const now = new Date();
-              const diffTime = Math.abs(now.getTime() - createdDate.getTime());
-              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+              const daysBeforeCheckIn = (checkInDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
               
-              if (diffDays > 2) {
-                setError("Chỉ có thể yêu cầu hoàn tiền trong vòng 2 ngày kể từ ngày đặt phòng");
+              if (daysBeforeCheckIn < 2) {
+                const daysRemaining = Math.ceil(daysBeforeCheckIn);
+                if (daysRemaining < 0) {
+                  setError(`❌ Không thể hủy booking. Ngày check-in đã qua hoặc đang trong thời gian sử dụng (${checkInDate.toLocaleDateString('vi-VN')}).`);
+                } else if (daysRemaining === 0) {
+                  setError(`❌ Không thể hủy booking. Hôm nay là ngày check-in (${checkInDate.toLocaleDateString('vi-VN')}). Bạn chỉ có thể hủy trước ít nhất 2 ngày.`);
+                } else {
+                  setError(`❌ Không thể hủy booking. Bạn chỉ có thể hủy trước ít nhất 2 ngày so với ngày check-in. Còn ${daysRemaining} ngày nữa là đến ngày check-in (${checkInDate.toLocaleDateString('vi-VN')}).`);
+                }
               }
             }
           }
@@ -130,6 +136,28 @@ const PageRequestRefund = () => {
 
     loadBooking();
   }, [id]);
+
+  // Calculate cancellation deadline (2 days BEFORE check-in)
+  const getCancellationDeadline = (bookingData: BookingDTO | null) => {
+    if (!bookingData?.startDate) return null;
+    
+    const checkInDate = new Date(bookingData.startDate);
+    const deadline = new Date(checkInDate);
+    deadline.setDate(deadline.getDate() - 2);
+    return deadline;
+  };
+
+  // Check if booking can be cancelled (at least 2 days before check-in)
+  const isWithinCancellationWindow = (bookingData: BookingDTO | null | undefined): boolean => {
+    if (!bookingData?.startDate) return false;
+    const checkInDate = new Date(bookingData.startDate);
+    const now = new Date();
+    const daysBeforeCheckIn = (checkInDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+    return daysBeforeCheckIn >= 2;
+  };
+
+  const cancellationDeadline = getCancellationDeadline(booking);
+  const canRequestRefund = !error || error.length === 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -218,6 +246,24 @@ const PageRequestRefund = () => {
           }
         }      if (!currentBooking.totalPrice || currentBooking.totalPrice <= 0) {
         throw new Error("Booking không có số tiền hợp lệ để hoàn tiền.");
+      }
+
+      // ✅ KIỂM TRA ĐIỀU KIỆN: Chỉ có thể yêu cầu hoàn tiền nếu hủy trước ít nhất 2 ngày so với ngày check-in
+      if (currentBooking.startDate) {
+        const checkInDate = new Date(currentBooking.startDate);
+        const currentDate = new Date();
+        const daysBeforeCheckIn = (checkInDate.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24);
+        
+        if (daysBeforeCheckIn < 2) {
+          const daysRemaining = Math.ceil(daysBeforeCheckIn);
+          if (daysRemaining < 0) {
+            throw new Error(`❌ Không thể hủy booking. Ngày check-in đã qua hoặc đang trong thời gian sử dụng (${checkInDate.toLocaleDateString('vi-VN')}).`);
+          } else if (daysRemaining === 0) {
+            throw new Error(`❌ Không thể hủy booking. Hôm nay là ngày check-in (${checkInDate.toLocaleDateString('vi-VN')}). Bạn chỉ có thể hủy trước ít nhất 2 ngày.`);
+          } else {
+            throw new Error(`❌ Không thể hủy booking. Bạn chỉ có thể hủy trước ít nhất 2 ngày so với ngày check-in. Còn ${daysRemaining} ngày nữa là đến ngày check-in (${checkInDate.toLocaleDateString('vi-VN')}).`);
+          }
+        }
       }
 
       const finalStatus = currentBooking.status?.toLowerCase()?.trim();
@@ -404,6 +450,38 @@ const PageRequestRefund = () => {
               <span className="text-2xl font-bold text-red-600">{formatPrice(booking.totalPrice)}</span>
             </div>
           </div>
+
+          {/* Cancellation deadline info */}
+          {cancellationDeadline && (
+            <div className={`mt-6 p-4 rounded-lg border-2 ${canRequestRefund ? 'bg-green-50 border-green-300' : 'bg-red-50 border-red-300'}`}>
+              <div className="flex items-start">
+                <div className={`flex-shrink-0 mr-3 ${canRequestRefund ? 'text-green-600' : 'text-red-600'}`}>
+                  {canRequestRefund ? (
+                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                  ) : (
+                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                </div>
+                <div className="flex-1">
+                  <p className={`font-semibold ${canRequestRefund ? 'text-green-800' : 'text-red-800'}`}>
+                    {canRequestRefund ? '✅ Còn trong thời hạn hủy' : '❌ Hết thời hạn hủy'}
+                  </p>
+                  <p className={`text-sm mt-1 ${canRequestRefund ? 'text-green-700' : 'text-red-700'}`}>
+                    Hạn cuối để hủy và hoàn tiền: <span className="font-bold text-lg">{cancellationDeadline.toLocaleDateString('vi-VN')}</span>
+                  </p>
+                  {canRequestRefund && (
+                    <p className="text-sm mt-1 text-gray-600">
+                      Bạn có thể hủy trước ít nhất 2 ngày so với ngày check-in ({booking.startDate ? new Date(booking.startDate).toLocaleDateString('vi-VN') : ''})
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Refund Form */}

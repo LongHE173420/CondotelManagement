@@ -30,80 +30,74 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [hostPackage, setHostPackage] = useState<HostPackageDetailsDto | null>(null);
-  const [isLoading, setIsLoading] = useState(true); // Bắt đầu là true
+  const [isLoading, setIsLoading] = useState(true);
 
   // === KHỞI TẠO AUTH KHI APP LOAD ===
   useEffect(() => {
     const initializeAuth = async () => {
-      const storedToken = localStorage.getItem("token");
-      const userStr = localStorage.getItem("user");
-
-      // Khôi phục user từ localStorage (nếu có)
-      if (userStr) {
-        try {
-          const parsedUser = JSON.parse(userStr);
-          setUser(parsedUser);
-        } catch {
-        }
-      }
-
-      if (!storedToken) {
-        setIsLoading(false);
-        return;
-      }
-
-      // Có token → thiết lập header
-      setToken(storedToken);
-      axiosClient.defaults.headers.common["Authorization"] = `Bearer ${storedToken}`;
-
       try {
-        // Lấy thông tin user mới nhất từ server
-        const userProfile = await authAPI.getMe();
-        setUser(userProfile);
-        localStorage.setItem("user", JSON.stringify(userProfile));
-
-        // CHỈ gọi packageAPI.getMyPackage() KHI USER LÀ HOST
-        if (userProfile.roleName === "Host") {
+        // Check localStorage for existing token
+        const storedToken = localStorage.getItem("token");
+        const storedUser = localStorage.getItem("user");
+        
+        if (storedToken && storedUser) {
+          setToken(storedToken);
+          const userProfile = JSON.parse(storedUser);
+          setUser(userProfile);
+          
+          // Verify token is still valid by calling getMe
           try {
-            const pkg = await packageAPI.getMyPackage();
-            setHostPackage(pkg);
-          } catch (pkgError: any) {
-            // Nếu 400 hoặc 404 → người dùng chưa có package → bình thường
-            if (pkgError.response?.status === 400 || pkgError.response?.status === 404) {
-              setHostPackage(null);
+            const freshUser = await authAPI.getMe();
+            setUser(freshUser);
+            
+            // CHỈ gọi packageAPI.getMyPackage() KHI USER LÀ HOST
+            if (freshUser.roleName === "Host") {
+              try {
+                const pkg = await packageAPI.getMyPackage();
+                setHostPackage(pkg);
+              } catch (pkgError: any) {
+                if (pkgError.response?.status === 400 || pkgError.response?.status === 404) {
+                  setHostPackage(null);
+                }
+              }
             } else {
+              setHostPackage(null);
             }
+          } catch (e) {
+            // Token is invalid, clear localStorage
+            localStorage.removeItem("token");
+            localStorage.removeItem("user");
+            setToken(null);
+            setUser(null);
+            setHostPackage(null);
           }
-        } else {
-          setHostPackage(null); // Tenant, Admin → không cần package
         }
       } catch (error: any) {
-        handleLogout();
+        // Not authenticated or error fetching user
+        setUser(null);
+        setHostPackage(null);
       } finally {
         setIsLoading(false);
       }
     };
 
     initializeAuth();
-  }, []); // Chỉ chạy 1 lần khi app load
+  }, []);
 
   // === LOGIN ===
-  const login = (newToken: string, newUser: UserProfile) => {
-    const cleanToken = newToken.startsWith("Bearer ") ? newToken.substring(7) : newToken;
-    setToken(cleanToken);
+  const login = (token: string, newUser: UserProfile) => {
+    setToken(token);
     setUser(newUser);
-    localStorage.setItem("token", cleanToken);
+    localStorage.setItem("token", token);
     localStorage.setItem("user", JSON.stringify(newUser));
-    axiosClient.defaults.headers.common["Authorization"] = `Bearer ${cleanToken}`;
 
-    // Chỉ load package nếu là Host
+    // Load package if Host
     if (newUser.roleName === "Host") {
       packageAPI.getMyPackage()
         .then(setHostPackage)
         .catch(err => {
           if (err.response?.status === 400 || err.response?.status === 404) {
             setHostPackage(null);
-          } else {
           }
         });
     } else {
@@ -113,35 +107,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // === LOGOUT ===
   const handleLogout = async () => {
-    const currentToken = localStorage.getItem("token");
-
-    if (currentToken) {
-      try {
-        await authAPI.logout();
-      } catch (error) {
-      }
+    try {
+      await authAPI.logout();
+    } catch (error) {
+      // Logout request failed but continue with local cleanup
     }
-
-    // Xóa toàn bộ dữ liệu
-    setUser(null);
-    setToken(null);
-    setHostPackage(null);
+    
     localStorage.removeItem("token");
     localStorage.removeItem("user");
-    delete axiosClient.defaults.headers.common["Authorization"];
+    setToken(null);
+    setUser(null);
+    setHostPackage(null);
 
-    // Chuyển hướng cứng (đảm bảo không cache)
+    // Redirect to login
     window.location.href = "/login";
   };
 
   // === RELOAD USER ===
   const reloadUser = async () => {
-    if (!token) return;
-
     try {
       const userProfile = await authAPI.getMe();
       setUser(userProfile);
-      localStorage.setItem("user", JSON.stringify(userProfile));
 
       if (userProfile.roleName === "Host") {
         try {
@@ -150,18 +136,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         } catch (err: any) {
           if (err.response?.status === 400 || err.response?.status === 404) {
             setHostPackage(null);
-          } else {
           }
         }
       } else {
         setHostPackage(null);
       }
     } catch (error) {
+      // Failed to reload user - probably not authenticated
       handleLogout();
     }
   };
 
-  // === UPDATE USER (Sau khi edit profile, upload ảnh, v.v.) ===
+  // === UPDATE USER ===
   const updateUser = (updatedUser: UserProfile) => {
     setUser(updatedUser);
     localStorage.setItem("user", JSON.stringify(updatedUser));

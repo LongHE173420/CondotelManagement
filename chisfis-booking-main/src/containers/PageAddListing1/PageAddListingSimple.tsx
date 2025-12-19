@@ -503,10 +503,7 @@ const PageAddListingSimple: FC = () => {
         ...(utilityIds.length > 0 && { utilityIds: utilityIds.map((id) => Number(id)) }),
       };
 
-      console.log("📤 CONDOTEL CREATE PAYLOAD:", payload);
-
       await condotelAPI.create(payload);
-      console.log("✅ Condotel created successfully");
 
       toastSuccess("Tạo condotel thành công!");
       resetForm();

@@ -53,13 +53,10 @@ const PageAdminReports: React.FC = () => {
         hostOptions.sort((a, b) => a.fullName.localeCompare(b.fullName));
         
         setHosts(hostOptions);
-        console.log("✅ Loaded hosts with hostId from /admin/reports/hosts:", hostOptions.length);
       } else {
-        console.warn("⚠️ No hosts returned from API");
         setHosts([]);
       }
     } catch (err: any) {
-      console.error("Error loading hosts:", err);
       toastError("Không thể tải danh sách host");
       setHosts([]);
     } finally {
@@ -78,11 +75,9 @@ const PageAdminReports: React.FC = () => {
         // Nếu API trả về { data: [...] }
         setReports((data as any).data);
       } else {
-        console.warn("Unexpected reports format:", data);
         setReports([]);
       }
     } catch (err: any) {
-      console.error("Error loading reports:", err);
       toastError(err.response?.data?.message || "Không thể tải danh sách báo cáo");
       setReports([]); // Đảm bảo reports luôn là array
     } finally {
@@ -168,7 +163,6 @@ const PageAdminReports: React.FC = () => {
         day: "2-digit",
       });
     } catch (error) {
-      console.error("Error formatting date:", dateString, error);
       return "-";
     }
   };

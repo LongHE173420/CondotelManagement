@@ -1,6 +1,5 @@
 import React from "react";
-import { BrowserRouter, Routes, Route, useLocation, Navigate } from "react-router-dom";
-import { useAuth } from "contexts/AuthContext";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { Page } from "./types";
 import ScrollToTop from "./ScrollToTop";
 import Footer from "shared/Footer/Footer";
@@ -49,6 +48,7 @@ import PageEditCondotel from "containers/PageEditCondotel/PageEditCondotel";
 import PageBookingHistory from "containers/PageBookingHistory/PageBookingHistory";
 import PageBookingHistoryDetail from "containers/PageBookingHistory/PageBookingHistoryDetail";
 import PageRequestRefund from "containers/PageRequestRefund/PageRequestRefund";
+import PageRefundRequests from "containers/PageRefundRequests/PageRefundRequests";
 import PageWriteReview from "containers/PageWriteReview/PageWriteReview";
 import PageMyReviews from "containers/PageMyReviews/PageMyReviews";
 import PageBlogList from "containers/PageManageBlog/PageBlogList";
@@ -75,8 +75,6 @@ import PageChat from "containers/ChatPage/PageChat";
 import PageTerms from "containers/PageTerms/PageTerms";
 import PagePrivacy from "containers/PagePrivacy/PagePrivacy";
 import PageRegulations from "containers/PageRegulations/PageRegulations";
-import HostCreateBlog from "containers/HostCreateBlogPage/HostCreateBlog";
-import AdminBlogRequests from "containers/AdminPage/AdminBlogRequests";
 
 export const pages: Page[] = [
   { path: "/", exact: true, component: PageHome },
@@ -125,6 +123,7 @@ export const pages: Page[] = [
   { path: "/booking-history", component: PageBookingHistory },
   { path: "/booking-history/:id", component: PageBookingHistoryDetail },
   { path: "/request-refund/:id", component: PageRequestRefund },
+  { path: "/refund-requests", component: PageRefundRequests },
   { path: "/write-review/:id", component: PageWriteReview },
   { path: "/my-reviews", component: PageMyReviews },
   //
@@ -155,29 +154,13 @@ export const pages: Page[] = [
   { path: "/terms", component: PageTerms },
   { path: "/privacy", component: PagePrivacy },
   { path: "/regulations", component: PageRegulations },
-  { path: "/admin/blog-requests", component: AdminBlogRequests },
 ];
 
 const RoutesContent = () => {
   const location = useLocation();
-  const { isAdmin, isLoading } = useAuth();
   const WIN_WIDTH = useWindowSize().width || window.innerWidth;
-  const isAdminRoute = location.pathname.startsWith("/admin");
+  const isAdminRoute = location.pathname.startsWith("/admin") || location.pathname.startsWith("/manage-blog") || location.pathname.startsWith("/manage-locations") || location.pathname.startsWith("/manage-vouchers") || location.pathname.startsWith("/account-list") || location.pathname.startsWith("/account-detail") || location.pathname.startsWith("/add-account");
   const isHostRoute = location.pathname.startsWith("/host-dashboard");
-
-  // Block admin from accessing non-admin pages
-  // Allow login, signup, forgot-password, and chat pages (for customer support)
-  const allowedPathsForAdmin = ["/login", "/signup", "/forgot-pass", "/chat"];
-  const isAllowedPath =
-    allowedPathsForAdmin.includes(location.pathname) ||
-    location.pathname.startsWith("/manage-blog") ||
-    location.pathname.startsWith("/manage-vouchers") ||
-    location.pathname.startsWith("/manage-locations");
-
-  // If admin tries to access non-admin pages (except allowed paths), redirect to /admin
-  if (!isLoading && isAdmin && !isAdminRoute && !isAllowedPath) {
-    return <Navigate to="/admin" replace />;
-  }
 
   return (
     <>
@@ -221,7 +204,7 @@ const RoutesContent = () => {
         <Route path="/subscription" element={<PageSubcription />} />
         <Route path="/pricing" element={<PricingPage />} />
         <Route path="/payment/success" element={<PaymentSuccess />} />
-
+        
         {pages.map(({ component, path }) => {
           const Component = component;
 
@@ -248,34 +231,83 @@ const RoutesContent = () => {
             );
           }
 
+          // Protect blog management routes - only Admin can access
+          if (path && path.startsWith("/manage-blog")) {
+            return (
+              <Route key={path} path={path} element={
+                <AdminLayout>
+                  <ProtectedRoute requireAuth={true} requireAdmin={true}>
+                    <Component />
+                  </ProtectedRoute>
+                </AdminLayout>
+              } />
+            );
+          }
+
+          // Protect account management routes - only Admin can access
+          if (path === "/account-list" || path === "/account-detail/:id" || path === "/add-account") {
+            return (
+              <Route key={path} path={path} element={
+                <AdminLayout>
+                  <ProtectedRoute requireAuth={true} requireAdmin={true}>
+                    <Component />
+                  </ProtectedRoute>
+                </AdminLayout>
+              } />
+            );
+          }
+
           // Skip add-listing routes (đã được handle ở trên)
           if (path && (path.startsWith("/add-listing") || path.startsWith("/add-condotel"))) {
             return null;
           }
 
-          return <Route key={path} element={<Component />} path={path} />;
+          return <Route key={path} path={path} element={<Component />} />;
         })}
+
+        {/* Protected Admin Routes - Direct paths for specific tabs */}
         <Route
-          path="/host-dashboard/create-blog"
+          path="/admin/add-category-blog"
           element={
-            <HostLayout>
-              <ProtectedRoute requireAuth={true} requireHost={true}>
-                <HostCreateBlog />
+            <AdminLayout>
+              <ProtectedRoute requireAuth={true} requireAdmin={true}>
+                <AdminPage {...({ defaultTab: "add-category-blog" } as any)} />
               </ProtectedRoute>
-            </HostLayout>
+            </AdminLayout>
           }
-        /><Route
-          path="/host-dashboard/blog/edit/:id"
+        />
+        <Route
+          path="/admin/add-blog"
           element={
-            <HostLayout>
-              <ProtectedRoute requireAuth={true} requireHost={true}>
-                <HostCreateBlog />
+            <AdminLayout>
+              <ProtectedRoute requireAuth={true} requireAdmin={true}>
+                <AdminPage {...({ defaultTab: "add-blog" } as any)} />
               </ProtectedRoute>
-            </HostLayout>
+            </AdminLayout>
+          }
+        />
+        <Route
+          path="/admin/add-account"
+          element={
+            <AdminLayout>
+              <ProtectedRoute requireAuth={true} requireAdmin={true}>
+                <AdminPage {...({ defaultTab: "add-account" } as any)} />
+              </ProtectedRoute>
+            </AdminLayout>
+          }
+        />
+        <Route
+          path="/admin/edit-account"
+          element={
+            <AdminLayout>
+              <ProtectedRoute requireAuth={true} requireAdmin={true}>
+                <AdminPage {...({ defaultTab: "edit-account" } as any)} />
+              </ProtectedRoute>
+            </AdminLayout>
           }
         />
 
-        {/* Protected Admin Route */}
+        {/* Protected Admin Route - Catch-all for /admin/* */}
         <Route
           path="/admin/*"
           element={

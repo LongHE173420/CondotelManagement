@@ -325,11 +325,8 @@ export const vietnamAddressAPI = {
       // Bước 2: Lấy mã tỉnh
       const provinceCode = getProvinceCode(actualProvinceName);
       if (!provinceCode) {
-        console.warn(`Không tìm thấy mã tỉnh cho: ${provinceName} (mapped to: ${actualProvinceName})`);
         return [];
       }
-
-      console.log(`📍 Loading districts for: ${provinceName} -> ${actualProvinceName} (code: ${provinceCode})`);
 
       const response = await axios.get<any>(
         `${VIETNAM_ADDRESS_API_BASE}/p/${provinceCode}?depth=2`,
@@ -343,15 +340,9 @@ export const vietnamAddressAPI = {
       const districts = province.districts || [];
 
       const districtNames = districts.map((d: any) => d.name || d.Name || "").filter((name: string) => name);
-      console.log(`✅ Loaded ${districtNames.length} districts for ${actualProvinceName}:`, districtNames.slice(0, 5));
       
       return districtNames;
     } catch (error: any) {
-      console.error("Error loading districts from external API:", error);
-      if (error.response) {
-        console.error("Response status:", error.response.status);
-        console.error("Response data:", error.response.data);
-      }
       return [];
     }
   },
@@ -368,11 +359,8 @@ export const vietnamAddressAPI = {
       // Bước 2: Lấy mã tỉnh
       const provinceCode = getProvinceCode(actualProvinceName);
       if (!provinceCode) {
-        console.warn(`Không tìm thấy mã tỉnh cho: ${provinceName} (mapped to: ${actualProvinceName})`);
         return [];
       }
-
-      console.log(`📍 Loading wards for: ${provinceName} -> ${actualProvinceName}, district: ${districtName}`);
 
       // Lấy danh sách quận/huyện để tìm mã quận/huyện
       const response = await axios.get<any>(
@@ -402,11 +390,8 @@ export const vietnamAddressAPI = {
       });
 
       if (!district || !district.code) {
-        console.warn(`Không tìm thấy mã quận/huyện cho: ${districtName} trong tỉnh ${actualProvinceName}`);
         return [];
       }
-
-      console.log(`✅ Found district: ${district.name} (code: ${district.code})`);
 
       // Lấy danh sách xã/phường
       const wardsResponse = await axios.get<any>(
@@ -417,11 +402,9 @@ export const vietnamAddressAPI = {
       const wards = districtData.wards || [];
 
       const wardNames = wards.map((w: any) => w.name || w.Name || "").filter((name: string) => name);
-      console.log(`✅ Loaded ${wardNames.length} wards for ${district.name}`);
       
       return wardNames;
     } catch (error: any) {
-      console.error("Error loading wards from external API:", error);
       return [];
     }
   },

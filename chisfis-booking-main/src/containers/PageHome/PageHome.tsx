@@ -12,6 +12,7 @@ import SectionGridAuthorBox from "components/SectionGridAuthorBox/SectionGridAut
 import SectionGridCategoryBox from "components/SectionGridCategoryBox/SectionGridCategoryBox";
 import SectionBecomeAnAuthor from "components/SectionBecomeAnAuthor/SectionBecomeAnAuthor";
 import SectionVideos from "./SectionVideos";
+import SectionWhyChooseCondotel from "components/SectionWhyChooseCondotel/SectionWhyChooseCondotel";
 import { useTranslation } from "i18n/LanguageContext";
 import locationAPI, { LocationDTO } from "api/location";
 import condotelAPI from "api/condotel";
@@ -103,7 +104,6 @@ function PageHome() {
           const nameParts = (host.fullName || '').split(' ');
           const firstName = nameParts[0] || '';
           const lastName = nameParts.slice(1).join(' ') || '';
-          // Hiển thị fullName (tên host) thay vì companyName
           const displayName = host.fullName || 'Host';
           
           return {
@@ -114,7 +114,7 @@ function PageHome() {
             avatar: host.avatarUrl || '',
             count: host.totalCondotels || 0,
             desc: `${host.totalReviews || 0} đánh giá • ${host.totalCondotels || 0} condotel`,
-            jobName: host.companyName || 'Host', // jobName vẫn dùng companyName nếu có
+            jobName: host.companyName || 'Host',
             href: `/author/${host.hostId}`,
             starRating: host.averageRating || 0,
           };
@@ -320,14 +320,11 @@ function PageHome() {
           <SectionBecomeAnAuthor />
         </div>
 
-        {/* SECTION 1 */}
-        <SectionSliderNewCategories
-          heading={t.home.exploreByType}
-          subHeading={t.home.exploreByTypeSubtitle}
-          categoryCardType="card5"
-          itemPerRow={5}
-          uniqueClassName="PageHome_s3"
-        />
+        {/* SECTION - Why Choose Condotel */}
+        <div className="relative py-16">
+          <BackgroundSection className="bg-amber-50 dark:bg-black dark:bg-opacity-20 " />
+          <SectionWhyChooseCondotel />
+        </div>
 
         {/* SECTION */}
         <SectionVideos />

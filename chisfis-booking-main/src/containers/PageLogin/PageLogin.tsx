@@ -68,7 +68,7 @@ const PageLogin: FC<PageLoginProps> = ({ className = "" }) => {
   // Xử lý login thành công
   const handleLoginSuccess = (response: LoginResponse) => {
     if (response.token && response.user) {
-      // 1. Lưu user vào context (hàm login của context sẽ lưu token vào axios headers)
+      // Call login with token and user data
       login(response.token, response.user);
 
       // 2. Điều hướng theo role

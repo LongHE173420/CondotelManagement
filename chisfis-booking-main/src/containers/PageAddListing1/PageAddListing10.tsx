@@ -55,6 +55,12 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
         return;
       }
 
+      if (!condotelPayload.images || !Array.isArray(condotelPayload.images) || condotelPayload.images.length < 3) {
+        alert("Vui lòng thêm ít nhất 3 hình ảnh cho condotel!");
+        setLoading(false);
+        return;
+      }
+
       // Build payload đúng kiểu CreateCondotelDTO
       // Lưu ý: hostId không cần gửi (backend sẽ tự lấy từ JWT token)
       const payload: CreateCondotelDTO = {
@@ -93,11 +99,8 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
         ...(condotelPayload.utilityIds && Array.isArray(condotelPayload.utilityIds) && condotelPayload.utilityIds.length > 0 && { utilityIds: condotelPayload.utilityIds.map(id => Number(id)) }),
         ...(condotelPayload.resortId && { resortId: Number(condotelPayload.resortId) }),
       };
-
-      console.log('📤 CONDOTEL CREATE PAYLOAD:', payload);
       
       const created = await condotelAPI.create(payload);
-      console.log('✅ Condotel created successfully:', created);
       
       alert("Tạo condotel thành công!");
       resetForm();
