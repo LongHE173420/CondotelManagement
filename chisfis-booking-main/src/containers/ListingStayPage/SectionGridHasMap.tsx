@@ -1,7 +1,7 @@
 import React, { FC, useState, useEffect, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import AnyReactComponent from "components/AnyReactComponent/AnyReactComponent";
-import StayCardH from "components/StayCardH/StayCardH";
+import StayCardH from "components/StayCardH";
 import GoogleMapReact from "google-map-react";
 import { StayDataType } from "data/types";
 import ButtonClose from "shared/ButtonClose/ButtonClose";
@@ -69,6 +69,7 @@ export interface SectionGridHasMapProps {}
 
 const SectionGridHasMap: FC<SectionGridHasMapProps> = () => {
   const location = useLocation();
+  const stateParams = (location.state as any)?.searchParams || {};
   const [currentHoverID, setCurrentHoverID] = useState<string | number>(-1);
   const [showFullMapFixed, setShowFullMapFixed] = useState(false);
   const [condotels, setCondotels] = useState<CondotelDTO[]>([]);
@@ -86,14 +87,19 @@ const SectionGridHasMap: FC<SectionGridHasMapProps> = () => {
   // URLSearchParams.get() only returns the FIRST value if there are multiple params with same name
   // So we need to check all location params
   let searchLocation: string | null = null;
-  
+
   // Get all location params (if URL has multiple location params)
   const allLocationParams: string[] = [];
   params.forEach((value, key) => {
-    if (key === "location") {
+    if (key === "location" || key === "searchLocation" || key === "locationName" || key === "city") {
       allLocationParams.push(value);
     }
   });
+  if (stateParams.location || stateParams.searchLocation || stateParams.locationName || stateParams.city) {
+    const stateLoc =
+      stateParams.location || stateParams.searchLocation || stateParams.locationName || stateParams.city;
+    allLocationParams.push(stateLoc);
+  }
   
   // Find the first location that is NOT a date format
   for (const loc of allLocationParams) {
@@ -107,14 +113,26 @@ const SectionGridHasMap: FC<SectionGridHasMapProps> = () => {
   
   // Fallback: if no valid location found, try params.get() (gets first value)
   if (!searchLocation) {
-    const firstLocation = params.get("location");
+    const firstLocation =
+      params.get("location") ||
+      params.get("searchLocation") ||
+      params.get("locationName") ||
+      params.get("city");
     if (firstLocation && !/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}$/.test(firstLocation) && !/^\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}$/.test(firstLocation)) {
       searchLocation = firstLocation.trim();
     }
   }
   
-  const searchName = params.get("name");
-  const searchLocationId = params.get("locationId");
+  // Accept both ?name= and ?searchName= as the same filter (fallback to navigation state)
+  const searchName = params.get("name") || params.get("searchName") || stateParams.name || stateParams.searchName;
+  // Accept alternate keys for locationId (fallback to navigation state)
+  const searchLocationId =
+    params.get("locationId") ||
+    params.get("searchLocationId") ||
+    params.get("cityId") ||
+    stateParams.locationId ||
+    stateParams.searchLocationId ||
+    stateParams.cityId;
   const searchHostId = params.get("hostId");
   const searchFromDate = params.get("startDate");
   const searchToDate = params.get("endDate");
@@ -123,19 +141,6 @@ const SectionGridHasMap: FC<SectionGridHasMapProps> = () => {
   const maxPrice = params.get("maxPrice");
   const beds = params.get("beds");
   const bathrooms = params.get("bathrooms");
-  
-  console.log("🔍 SectionGridHasMap - Parsed values:", {
-    searchLocation,
-    searchLocationId,
-    searchHostId,
-    searchFromDate,
-    searchToDate,
-    searchGuests,
-    minPrice,
-    maxPrice,
-    beds,
-    bathrooms
-  });
 
   // Fetch condotels when URL params change
   useEffect(() => {
@@ -144,10 +149,6 @@ const SectionGridHasMap: FC<SectionGridHasMapProps> = () => {
         setLoading(true);
         setError("");
         
-        console.log("🔍 SectionGridHasMap - Current URL params:", location.search);
-        console.log("🔍 SectionGridHasMap - searchLocation:", searchLocation);
-        console.log("🔍 SectionGridHasMap - searchLocationId:", searchLocationId);
-        
         // Build search query
         const searchQuery: any = {};
         
@@ -155,7 +156,6 @@ const SectionGridHasMap: FC<SectionGridHasMapProps> = () => {
         const searchName = params.get("name");
         if (searchName && searchName.trim()) {
           searchQuery.name = searchName.trim();
-          console.log("🔍 Searching with name:", searchName.trim());
         }
         
         // Host ID filter
@@ -163,7 +163,6 @@ const SectionGridHasMap: FC<SectionGridHasMapProps> = () => {
           const hostId = Number(searchHostId);
           if (!isNaN(hostId)) {
             searchQuery.hostId = hostId;
-            console.log("🔍 Searching with hostId:", hostId);
           }
         }
         
@@ -172,7 +171,6 @@ const SectionGridHasMap: FC<SectionGridHasMapProps> = () => {
           const locationId = Number(searchLocationId);
           if (!isNaN(locationId)) {
             searchQuery.locationId = locationId;
-            console.log("🔍 Searching with locationId:", locationId);
           }
         }
         if (searchLocation && searchLocation.trim()) {
@@ -181,18 +179,17 @@ const SectionGridHasMap: FC<SectionGridHasMapProps> = () => {
           const isDate = /^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}$/.test(locationValue) || /^\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}$/.test(locationValue);
           if (!isDate) {
             searchQuery.location = locationValue;
-            console.log("🔍 Searching with location:", locationValue);
           }
         }
         
         // Date filters (can work with location and name)
         if (searchFromDate) {
           searchQuery.fromDate = searchFromDate;
-          console.log("🔍 Searching with fromDate:", searchFromDate);
+          searchQuery.startDate = searchFromDate;
         }
         if (searchToDate) {
           searchQuery.toDate = searchToDate;
-          console.log("🔍 Searching with toDate:", searchToDate);
+          searchQuery.endDate = searchToDate;
         }
         
         // Add price filters
@@ -222,23 +219,18 @@ const SectionGridHasMap: FC<SectionGridHasMapProps> = () => {
             searchQuery.bathrooms = bathroomsNum;
           }
         }
-        
-        // Use new search API with all parameters
-        console.log("🔍 SectionGridHasMap - Final searchQuery:", searchQuery);
+
         
         // Nếu có hostId, sử dụng API riêng để lấy condotels của host
         let results: CondotelDTO[] = [];
         if (searchHostId) {
           const hostId = Number(searchHostId);
           if (!isNaN(hostId)) {
-            console.log("🏠 Fetching condotels for host:", hostId);
             results = await condotelAPI.getCondotelsByHostId(hostId);
-            console.log("✅ Loaded condotels for host:", results.length);
           }
         } else {
           const searchResult = await condotelAPI.search(searchQuery);
-          results = searchResult.data;
-          console.log("🔍 SectionGridHasMap - Results count:", results.length);
+          results = Array.isArray(searchResult) ? searchResult : [];
         }
         
         setCondotels(results);

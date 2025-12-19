@@ -5,21 +5,30 @@ import { PathName } from "routers/types";
 interface Props {
   className?: string;
   href: PathName;
+  onSubmit?: (e: React.FormEvent) => void;
 }
 
 const ButtonSubmit: FC<Props> = ({
   className = "",
   href = "/listing-stay-map",
+  onSubmit,
 }) => {
+  const handleClick = (e: React.MouseEvent) => {
+    if (onSubmit) {
+      e.preventDefault();
+      onSubmit(e as any);
+    } else {
+
+      (document.querySelector(".nc-Footer") as HTMLElement | null)?.click();
+    }
+  };
+  
   return (
     <Link
       to={href}
       type="button"
       className={`h-14 w-14 rounded-full bg-primary-6000 hover:bg-primary-700 flex items-center justify-center text-neutral-50 focus:outline-none ${className}`}
-      onClick={() => {
-        console.log("ButtonSubmit onClick");
-        (document.querySelector(".nc-Footer") as HTMLElement | null)?.click();
-      }}
+      onClick={handleClick}
     >
       <span className="mr-3 md:hidden">Search</span>
       <svg

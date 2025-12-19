@@ -155,35 +155,26 @@ export const hostAPI = {
   // GET /api/host/top-rated?topCount=10 - Lấy top hosts được đánh giá cao nhất (public, không cần đăng nhập)
   getTopRated: async (topCount: number = 10): Promise<TopHostDTO[]> => {
     try {
-      console.log("🏆 Calling /host/top-rated with topCount:", topCount);
       const response = await axiosClient.get<any>("/host/top-rated", {
         params: { topCount }
       });
       const data = response.data;
-      console.log("🏆 Raw API response:", data);
       
       // Handle response format: { success: true, data: [...], total: number }
       let hosts: any[] = [];
       if (data && typeof data === 'object') {
         if (data.success && data.data && Array.isArray(data.data)) {
           hosts = data.data;
-          console.log("🏆 Found hosts in data.data:", hosts.length);
         } else if (Array.isArray(data)) {
           hosts = data;
-          console.log("🏆 Response is array:", hosts.length);
         } else if (data.data && Array.isArray(data.data)) {
           hosts = data.data;
-          console.log("🏆 Found hosts in data.data (no success):", hosts.length);
         } else if (data.Data && Array.isArray(data.Data)) {
           hosts = data.Data;
-          console.log("🏆 Found hosts in data.Data:", hosts.length);
-        } else {
-          console.warn("⚠️ Unexpected response format:", Object.keys(data));
         }
       }
       
       if (hosts.length === 0) {
-        console.warn("⚠️ No hosts found in response");
         return [];
       }
       
@@ -199,11 +190,8 @@ export const hostAPI = {
         rank: item.Rank !== undefined ? item.Rank : item.rank,
       }));
       
-      console.log("🏆 Normalized hosts:", normalized);
       return normalized;
     } catch (err: any) {
-      console.error("❌ Error in getTopRated:", err);
-      console.error("❌ Error response:", err.response?.data);
       throw err;
     }
   },

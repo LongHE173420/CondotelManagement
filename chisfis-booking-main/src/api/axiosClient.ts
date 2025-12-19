@@ -1,13 +1,28 @@
 import axios from "axios";
 import logger from "utils/logger";
 
-// Fallback URL nếu .env không có
-const baseURL = process.env.REACT_APP_API_URL || "http://localhost:7216/api";
+// Enforce HTTPS in production, validate API URL
+const baseURL = (() => {
+  const url = process.env.REACT_APP_API_URL;
+  
+  if (!url) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('REACT_APP_API_URL environment variable must be set in production');
+    }
+    // Development: allow localhost with https
+    return "https://localhost:7216/api";
+  }
+  
+  // Validate HTTPS in production
+  if (process.env.NODE_ENV === 'production' && !url.startsWith('https://')) {
+    throw new Error('API URL must use HTTPS in production. Current: ' + url);
+  }
+  
+  return url;
+})();
 
-logger.info("API Base URL:", baseURL);
-if (!process.env.REACT_APP_API_URL) {
-  logger.warn("REACT_APP_API_URL không được set, đang dùng default:", baseURL);
-  logger.warn("Tạo file .env với REACT_APP_API_URL=http://localhost:7216/api");
+if (process.env.NODE_ENV === 'development') {
+  logger.info("API Base URL (dev):", baseURL);
 }
 
 const axiosClient = axios.create({
@@ -22,27 +37,8 @@ const axiosClient = axios.create({
 axiosClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("token");
-    if (token) {
-      config.headers = config.headers || {};
-      (config.headers as any).Authorization = `Bearer ${token}`;
-      // Đảm bảo token luôn có Bearer prefix
-      // Strip "Bearer " nếu token đã có prefix này (để tránh duplicate)
-      const cleanToken = token.trim().startsWith("Bearer ")
-        ? token.trim().substring(7).trim()
-        : token.trim();
-
-      // Luôn thêm Bearer prefix khi gửi request
-      (config.headers as any).Authorization = `Bearer ${cleanToken}`;
-
-      // Log để debug (chỉ log cho admin và auth endpoints)
-      if (config.url?.includes("admin") || config.url?.includes("Auth") || config.url?.includes("Upload")) {
-        logger.debug("Authorization Header set:", `Bearer ${cleanToken.substring(0, 30)}...`);
-      }
-    } else {
-      // Log nếu không có token cho auth/admin endpoints
-      if (config.url?.includes("admin") || config.url?.includes("Auth")) {
-        logger.warn("No token found for authenticated request:", config.url);
-      }
+    if (token && config.headers) {
+      config.headers.Authorization = `Bearer ${token}`;
     }
 
     // Don't set Content-Type for FormData, let browser set it with boundary
@@ -50,11 +46,9 @@ axiosClient.interceptors.request.use(
       delete config.headers["Content-Type"];
     }
 
-    // Log request for debugging
-    logger.apiRequest(config.method?.toUpperCase() || "GET", config.url || "", config.data);
-
-    if (config.data instanceof FormData) {
-      logger.debug("Uploading file:", (config.data as FormData).get("file"));
+    // Log API requests only in development
+    if (process.env.NODE_ENV === 'development') {
+      logger.apiRequest(config.method?.toUpperCase() || "GET", config.url || "", config.data);
     }
 
     return config;
@@ -65,7 +59,9 @@ axiosClient.interceptors.request.use(
 // Response interceptor - Handle errors
 axiosClient.interceptors.response.use(
   (response) => {
-    logger.apiResponse(response.status, response.config.url || "", response.data);
+    if (process.env.NODE_ENV === 'development') {
+      logger.apiResponse(response.status, response.config.url || "", response.data);
+    }
     return response;
   },
   (error) => {

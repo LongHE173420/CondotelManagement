@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import ClearDataButton from "./ClearDataButton";
 import { useRef } from "react";
 import useOutsideAlerter from "hooks/useOutsideAlerter";
+import locationAPI from "api/location";
 
 export interface LocationInputProps {
   defaultValue: string;
@@ -29,10 +30,25 @@ const LocationInput: FC<LocationInputProps> = ({
 
   const [value, setValue] = useState(defaultValue);
   const [showPopover, setShowPopover] = useState(autoFocus);
+  const [allLocations, setAllLocations] = useState<string[]>([]);
 
   useEffect(() => {
     setValue(defaultValue);
   }, [defaultValue]);
+
+  useEffect(() => {
+    const loadLocations = async () => {
+      try {
+        const locations = await locationAPI.getAllPublic();
+        const locationNames = locations.map(loc => loc.name).filter(Boolean) as string[];
+        setAllLocations(locationNames);
+      } catch (err) {
+        console.error("Error loading locations:", err);
+        setAllLocations([]);
+      }
+    };
+    loadLocations();
+  }, []);
 
   useEffect(() => {
     setShowPopover(autoFocus);
@@ -64,73 +80,57 @@ const LocationInput: FC<LocationInputProps> = ({
   };
 
   const renderRecentSearches = () => {
-    const VN_LOCATIONS = [
-      "Hà Nội (HAN)",
-      "TP. Hồ Chí Minh (SGN)",
-      "Đà Nẵng (DAD)",
-      "Nha Trang (CXR)",
-      "Huế (HUI)",
-      "Cần Thơ (VCA)",
-      "Vinh (VII)",
-      "Phú Quốc (PQC)",
-      "Đà Lạt (DLI)",
-    ];
     return (
       <>
         <h3 className="block mt-2 sm:mt-0 px-4 sm:px-8 font-semibold text-base text-neutral-800 dark:text-neutral-100">
           Địa điểm phổ biến tại Việt Nam
         </h3>
         <div className="mt-2">
-          {VN_LOCATIONS.map((item) => (
-            <span
-              onClick={() => handleSelectLocation(item)}
-              key={item}
-              className="flex px-4 sm:px-6 items-center space-x-3 py-4 hover:bg-neutral-100 dark:hover:bg-neutral-700 cursor-pointer"
-            >
-              <span className="block text-neutral-400">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-4 sm:h-6 w-4 sm:w-6"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
+          {allLocations.length > 0 ? (
+            allLocations.slice(0, 10).map((item) => (
+              <span
+                onClick={() => handleSelectLocation(item)}
+                key={item}
+                className="flex px-4 sm:px-6 items-center space-x-3 py-4 hover:bg-neutral-100 dark:hover:bg-neutral-700 cursor-pointer"
+              >
+                <span className="block text-neutral-400">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-4 sm:h-6 w-4 sm:w-6"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                </span>
+                <span className=" block text-neutral-700 dark:text-neutral-200">
+                  {item}
+                </span>
               </span>
-              <span className=" block text-neutral-700 dark:text-neutral-200">
-                {item}
-              </span>
+            ))
+          ) : (
+            <span className="flex px-4 sm:px-6 items-center py-4 text-neutral-500 dark:text-neutral-400">
+              Đang tải danh sách địa điểm...
             </span>
-          ))}
+          )}
         </div>
       </>
     );
   };
 
   const renderSearchValue = () => {
-    const VN_LOCATIONS = [
-      "Hà Nội (HAN)",
-      "TP. Hồ Chí Minh (SGN)",
-      "Đà Nẵng (DAD)",
-      "Nha Trang (CXR)",
-      "Huế (HUI)",
-      "Cần Thơ (VCA)",
-      "Vinh (VII)",
-      "Phú Quốc (PQC)",
-      "Đà Lạt (DLI)",
-    ];
-    const filtered = VN_LOCATIONS.filter((item) =>
+    const filteredLocations = allLocations.filter((item) =>
       item.toLowerCase().includes(value.toLowerCase())
     );
     return (
       <>
-        {filtered.map((item) => (
+        {filteredLocations.map((item) => (
           <span
             onClick={() => handleSelectLocation(item)}
             key={item}

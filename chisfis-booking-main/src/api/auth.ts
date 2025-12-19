@@ -101,41 +101,31 @@ export const authAPI = {
    * Đăng nhập bằng Email/Password
    */
   login: async (credentials: LoginRequest): Promise<LoginResponse> => {
-    // SỬA: Đảm bảo gửi email/password (camelCase)
     const payload = {
       email: credentials.email,
       password: credentials.password,
     };
-    const response = await axiosClient.post<{ token: string; user: any }>(
+    const response = await axiosClient.post<LoginResponse>(
       "/Auth/login",
       payload
     );
-    // ✅ Lưu token ngay sau khi thành công
     localStorage.setItem("token", response.data.token);
-    return {
-      token: response.data.token,
-      user: normalizeUser(response.data.user),
-    };
-
+    localStorage.setItem("user", JSON.stringify(response.data.user));
+    return response.data;
   },
 
   /**
    * Đăng nhập bằng Google
    */
   googleLogin: async (idToken: string): Promise<LoginResponse> => {
-    // SỬA: Đảm bảo gửi payload là object { idToken: string } (camelCase)
     const payload = { idToken: idToken };
-    const response = await axiosClient.post<{ token: string; user: any }>(
+    const response = await axiosClient.post<LoginResponse>(
       "/Auth/google-login",
       payload
     );
-    // ✅ Lưu token ngay sau khi thành công
     localStorage.setItem("token", response.data.token);
-
-    return {
-      token: response.data.token,
-      user: normalizeUser(response.data.user),
-    };
+    localStorage.setItem("user", JSON.stringify(response.data.user));
+    return response.data;
   },
 
   /**

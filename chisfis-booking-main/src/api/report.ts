@@ -91,22 +91,7 @@ export const reportAPI = {
     const roomsBooked = data.roomsBooked ?? data.RoomsBooked ?? 0;
     const occupancyRate = data.occupancyRate ?? data.OccupancyRate ?? 0;
     
-    // Debug log để kiểm tra dữ liệu từ backend
-    console.log("📊 [Host Report] Raw data from backend:", data);
-    console.log("📊 [Host Report] Normalized values:", {
-      revenue,
-      totalBookings,
-      totalCustomers,
-      averageBookingValue,
-      completedBookings,
-      pendingBookings,
-      confirmedBookings,
-      totalCancellations,
-      totalRooms,
-      roomsBooked,
-      occupancyRate,
-    });
-    
+
     return {
       // Các trường chính từ API response
       revenue: revenue,
@@ -141,8 +126,6 @@ export const reportAPI = {
       params.month = month;
     }
 
-    console.log("📊 [Revenue Report] Request params:", { year, month, params });
-    console.log("📊 [Revenue Report] Full URL will be: /host/report/revenue?" + new URLSearchParams(params).toString());
 
     const response = await axiosClient.get<any>("/host/report/revenue", { params });
     
@@ -154,9 +137,6 @@ export const reportAPI = {
     
     const data = responseData;
 
-    console.log("📊 [Revenue Report] Raw response:", data);
-    console.log("📊 [Revenue Report] Response type:", Array.isArray(data) ? "Array" : typeof data);
-    console.log("📊 [Revenue Report] Response keys:", data && typeof data === "object" ? Object.keys(data) : "N/A");
 
     // Backend trả về structure mới:
     // { success: true, data: { monthlyRevenues: [...], yearlyRevenues: [...] } }
@@ -166,21 +146,17 @@ export const reportAPI = {
     if (Array.isArray(data)) {
       // Case 1: Array trực tiếp (fallback)
       revenueData = data;
-      console.log("📊 [Revenue Report] Response is Array, count:", revenueData.length);
+
     } else if (data && typeof data === "object") {
       // Case 2: Object với monthlyRevenues/yearlyRevenues (format mới)
       const monthlyRevenues = data.monthlyRevenues || data.MonthlyRevenues || [];
       const yearlyRevenues = data.yearlyRevenues || data.YearlyRevenues || [];
       
-      console.log("📊 [Revenue Report] monthlyRevenues count:", monthlyRevenues.length);
-      console.log("📊 [Revenue Report] yearlyRevenues count:", yearlyRevenues.length);
-      console.log("📊 [Revenue Report] monthlyRevenues:", monthlyRevenues);
-      console.log("📊 [Revenue Report] yearlyRevenues:", yearlyRevenues);
 
       // Ưu tiên monthlyRevenues nếu có, nếu không thì dùng yearlyRevenues[].monthlyData
       if (monthlyRevenues.length > 0) {
         revenueData = monthlyRevenues;
-        console.log("📊 [Revenue Report] Using monthlyRevenues");
+
       } else if (yearlyRevenues.length > 0) {
         // Nếu yearlyRevenues có monthlyData, flatten nó
         const flattened: any[] = [];
@@ -191,16 +167,14 @@ export const reportAPI = {
           }
         });
         revenueData = flattened;
-        console.log("📊 [Revenue Report] Using yearlyRevenues[].monthlyData (flattened), count:", revenueData.length);
+
       } else if (data.data && Array.isArray(data.data)) {
         // Case 3: Object với data property (fallback)
         revenueData = data.data;
-        console.log("📊 [Revenue Report] Using data.data, count:", revenueData.length);
+
       }
     }
 
-    console.log("📊 [Revenue Report] Processed data count:", revenueData.length);
-    console.log("📊 [Revenue Report] Processed data:", revenueData);
 
     // Map và normalize data
     // Format mới: { year: 2024, month: 1, monthName: 'Tháng 1', revenue: number, totalBookings: number }
@@ -229,18 +203,6 @@ export const reportAPI = {
       })
       .filter((item) => item.period !== ""); // Chỉ filter items không có period
 
-    console.log("📊 [Revenue Report] Mapped results:", mappedData);
-    console.log("📊 [Revenue Report] Mapped results count:", mappedData.length);
-    console.log("📊 [Revenue Report] Total revenue:", mappedData.reduce((sum: number, item: RevenueReportDTO) => sum + item.revenue, 0));
-    
-    // Log chi tiết từng item
-    mappedData.forEach((item, index) => {
-      console.log(`📊 [Revenue Report] Item ${index + 1}:`, {
-        period: item.period,
-        revenue: item.revenue,
-        bookings: item.bookings,
-      });
-    });
 
     return mappedData;
   },

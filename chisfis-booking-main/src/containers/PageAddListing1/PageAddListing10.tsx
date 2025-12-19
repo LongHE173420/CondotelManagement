@@ -93,11 +93,8 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
         ...(condotelPayload.utilityIds && Array.isArray(condotelPayload.utilityIds) && condotelPayload.utilityIds.length > 0 && { utilityIds: condotelPayload.utilityIds.map(id => Number(id)) }),
         ...(condotelPayload.resortId && { resortId: Number(condotelPayload.resortId) }),
       };
-
-      console.log('📤 CONDOTEL CREATE PAYLOAD:', payload);
       
       const created = await condotelAPI.create(payload);
-      console.log('✅ Condotel created successfully:', created);
       
       alert("Tạo condotel thành công!");
       resetForm();

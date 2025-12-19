@@ -14,6 +14,7 @@ export interface GuestsInputProps {
   fieldClassName?: string;
   autoFocus?: boolean;
   submitLink: PathName;
+  onSubmit?: (e: React.FormEvent) => void;
 }
 
 const GuestsInput: FC<GuestsInputProps> = ({
@@ -23,6 +24,7 @@ const GuestsInput: FC<GuestsInputProps> = ({
   className = "",
   autoFocus = false,
   submitLink,
+  onSubmit,
 }) => {
   const refContainer = React.createRef<HTMLDivElement>();
   const [isOpen, setIsOpen] = useState(false);
@@ -107,7 +109,7 @@ const GuestsInput: FC<GuestsInputProps> = ({
           )}
         </div>
         <div className="pr-2">
-          <ButtonSubmit href={submitLink} />
+          <ButtonSubmit href={submitLink} onSubmit={onSubmit} />
         </div>
       </div>
       {isOpen && (

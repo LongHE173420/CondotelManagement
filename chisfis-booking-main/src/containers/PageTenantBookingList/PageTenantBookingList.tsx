@@ -40,6 +40,25 @@ const formatDate = (dateString: string | undefined): string => {
     return date.toLocaleDateString("vi-VN");
 };
 
+// ✅ Tính toán hạn cuối hủy (2 ngày TRƯỚC ngày check-in)
+const getCancellationDeadline = (bookingData: BookingDTO | null | undefined): Date | null => {
+    if (!bookingData?.startDate) return null;
+    
+    const checkInDate = new Date(bookingData.startDate);
+    const deadline = new Date(checkInDate);
+    deadline.setDate(deadline.getDate() - 2);
+    return deadline;
+};
+
+// ✅ Kiểm tra xem booking còn trong thời hạn hủy không (ít nhất 2 ngày trước check-in)
+const isWithinCancellationWindow = (bookingData: BookingDTO | null | undefined): boolean => {
+    if (!bookingData?.startDate) return false;
+    const checkInDate = new Date(bookingData.startDate);
+    const now = new Date();
+    const daysBeforeCheckIn = (checkInDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+    return daysBeforeCheckIn >= 2;
+};
+
 // --- [NÂNG CẤP UI] Component Badge cho Trạng thái ---
 const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
     const statusVN = mapStatusToVN(status);
@@ -69,22 +88,19 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
     );
 };
 
-// Kiểm tra xem booking có thể hoàn tiền không
-// Sử dụng field canRefund từ API response (Option 1)
-// Fallback về logic cũ nếu canRefund không có trong response
+// ✅ Kiểm tra xem booking có thể hoàn tiền không - phải trước ít nhất 2 ngày so với ngày check-in
 const canRefund = (booking: BookingDTO): boolean => {
     // Chỉ cho phép yêu cầu hoàn tiền nếu:
     // 1. Booking status = "Cancelled"
-    // 2. refundStatus = null (chưa có refund request)
-    // 3. canRefund = true (từ backend)
     
     if (booking.status?.toLowerCase() !== "cancelled") {
         return false;
     }
     
-    // Nếu đã có refund request (refundStatus không null), không cho phép tạo request mới
+    // Nếu đã có refund request, chỉ cho phép nếu status là "Pending" hoặc "Rejected"
     if (booking.refundStatus !== null && booking.refundStatus !== undefined) {
-        return false;
+        const refundStatusLower = booking.refundStatus?.toLowerCase();
+        return refundStatusLower === "pending" || refundStatusLower === "rejected";
     }
     
     // Ưu tiên sử dụng field canRefund từ backend
@@ -92,10 +108,10 @@ const canRefund = (booking: BookingDTO): boolean => {
         return booking.canRefund;
     }
     
-    // Fallback: Logic cũ nếu backend chưa trả về canRefund
+    // Fallback: Logic kiểm tra nếu backend chưa trả về canRefund
     // Phân biệt Cancel Payment vs Cancel Booking:
     // - Cancel Payment: Booking chưa thanh toán (totalPrice = 0 hoặc null) → không refund
-    // - Cancel Booking: Booking đã thanh toán (totalPrice > 0) → có refund
+    // - Cancel Booking: Booking đã thanh toán (totalPrice > 0) → có thể refund nếu trong thời gian cho phép
     
     // Kiểm tra xem booking có totalPrice > 0 (có thể đã thanh toán)
     const hasPrice = booking.totalPrice && booking.totalPrice > 0;
@@ -105,22 +121,29 @@ const canRefund = (booking: BookingDTO): boolean => {
         return false;
     }
     
-    // Tính số ngày từ khi tạo booking đến hiện tại
-    if (!booking.createdAt) return false;
-    const createdDate = new Date(booking.createdAt);
+    // ✅ Kiểm tra xem còn ít nhất 2 ngày trước check-in không
+    if (!booking.startDate) return false;
+    const checkInDate = new Date(booking.startDate);
     const now = new Date();
-    const diffTime = Math.abs(now.getTime() - createdDate.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const daysBeforeCheckIn = (checkInDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
     
-    // Nếu hủy trong vòng 2 ngày (từ ngày tạo booking) VÀ booking có giá (đã thanh toán)
-    return diffDays <= 2;
+    return daysBeforeCheckIn >= 2;
 };
 
-// Kiểm tra xem booking có thể hủy không
+// ✅ Kiểm tra xem booking có thể hủy không - phải trước ít nhất 2 ngày so với ngày check-in
 const canCancel = (booking: BookingDTO): boolean => {
     const status = booking.status?.toLowerCase();
-    // Chỉ cho phép hủy nếu status là Confirmed (không cho phép hủy khi đang xử lý - Pending)
-    return status === "confirmed";
+    
+    // Chỉ cho phép hủy nếu status là Confirmed hoặc Pending
+    if (status !== "confirmed" && status !== "pending") return false;
+    
+    // Kiểm tra xem còn ít nhất 2 ngày trước check-in không
+    if (!booking.startDate) return false;
+    const checkInDate = new Date(booking.startDate);
+    const now = new Date();
+    const daysBeforeCheckIn = (checkInDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+    
+    return daysBeforeCheckIn >= 2;
 };
 
 // --- [NÂNG CẤP UI] Component Nút Thao tác ---
@@ -132,6 +155,26 @@ const ActionButtons: React.FC<{
 }> = ({ booking, onView, onCancel, navigate }) => {
     const showRefundButton = canRefund(booking);
     const showCancelButton = canCancel(booking);
+    
+    // Xác định text cho nút hoàn tiền
+    const getRefundButtonText = (): string => {
+        if (booking.refundStatus?.toLowerCase() === "pending") {
+            return "⏳ Chờ hoàn tiền";
+        } else if (booking.refundStatus?.toLowerCase() === "rejected") {
+            return "🔄 Nhập lại thông tin";
+        }
+        return "💰 Hoàn tiền";
+    };
+    
+    // Xác định tooltip cho nút hoàn tiền
+    const getRefundButtonTitle = (): string => {
+        if (booking.refundStatus?.toLowerCase() === "pending") {
+            return "Yêu cầu hoàn tiền của bạn đang chờ xử lý";
+        } else if (booking.refundStatus?.toLowerCase() === "rejected") {
+            return "Yêu cầu hoàn tiền bị từ chối. Vui lòng nhập lại thông tin ngân hàng.";
+        }
+        return "Yêu cầu hoàn tiền (hủy trong vòng 2 ngày)";
+    };
     
     return (
         <div className="flex flex-col gap-2">
@@ -155,10 +198,14 @@ const ActionButtons: React.FC<{
             {showRefundButton && (
                 <button 
                     onClick={() => booking.bookingId && navigate(`/request-refund/${booking.bookingId}`)}
-                    className="px-3 py-1 bg-orange-500 text-white rounded-md text-sm font-medium hover:bg-orange-600 transition-colors w-full"
-                    title="Yêu cầu hoàn tiền (hủy trong vòng 2 ngày)"
+                    className={`px-3 py-1 text-white rounded-md text-sm font-medium w-full transition-colors ${
+                        booking.refundStatus?.toLowerCase() === "rejected" 
+                            ? "bg-red-500 hover:bg-red-600" 
+                            : "bg-orange-500 hover:bg-orange-600"
+                    }`}
+                    title={getRefundButtonTitle()}
                 >
-                    💰 Hoàn tiền
+                    {getRefundButtonText()}
                 </button>
             )}
         </div>
@@ -247,6 +294,7 @@ const PaymentDetailModal: React.FC<{
                                 </div>
                             )}
                             
+                            
                             <div className="flex justify-between">
                                 <span className="text-sm font-medium text-gray-500">Tổng tiền</span>
                                 <span className="text-sm font-semibold text-gray-900">
@@ -294,6 +342,28 @@ const PaymentDetailModal: React.FC<{
                                 💳 Thanh toán lại
                             </button>
                         )}
+                        {booking.status?.toLowerCase() === "cancelled" && (booking.refundStatus === "Pending" || booking.refundStatus === "Rejected") && (
+                            <button
+                                type="button"
+                                onClick={() => booking.bookingId && navigate(`/request-refund/${booking.bookingId}`)}
+                                className={`w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 text-base font-medium text-white focus:outline-none sm:w-auto sm:text-sm ${
+                                    booking.refundStatus === "Rejected"
+                                        ? "bg-red-600 hover:bg-red-700"
+                                        : "bg-yellow-600 hover:bg-yellow-700"
+                                }`}
+                            >
+                                {booking.refundStatus === "Rejected" ? "🔄 Nhập lại thông tin hoàn tiền" : "⏳ Xem trạng thái hoàn tiền"}
+                            </button>
+                        )}
+                        {booking.status?.toLowerCase() === "cancelled" && !booking.refundStatus && canRefund(booking) && (
+                            <button
+                                type="button"
+                                onClick={() => booking.bookingId && navigate(`/request-refund/${booking.bookingId}`)}
+                                className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-orange-600 text-base font-medium text-white hover:bg-orange-700 focus:outline-none sm:w-auto sm:text-sm"
+                            >
+                                💰 Yêu cầu hoàn tiền
+                            </button>
+                        )}
                         <button
                             type="button"
                             onClick={onClose}
@@ -318,6 +388,7 @@ const PageTenantBookings = () => {
     const [cancellingId, setCancellingId] = useState<number | null>(null);
     const [selectedBooking, setSelectedBooking] = useState<BookingDTO | null>(null);
     const [showPaymentModal, setShowPaymentModal] = useState(false);
+    const [confirmModal, setConfirmModal] = useState<{isOpen: boolean, title: string, message: string, action: (() => void) | null}>({isOpen: false, title: "", message: "", action: null});
 
     // Fetch bookings từ API
     useEffect(() => {
@@ -366,70 +437,78 @@ const PageTenantBookings = () => {
     };
 
     // Xử lý hủy booking
-    const handleCancel = async (id: number) => {
-        if (!window.confirm("Bạn có chắc chắn muốn hủy đặt phòng này? Nếu hủy trong vòng 2 ngày, bạn có thể yêu cầu hoàn tiền.")) {
-            return;
-        }
-
-        setCancellingId(id);
-        try {
-            // Lấy thông tin booking trước khi hủy để kiểm tra điều kiện
-            const bookingBeforeCancel = bookings.find(b => b.bookingId === id);
-            const createdAt = bookingBeforeCancel?.createdAt;
-            
-            await bookingAPI.cancelBooking(id);
-            
-            // Kiểm tra xem có trong vòng 2 ngày không để tự động chuyển đến trang refund
-            if (createdAt) {
-                const createdDate = new Date(createdAt);
-                const now = new Date();
-                const diffTime = Math.abs(now.getTime() - createdDate.getTime());
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                
-                if (diffDays <= 2) {
-                    // Nếu hủy trong vòng 2 ngày, tự động chuyển đến trang nhập thông tin hoàn tiền
-                    if (window.confirm("Đã hủy đặt phòng thành công! Bạn có muốn điền thông tin để yêu cầu hoàn tiền ngay bây giờ không?")) {
-                        navigate(`/request-refund/${id}`);
-                        return; // Không reload danh sách, vì sẽ navigate đi
+    const handleCancel = (id: number) => {
+        setConfirmModal({
+            isOpen: true,
+            title: "Hủy đặt phòng",
+            message: "Bạn có chắc chắn muốn hủy đặt phòng này? Nếu hủy trong vòng 2 ngày, bạn có thể yêu cầu hoàn tiền.",
+            action: async () => {
+                setCancellingId(id);
+                try {
+                    // Lấy thông tin booking trước khi hủy để kiểm tra điều kiện
+                    const bookingBeforeCancel = bookings.find(b => b.bookingId === id);
+                    const createdAt = bookingBeforeCancel?.createdAt;
+                    
+                    await bookingAPI.cancelBooking(id);
+                    
+                    // Kiểm tra xem có trong vòng 2 ngày không để tự động chuyển đến trang refund
+                    if (createdAt) {
+                        const createdDate = new Date(createdAt);
+                        const now = new Date();
+                        const diffTime = Math.abs(now.getTime() - createdDate.getTime());
+                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                        
+                        if (diffDays <= 2) {
+                            // Nếu hủy trong vòng 2 ngày, tự động chuyển đến trang nhập thông tin hoàn tiền
+                            setConfirmModal({
+                                isOpen: true,
+                                title: "Yêu cầu hoàn tiền",
+                                message: "Đã hủy đặt phòng thành công! Bạn có muốn điền thông tin để yêu cầu hoàn tiền ngay bây giờ không?",
+                                action: () => {
+                                    navigate(`/request-refund/${id}`);
+                                }
+                            });
+                            return; // Không reload danh sách, vì sẽ navigate đi
+                        }
                     }
+                    
+                    toastSuccess("Đã hủy đặt phòng thành công. Nếu hủy trong vòng 2 ngày, bạn có thể yêu cầu hoàn tiền.", { autoClose: 5000 });
+                    
+                    // Reload bookings để cập nhật trạng thái
+                    const data = await bookingAPI.getMyBookings();
+                    // Sort lại sau khi reload
+                    let sortedData = [...data];
+                    switch (sortBy) {
+                        case "newest":
+                            sortedData.sort((a, b) => {
+                                const dateA = new Date(a.createdAt || 0).getTime();
+                                const dateB = new Date(b.createdAt || 0).getTime();
+                                return dateB - dateA;
+                            });
+                            break;
+                        case "oldest":
+                            sortedData.sort((a, b) => {
+                                const dateA = new Date(a.createdAt || 0).getTime();
+                                const dateB = new Date(b.createdAt || 0).getTime();
+                                return dateA - dateB;
+                            });
+                            break;
+                        case "status":
+                            sortedData.sort((a, b) => {
+                                return (a.status || "").localeCompare(b.status || "");
+                            });
+                            break;
+                    }
+                    setBookings(sortedData);
+                    setConfirmModal({isOpen: false, title: "", message: "", action: null});
+                } catch (err: any) {
+                    showErrorMessage("Hủy đặt phòng", err);
+                } finally {
+                    setCancellingId(null);
                 }
             }
-            
-            toastSuccess("Đã hủy đặt phòng thành công. Nếu hủy trong vòng 2 ngày, bạn có thể yêu cầu hoàn tiền.", { autoClose: 5000 });
-            
-            // Reload bookings để cập nhật trạng thái
-            const data = await bookingAPI.getMyBookings();
-            // Sort lại sau khi reload
-            let sortedData = [...data];
-            switch (sortBy) {
-                case "newest":
-                    sortedData.sort((a, b) => {
-                        const dateA = new Date(a.createdAt || 0).getTime();
-                        const dateB = new Date(b.createdAt || 0).getTime();
-                        return dateB - dateA;
-                    });
-                    break;
-                case "oldest":
-                    sortedData.sort((a, b) => {
-                        const dateA = new Date(a.createdAt || 0).getTime();
-                        const dateB = new Date(b.createdAt || 0).getTime();
-                        return dateA - dateB;
-                    });
-                    break;
-                case "status":
-                    sortedData.sort((a, b) => {
-                        return (a.status || "").localeCompare(b.status || "");
-                    });
-                    break;
-            }
-            setBookings(sortedData);
-        } catch (err: any) {
-            showErrorMessage("Hủy đặt phòng", err);
-        } finally {
-            setCancellingId(null);
-        }
+        });
     };
-
 
     return (
         // Nền xám cho cả trang để làm nổi bật Card
@@ -575,6 +654,58 @@ const PageTenantBookings = () => {
                 }}
                 navigate={navigate}
             />
+
+            {/* Confirmation Modal */}
+            {confirmModal.isOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+                    <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-2xl max-w-md w-full mx-4 transform transition-all">
+                        <div className="p-6">
+                            <div className="flex items-center gap-4 mb-4">
+                                <div className="flex-shrink-0 w-12 h-12 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center">
+                                    <svg className="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                </div>
+                                <div className="flex-1">
+                                    <h3 className="text-lg font-bold text-neutral-900 dark:text-neutral-100">
+                                        {confirmModal.title}
+                                    </h3>
+                                </div>
+                                <button
+                                    onClick={() => setConfirmModal({...confirmModal, isOpen: false})}
+                                    className="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors"
+                                >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+                            <p className="text-neutral-700 dark:text-neutral-300 mb-6">
+                                {confirmModal.message}
+                            </p>
+                        </div>
+                        <div className="flex items-center justify-end gap-3 px-6 py-4 bg-neutral-50 dark:bg-neutral-700/50">
+                            <button
+                                onClick={() => setConfirmModal({...confirmModal, isOpen: false})}
+                                className="px-4 py-2 text-sm font-medium text-neutral-700 dark:text-neutral-300 bg-white dark:bg-neutral-600 border border-neutral-300 dark:border-neutral-500 rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-500 transition-colors"
+                            >
+                                Hủy
+                            </button>
+                            <button
+                                onClick={() => {
+                                    if (confirmModal.action) {
+                                        confirmModal.action();
+                                    }
+                                    setConfirmModal({...confirmModal, isOpen: false});
+                                }}
+                                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 dark:bg-blue-700 rounded-lg hover:bg-blue-700 dark:hover:bg-blue-800 transition-colors"
+                            >
+                                Xác nhận
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

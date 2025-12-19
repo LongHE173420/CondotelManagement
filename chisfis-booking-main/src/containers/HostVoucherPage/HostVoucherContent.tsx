@@ -588,21 +588,23 @@ const VoucherModal: React.FC<VoucherModalProps> = ({
       if (voucher) {
         // Update voucher
         await voucherAPI.update(voucher.voucherId, voucherData);
-        toastSuccess("Cập nhật voucher thành công!");
+        toastSuccess("✅ Cập nhật voucher thành công!");
       } else {
         // Create voucher
         await voucherAPI.create(voucherData);
-        toastSuccess("Tạo voucher thành công!");
+        toastSuccess("✅ Tạo voucher thành công!");
       }
-      onSuccess();
+      // Delay slightly to show success message before closing
+      setTimeout(() => {
+        onSuccess();
+        onClose();
+      }, 500);
     } catch (err: any) {
-      const errorMsg = err.response?.data?.message || err.response?.data?.error || "Không thể lưu voucher";
-      setError(errorMsg);
-      toastError(errorMsg);
-      let errorMessage = "Không thể lưu voucher. Vui lòng thử lại!";
+      console.error("Failed to save voucher:", err);
+      let errorMessage = "❌ Không thể lưu voucher. Vui lòng thử lại!";
 
       if (err.response?.data?.message) {
-        errorMessage = err.response.data.message;
+        errorMessage = `❌ ${err.response.data.message}`;
       } else if (err.response?.data?.errors) {
         const errors = err.response.data.errors;
         const errorList = Object.entries(errors)
@@ -612,11 +614,12 @@ const VoucherModal: React.FC<VoucherModalProps> = ({
             return `${fieldName}: ${messageList}`;
           })
           .join("\n");
-        errorMessage = `Lỗi validation:\n${errorList}`;
+        errorMessage = `❌ Lỗi validation:\n${errorList}`;
       } else if (err.message) {
-        errorMessage = err.message;
+        errorMessage = `❌ ${err.message}`;
       }
       setError(errorMessage);
+      toastError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -947,8 +950,8 @@ const VoucherSettingsModal: React.FC<VoucherSettingsModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-      <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-6">
+      <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="bg-white dark:bg-neutral-800 border-b border-neutral-200 dark:border-neutral-700 px-6 py-4 flex items-center justify-between flex-shrink-0">
           <h3 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">
             Cài đặt Voucher
           </h3>
@@ -962,10 +965,13 @@ const VoucherSettingsModal: React.FC<VoucherSettingsModalProps> = ({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Auto Generate - BẮT BUỘC */}
-          <div>
-            <label className="flex items-center space-x-3 cursor-pointer">
+        <div className="overflow-y-auto flex-1 px-6 py-6">
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            onSave(formData);
+          }} className="space-y-6">
+            <div>
+              <label className="flex items-center space-x-3 cursor-pointer">
               <input
                 type="checkbox"
                 checked={formData.autoGenerate || false}
@@ -1098,7 +1104,8 @@ const VoucherSettingsModal: React.FC<VoucherSettingsModalProps> = ({
               {saving ? "Đang lưu..." : "Lưu cài đặt"}
             </ButtonPrimary>
           </div>
-        </form>
+          </form>
+        </div>
       </div>
     </div>
   );

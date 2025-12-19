@@ -30,21 +30,8 @@ const HostServicePackageContent: React.FC = () => {
     setLoading(true);
     try {
       const packagesData = await servicePackageAPI.getAll();
-      console.log("📦 Loaded service packages:", packagesData);
-      // Log để debug ID
-      packagesData.forEach((pkg, idx) => {
-        const computedId = getPackageId(pkg, idx);
-        console.log(`Package ${idx} (${pkg.name || pkg.title}):`, {
-          packageId: pkg.packageId,
-          servicePackageId: pkg.servicePackageId,
-          computedId: computedId,
-          type: typeof computedId,
-          willBeDisabled: typeof computedId === 'string'
-        });
-      });
       setServicePackages(packagesData);
     } catch (err: any) {
-      console.error("Failed to load service packages:", err);
       toastError(err.response?.data?.message || "Không thể tải danh sách gói dịch vụ");
       setServicePackages([]);
     } finally {
@@ -190,17 +177,6 @@ const HostServicePackageContent: React.FC = () => {
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {servicePackages.map((pkg, index) => {
             const packageId = getPackageId(pkg, index);
-            // Debug log
-            if (index === 0) {
-              console.log("🔍 First package debug:", {
-                pkg: pkg,
-                packageId: packageId,
-                type: typeof packageId,
-                packageIdValue: pkg.packageId,
-                servicePackageIdValue: pkg.servicePackageId,
-                willBeDisabled: typeof packageId === 'string' || (typeof packageId === 'number' && deletingId === packageId)
-              });
-            }
             return (
               <div
                 key={packageId}
@@ -293,23 +269,15 @@ const HostServicePackageContent: React.FC = () => {
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      console.log("🔴 Delete button clicked!");
-                      console.log("packageId:", packageId, "type:", typeof packageId);
-                      console.log("deletingId:", deletingId);
-                      console.log("pkg:", pkg);
                       
                       if (typeof packageId === 'string') {
-                        console.warn("⚠️ Cannot delete: packageId is string");
                         toastWarning("Không thể xóa gói dịch vụ chưa có ID hợp lệ");
                         return;
                       }
                       
                       if (deletingId === packageId) {
-                        console.warn("⚠️ Already deleting this package");
                         return;
                       }
-                      
-                      console.log("✅ Calling handleDelete with:", packageId, pkg.name || pkg.title || "");
                       handleDeleteClick(packageId, pkg.name || pkg.title || "");
                     }}
                     disabled={typeof packageId === 'string' || (typeof packageId === 'number' && deletingId === packageId)}
@@ -449,8 +417,6 @@ const ServicePackageModal: React.FC<ServicePackageModalProps> = ({
   // Update formData when servicePackage changes
   useEffect(() => {
     if (servicePackage) {
-      console.log("📦 Loading servicePackage into form:", servicePackage);
-      console.log("📦 Package ID:", servicePackage.packageId || servicePackage.servicePackageId);
       setFormData({
         name: servicePackage.name || servicePackage.title || "",
         description: servicePackage.description || "",
@@ -508,11 +474,7 @@ const ServicePackageModal: React.FC<ServicePackageModalProps> = ({
           || (servicePackage as any).id
           || (servicePackage as any).Id;
         
-        console.log("🔍 Debug - ServicePackage object:", servicePackage);
-        console.log("🔍 Debug - PackageId:", packageId);
-        
         if (!packageId || packageId <= 0 || isNaN(Number(packageId))) {
-          console.error("❌ Invalid package ID:", packageId, "from servicePackage:", servicePackage);
           toastError("Không tìm thấy ID gói dịch vụ để cập nhật. Vui lòng tải lại trang và thử lại.");
           setLoading(false);
           return;
@@ -527,7 +489,6 @@ const ServicePackageModal: React.FC<ServicePackageModalProps> = ({
       }
       onSuccess();
     } catch (err: any) {
-      console.error("Failed to save service package:", err);
       let errorMessage = "Không thể lưu gói dịch vụ. Vui lòng thử lại!";
 
       if (err.response?.data?.message) {

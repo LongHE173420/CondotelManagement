@@ -230,17 +230,24 @@ const PageBookingHistoryDetail = () => {
     return now < expiryTime;
   };
 
-  // Kiểm tra xem booking có thể hủy không
+  // ✅ Kiểm tra xem booking có thể hủy không - phải trước ít nhất 2 ngày so với ngày check-in
   const canCancel = (): boolean => {
     if (!booking) return false;
     const status = booking.status?.toLowerCase();
-    // Chỉ cho phép hủy nếu status là Confirmed (không cho phép hủy khi đang xử lý - Pending)
-    return status === "confirmed";
+    
+    // Chỉ cho phép hủy nếu status là Confirmed hoặc Pending
+    if (status !== "confirmed" && status !== "pending") return false;
+    
+    // Kiểm tra xem còn ít nhất 2 ngày trước check-in không
+    if (!booking.startDate) return false;
+    const checkInDate = new Date(booking.startDate);
+    const now = new Date();
+    const daysBeforeCheckIn = (checkInDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+    
+    return daysBeforeCheckIn >= 2;
   };
 
-  // Kiểm tra xem booking có thể hoàn tiền không
-  // Sử dụng field canRefund từ API response (Option 1)
-  // Fallback về logic cũ nếu canRefund không có trong response
+  // ✅ Kiểm tra xem booking có thể hoàn tiền không - phải trước ít nhất 2 ngày so với ngày check-in
   const canRefund = (): boolean => {
     if (!booking) {
       return false;
@@ -249,7 +256,7 @@ const PageBookingHistoryDetail = () => {
     // Chỉ cho phép yêu cầu hoàn tiền nếu:
     // 1. Booking status = "Cancelled"
     // 2. refundStatus = null (chưa có refund request)
-    // 3. canRefund = true (từ backend)
+    // 3. Còn ít nhất 2 ngày trước check-in
     
     if (booking.status?.toLowerCase() !== "cancelled") {
       return false;
@@ -265,29 +272,24 @@ const PageBookingHistoryDetail = () => {
       return booking.canRefund;
     }
     
-    // Fallback: Logic cũ nếu backend chưa trả về canRefund
+    // Fallback: Logic kiểm tra nếu backend chưa trả về canRefund
     // Phân biệt Cancel Payment vs Cancel Booking:
-    // - Cancel Payment: Booking chưa thanh toán (status ban đầu = "Pending") → không refund
-    // - Cancel Booking: Booking đã thanh toán (status ban đầu = "Confirmed" hoặc "Completed") → có refund
+    // - Cancel Payment: Booking chưa thanh toán (totalPrice = 0 hoặc null) → không refund
+    // - Cancel Booking: Booking đã thanh toán (totalPrice > 0) → có thể refund nếu trong thời gian cho phép
     
     // Kiểm tra xem booking có totalPrice > 0 (có thể đã thanh toán)
-    // Nếu totalPrice = 0 hoặc null, có thể là booking chưa thanh toán → không refund
     const hasPrice = booking.totalPrice && booking.totalPrice > 0;
-    
-    // Nếu không có giá, có thể là cancel payment → không refund
     if (!hasPrice) {
       return false;
     }
     
-    // Tính số ngày từ khi tạo booking đến hiện tại
-    if (!booking.createdAt) return false;
-    const createdDate = new Date(booking.createdAt);
+    // ✅ Kiểm tra xem còn ít nhất 2 ngày trước check-in không
+    if (!booking.startDate) return false;
+    const checkInDate = new Date(booking.startDate);
     const now = new Date();
-    const diffTime = Math.abs(now.getTime() - createdDate.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const daysBeforeCheckIn = (checkInDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
     
-    // Nếu hủy trong vòng 2 ngày (từ ngày tạo booking) VÀ booking có giá (đã thanh toán)
-    return diffDays <= 2;
+    return daysBeforeCheckIn >= 2;
   };
 
   // Xử lý tự động hủy booking khi hết thời gian thanh toán

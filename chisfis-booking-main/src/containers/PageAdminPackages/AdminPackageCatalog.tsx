@@ -297,7 +297,7 @@ const AdminPackageCatalog: React.FC<AdminPackageCatalogProps> = ({
             {/* Modals */}
             {showCreateModal && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                    <div className="bg-white rounded-xl shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                    <div className="bg-white rounded-xl shadow-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
                         <div className="p-6 border-b border-gray-200">
                             <h3 className="text-lg font-semibold text-gray-800">Tạo gói dịch vụ mới</h3>
                         </div>
@@ -460,7 +460,7 @@ const AdminPackageCatalog: React.FC<AdminPackageCatalogProps> = ({
 
             {showEditModal && selectedPackage && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                    <div className="bg-white rounded-xl shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                    <div className="bg-white rounded-xl shadow-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
                         <div className="p-6 border-b border-gray-200">
                             <h3 className="text-lg font-semibold text-gray-800">Chỉnh sửa gói dịch vụ</h3>
                             <p className="text-sm text-gray-600 mt-1">ID: {selectedPackage.packageId}</p>

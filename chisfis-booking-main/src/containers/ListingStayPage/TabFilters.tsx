@@ -152,11 +152,7 @@ const TabFilters = () => {
       params.delete("maxPrice");
     }
     
-    console.log("🔍 Applying filters, new URL params:", params.toString());
-    console.log("🔍 Preserved location:", params.get("location"));
-    console.log("🔍 Preserved startDate:", params.get("startDate"));
-    console.log("🔍 Preserved endDate:", params.get("endDate"));
-    console.log("🔍 Preserved guests:", params.get("guests"));
+
     
     // Navigate with updated params (all existing params are preserved)
     const newUrl = params.toString() ? `${location.pathname}?${params.toString()}` : location.pathname;

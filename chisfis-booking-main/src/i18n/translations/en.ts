@@ -51,8 +51,8 @@ export const en = {
     featuredPlacesSubtitle: "Popular places to stay that Chisfis recommends for you",
     popularDestinations: "Popular destinations",
     popularDestinationsSubtitle: "Popular places to stay that Chisfis recommends for you",
-    exploreByType: "Explore by types of stays",
-    exploreByTypeSubtitle: "Explore diverse types of stays in Vietnam",
+    exploreByType: "Explore Condotel Amenities",
+    exploreByTypeSubtitle: "Discover condotels with amenities and services that match your needs",
     destinations: {
       hanoi: "Hanoi",
       hoChiMinh: "Ho Chi Minh City",

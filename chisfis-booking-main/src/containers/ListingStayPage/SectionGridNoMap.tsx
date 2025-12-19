@@ -1,10 +1,10 @@
 import React, { FC, useState, useEffect, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import StayCardH from "components/StayCardH/StayCardH";
+import StayCardH from "components/StayCardH";
 import { StayDataType } from "data/types";
 import TabFilters from "./TabFilters";
 import Heading2 from "components/Heading/Heading2";
-import condotelAPI, { CondotelDTO, PagedResult } from "api/condotel";
+import condotelAPI, { CondotelDTO } from "api/condotel";
 import moment from "moment";
 
 // Helper function to convert CondotelDTO to StayDataType for display
@@ -54,6 +54,7 @@ export interface SectionGridNoMapProps {}
 const SectionGridNoMap: FC<SectionGridNoMapProps> = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const stateParams = (location.state as any)?.searchParams || {};
   const [condotels, setCondotels] = useState<CondotelDTO[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -77,10 +78,15 @@ const SectionGridNoMap: FC<SectionGridNoMapProps> = () => {
   let searchLocation: string | null = null;
   const allLocationParams: string[] = [];
   params.forEach((value, key) => {
-    if (key === "location") {
+    if (key === "location" || key === "searchLocation" || key === "locationName" || key === "city") {
       allLocationParams.push(value);
     }
   });
+  if (stateParams.location || stateParams.searchLocation || stateParams.locationName || stateParams.city) {
+    const stateLoc =
+      stateParams.location || stateParams.searchLocation || stateParams.locationName || stateParams.city;
+    allLocationParams.push(stateLoc);
+  }
   
   for (const loc of allLocationParams) {
     const isDate = /^\d{1,2}[/-]\d{1,2}[/-]\d{4}$/.test(loc) || /^\d{4}[/-]\d{1,2}[/-]\d{1,2}$/.test(loc);
@@ -91,22 +97,37 @@ const SectionGridNoMap: FC<SectionGridNoMapProps> = () => {
   }
   
   if (!searchLocation) {
-    const firstLocation = params.get("location");
+    const firstLocation =
+      params.get("location") ||
+      params.get("searchLocation") ||
+      params.get("locationName") ||
+      params.get("city") ||
+      stateParams.location ||
+      stateParams.searchLocation ||
+      stateParams.locationName ||
+      stateParams.city;
     if (firstLocation && !/^\d{1,2}[/-]\d{1,2}[/-]\d{4}$/.test(firstLocation) && !/^\d{4}[/-]\d{1,2}[/-]\d{1,2}$/.test(firstLocation)) {
       searchLocation = firstLocation.trim();
     }
   }
   
-  const searchName = params.get("name");
-  const searchLocationId = params.get("locationId");
-  const searchHostId = params.get("hostId");
-  const searchFromDate = params.get("startDate");
-  const searchToDate = params.get("endDate");
-  const searchGuests = params.get("guests");
-  const minPrice = params.get("minPrice");
-  const maxPrice = params.get("maxPrice");
-  const beds = params.get("beds");
-  const bathrooms = params.get("bathrooms");
+  // Accept both ?name= and ?searchName= as the same filter
+  const searchName = params.get("name") || params.get("searchName") || stateParams.name || stateParams.searchName;
+  const searchLocationId =
+    params.get("locationId") ||
+    params.get("searchLocationId") ||
+    params.get("cityId") ||
+    stateParams.locationId ||
+    stateParams.searchLocationId ||
+    stateParams.cityId;
+  const searchHostId = params.get("hostId") || stateParams.hostId;
+  const searchFromDate = params.get("startDate") || stateParams.startDate || stateParams.fromDate;
+  const searchToDate = params.get("endDate") || stateParams.endDate || stateParams.toDate;
+  const searchGuests = params.get("guests") || stateParams.guests;
+  const minPrice = params.get("minPrice") || stateParams.minPrice;
+  const maxPrice = params.get("maxPrice") || stateParams.maxPrice;
+  const beds = params.get("beds") || stateParams.beds;
+  const bathrooms = params.get("bathrooms") || stateParams.bathrooms;
   const pageParam = params.get("page");
 
   // Update current page from URL
@@ -137,7 +158,6 @@ const SectionGridNoMap: FC<SectionGridNoMapProps> = () => {
         // Name filter (highest priority for search)
         if (searchName && searchName.trim()) {
           searchQuery.name = searchName.trim();
-          console.log("🔍 Searching with name:", searchName.trim());
         }
         
         // Host ID filter
@@ -145,7 +165,6 @@ const SectionGridNoMap: FC<SectionGridNoMapProps> = () => {
           const hostId = Number(searchHostId);
           if (!isNaN(hostId)) {
             searchQuery.hostId = hostId;
-            console.log("🔍 Searching with hostId:", hostId);
           }
         }
         
@@ -154,7 +173,6 @@ const SectionGridNoMap: FC<SectionGridNoMapProps> = () => {
           const locationId = Number(searchLocationId);
           if (!isNaN(locationId)) {
             searchQuery.locationId = locationId;
-            console.log("🔍 Searching with locationId:", locationId);
           }
         }
         if (searchLocation && searchLocation.trim()) {
@@ -163,18 +181,17 @@ const SectionGridNoMap: FC<SectionGridNoMapProps> = () => {
           const isDate = /^\d{1,2}[/-]\d{1,2}[/-]\d{4}$/.test(locationValue) || /^\d{4}[/-]\d{1,2}[/-]\d{1,2}$/.test(locationValue);
           if (!isDate) {
             searchQuery.location = locationValue;
-            console.log("🔍 Searching with location:", locationValue);
           }
         }
         
         // Date filters (can work with location and name)
         if (searchFromDate) {
           searchQuery.fromDate = searchFromDate;
-          console.log("🔍 Searching with fromDate:", searchFromDate);
+          searchQuery.startDate = searchFromDate;
         }
         if (searchToDate) {
           searchQuery.toDate = searchToDate;
-          console.log("🔍 Searching with toDate:", searchToDate);
+          searchQuery.endDate = searchToDate;
         }
         
         // Add price filters
@@ -204,9 +221,9 @@ const SectionGridNoMap: FC<SectionGridNoMapProps> = () => {
             searchQuery.bathrooms = bathroomsNum;
           }
         }
-        
+
         // Call API with pagination
-        let result: PagedResult<CondotelDTO>;
+        let result: any = [];
         if (searchHostId) {
           const hostId = Number(searchHostId);
           if (!isNaN(hostId)) {
@@ -219,8 +236,19 @@ const SectionGridNoMap: FC<SectionGridNoMapProps> = () => {
           result = await condotelAPI.search(searchQuery);
         }
         
-        setCondotels(result.data);
-        setPagination(result.pagination);
+        // Handle array result from API
+        if (Array.isArray(result)) {
+          setCondotels(result);
+          setPagination(null);
+        } else if (result && typeof result === 'object' && 'data' in result) {
+          const data = (result as any).data;
+          const pagination = (result as any).pagination;
+          setCondotels(Array.isArray(data) ? data : []);
+          setPagination(pagination || null);
+        } else {
+          setCondotels([]);
+          setPagination(null);
+        }
       } catch (err: any) {
         console.error("Lỗi khi tải danh sách condotel:", err);
         setError(err.response?.data?.message || "Không thể tải danh sách condotel");
@@ -383,4 +411,3 @@ const SectionGridNoMap: FC<SectionGridNoMapProps> = () => {
 };
 
 export default SectionGridNoMap;
-

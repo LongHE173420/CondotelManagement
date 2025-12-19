@@ -29,9 +29,6 @@ const PageVoucherAdd = () => {
     }
     setIsLoading(true);
     // TODO: Gọi API
-    console.log("Tạo voucher mới:", { 
-      code, discountType, discountValue, condotelId, usageLimit, startDate, endDate, status 
-    });
     setTimeout(() => {
       setIsLoading(false);
       alert("Tạo voucher thành công!");

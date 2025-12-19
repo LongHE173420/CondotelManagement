@@ -4,8 +4,8 @@ import BackgroundSection from "components/BackgroundSection/BackgroundSection";
 import BgGlassmorphism from "components/BgGlassmorphism/BgGlassmorphism";
 import SectionGridAuthorBox from "components/SectionGridAuthorBox/SectionGridAuthorBox";
 import SectionHeroArchivePage from "components/SectionHeroArchivePage/SectionHeroArchivePage";
-import SectionSliderNewCategories from "components/SectionSliderNewCategories/SectionSliderNewCategories";
 import SectionSubscribe2 from "components/SectionSubscribe2/SectionSubscribe2";
+import SectionWhyChooseCondotel from "components/SectionWhyChooseCondotel/SectionWhyChooseCondotel";
 import SectionGridNoMap from "./SectionGridNoMap";
 import { Helmet } from "react-helmet";
 import imagePng from "images/hero-right.png";
@@ -98,11 +98,10 @@ const ListingStayMapPage: FC<ListingStayMapPageProps> = ({
           }
         }
         
-        // Call API with pagination to get total count
-        searchQuery.pageNumber = 1;
-        searchQuery.pageSize = 1; // Chỉ cần 1 item để lấy totalCount
+        // Call API to get total count
         const result = await condotelAPI.search(searchQuery);
-        setPropertyCount(result.pagination.totalCount);
+        // Result is an array, so the count is the array length
+        setPropertyCount(result.length);
       } catch (err) {
         console.error("Error fetching condotel count:", err);
         setPropertyCount(0);
@@ -190,17 +189,10 @@ const ListingStayMapPage: FC<ListingStayMapPageProps> = ({
       </div>
 
       <div className="container overflow-hidden">
-        {/* SECTION 1 */}
+        {/* SECTION - Why Choose Condotel */}
         <div className="relative py-16">
-          <BackgroundSection />
-          <SectionSliderNewCategories
-            heading="Khám phá theo loại căn hộ"
-            subHeading="Khám phá căn hộ dựa trên các loại khác nhau"
-            categoryCardType="card5"
-            itemPerRow={5}
-            sliderStyle="style2"
-            uniqueClassName="ListingStayMapPage"
-          />
+          <BackgroundSection className="bg-amber-50 dark:bg-black dark:bg-opacity-20 " />
+          <SectionWhyChooseCondotel />
         </div>
 
         {/* SECTION */}

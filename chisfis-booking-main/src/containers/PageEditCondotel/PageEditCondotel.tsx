@@ -264,28 +264,22 @@ const PageEditCondotel: React.FC = () => {
     const loadResortUtilities = async () => {
       if (resortId) {
         try {
-          console.log("🔄 Loading utilities for resort:", resortId);
           const resortUtils = await utilityAPI.getByResort(resortId);
-          console.log("✅ Loaded resort utilities:", resortUtils.length, "utilities");
           setResortUtilities(resortUtils);
           
           // CHỈ hiển thị utilities của resort mới, không thêm utilities từ condotel ban đầu
           // Khi chọn resort mới, chỉ hiển thị utilities của resort đó
           setUtilities(resortUtils);
-          console.log("✅ Updated utilities list:", resortUtils.length, "utilities (chỉ utilities của resort)");
           
           // CHỈ chọn utilities của resort mới
           const resortUtilityIds = resortUtils.map(u => u.utilityId);
           setUtilityIds(resortUtilityIds);
-          console.log("✅ Updated utilityIds:", resortUtilityIds.length, "selected (chỉ utilities của resort)");
         } catch (err) {
-          console.error("❌ Failed to load resort utilities:", err);
           setResortUtilities([]);
           setUtilities([]);
           setUtilityIds([]);
         }
       } else {
-        console.log("⚠️ No resort selected, showing original utilities");
         setResortUtilities([]);
         // Nếu không có resort, chỉ hiển thị utilities đã chọn từ condotel data
         if (originalCondotelUtilities.length > 0) {

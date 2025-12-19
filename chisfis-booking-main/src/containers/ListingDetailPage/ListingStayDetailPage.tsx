@@ -25,7 +25,7 @@ import converSelectedDateToString from "utils/converSelectedDateToString";
 import { PencilSquareIcon } from "@heroicons/react/24/outline";
 import { useTranslation } from "i18n/LanguageContext";
 import { calculateFinalPrice } from "utils/priceCalculator";
-import { toastWarning, toastError, showValidationError } from "utils/toast";
+import { toastWarning, showValidationError } from "utils/toast";
 
 
 const ListingStayDetailPage: FC = () => {
@@ -66,21 +66,15 @@ const ListingStayDetailPage: FC = () => {
   const loadAmenitiesAndUtilities = async (condotelId: number) => {
     try {
       setAmenitiesLoading(true);
-      console.log("🔄 Loading amenities and utilities for condotel:", condotelId);
       
       // Sử dụng endpoint amenities-utilities để tối ưu (chỉ 1 request)
       const result = await condotelAPI.getAmenitiesAndUtilitiesByCondotelId(condotelId);
       
-      console.log("✅ Loaded amenities:", result.amenities);
-      console.log("✅ Loaded utilities:", result.utilities);
-      
       setAmenities(result.amenities || []);
       setUtilities(result.utilities || []);
     } catch (err: any) {
-      console.error("❌ Error loading amenities/utilities:", err);
       // Nếu lỗi 404, có thể condotel không tồn tại hoặc chưa có amenities/utilities
       if (err.response?.status === 404) {
-        console.log("ℹ️ No amenities/utilities found for condotel", condotelId);
         setAmenities([]);
         setUtilities([]);
       } else {
@@ -114,9 +108,7 @@ const ListingStayDetailPage: FC = () => {
     } catch (err: any) {
       // 404 is expected if there are no reviews - don't log as error
       if (err.response?.status === 404) {
-        console.log("ℹ️ No reviews found for condotel", condotelId);
       } else {
-        console.error("Error loading reviews:", err);
       }
       // Không set error, chỉ log - reviews có thể không có
       setReviews([]);
@@ -153,7 +145,6 @@ const ListingStayDetailPage: FC = () => {
         setReviewableBookingId(null);
       }
     } catch (err: any) {
-      console.error("Error checking can write review:", err);
       // Nếu lỗi, không cho phép review
       setCanWriteReview(false);
       setReviewableBookingId(null);
@@ -171,25 +162,20 @@ const ListingStayDetailPage: FC = () => {
         const condotelId = Number(id);
         const res = await condotelAPI.getById(condotelId);
         setData(res);
-        console.log("📦 CondotelDetailDTO response:", res);
-        console.log("👤 Current user:", user);
         
         // Luôn ưu tiên hostName từ backend - không dùng tên user đang login
         if (res.hostName) {
-          console.log("✅ Backend trả về hostName:", res.hostName);
           setHostName(res.hostName);
           setHostImageUrl(res.hostImageUrl);
         } else {
           // Nếu backend không trả về hostName, chỉ dùng Host ID làm fallback
           // KHÔNG dùng tên user đang login vì user có thể là tenant, không phải host
-          console.warn("⚠️ Backend chưa trả về hostName, sử dụng Host ID");
           setHostName(`Host #${res.hostId}`);
           setHostImageUrl(undefined);
         }
 
         // Load amenities và utilities từ API mới (không block nếu lỗi)
         loadAmenitiesAndUtilities(condotelId).catch((err) => {
-          console.error("Failed to load amenities/utilities:", err);
           // Không throw error, chỉ log - amenities/utilities là optional
         });
 
@@ -201,7 +187,6 @@ const ListingStayDetailPage: FC = () => {
           await checkCanWriteReview(condotelId);
         }
       } catch (e: any) {
-        console.error("Error loading condotel:", e);
         setError("Không tìm thấy thông tin căn hộ");
       } finally {
         setLoading(false);
@@ -389,9 +374,6 @@ const ListingStayDetailPage: FC = () => {
   const renderAmenities = () => {
     if (!data) return null;
     
-    console.log("🎨 Rendering amenities:", amenities);
-    console.log("🎨 Rendering utilities:", utilities);
-    
     return (
       <div className="listingSection__wrap">
         <h2 className="text-2xl font-semibold">Tiện ích & Tiện nghi</h2>
@@ -475,59 +457,21 @@ const ListingStayDetailPage: FC = () => {
       <div className="listingSection__wrap">
         <h2 className="text-2xl font-semibold">{t.condotel.host || "Thông tin Host"}</h2>
         <div className="w-14 border-b border-neutral-200 dark:border-neutral-700"></div>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <Avatar
-              hasChecked
-              hasCheckedClass="w-4 h-4 -top-0.5 right-0.5"
-              sizeClass="h-14 w-14"
-              radius="rounded-full"
-              imgUrl={finalHostImageUrl || undefined}
-              userName={finalHostName}
-            />
-            <div>
-              <div className="block text-xl font-medium">{finalHostName}</div>
-              <div className="mt-1.5 flex items-center text-sm text-neutral-500 dark:text-neutral-400">
-                <StartRating /><span className="mx-2">·</span><span>Verified Host</span>
-              </div>
+        <div className="flex items-center space-x-4">
+          <Avatar
+            hasChecked
+            hasCheckedClass="w-4 h-4 -top-0.5 right-0.5"
+            sizeClass="h-14 w-14"
+            radius="rounded-full"
+            imgUrl={finalHostImageUrl || undefined}
+            userName={finalHostName}
+          />
+          <div>
+            <div className="block text-xl font-medium">{finalHostName}</div>
+            <div className="mt-1.5 flex items-center text-sm text-neutral-500 dark:text-neutral-400">
+              <StartRating /><span className="mx-2">·</span><span>Verified Host</span>
             </div>
           </div>
-          {/* Icon Chat với Host */}
-          {data?.hostId && (
-            <button
-              onClick={() => {
-                if (!user) {
-                  toastWarning("Vui lòng đăng nhập để chat với host");
-                  navigate("/login");
-                  return;
-                }
-                // Không cho host chat với chính mình
-                if (user.userId === data.hostId) {
-                  toastWarning("Bạn không thể chat với chính mình");
-                  return;
-                }
-                navigate(`/chat?hostId=${data.hostId}`);
-              }}
-              className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors shadow-md hover:shadow-lg"
-              title="Chat với host"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="w-5 h-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                />
-              </svg>
-              <span className="text-sm font-medium">Chat với host</span>
-            </button>
-          )}
         </div>
       </div>
     );
@@ -736,21 +680,14 @@ const ListingStayDetailPage: FC = () => {
       return;
     }
 
-    // Validation: Kiểm tra xem user có phải là host của condotel không
-    if (data && data.hostId && user.userId === data.hostId) {
-      toastError("Chủ căn hộ không thể tự đặt căn hộ của chính mình.");
-      showValidationError("Chủ căn hộ không thể tự đặt căn hộ của chính mình. Vui lòng chọn căn hộ khác.");
-      return;
-    }
-
     // Kiểm tra đã chọn ngày chưa
     if (!rangeDates.startDate || !rangeDates.endDate) {
       showValidationError("Vui lòng chọn ngày check-in và check-out");
       return;
     }
 
-    // Tính số đêm - normalize dates to start of day to ensure accurate night calculation
-    const nights = moment(rangeDates.endDate).startOf('day').diff(moment(rangeDates.startDate).startOf('day'), "days");
+    // Tính số đêm
+    const nights = rangeDates.endDate.diff(rangeDates.startDate, "days");
     if (nights <= 0) {
       showValidationError("Ngày check-out phải sau ngày check-in");
       return;
@@ -857,9 +794,9 @@ const ListingStayDetailPage: FC = () => {
   };
 
   const renderSidebar = () => {
-    // Tính số đêm - normalize dates to start of day to ensure accurate night calculation
+    // Tính số đêm
     const nights = rangeDates.startDate && rangeDates.endDate
-      ? moment(rangeDates.endDate).startOf('day').diff(moment(rangeDates.startDate).startOf('day'), "days")
+      ? rangeDates.endDate.diff(rangeDates.startDate, "days")
       : 0;
     
     // Tính giá cơ bản cho 1 đêm (có thể từ activePrice hoặc pricePerNight)
@@ -879,15 +816,6 @@ const ListingStayDetailPage: FC = () => {
     );
     
     // Debug log
-    console.log("💰 Price calculation:", {
-      pricePerNight: data.pricePerNight,
-      activePrice: data.activePrice,
-      checkInDate: checkInDate?.format("YYYY-MM-DD"),
-      checkOutDate: checkOutDate?.format("YYYY-MM-DD"),
-      basePricePerNight,
-      finalPricePerNight,
-      availablePromotion: availablePromotion?.name,
-    });
     
     // Tính tổng tiền cho tất cả các đêm
     const baseTotalPrice = nights > 0 ? nights * basePricePerNight : 0;
@@ -1024,17 +952,9 @@ const ListingStayDetailPage: FC = () => {
           </div>
         </div>
 
-        {data && data.hostId && user && user.userId === data.hostId ? (
-          <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-            <p className="text-sm text-yellow-800 dark:text-yellow-200 text-center">
-              ⚠️ Chủ căn hộ không thể tự đặt căn hộ của chính mình
-            </p>
-          </div>
-        ) : (
-          <ButtonPrimary className="mt-4" onClick={handleBooking}>
-            Đặt ngay
-          </ButtonPrimary>
-        )}
+        <ButtonPrimary className="mt-4" onClick={handleBooking}>
+          Đặt ngay
+        </ButtonPrimary>
         <ButtonSecondary className="mt-2" href="/listing-stay">
           {t.condotel.viewMore || "Xem thêm chỗ ở"}
         </ButtonSecondary>
