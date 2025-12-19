@@ -26,6 +26,7 @@ import { PencilSquareIcon } from "@heroicons/react/24/outline";
 import { useTranslation } from "i18n/LanguageContext";
 import { calculateFinalPrice } from "utils/priceCalculator";
 import { toastWarning, toastError, showValidationError } from "utils/toast";
+import { useChat } from "api/useChat"; // Điều chỉnh đường dẫn nếu khác
 
 
 const ListingStayDetailPage: FC = () => {
@@ -51,6 +52,7 @@ const ListingStayDetailPage: FC = () => {
   const [sortBy, setSortBy] = useState<string>("newest");
   const [amenities, setAmenities] = useState<any[]>([]);
   const [utilities, setUtilities] = useState<any[]>([]);
+  const { openChatWithCondotelHost, isConnected } = useChat(user?.userId || 0);
   const [amenitiesLoading, setAmenitiesLoading] = useState<boolean>(false);
   const [rangeDates, setRangeDates] = useState<DateRage>({
     startDate: moment().add(1, "day"),
@@ -67,13 +69,13 @@ const ListingStayDetailPage: FC = () => {
     try {
       setAmenitiesLoading(true);
       console.log("🔄 Loading amenities and utilities for condotel:", condotelId);
-      
+
       // Sử dụng endpoint amenities-utilities để tối ưu (chỉ 1 request)
       const result = await condotelAPI.getAmenitiesAndUtilitiesByCondotelId(condotelId);
-      
+
       console.log("✅ Loaded amenities:", result.amenities);
       console.log("✅ Loaded utilities:", result.utilities);
-      
+
       setAmenities(result.amenities || []);
       setUtilities(result.utilities || []);
     } catch (err: any) {
@@ -104,7 +106,7 @@ const ListingStayDetailPage: FC = () => {
       setReviews(response.data || []);
       setReviewsTotalPages(response.pagination?.totalPages || 1);
       setReviewsTotalCount(response.pagination?.totalCount || response.data?.length || 0);
-      
+
       // Tính average rating từ tất cả reviews (cần load tất cả để tính chính xác)
       // Hoặc dùng từ response nếu backend trả về
       if (response.data && response.data.length > 0) {
@@ -131,7 +133,7 @@ const ListingStayDetailPage: FC = () => {
     try {
       // Lấy tất cả bookings của user
       const myBookings = await bookingAPI.getMyBookings();
-      
+
       // Tìm booking có status "Completed" cho condotel này
       // Chỉ cho phép review khi booking status là "Completed"
       const completedBooking = myBookings.find(
@@ -173,7 +175,7 @@ const ListingStayDetailPage: FC = () => {
         setData(res);
         console.log("📦 CondotelDetailDTO response:", res);
         console.log("👤 Current user:", user);
-        
+
         // Luôn ưu tiên hostName từ backend - không dùng tên user đang login
         if (res.hostName) {
           console.log("✅ Backend trả về hostName:", res.hostName);
@@ -275,10 +277,10 @@ const ListingStayDetailPage: FC = () => {
     // Sử dụng rangeDates hiện tại để kiểm tra activePrice
     const checkInDate = rangeDates.startDate;
     const checkOutDate = rangeDates.endDate;
-    
+
     // Lấy available promotion cho dates đã chọn
     const availablePromotion = getAvailablePromotion();
-    
+
     // Tính giá với promotion
     const { basePrice: basePricePerNight, finalPrice: finalPricePerNight, discountAmount } = calculateFinalPrice(
       data.pricePerNight || 0,
@@ -293,39 +295,39 @@ const ListingStayDetailPage: FC = () => {
     return (
       <div className="listingSection__wrap !space-y-6">
         <div className="flex justify-between items-center">
-        <div className="flex items-center space-x-4">
-          <StartRating />
+          <div className="flex items-center space-x-4">
+            <StartRating />
+          </div>
+          <LikeSaveBtns />
         </div>
-        <LikeSaveBtns />
-        </div>
-      <h2 className="text-2xl sm:text-3xl lg:text-4xl font-semibold">{data.name}</h2>
-      <div className="text-neutral-6000 dark:text-neutral-300">{data.description || "Mô tả đang cập nhật."}</div>
+        <h2 className="text-2xl sm:text-3xl lg:text-4xl font-semibold">{data.name}</h2>
+        <div className="text-neutral-6000 dark:text-neutral-300">{data.description || "Mô tả đang cập nhật."}</div>
         <div className="w-full border-b border-neutral-100 dark:border-neutral-700" />
         <div className="flex items-center justify-between xl:justify-start space-x-8 xl:space-x-12 text-sm text-neutral-700 dark:text-neutral-300">
-        {data.resortName && (
-          <div className="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 text-center sm:text-left sm:space-x-3">
-            <i className="las la-building text-2xl"></i>
-            <span>{data.resortName}</span>
+          {data.resortName && (
+            <div className="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 text-center sm:text-left sm:space-x-3">
+              <i className="las la-building text-2xl"></i>
+              <span>{data.resortName}</span>
+            </div>
+          )}
+          <div className="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 text-center sm:text-left sm:space-x-3 "><i className="las la-bath text-2xl"></i><span>{data.bathrooms} bathrooms</span></div>
+          <div className="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 text-center sm:text-left sm:space-x-3 ">
+            <i className="las la-tag text-2xl"></i>
+            <div className="flex flex-col items-center sm:items-start">
+              {hasDiscount ? (
+                <>
+                  <span className="text-red-600 dark:text-red-400 font-semibold">
+                    {Math.round(finalPricePerNight).toLocaleString()} đ / đêm
+                  </span>
+                  <span className="text-xs text-neutral-400 dark:text-neutral-500 line-through">
+                    {Math.round(basePricePerNight).toLocaleString()} đ
+                  </span>
+                </>
+              ) : (
+                <span>{Math.round(basePricePerNight).toLocaleString()} đ / đêm</span>
+              )}
+            </div>
           </div>
-        )}
-        <div className="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 text-center sm:text-left sm:space-x-3 "><i className="las la-bath text-2xl"></i><span>{data.bathrooms} bathrooms</span></div>
-        <div className="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 text-center sm:text-left sm:space-x-3 ">
-          <i className="las la-tag text-2xl"></i>
-          <div className="flex flex-col items-center sm:items-start">
-            {hasDiscount ? (
-              <>
-                <span className="text-red-600 dark:text-red-400 font-semibold">
-                  {Math.round(finalPricePerNight).toLocaleString()} đ / đêm
-                </span>
-                <span className="text-xs text-neutral-400 dark:text-neutral-500 line-through">
-                  {Math.round(basePricePerNight).toLocaleString()} đ
-                </span>
-              </>
-            ) : (
-              <span>{Math.round(basePricePerNight).toLocaleString()} đ / đêm</span>
-            )}
-          </div>
-        </div>
         </div>
       </div>
     );
@@ -388,15 +390,15 @@ const ListingStayDetailPage: FC = () => {
 
   const renderAmenities = () => {
     if (!data) return null;
-    
+
     console.log("🎨 Rendering amenities:", amenities);
     console.log("🎨 Rendering utilities:", utilities);
-    
+
     return (
       <div className="listingSection__wrap">
         <h2 className="text-2xl font-semibold">Tiện ích & Tiện nghi</h2>
         <div className="w-14 border-b border-neutral-200 dark:border-neutral-700"></div>
-        
+
         {amenitiesLoading ? (
           <div className="mt-6 py-8 text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto mb-4"></div>
@@ -466,11 +468,9 @@ const ListingStayDetailPage: FC = () => {
   };
 
   const renderHost = () => {
-    // Luôn ưu tiên hostName từ backend - không dùng tên user đang login
     const finalHostName = hostName || data.hostName || `Host #${data.hostId}`;
-    // Chỉ dùng hostImageUrl từ backend, không dùng user image
     const finalHostImageUrl = hostImageUrl || data.hostImageUrl;
-    
+
     return (
       <div className="listingSection__wrap">
         <h2 className="text-2xl font-semibold">{t.condotel.host || "Thông tin Host"}</h2>
@@ -492,23 +492,37 @@ const ListingStayDetailPage: FC = () => {
               </div>
             </div>
           </div>
-          {/* Icon Chat với Host */}
+
+          {/* Nút Chat với Host - ĐÃ SỬA */}
           {data?.hostId && (
             <button
-              onClick={() => {
+              onClick={async () => {
                 if (!user) {
                   toastWarning("Vui lòng đăng nhập để chat với host");
                   navigate("/login");
                   return;
                 }
-                // Không cho host chat với chính mình
-                if (user.userId === data.hostId) {
+
+                if (user.userId === data?.hostId) {
                   toastWarning("Bạn không thể chat với chính mình");
                   return;
                 }
-                navigate(`/chat?hostId=${data.hostId}`);
+
+                if (!data?.condotelId) {
+                  toastError("Không thể mở chat: thiếu thông tin căn hộ");
+                  return;
+                }
+
+                // Thêm loading để người dùng biết đang xử lý
+                const success = await openChatWithCondotelHost(data.condotelId);
+
+                if (success) {
+                  navigate("/chat"); // Chỉ navigate khi thành công
+                }
+                // Nếu thất bại thì toastError đã xử lý trong hàm rồi
               }}
-              className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors shadow-md hover:shadow-lg"
+              disabled={!isConnected}
+              className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors shadow-md hover:shadow-lg"
               title="Chat với host"
             >
               <svg
@@ -525,7 +539,9 @@ const ListingStayDetailPage: FC = () => {
                   d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
                 />
               </svg>
-              <span className="text-sm font-medium">Chat với host</span>
+              <span className="text-sm font-medium">
+                {isConnected ? "Chat với host" : "Đang kết nối..."}
+              </span>
             </button>
           )}
         </div>
@@ -560,7 +576,7 @@ const ListingStayDetailPage: FC = () => {
           )}
         </div>
         <div className="w-14 border-b border-neutral-200 dark:border-neutral-700 mb-6"></div>
-        
+
         {reviewsLoading ? (
           <div className="py-12 text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto mb-4"></div>
@@ -629,9 +645,8 @@ const ListingStayDetailPage: FC = () => {
                               {[1, 2, 3, 4, 5].map((star) => (
                                 <svg
                                   key={star}
-                                  className={`w-5 h-5 ${
-                                    star <= review.rating ? "fill-current" : "fill-none stroke-current stroke-1"
-                                  }`}
+                                  className={`w-5 h-5 ${star <= review.rating ? "fill-current" : "fill-none stroke-current stroke-1"
+                                    }`}
                                   viewBox="0 0 20 20"
                                   xmlns="http://www.w3.org/2000/svg"
                                 >
@@ -758,7 +773,7 @@ const ListingStayDetailPage: FC = () => {
 
     // Get available promotion for selected dates
     const availablePromotion = getAvailablePromotion();
-    
+
     // Tính giá cơ bản cho 1 đêm (có thể từ activePrice hoặc pricePerNight)
     const checkInDate = rangeDates.startDate;
     const checkOutDate = rangeDates.endDate;
@@ -769,7 +784,7 @@ const ListingStayDetailPage: FC = () => {
       checkInDate || undefined,
       checkOutDate || undefined
     );
-    
+
     // Navigate đến checkout page với state
     navigate("/checkout", {
       state: {
@@ -789,70 +804,70 @@ const ListingStayDetailPage: FC = () => {
   // Calculate price with promotion
   const calculatePriceWithPromotion = (basePrice: number, promotion: any | null): number => {
     if (!promotion) return basePrice;
-    
+
     if (promotion.discountPercentage) {
       return basePrice * (1 - promotion.discountPercentage / 100);
     } else if (promotion.discountAmount) {
       return Math.max(0, basePrice - promotion.discountAmount);
     }
-    
+
     return basePrice;
   };
 
   // Get available promotion for selected dates
   const getAvailablePromotion = () => {
     if (!data || !rangeDates.startDate || !rangeDates.endDate) return null;
-    
+
     const startDate = rangeDates.startDate.format("YYYY-MM-DD");
     const endDate = rangeDates.endDate.format("YYYY-MM-DD");
-    
+
     // Check activePromotion first
     if (data.activePromotion) {
       const promo = data.activePromotion;
       const promoStart = moment(promo.startDate).format("YYYY-MM-DD");
       const promoEnd = moment(promo.endDate).format("YYYY-MM-DD");
-      
+
       // Check dates overlap
       if (startDate <= promoEnd && endDate >= promoStart) {
         return promo;
       }
     }
-    
+
     // Check promotions list
     if (data.promotions && Array.isArray(data.promotions)) {
       for (const promo of data.promotions) {
         const promoStart = moment(promo.startDate).format("YYYY-MM-DD");
         const promoEnd = moment(promo.endDate).format("YYYY-MM-DD");
-        
+
         // Check dates overlap first
         if (!(startDate <= promoEnd && endDate >= promoStart)) {
           continue;
         }
-        
+
         // If booking dates are fully within promotion period, consider it active
         const bookingWithinPromotion = startDate >= promoStart && endDate <= promoEnd;
         if (bookingWithinPromotion) {
           return promo;
         }
-        
+
         // Otherwise, check if promotion is active
         // If status/isActive is not set, check if current date is within promotion period
         const today = moment().format("YYYY-MM-DD");
         const isCurrentlyActive = today >= promoStart && today <= promoEnd;
-        
-        const isActive = 
-          promo.status === "Active" || 
+
+        const isActive =
+          promo.status === "Active" ||
           promo.isActive === true ||
           (promo.status === null && promo.isActive === false && isCurrentlyActive); // If backend doesn't set status, check dates
-        
+
         if (!isActive) {
           continue;
         }
-        
+
         return promo;
       }
     }
-    
+
     return null;
   };
 
@@ -861,14 +876,14 @@ const ListingStayDetailPage: FC = () => {
     const nights = rangeDates.startDate && rangeDates.endDate
       ? moment(rangeDates.endDate).startOf('day').diff(moment(rangeDates.startDate).startOf('day'), "days")
       : 0;
-    
+
     // Tính giá cơ bản cho 1 đêm (có thể từ activePrice hoặc pricePerNight)
     const checkInDate = rangeDates.startDate;
     const checkOutDate = rangeDates.endDate;
-    
+
     // Get available promotion
     const availablePromotion = getAvailablePromotion();
-    
+
     // Tính giá cho 1 đêm: basePrice (từ activePrice hoặc pricePerNight) + promotion
     const { basePrice: basePricePerNight, finalPrice: finalPricePerNight } = calculateFinalPrice(
       data.pricePerNight || 0,
@@ -877,7 +892,7 @@ const ListingStayDetailPage: FC = () => {
       checkInDate || undefined,
       checkOutDate || undefined
     );
-    
+
     // Debug log
     console.log("💰 Price calculation:", {
       pricePerNight: data.pricePerNight,
@@ -888,7 +903,7 @@ const ListingStayDetailPage: FC = () => {
       finalPricePerNight,
       availablePromotion: availablePromotion?.name,
     });
-    
+
     // Tính tổng tiền cho tất cả các đêm
     const baseTotalPrice = nights > 0 ? nights * basePricePerNight : 0;
     const totalPrice = nights > 0 ? nights * finalPricePerNight : 0;
@@ -916,11 +931,11 @@ const ListingStayDetailPage: FC = () => {
             )}
             {availablePromotion && discountAmount > 0 && (
               <span className="mt-1 px-2 py-0.5 bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs font-semibold rounded inline-block w-fit">
-                {availablePromotion.discountPercentage 
+                {availablePromotion.discountPercentage
                   ? `-${availablePromotion.discountPercentage}%`
                   : availablePromotion.discountAmount
-                  ? `-${availablePromotion.discountAmount.toLocaleString()} đ`
-                  : "Khuyến mãi"}
+                    ? `-${availablePromotion.discountAmount.toLocaleString()} đ`
+                    : "Khuyến mãi"}
               </span>
             )}
           </div>
@@ -1004,11 +1019,11 @@ const ListingStayDetailPage: FC = () => {
               {availablePromotion && discountAmount > 0 && (
                 <div className="flex justify-between text-red-600 dark:text-red-400">
                   <span>
-                    Giảm giá {availablePromotion.discountPercentage 
+                    Giảm giá {availablePromotion.discountPercentage
                       ? `(${availablePromotion.discountPercentage}%)`
                       : availablePromotion.discountAmount
-                      ? `(${availablePromotion.discountAmount.toLocaleString()} đ)`
-                      : ""}
+                        ? `(${availablePromotion.discountAmount.toLocaleString()} đ)`
+                        : ""}
                   </span>
                   <span>-{discountAmount.toLocaleString()} đ</span>
                 </div>
@@ -1060,10 +1075,10 @@ const ListingStayDetailPage: FC = () => {
                     <div><b>Giường:</b> {d.beds} · <b>Phòng tắm:</b> {d.bathrooms}</div>
                     {d.safetyFeatures && <div><b>An toàn:</b> {d.safetyFeatures}</div>}
                     {d.hygieneStandards && <div><b>Vệ sinh:</b> {d.hygieneStandards}</div>}
+                  </div>
+                ))}
               </div>
-            ))}
             </div>
-          </div>
           ) : null}
           {renderHost()}
           {renderReviews()}
@@ -1073,20 +1088,20 @@ const ListingStayDetailPage: FC = () => {
         </div>
       </main>
       <MobileFooterSticky />
-        <div className="container py-24 lg:py-32">
-          <div className="relative py-16">
-            <BackgroundSection />
-            <SectionSliderNewCategories
+      <div className="container py-24 lg:py-32">
+        <div className="relative py-16">
+          <BackgroundSection />
+          <SectionSliderNewCategories
             heading="Explore by types of stays"
             subHeading="Explore houses based on 10 types of stays"
-              categoryCardType="card5"
-              itemPerRow={5}
-              sliderStyle="style2"
+            categoryCardType="card5"
+            itemPerRow={5}
+            sliderStyle="style2"
             uniqueClassName="ListingStayDetailPage"
-            />
-          </div>
-          <SectionSubscribe2 className="pt-24 lg:pt-32" />
+          />
         </div>
+        <SectionSubscribe2 className="pt-24 lg:pt-32" />
+      </div>
     </div>
   );
 };
