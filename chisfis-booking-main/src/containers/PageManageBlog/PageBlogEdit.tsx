@@ -5,6 +5,7 @@ import ImageResize from "quill-image-resize-module-react";
 import "react-quill/dist/quill.snow.css";
 import blogAPI, { BlogCategoryDTO } from "api/blog";
 import { uploadAPI } from "api/upload";
+import { showSuccess, showError } from "utils/modalNotification";
 
 // Đăng ký module resize
 Quill.register("modules/imageResize", ImageResize);
@@ -44,17 +45,19 @@ const PageBlogEdit = () => {
       try {
         setLoading(true);
         const postId = parseInt(id);
-        
+
         // Load post
         const post = await blogAPI.adminGetPostById(postId);
         if (post) {
           setTitle(post.title);
           setContent(post.content);
           setFeaturedImage(post.featuredImageUrl || null);
+          setStatus(post.status || "Draft");
+          setCategoryId(post.categoryId);
           // Note: Backend DTOs don't have status or categoryId in detail, 
           // so we'll need to get them from the post if available
         } else {
-          alert("Không tìm thấy bài viết!");
+          showError("Không tìm thấy bài viết!");
           navigate("/manage-blog");
         }
 
@@ -64,7 +67,7 @@ const PageBlogEdit = () => {
         setCategories(cats);
       } catch (err: any) {
         console.error("Failed to load post:", err);
-        alert(err.response?.data?.message || "Không thể tải bài viết");
+        showError(err.response?.data?.message || "Không thể tải bài viết");
         navigate("/manage-blog");
       } finally {
         setLoading(false);
@@ -126,7 +129,7 @@ const PageBlogEdit = () => {
       }
 
       if (!embedUrl) {
-        alert('Không thể xử lý URL video này. Vui lòng kiểm tra lại.');
+        showError('Không thể xử lý URL video này. Vui lòng kiểm tra lại.');
         return;
       }
 
@@ -184,11 +187,11 @@ const PageBlogEdit = () => {
     const file = e.target.files?.[0];
     if (file) {
       if (!file.type.startsWith('image/')) {
-        alert('Vui lòng chọn file ảnh!');
+        showError('Vui lòng chọn file ảnh!');
         return;
       }
       if (file.size > 5 * 1024 * 1024) {
-        alert('Kích thước file không được vượt quá 5MB!');
+        showError('Kích thước file không được vượt quá 5MB!');
         return;
       }
       setFeaturedImageFile(file);
@@ -210,11 +213,11 @@ const PageBlogEdit = () => {
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!id) {
-      alert("Không tìm thấy ID bài viết!");
+      showError("Không tìm thấy ID bài viết!");
       return;
     }
     if (!title || !content) {
-      alert("Vui lòng nhập Tiêu đề và Nội dung.");
+      showError("Vui lòng nhập Tiêu đề và Nội dung.");
       return;
     }
 
@@ -222,7 +225,7 @@ const PageBlogEdit = () => {
     try {
       const postId = parseInt(id);
       let featuredImageUrl: string | undefined = undefined;
-      
+
       // Upload featured image if changed
       if (featuredImageFile) {
         try {
@@ -230,7 +233,7 @@ const PageBlogEdit = () => {
           featuredImageUrl = uploadResult.imageUrl;
         } catch (uploadErr) {
           console.error("Failed to upload image:", uploadErr);
-          alert("Không thể tải ảnh lên. Vui lòng thử lại.");
+          showError("Không thể tải ảnh lên. Vui lòng thử lại.");
           setIsLoading(false);
           return;
         }
@@ -248,11 +251,11 @@ const PageBlogEdit = () => {
         categoryId,
       });
 
-      alert("Đã cập nhật bài viết thành công!");
+      showSuccess("Đã cập nhật bài viết thành công!");
       navigate("/manage-blog");
     } catch (err: any) {
       console.error("Failed to update post:", err);
-      alert(err.response?.data?.message || "Không thể cập nhật bài viết. Vui lòng thử lại.");
+      showError(err.response?.data?.message || "Không thể cập nhật bài viết. Vui lòng thử lại.");
     } finally {
       setIsLoading(false);
     }
@@ -261,21 +264,21 @@ const PageBlogEdit = () => {
   // Handle delete
   const handleDelete = async () => {
     if (!id) return;
-    
+
     if (window.confirm("Bạn có chắc chắn muốn xóa bài viết này không? Hành động này không thể hoàn tác.")) {
       try {
         setIsLoading(true);
         const postId = parseInt(id);
         const success = await blogAPI.adminDeletePost(postId);
         if (success) {
-          alert("Đã xóa bài viết.");
+          showSuccess("Đã xóa bài viết.");
           navigate("/manage-blog");
         } else {
-          alert("Không tìm thấy bài viết để xóa.");
+          showError("Không tìm thấy bài viết để xóa.");
         }
       } catch (err: any) {
         console.error("Failed to delete post:", err);
-        alert(err.response?.data?.message || "Không thể xóa bài viết.");
+        showError(err.response?.data?.message || "Không thể xóa bài viết.");
       } finally {
         setIsLoading(false);
       }
@@ -482,4 +485,4 @@ const PageBlogEdit = () => {
   );
 };
 
-export default PageBlogEdit; // <-- 2. ĐỔI TÊN EXPORT tui
+export default PageBlogEdit;

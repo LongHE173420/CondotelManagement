@@ -152,11 +152,7 @@ const TabFilters = () => {
       params.delete("maxPrice");
     }
     
-    console.log("🔍 Applying filters, new URL params:", params.toString());
-    console.log("🔍 Preserved location:", params.get("location"));
-    console.log("🔍 Preserved startDate:", params.get("startDate"));
-    console.log("🔍 Preserved endDate:", params.get("endDate"));
-    console.log("🔍 Preserved guests:", params.get("guests"));
+
     
     // Navigate with updated params (all existing params are preserved)
     const newUrl = params.toString() ? `${location.pathname}?${params.toString()}` : location.pathname;
@@ -241,14 +237,13 @@ const TabFilters = () => {
                     </ButtonThird>
                     <ButtonPrimary
                       onClick={() => {
-                        const minPrice = rangePrices[0] > 0 ? rangePrices[0] : null;
-                        const maxPrice = rangePrices[1] < 10000000 && rangePrices[1] > 0 ? rangePrices[1] : null;
-                        console.log("💰 Applying price filter:", { minPrice, maxPrice, rangePrices });
-                        applyFilters(null, null, minPrice, maxPrice, close);
+                        // Only close modal, don't trigger search
+                        // User needs to click "Tìm kiếm" button to search
+                        if (close) close();
                       }}
                       sizeClass="px-4 py-2 sm:px-5"
                     >
-                      Áp dụng
+                      Đóng
                     </ButtonPrimary>
                   </div>
                 </div>
@@ -318,12 +313,13 @@ const TabFilters = () => {
                     </ButtonThird>
                     <ButtonPrimary
                       onClick={() => {
-                        console.log("🛏️ Applying beds/bathrooms filter:", { beds, bathrooms });
-                        applyFilters(beds, bathrooms, null, null, close);
+                        // Only close modal, don't trigger search
+                        // User needs to click "Tìm kiếm" button to search
+                        if (close) close();
                       }}
                       sizeClass="px-4 py-2 sm:px-5"
                     >
-                      Áp dụng
+                      Đóng
                     </ButtonPrimary>
                   </div>
                 </div>
@@ -443,14 +439,13 @@ const TabFilters = () => {
                     </ButtonThird>
                     <ButtonPrimary
                       onClick={() => {
-                        const minPrice = rangePrices[0] > 0 ? rangePrices[0] : null;
-                        const maxPrice = rangePrices[1] < 10000000 && rangePrices[1] > 0 ? rangePrices[1] : null;
-                        console.log("💰 Applying price filter:", { minPrice, maxPrice, rangePrices });
-                        applyFilters(null, null, minPrice, maxPrice, close);
+                        // Only close modal, don't trigger search
+                        // User needs to click "Tìm kiếm" button to search
+                        if (close) close();
                       }}
                       sizeClass="px-4 py-2 sm:px-5"
                     >
-                      Áp dụng
+                      Đóng
                     </ButtonPrimary>
                   </div>
                 </div>
@@ -800,7 +795,7 @@ const TabFilters = () => {
                       onClick={closeModalMoreFilterMobile}
                       sizeClass="px-4 py-2 sm:px-5"
                     >
-                      Áp dụng
+                      Đóng
                     </ButtonPrimary>
                   </div>
                 </div>
@@ -812,15 +807,61 @@ const TabFilters = () => {
     );
   };
 
+  // Handle search button click
+  const handleSearch = () => {
+    // Apply current filters and trigger search
+    const params = new URLSearchParams(location.search);
+    
+    // Update filters in URL
+    if (beds !== null && beds > 0) {
+      params.set("beds", beds.toString());
+    } else {
+      params.delete("beds");
+    }
+    
+    if (bathrooms !== null && bathrooms > 0) {
+      params.set("bathrooms", bathrooms.toString());
+    } else {
+      params.delete("bathrooms");
+    }
+    
+    const minPrice = rangePrices[0] > 0 ? rangePrices[0] : null;
+    const maxPrice = rangePrices[1] < 10000000 && rangePrices[1] > 0 ? rangePrices[1] : null;
+    
+    if (minPrice !== null && minPrice > 0) {
+      params.set("minPrice", minPrice.toString());
+    } else {
+      params.delete("minPrice");
+    }
+    
+    if (maxPrice !== null && maxPrice > 0) {
+      params.set("maxPrice", maxPrice.toString());
+    } else {
+      params.delete("maxPrice");
+    }
+    
+    // No need for _search flag - components will auto-search when params exist
+    
+    // Navigate with updated params to trigger search
+    const newUrl = params.toString() ? `${location.pathname}?${params.toString()}` : location.pathname;
+    navigate(newUrl, { replace: true });
+  };
+
   return (
-    <div className="flex lg:space-x-4">
-      <div className="hidden lg:flex space-x-4">
+    <div className="flex lg:space-x-4 items-center">
+      <div className="hidden lg:flex space-x-4 flex-1">
         {renderTabsTypeOfPlace()}
         {renderTabsPriceRage()}
         {renderTabsRoomAndBeds()}
         {renderTabMoreFilter()}
       </div>
       {renderTabMoreFilterMobile()}
+      <ButtonPrimary
+        onClick={handleSearch}
+        className="ml-4 px-6 py-2"
+      >
+        🔍 Tìm kiếm
+      </ButtonPrimary>
     </div>
   );
 };

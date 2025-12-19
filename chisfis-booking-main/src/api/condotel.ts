@@ -180,6 +180,9 @@ export interface CondotelSearchQuery {
   hostId?: number; // Host ID
   fromDate?: string; // DateOnly format: YYYY-MM-DD
   toDate?: string; // DateOnly format: YYYY-MM-DD
+  // Compatibility aliases for backends expecting start/end naming
+  startDate?: string;
+  endDate?: string;
   minPrice?: number; // Minimum price per night
   maxPrice?: number; // Maximum price per night
   beds?: number; // Minimum number of beds (>=)
@@ -261,11 +264,21 @@ export const condotelAPI = {
     if (query?.hostId !== undefined && query?.hostId !== null) {
       params.hostId = query.hostId;
     }
+    // Support both fromDate/toDate and startDate/endDate naming
     if (query?.fromDate) {
       params.fromDate = query.fromDate;
     }
     if (query?.toDate) {
       params.toDate = query.toDate;
+    }
+    if (query?.startDate) {
+      params.startDate = query.startDate;
+      // Also backfill fromDate to cover both backend expectations
+      params.fromDate = params.fromDate || query.startDate;
+    }
+    if (query?.endDate) {
+      params.endDate = query.endDate;
+      params.toDate = params.toDate || query.endDate;
     }
     if (query?.minPrice !== undefined && query?.minPrice !== null) {
       params.minPrice = query.minPrice;

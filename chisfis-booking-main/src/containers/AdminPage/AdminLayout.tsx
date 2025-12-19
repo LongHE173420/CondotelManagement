@@ -1,4 +1,4 @@
-import React, { FC, ReactNode } from "react";
+import React, { FC, ReactNode, useState } from "react";
 import { useAuth } from "contexts/AuthContext";
 import { Navigate, useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
@@ -10,6 +10,17 @@ interface AdminLayoutProps {
 const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
   const { isAdmin, isLoading, user, logout } = useAuth();
   const navigate = useNavigate();
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    action: (() => void) | null;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    action: null,
+  });
 
   if (isLoading) {
     return (
@@ -23,11 +34,17 @@ const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
     return <Navigate to="/" replace />;
   }
 
-  const handleLogout = async () => {
-    if (window.confirm("Bạn có chắc chắn muốn đăng xuất?")) {
-      await logout();
-      navigate("/");
-    }
+  const handleLogout = () => {
+    setConfirmModal({
+      isOpen: true,
+      title: "Đăng xuất",
+      message: "Bạn có chắc chắn muốn đăng xuất?",
+      action: async () => {
+        await logout();
+        setConfirmModal({ isOpen: false, title: "", message: "", action: null });
+        navigate("/");
+      },
+    });
   };
 
   return (
@@ -72,16 +89,17 @@ const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
                 </div>
               )}
 
-              {/* Home Button */}
+              {/* Chat Button */}
               <Link
-                to="/"
-                className="px-4 py-2 text-sm font-medium text-neutral-700 dark:text-neutral-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700"
+                to="/chat"
+                className="px-4 py-2 text-sm font-medium text-neutral-700 dark:text-neutral-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 relative"
+                title="Hỗ trợ khách hàng"
               >
                 <span className="flex items-center space-x-2">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                   </svg>
-                  <span className="hidden sm:inline">Trang chủ</span>
+                  <span className="hidden sm:inline">Chat</span>
                 </span>
               </Link>
 
@@ -104,6 +122,34 @@ const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {children}
       </main>
+
+      {/* Custom Confirmation Modal */}
+      {confirmModal.isOpen && (
+        <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-neutral-800 rounded-lg shadow-2xl p-6 max-w-sm w-11/12">
+            <h3 className="text-lg font-bold text-neutral-900 dark:text-neutral-100 mb-2">
+              {confirmModal.title}
+            </h3>
+            <p className="text-neutral-600 dark:text-neutral-400 mb-6">
+              {confirmModal.message}
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setConfirmModal({ isOpen: false, title: "", message: "", action: null })}
+                className="px-4 py-2 rounded-lg bg-neutral-200 dark:bg-neutral-700 text-neutral-800 dark:text-neutral-100 font-medium hover:bg-neutral-300 dark:hover:bg-neutral-600 transition"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={() => confirmModal.action?.()}
+                className="px-4 py-2 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 transition"
+              >
+                Đăng xuất
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

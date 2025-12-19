@@ -4,13 +4,16 @@ import BackgroundSection from "components/BackgroundSection/BackgroundSection";
 import BgGlassmorphism from "components/BgGlassmorphism/BgGlassmorphism";
 import SectionGridAuthorBox from "components/SectionGridAuthorBox/SectionGridAuthorBox";
 import SectionHeroArchivePage from "components/SectionHeroArchivePage/SectionHeroArchivePage";
-import SectionSliderNewCategories from "components/SectionSliderNewCategories/SectionSliderNewCategories";
 import SectionSubscribe2 from "components/SectionSubscribe2/SectionSubscribe2";
-import SectionGridHasMap from "./SectionGridHasMap";
+import SectionWhyChooseCondotel from "components/SectionWhyChooseCondotel/SectionWhyChooseCondotel";
+import SectionGridNoMap from "./SectionGridNoMap";
 import { Helmet } from "react-helmet";
 import imagePng from "images/hero-right.png";
 import condotelAPI from "api/condotel";
 import { useTranslation } from "i18n/LanguageContext";
+import hostAPI, { TopHostDTO } from "api/host";
+import { AuthorType } from "data/types";
+import { toastError } from "utils/toast";
 
 export interface ListingStayMapPageProps {
   className?: string;
@@ -32,6 +35,7 @@ const ListingStayMapPage: FC<ListingStayMapPageProps> = ({
   const beds = params.get("beds");
   const bathrooms = params.get("bathrooms");
   const [propertyCount, setPropertyCount] = useState<number>(0);
+  const [topHosts, setTopHosts] = useState<AuthorType[]>([]);
 
   useEffect(() => {
     const fetchCount = async () => {
@@ -94,17 +98,10 @@ const ListingStayMapPage: FC<ListingStayMapPageProps> = ({
           }
         }
         
-        // Nếu có hostId, sử dụng API riêng để lấy condotels của host
-        let condotels: any[] = [];
-        if (searchHostId) {
-          const hostId = Number(searchHostId);
-          if (!isNaN(hostId)) {
-            condotels = await condotelAPI.getCondotelsByHostId(hostId);
-          }
-        } else {
-          condotels = await condotelAPI.search(searchQuery);
-        }
-        setPropertyCount(condotels.length);
+        // Call API to get total count
+        const result = await condotelAPI.search(searchQuery);
+        // Result is an array, so the count is the array length
+        setPropertyCount(result.length);
       } catch (err) {
         console.error("Error fetching condotel count:", err);
         setPropertyCount(0);
@@ -112,6 +109,50 @@ const ListingStayMapPage: FC<ListingStayMapPageProps> = ({
     };
     fetchCount();
   }, [location.search]); // Use location.search to trigger on any URL param change
+
+  // Load top hosts from API
+  useEffect(() => {
+    const loadTopHosts = async () => {
+      try {
+        const topHostsData = await hostAPI.getTopRated(10);
+        
+        if (!topHostsData || !Array.isArray(topHostsData) || topHostsData.length === 0) {
+          setTopHosts([]);
+          return;
+        }
+        
+        // Map TopHostDTO to AuthorType
+        const mappedHosts: AuthorType[] = topHostsData.map((host: TopHostDTO) => {
+          const nameParts = (host.fullName || '').split(' ');
+          const firstName = nameParts[0] || '';
+          const lastName = nameParts.slice(1).join(' ') || '';
+          // Hiển thị fullName (tên host) thay vì companyName
+          const displayName = host.fullName || 'Host';
+          
+          return {
+            id: host.hostId.toString(),
+            firstName: firstName,
+            lastName: lastName,
+            displayName: displayName,
+            avatar: host.avatarUrl || '',
+            count: host.totalCondotels || 0,
+            desc: `${host.totalReviews || 0} đánh giá • ${host.totalCondotels || 0} condotel`,
+            jobName: host.companyName || 'Host',
+            href: `/author/${host.hostId}`,
+            starRating: host.averageRating || 0,
+          };
+        });
+        
+        setTopHosts(mappedHosts);
+      } catch (err: any) {
+        console.error("Error loading top hosts:", err);
+        toastError("Không thể tải danh sách host nổi bật");
+        setTopHosts([]);
+      }
+    };
+
+    loadTopHosts();
+  }, []);
 
   return (
     <div
@@ -143,22 +184,15 @@ const ListingStayMapPage: FC<ListingStayMapPageProps> = ({
       </div>
 
       {/* SECTION */}
-      <div className="container pb-24 lg:pb-28 2xl:pl-10 xl:pr-0 xl:max-w-none">
-        <SectionGridHasMap />
+      <div className="container pb-24 lg:pb-28">
+        <SectionGridNoMap />
       </div>
 
       <div className="container overflow-hidden">
-        {/* SECTION 1 */}
+        {/* SECTION - Why Choose Condotel */}
         <div className="relative py-16">
-          <BackgroundSection />
-          <SectionSliderNewCategories
-            heading="Explore by types of stays"
-            subHeading="Explore houses based on 10 types of stays"
-            categoryCardType="card5"
-            itemPerRow={5}
-            sliderStyle="style2"
-            uniqueClassName="ListingStayMapPage"
-          />
+          <BackgroundSection className="bg-amber-50 dark:bg-black dark:bg-opacity-20 " />
+          <SectionWhyChooseCondotel />
         </div>
 
         {/* SECTION */}
@@ -167,7 +201,7 @@ const ListingStayMapPage: FC<ListingStayMapPageProps> = ({
         {/* SECTION */}
         <div className="relative py-16 mb-24 lg:mb-28">
           <BackgroundSection className="bg-orange-50 dark:bg-black dark:bg-opacity-20 " />
-          <SectionGridAuthorBox />
+          <SectionGridAuthorBox authors={topHosts} />
         </div>
       </div>
     </div>

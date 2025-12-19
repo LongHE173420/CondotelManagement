@@ -76,8 +76,24 @@ export const walletAPI = {
   },
 
   // POST /api/host/wallet/{id}/set-default - Đặt tài khoản ngân hàng làm mặc định
-  setDefault: async (id: number): Promise<void> => {
-    await axiosClient.post(`/host/wallet/${id}/set-default`);
+  // Yêu cầu: Role "Host" và wallet phải thuộc về host đó
+  setDefault: async (id: number): Promise<{ success: boolean; message?: string }> => {
+    const response = await axiosClient.post<any>(`/host/wallet/${id}/set-default`);
+    const data = response.data;
+    
+    // Backend có thể trả về { success, message } hoặc chỉ message
+    if (data.success !== undefined) {
+      return {
+        success: data.success,
+        message: data.message || data.Message,
+      };
+    }
+    
+    // Nếu không có success field, coi như thành công nếu không có lỗi
+    return {
+      success: true,
+      message: data.message || data.Message || "Đã đặt tài khoản làm mặc định thành công",
+    };
   },
 };
 

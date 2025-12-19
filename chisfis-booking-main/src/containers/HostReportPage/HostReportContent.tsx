@@ -489,7 +489,7 @@ const HostReportContent: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-bold text-neutral-500 dark:text-neutral-400 mb-2">Đã hủy</p>
-                  <p className="text-2xl font-bold bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent">{report.cancelledBookings || 0}</p>
+                  <p className="text-2xl font-bold bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent">{report.totalCancellations ?? report.cancelledBookings ?? 0}</p>
                 </div>
                 <div className="bg-gradient-to-br from-red-500 to-orange-500 p-4 rounded-xl shadow-lg">
                   <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">

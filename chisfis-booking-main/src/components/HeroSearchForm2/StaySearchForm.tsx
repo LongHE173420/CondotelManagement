@@ -5,6 +5,8 @@ import { FocusedInputShape } from "react-dates";
 import StayDatesRangeInput from "./StayDatesRangeInput";
 import moment from "moment";
 import { FC } from "react";
+import { useNavigate } from "react-router-dom";
+import { GuestsObject } from "components/HeroSearchForm2Mobile/GuestsInput";
 
 export interface DateRage {
   startDate: moment.Moment | null;
@@ -35,12 +37,14 @@ const StaySearchForm: FC<StaySearchFormProps> = ({
   haveDefaultValue = false,
   defaultFieldFocus,
 }) => {
+  const navigate = useNavigate();
+  
   const [dateRangeValue, setDateRangeValue] = useState<DateRage>({
     startDate: null,
     endDate: null,
   });
   const [locationInputValue, setLocationInputValue] = useState("");
-  const [guestValue, setGuestValue] = useState({});
+  const [guestValue, setGuestValue] = useState<GuestsObject>({});
 
   const [dateFocused, setDateFocused] = useState<FocusedInputShape | null>(
     null
@@ -63,11 +67,54 @@ const StaySearchForm: FC<StaySearchFormProps> = ({
       setGuestValue(defaultGuestValue);
     }
   }, []);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Build search params
+    const params = new URLSearchParams();
+    
+    // Set location
+    if (locationInputValue && locationInputValue.trim()) {
+      const trimmedLocation = locationInputValue.trim();
+      if (!/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(trimmedLocation)) {
+        params.set("location", trimmedLocation);
+      }
+    }
+    
+    // Set dates
+    if (dateRangeValue.startDate) {
+      params.set("startDate", dateRangeValue.startDate.format("YYYY-MM-DD"));
+    }
+    
+    if (dateRangeValue.endDate) {
+      params.set("endDate", dateRangeValue.endDate.format("YYYY-MM-DD"));
+    }
+    
+    // Set guests
+    const totalGuests = 
+      (guestValue?.guestAdults || 0) + 
+      (guestValue?.guestChildren || 0) + 
+      (guestValue?.guestInfants || 0);
+    
+    if (totalGuests > 0) {
+      params.set("guests", totalGuests.toString());
+    }
+    
+    const queryString = params.toString();
+    const url = `/listing-stay${queryString ? `?${queryString}` : ""}`;
+    navigate(url, { 
+      state: { 
+        searchParams: Object.fromEntries(params),
+        preserveQuery: true 
+      }
+    });
+  };
   //
 
   const renderForm = () => {
     return (
-      <form className="relative flex rounded-full border border-neutral-200 dark:border-neutral-700">
+      <form className="relative flex rounded-full border border-neutral-200 dark:border-neutral-700" onSubmit={handleSubmit}>
         <LocationInput
           defaultValue={locationInputValue}
           onChange={(e) => setLocationInputValue(e)}
@@ -90,6 +137,7 @@ const StaySearchForm: FC<StaySearchFormProps> = ({
           className="flex-[1.2]"
           autoFocus={defaultFieldFocus === "guests"}
           submitLink="/listing-stay"
+          onSubmit={handleSubmit}
         />
       </form>
     );

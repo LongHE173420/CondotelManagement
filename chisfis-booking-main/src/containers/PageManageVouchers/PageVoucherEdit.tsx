@@ -29,7 +29,6 @@ const PageVoucherEdit = () => {
   // Tải dữ liệu giả lập
   useEffect(() => {
     // TODO: Gọi API lấy chi tiết voucher với `id`
-    console.log("Tải dữ liệu voucher ID:", id);
     // Dữ liệu giả lập
     setCode("SALE30");
     setDiscountType("percentage");
@@ -46,7 +45,6 @@ const PageVoucherEdit = () => {
     e.preventDefault();
     setIsLoading(true);
     // TODO: Gọi API cập nhật
-    console.log("Cập nhật voucher:", id);
     setTimeout(() => {
       setIsLoading(false);
       alert("Cập nhật voucher thành công!");
@@ -58,7 +56,6 @@ const PageVoucherEdit = () => {
     if (window.confirm(`Bạn có chắc muốn xóa voucher "${code}" không?`)) {
       setIsLoading(true);
       // TODO: Gọi API xóa
-      console.log("Xóa voucher:", id);
       setTimeout(() => {
         setIsLoading(false);
         alert("Đã xóa voucher.");

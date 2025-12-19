@@ -1,9 +1,9 @@
 import BackgroundSection from "components/BackgroundSection/BackgroundSection";
 import BgGlassmorphism from "components/BgGlassmorphism/BgGlassmorphism";
-import SectionGridAuthorBox from "components/SectionGridAuthorBox/SectionGridAuthorBox";
 import SectionHeroArchivePage from "components/SectionHeroArchivePage/SectionHeroArchivePage";
-import SectionSliderNewCategories from "components/SectionSliderNewCategories/SectionSliderNewCategories";
 import SectionSubscribe2 from "components/SectionSubscribe2/SectionSubscribe2";
+import SectionCondotelFeatures from "components/SectionCondotelFeatures/SectionCondotelFeatures";
+import SectionTopHostCondotel from "components/SectionTopHostCondotel/SectionTopHostCondotel";
 import React, { FC, useState, useEffect, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import SectionGridFilterCard from "./SectionGridFilterCard";
@@ -19,15 +19,31 @@ export interface ListingStayPageProps {
 const ListingStayPage: FC<ListingStayPageProps> = ({ className = "" }) => {
   const { t } = useTranslation();
   const location = useLocation();
+  const stateParams = (location.state as any)?.searchParams || {};
   const [propertyCount, setPropertyCount] = useState<number>(0);
   const [locationName, setLocationName] = useState<string>("");
   
   const params = useMemo(() => new URLSearchParams(location.search), [location.search]);
-  const searchLocation = params.get("location");
-  const searchLocationId = params.get("locationId");
+  const searchLocation =
+    params.get("location") ||
+    params.get("searchLocation") ||
+    params.get("locationName") ||
+    params.get("city") ||
+    stateParams.location ||
+    stateParams.searchLocation ||
+    stateParams.locationName ||
+    stateParams.city;
+  const searchLocationId =
+    params.get("locationId") ||
+    params.get("searchLocationId") ||
+    params.get("cityId") ||
+    stateParams.locationId ||
+    stateParams.searchLocationId ||
+    stateParams.cityId;
   const searchHostId = params.get("hostId");
   const searchFromDate = params.get("startDate");
   const searchToDate = params.get("endDate");
+  const searchGuests = params.get("guests");
   const minPrice = params.get("minPrice");
   const maxPrice = params.get("maxPrice");
   const beds = params.get("beds");
@@ -82,9 +98,11 @@ const ListingStayPage: FC<ListingStayPageProps> = ({ className = "" }) => {
         
         if (searchFromDate) {
           searchQuery.fromDate = searchFromDate;
+          searchQuery.startDate = searchFromDate;
         }
         if (searchToDate) {
           searchQuery.toDate = searchToDate;
+          searchQuery.endDate = searchToDate;
         }
         
         // Add price filters
@@ -114,10 +132,14 @@ const ListingStayPage: FC<ListingStayPageProps> = ({ className = "" }) => {
             searchQuery.bathrooms = bathroomsNum;
           }
         }
-        
+
         // Always fetch all condotels to get count
-        const condotels = await condotelAPI.search(searchQuery);
-        setPropertyCount(condotels.length);
+        const result = await condotelAPI.search(searchQuery);
+        if (result && Array.isArray(result)) {
+          setPropertyCount(result.length);
+        } else {
+          setPropertyCount(0);
+        }
       } catch (err) {
         console.error("Error fetching condotel count:", err);
         setPropertyCount(0);
@@ -158,26 +180,16 @@ const ListingStayPage: FC<ListingStayPageProps> = ({ className = "" }) => {
         <SectionGridFilterCard className="pb-24 lg:pb-28" />
 
         {/* SECTION 1 */}
+        <SectionCondotelFeatures />
+
+        {/* SECTION - Top Hosts */}
         <div className="relative py-16">
-          <BackgroundSection />
-          <SectionSliderNewCategories
-            heading={t.home.exploreByType}
-            subHeading={t.home.exploreByTypeSubtitle}
-            categoryCardType="card5"
-            itemPerRow={5}
-            sliderStyle="style2"
-            uniqueClassName="ListingStayMapPage"
-          />
+          <BackgroundSection className="bg-blue-50 dark:bg-black dark:bg-opacity-20 " />
+          <SectionTopHostCondotel />
         </div>
 
         {/* SECTION */}
         <SectionSubscribe2 className="py-24 lg:py-28" />
-
-        {/* SECTION */}
-        <div className="relative py-16 mb-24 lg:mb-28">
-          <BackgroundSection className="bg-orange-50 dark:bg-black dark:bg-opacity-20 " />
-          <SectionGridAuthorBox />
-        </div>
       </div>
     </div>
   );

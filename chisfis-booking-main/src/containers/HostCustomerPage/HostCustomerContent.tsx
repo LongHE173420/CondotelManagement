@@ -391,7 +391,7 @@ const HostCustomerContent: React.FC = () => {
                                 </span>
                               </td>
                               <td className="px-4 py-3 whitespace-nowrap text-sm text-neutral-500 dark:text-neutral-400">
-                                {formatDate(booking.createdAt)}
+                                {formatDate(booking.bookingDate || booking.createdAt)}
                               </td>
                             </tr>
                           ))}

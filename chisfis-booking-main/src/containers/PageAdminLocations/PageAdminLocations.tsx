@@ -13,6 +13,18 @@ const PageAdminLocations: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingLocation, setEditingLocation] = useState<LocationDTO | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  // Modal confirmation state
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    action: (() => void) | null;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    action: null,
+  });
 
   useEffect(() => {
     loadLocations();
@@ -34,22 +46,25 @@ const PageAdminLocations: React.FC = () => {
     }
   };
 
-  const handleDelete = async (id: number, name: string) => {
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa location "${name}"?`)) {
-      return;
-    }
-
-    setDeletingId(id);
-    try {
-      await locationAPI.deleteAdmin(id);
-      setSuccess(`Đã xóa location "${name}" thành công!`);
-      await loadLocations();
-    } catch (err: any) {
-      console.error("Failed to delete location:", err);
-      setError(err.response?.data?.message || "Không thể xóa location");
-    } finally {
-      setDeletingId(null);
-    }
+  const handleDelete = (id: number, name: string) => {
+    setConfirmModal({
+      isOpen: true,
+      title: "Xóa Location",
+      message: `Bạn có chắc chắn muốn xóa location "${name}"? Hành động này không thể hoàn tác.`,
+      action: async () => {
+        setDeletingId(id);
+        try {
+          await locationAPI.deleteAdmin(id);
+          setSuccess(`Đã xóa location "${name}" thành công!`);
+          await loadLocations();
+          setConfirmModal({ isOpen: false, title: "", message: "", action: null });
+        } catch (err: any) {
+          setError(err.response?.data?.message || "Không thể xóa location");
+        } finally {
+          setDeletingId(null);
+        }
+      },
+    });
   };
 
   if (loading) {
@@ -279,6 +294,34 @@ const PageAdminLocations: React.FC = () => {
           }}
         />
       )}
+
+      {/* Custom Confirmation Modal */}
+      {confirmModal.isOpen && (
+        <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-neutral-800 rounded-lg shadow-2xl p-6 max-w-sm w-11/12">
+            <h3 className="text-lg font-bold text-neutral-900 dark:text-neutral-100 mb-2">
+              {confirmModal.title}
+            </h3>
+            <p className="text-neutral-600 dark:text-neutral-400 mb-6">
+              {confirmModal.message}
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setConfirmModal({ isOpen: false, title: "", message: "", action: null })}
+                className="px-4 py-2 rounded-lg bg-neutral-200 dark:bg-neutral-700 text-neutral-800 dark:text-neutral-100 font-medium hover:bg-neutral-300 dark:hover:bg-neutral-600 transition"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={() => confirmModal.action?.()}
+                className="px-4 py-2 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 transition"
+              >
+                Xóa
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -381,28 +424,27 @@ const LocationModal: React.FC<LocationModalProps> = ({ location, onClose, onSucc
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto" style={{ position: 'fixed', width: '100%', height: '100%' }}>
-      <div className="flex items-center justify-center min-h-screen px-4 py-4">
-        <div
-          className="fixed inset-0 transition-opacity bg-gray-900 bg-opacity-50 backdrop-blur-sm"
-          onClick={onClose}
-        ></div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ position: 'fixed', width: '100%', height: '100%' }}>
+      <div
+        className="fixed inset-0 transition-opacity bg-gray-900 bg-opacity-50 backdrop-blur-sm"
+        onClick={onClose}
+      ></div>
 
-        <div className="relative bg-white dark:bg-neutral-800 rounded-2xl shadow-2xl transform transition-all w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-          <div className="sticky top-0 bg-white dark:bg-neutral-800 border-b border-neutral-200 dark:border-neutral-700 px-6 py-4 flex items-center justify-between z-10">
-            <h3 className="text-xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
-              {location ? "Sửa Location" : "Thêm Location mới"}
-            </h3>
-            <button
-              onClick={onClose}
-              className="text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200 transition-colors p-2 hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded-lg"
-            >
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-          <div className="px-6 py-6">
+      <div className="relative bg-white dark:bg-neutral-800 rounded-2xl shadow-2xl transform transition-all w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="bg-white dark:bg-neutral-800 border-b border-neutral-200 dark:border-neutral-700 px-6 py-4 flex items-center justify-between flex-shrink-0">
+          <h3 className="text-xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+            {location ? "Sửa Location" : "Thêm Location mới"}
+          </h3>
+          <button
+            onClick={onClose}
+            className="text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200 transition-colors p-2 hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded-lg flex-shrink-0"
+          >
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div className="overflow-y-auto flex-1 px-6 py-6">
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
@@ -513,7 +555,6 @@ const LocationModal: React.FC<LocationModalProps> = ({ location, onClose, onSucc
                 </ButtonPrimary>
               </div>
             </form>
-          </div>
         </div>
       </div>
     </div>

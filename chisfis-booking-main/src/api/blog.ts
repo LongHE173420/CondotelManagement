@@ -16,11 +16,16 @@ export interface BlogPostSummaryDTO {
   AuthorName?: string;
   categoryName: string;
   CategoryName?: string;
+
 }
 
 export interface BlogPostDetailDTO extends BlogPostSummaryDTO {
   content: string;
   Content?: string;
+  categoryId?: number;  // Thêm dòng này
+  CategoryId?: number;
+  status?: string;
+  Status?: string;
 }
 
 export interface BlogCategoryDTO {
@@ -45,7 +50,65 @@ export interface AdminBlogCreateDTO {
   categoryId?: number;
   CategoryId?: number;
 }
+export interface BlogRequestDTO {
+  blogRequestId: number;
+  hostId: number;
+  hostName: string;
+  title: string;
+  content: string;
+  featuredImageUrl?: string;
+  status: string;
+  requestDate: string; // ISO Date string
+  rejectionReason?: string;
+  categoryName?: string;
 
+}
+
+export interface HostCreateRequestDTO {
+  title: string;
+  content: string;
+  featuredImageUrl?: string;
+  categoryId?: number;
+}
+export interface HostBlogSummaryDTO {
+  id: number;
+  title: string;
+  thumbnail: string;
+  status: "Pending" | "Approved" | "Rejected";
+  rejectionReason?: string;
+  createdDate: string;
+  content?: string;
+  categoryId?: number;
+}
+// Helper function normalize cho Request
+const normalizeBlogRequest = (item: any): BlogRequestDTO => {
+  return {
+    blogRequestId: item.blogRequestId ?? item.BlogRequestId ?? 0,
+    hostId: item.hostId ?? item.HostId ?? 0,
+    hostName: item.hostName ?? item.HostName ?? "Unknown Host",
+    title: item.title ?? item.Title ?? "",
+    content: item.content ?? item.Content ?? "",
+    featuredImageUrl: item.featuredImageUrl ?? item.FeaturedImageUrl ?? "",
+    status: item.status ?? item.Status ?? "Pending",
+    requestDate: item.requestDate ?? item.RequestDate ?? new Date().toISOString(),
+    rejectionReason: item.rejectionReason ?? item.RejectionReason,
+    categoryName: item.categoryName ?? item.CategoryName ?? "Chung",
+
+  };
+};
+const normalizeHostBlogSummary = (item: any): HostBlogSummaryDTO => {
+  return {
+    id: item.id ?? item.Id ?? item.BlogRequestId ?? 0,
+    title: item.title ?? item.Title ?? "",
+    thumbnail: item.thumbnail ?? item.FeaturedImageUrl ?? "",
+    status: item.status ?? item.Status ?? "Pending",
+    rejectionReason: item.rejectionReason ?? item.RejectionReason,
+    createdDate: item.createdDate ?? item.RequestDate ?? new Date().toISOString(),
+    // Map thêm Content và CategoryId để dùng cho chức năng Edit
+    content: item.content ?? item.Content ?? "",
+    categoryId: item.categoryId ?? item.CategoryId,
+  };
+};
 // Alias for backward compatibility
 export type BlogPostDTO = BlogPostSummaryDTO;
 
@@ -67,6 +130,8 @@ const normalizePostDetail = (item: any): BlogPostDetailDTO => {
   return {
     ...summary,
     content: item.content ?? item.Content ?? "",
+    status: item.status ?? item.Status,
+    categoryId: item.categoryId ?? item.CategoryId,
   };
 };
 
@@ -106,7 +171,7 @@ export const blogAPI = {
   },
 
   // ========== USER ENDPOINTS ==========
-  
+
   // POST /api/blog/posts - User tạo blog post mới (trải nghiệm)
   createPost: async (dto: AdminBlogCreateDTO): Promise<BlogPostDetailDTO> => {
     // Map camelCase sang PascalCase để khớp với backend
@@ -115,11 +180,11 @@ export const blogAPI = {
       Content: dto.content || dto.Content || "",
       Status: dto.status || dto.Status || "Draft",
     };
-    
+
     if (dto.featuredImageUrl || dto.FeaturedImageUrl) {
       requestData.FeaturedImageUrl = dto.featuredImageUrl || dto.FeaturedImageUrl;
     }
-    
+
     if (dto.categoryId !== undefined || dto.CategoryId !== undefined) {
       requestData.CategoryId = dto.categoryId ?? dto.CategoryId ?? null;
     }
@@ -142,21 +207,15 @@ export const blogAPI = {
   },
 
   // ========== ADMIN ENDPOINTS ==========
-  
+
   // GET /api/admin/blog/posts - Lấy tất cả posts cho admin (bao gồm draft)
-  adminGetAllPosts: async (): Promise<BlogPostSummaryDTO[]> => {
-    try {
-      const response = await axiosClient.get<any[]>("/admin/blog/posts");
-      return (response.data || []).map(normalizePostSummary);
-    } catch (error: any) {
-      // Nếu endpoint chưa có, fallback về published posts
-      if (error.response?.status === 404) {
-        return blogAPI.getPublishedPosts();
-      }
-      throw error;
-    }
+  adminGetAllPosts: async (includeDrafts: boolean = true): Promise<BlogPostSummaryDTO[]> => {
+    const response = await axiosClient.get<any[]>("/admin/blog/posts", {
+      params: { includeDrafts }
+    });
+    return (response.data || []).map(normalizePostSummary);
   },
-  
+
   // GET /api/admin/blog/posts/{postId} - Lấy post detail cho admin
   adminGetPostById: async (postId: number): Promise<BlogPostDetailDTO | null> => {
     try {
@@ -178,11 +237,11 @@ export const blogAPI = {
       content: dto.content || dto.Content || "",
       status: dto.status || dto.Status || "Draft",
     };
-    
+
     if (dto.featuredImageUrl || dto.FeaturedImageUrl) {
       requestData.featuredImageUrl = dto.featuredImageUrl || dto.FeaturedImageUrl || "";
     }
-    
+
     if (dto.categoryId !== undefined || dto.CategoryId !== undefined) {
       const catId = dto.categoryId ?? dto.CategoryId;
       if (catId !== null && catId !== undefined) {
@@ -204,11 +263,11 @@ export const blogAPI = {
       content: dto.content || dto.Content || "",
       status: dto.status || dto.Status || "Draft",
     };
-    
+
     if (dto.featuredImageUrl || dto.FeaturedImageUrl) {
       requestData.featuredImageUrl = dto.featuredImageUrl || dto.FeaturedImageUrl || "";
     }
-    
+
     if (dto.categoryId !== undefined || dto.CategoryId !== undefined) {
       const catId = dto.categoryId ?? dto.CategoryId;
       if (catId !== null && catId !== undefined) {
@@ -247,15 +306,15 @@ export const blogAPI = {
       const response = await axiosClient.post<any>("/admin/blog/categories", {
         Name: name,
       });
-      
+
       // Backend CreatedAtAction có thể trả về object trong response.data
       // Hoặc có thể là response.data trực tiếp
       const categoryData = response.data;
-      
+
       if (!categoryData) {
         throw new Error("Không nhận được dữ liệu từ server");
       }
-      
+
       return normalizeCategory(categoryData);
     } catch (error: any) {
       console.error("Error creating category:", error);
@@ -289,6 +348,89 @@ export const blogAPI = {
       }
       throw error;
     }
+  },
+  hostCreateRequest: async (dto: HostCreateRequestDTO): Promise<{ success: boolean; message: string; remainingQuota?: number }> => {
+    // Chuẩn hóa dữ liệu gửi đi
+    const requestData = {
+      Title: dto.title,
+      Content: dto.content,
+      FeaturedImageUrl: dto.featuredImageUrl,
+      CategoryId: dto.categoryId
+    };
+
+    try {
+      const response = await axiosClient.post<any>("/host/blog/requests", requestData);
+      return response.data; // Giả sử backend trả về { message: "...", remainingQuota: 5 }
+    } catch (error: any) {
+      // Ném lỗi ra để component xử lý (hiển thị thông báo gói cước/hết lượt)
+      throw error;
+    }
+
+  },
+
+  // ========== ADMIN APPROVAL ENDPOINTS ==========
+
+  // GET /api/admin/blog/requests - Lấy danh sách chờ duyệt
+  adminGetPendingRequests: async (): Promise<BlogRequestDTO[]> => {
+    const response = await axiosClient.get<any[]>("/admin/blog/requests");
+    return (response.data || []).map(normalizeBlogRequest);
+  },
+
+  // POST /api/admin/blog/requests/{requestId}/approve - Duyệt bài
+  adminApproveRequest: async (requestId: number): Promise<boolean> => {
+    try {
+      await axiosClient.post(`/admin/blog/requests/${requestId}/approve`);
+      return true;
+    } catch (error) {
+      console.error("Error approving request:", error);
+      throw error;
+    }
+  },
+
+  // POST /api/admin/blog/requests/{requestId}/reject - Từ chối bài
+  adminRejectRequest: async (requestId: number, reason: string): Promise<boolean> => {
+    try {
+      // Backend C# nhận [FromBody] string reason, nên cần gửi đúng format JSON string
+      await axiosClient.post(
+        `/admin/blog/requests/${requestId}/reject`,
+        JSON.stringify(reason),
+        {
+          headers: { 'Content-Type': 'application/json' }
+        }
+      );
+      return true;
+    } catch (error) {
+      console.error("Error rejecting request:", error);
+      throw error;
+    }
+  },
+  getHostRequests: async (): Promise<HostBlogSummaryDTO[]> => {
+    const response = await axiosClient.get<any[]>("/host/blog/my-history");
+    return (response.data || []).map(normalizeHostBlogSummary);
+  },
+
+  // PUT /api/host/blog/requests/{requestId} - Sửa bài bị Reject/Pending
+  updateHostRequest: async (requestId: number, dto: HostCreateRequestDTO): Promise<{ success: boolean, message: string }> => {
+    // Map dữ liệu sang PascalCase cho khớp Backend C#
+    const requestData = {
+      Title: dto.title,
+      Content: dto.content,
+      FeaturedImageUrl: dto.featuredImageUrl,
+      CategoryId: dto.categoryId
+    };
+    const response = await axiosClient.put<any>(`/host/blog/requests/${requestId}`, requestData);
+    return response.data;
+  },
+
+  // DELETE /api/host/blog/requests/{requestId} - Xóa bài
+  deleteHostRequest: async (requestId: number): Promise<{ success: boolean, message: string }> => {
+    const response = await axiosClient.delete<any>(`/host/blog/requests/${requestId}`);
+    return response.data;
+  },
+  // GET /api/host/blog/requests/{requestId} - Lấy chi tiết 1 request để edit
+  getHostRequestDetail: async (requestId: number): Promise<HostBlogSummaryDTO> => {
+    const response = await axiosClient.get<any>(`/host/blog/requests/${requestId}`);
+    return normalizeHostBlogSummary(response.data);
   },
 };
 

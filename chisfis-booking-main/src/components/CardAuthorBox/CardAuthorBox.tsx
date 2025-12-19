@@ -48,9 +48,22 @@ const CardAuthorBox: FC<CardAuthorBoxProps> = ({
       </div>
       <div className="py-2 px-5 mt-4 bg-neutral-100 dark:bg-neutral-800 rounded-full flex items-center justify-center ">
         <span className="text-xs font-medium pt-[1px]">
-          {starRating || 4.9}
+          {(starRating || 0).toFixed(1)}
         </span>
-        <StarIcon className="w-5 h-5 text-amber-500 ml-2 " />
+        <div className="flex items-center gap-0.5 ml-2">
+          {[...Array(5)].map((_, i) => (
+            <StarIcon
+              key={i}
+              className={`w-4 h-4 ${
+                i < Math.floor(starRating || 0)
+                  ? "text-amber-500"
+                  : i < (starRating || 0)
+                  ? "text-amber-200"
+                  : "text-neutral-300 dark:text-neutral-600"
+              }`}
+            />
+          ))}
+        </div>
       </div>
     </Link>
   );

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import RentalCarDatesRangeInput from "./RentalCarDatesRangeInput";
 import { FC } from "react";
 import { Popover, Transition } from "@headlessui/react";
@@ -7,6 +7,7 @@ import { Fragment } from "react";
 import moment from "moment";
 import NcInputNumber from "components/NcInputNumber/NcInputNumber";
 import { useNavigate } from "react-router-dom";
+import locationAPI from "api/location";
 
 export interface DateRage {
   startDate: moment.Moment | null;
@@ -43,6 +44,7 @@ const flightClass = [
 
 const FlightSearchForm: FC<FlightSearchFormProps> = ({ haveDefaultValue }) => {
   const navigate = useNavigate();
+  const [allLocations, setAllLocations] = useState<Array<{ label: string; value: string }>>([]);
   const defaultPickUpInputValue = "Hà Nội (HAN)";
   const defaultDropOffInputValue = "TP. Hồ Chí Minh (SGN)";
 
@@ -53,6 +55,23 @@ const FlightSearchForm: FC<FlightSearchFormProps> = ({ haveDefaultValue }) => {
   const [dropOffLocationType, setDropOffLocationType] = useState<"roundTrip" | "oneWay" | "">("roundTrip");
   const [guests, setGuests] = useState(1);
   const [flightClassState, setFlightClassState] = useState("Economy");
+
+  useEffect(() => {
+    const loadLocations = async () => {
+      try {
+        const locations = await locationAPI.getAllPublic();
+        const locationOptions = locations.map(loc => ({
+          label: loc.name,
+          value: loc.name,
+        }));
+        setAllLocations(locationOptions);
+      } catch (err) {
+        console.error("Error loading locations:", err);
+        setAllLocations(LOCATIONS_VN);
+      }
+    };
+    loadLocations();
+  }, []);
 
   const handleSubmit = (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -142,7 +161,7 @@ const FlightSearchForm: FC<FlightSearchFormProps> = ({ haveDefaultValue }) => {
           className="w-1/2 rounded-md p-2 border border-neutral-300"
         >
           <option value="">Chọn điểm đi</option>
-          {LOCATIONS_VN.map(loc => <option value={loc.value} key={loc.value}>{loc.label}</option>)}
+          {(allLocations.length > 0 ? allLocations : LOCATIONS_VN).map(loc => <option value={loc.value} key={loc.value}>{loc.label}</option>)}
         </select>
         <select
           value={dropOffInputValue}
@@ -150,7 +169,7 @@ const FlightSearchForm: FC<FlightSearchFormProps> = ({ haveDefaultValue }) => {
           className="w-1/2 rounded-md p-2 border border-neutral-300"
         >
           <option value="">Chọn điểm đến</option>
-          {LOCATIONS_VN.map(loc => <option value={loc.value} key={loc.value}>{loc.label}</option>)}
+          {(allLocations.length > 0 ? allLocations : LOCATIONS_VN).map(loc => <option value={loc.value} key={loc.value}>{loc.label}</option>)}
         </select>
         <RentalCarDatesRangeInput
           defaultDateValue={dateRangeValue}

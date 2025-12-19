@@ -11,6 +11,7 @@ const HostVoucherContent: React.FC = () => {
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [vouchers, setVouchers] = useState<VoucherDTO[]>([]);
+  const [allVouchers, setAllVouchers] = useState<VoucherDTO[]>([]); // Store all vouchers for client-side pagination
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
@@ -20,6 +21,12 @@ const HostVoucherContent: React.FC = () => {
   const [settings, setSettings] = useState<HostVoucherSettingDTO | null>(null);
   const [loadingSettings, setLoadingSettings] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
+  
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(9);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
 
   useEffect(() => {
     // Check if user is Host
@@ -27,24 +34,101 @@ const HostVoucherContent: React.FC = () => {
       navigate("/");
       return;
     }
-    loadData();
   }, [isAuthenticated, user, navigate]);
 
   const loadData = async () => {
     setLoading(true);
     setError("");
     try {
-      const vouchersData = await voucherAPI.getAll();
-      setVouchers(vouchersData);
+      const result = await voucherAPI.getAll({
+        pageNumber: currentPage,
+        pageSize: pageSize,
+      });
+      
+      // Handle both paginated and non-paginated responses
+      if (result && typeof result === 'object' && 'data' in result) {
+        // Paginated response: { data: [...], pagination: {...} }
+        const vouchersData = Array.isArray(result.data) ? result.data : [];
+        
+        if (result.pagination) {
+          // Server-side pagination
+          const pag = result.pagination;
+          const totalPagesValue = pag.totalPages || pag.TotalPages || Math.ceil((pag.totalCount || pag.TotalCount || vouchersData.length) / pageSize);
+          const totalCountValue = pag.totalCount || pag.TotalCount || vouchersData.length;
+          
+          setVouchers(vouchersData);
+          setTotalPages(totalPagesValue);
+          setTotalCount(totalCountValue);
+          setAllVouchers([]); // Clear client-side cache
+        } else {
+          // No pagination info, treat as all data - use client-side pagination
+          setAllVouchers(vouchersData);
+          
+          const startIndex = (currentPage - 1) * pageSize;
+          const endIndex = startIndex + pageSize;
+          const paginatedData = vouchersData.slice(startIndex, endIndex);
+          
+          setVouchers(paginatedData);
+          setTotalPages(Math.ceil(vouchersData.length / pageSize));
+          setTotalCount(vouchersData.length);
+        }
+      } else if (Array.isArray(result)) {
+        // Legacy format: just array - client-side pagination
+        setAllVouchers(result);
+        
+        const startIndex = (currentPage - 1) * pageSize;
+        const endIndex = startIndex + pageSize;
+        const paginatedData = result.slice(startIndex, endIndex);
+        
+        setVouchers(paginatedData);
+        setTotalPages(Math.ceil(result.length / pageSize));
+        setTotalCount(result.length);
+      } else {
+        // Fallback
+        setVouchers([]);
+        setAllVouchers([]);
+        setTotalPages(1);
+        setTotalCount(0);
+      }
     } catch (err: any) {
       const errorMsg = err.response?.data?.message || "Không thể tải danh sách voucher";
       setError(errorMsg);
       toastError(errorMsg);
       setVouchers([]);
+      setAllVouchers([]);
+      setTotalPages(1);
+      setTotalCount(0);
     } finally {
       setLoading(false);
     }
   };
+  
+  // Refetch vouchers when page changes (only if server-side pagination)
+  // If client-side pagination, just slice the array
+  useEffect(() => {
+    // Check if user is Host before loading
+    if (!isAuthenticated || user?.roleName !== "Host") {
+      return;
+    }
+
+    if (allVouchers.length > 0) {
+      // Client-side pagination - just slice the array
+      const startIndex = (currentPage - 1) * pageSize;
+      const endIndex = startIndex + pageSize;
+      const paginatedData = allVouchers.slice(startIndex, endIndex);
+      setVouchers(paginatedData);
+    } else {
+      // Server-side pagination - fetch from API
+      loadData();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage, isAuthenticated, user]);
+  
+  // Reset to page 1 when filters change (if any filters are added later)
+  useEffect(() => {
+    setCurrentPage(1);
+    setAllVouchers([]); // Clear client-side cache when filters change
+  }, []); // Add filter dependencies here if filters are added later
 
   const handleDelete = async (voucherId: number, code: string) => {
     if (!window.confirm(`Bạn có chắc chắn muốn xóa voucher "${code}"?`)) {
@@ -54,6 +138,9 @@ const HostVoucherContent: React.FC = () => {
     setDeletingId(voucherId);
     try {
       await voucherAPI.delete(voucherId);
+      // Reset to page 1 and reload
+      setCurrentPage(1);
+      setAllVouchers([]); // Clear client-side cache
       await loadData();
       toastSuccess("Xóa voucher thành công!");
     } catch (err: any) {
@@ -83,11 +170,12 @@ const HostVoucherContent: React.FC = () => {
     setLoadingSettings(true);
     try {
       const settingsData = await voucherAPI.getSettings();
-      setSettings(settingsData);
+      setSettings(settingsData); // Có thể là null nếu chưa có setting
     } catch (err: any) {
       const errorMsg = err.response?.data?.message || "Không thể tải cài đặt";
       setError(errorMsg);
       toastError(errorMsg);
+      setSettings(null);
     } finally {
       setLoadingSettings(false);
     }
@@ -96,8 +184,8 @@ const HostVoucherContent: React.FC = () => {
   const handleSaveSettings = async (newSettings: HostVoucherSettingDTO) => {
     setSavingSettings(true);
     try {
-      await voucherAPI.saveSettings(newSettings);
-      setSettings(newSettings);
+      const savedSettings = await voucherAPI.saveSettings(newSettings);
+      setSettings(savedSettings);
       setShowSettings(false);
       toastSuccess("Cập nhật cài đặt thành công!");
     } catch (err: any) {
@@ -121,9 +209,6 @@ const HostVoucherContent: React.FC = () => {
           }}>
             ⚙️ Cài đặt
           </ButtonSecondary>
-          <ButtonPrimary onClick={() => setShowAddModal(true)}>
-            + Thêm voucher
-          </ButtonPrimary>
         </div>
       </div>
 
@@ -270,6 +355,87 @@ const HostVoucherContent: React.FC = () => {
         </div>
       )}
 
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="mt-8 flex items-center justify-between bg-white/80 dark:bg-neutral-800/80 backdrop-blur-sm rounded-2xl shadow-xl p-4 border border-white/20 dark:border-neutral-700/50">
+          <div className="text-sm text-neutral-600 dark:text-neutral-400">
+            Hiển thị {((currentPage - 1) * pageSize) + 1} - {Math.min(currentPage * pageSize, totalCount)} trong tổng số {totalCount} voucher
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage(1)}
+              disabled={currentPage === 1}
+              className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                currentPage === 1
+                  ? "text-gray-400 cursor-not-allowed bg-gray-100 dark:bg-gray-800"
+                  : "text-white bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 shadow-md hover:shadow-lg"
+              }`}
+            >
+              Đầu
+            </button>
+            <button
+              onClick={() => setCurrentPage(currentPage - 1)}
+              disabled={currentPage === 1}
+              className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                currentPage === 1
+                  ? "text-gray-400 cursor-not-allowed bg-gray-100 dark:bg-gray-800"
+                  : "text-white bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 shadow-md hover:shadow-lg"
+              }`}
+            >
+              Trước
+            </button>
+            
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+              if (
+                page === 1 ||
+                page === totalPages ||
+                (page >= currentPage - 1 && page <= currentPage + 1)
+              ) {
+                return (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={`px-4 py-2 text-sm font-bold rounded-lg transition-all duration-300 ${
+                      currentPage === page
+                        ? "text-white bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg scale-105"
+                        : "text-neutral-700 dark:text-neutral-300 bg-white dark:bg-neutral-700 hover:bg-blue-50 dark:hover:bg-neutral-600 shadow-md hover:shadow-lg"
+                    }`}
+                  >
+                    {page}
+                  </button>
+                );
+              } else if (page === currentPage - 2 || page === currentPage + 2) {
+                return <span key={page} className="px-2 text-gray-400">...</span>;
+              }
+              return null;
+            })}
+            
+            <button
+              onClick={() => setCurrentPage(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                currentPage === totalPages
+                  ? "text-gray-400 cursor-not-allowed bg-gray-100 dark:bg-gray-800"
+                  : "text-white bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 shadow-md hover:shadow-lg"
+              }`}
+            >
+              Sau
+            </button>
+            <button
+              onClick={() => setCurrentPage(totalPages)}
+              disabled={currentPage === totalPages}
+              className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                currentPage === totalPages
+                  ? "text-gray-400 cursor-not-allowed bg-gray-100 dark:bg-gray-800"
+                  : "text-white bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 shadow-md hover:shadow-lg"
+              }`}
+            >
+              Cuối
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Add/Edit Modal */}
       {(showAddModal || editingVoucher) && (
         <VoucherModal
@@ -373,9 +539,28 @@ const VoucherModal: React.FC<VoucherModalProps> = ({
       toastWarning("Ngày bắt đầu và kết thúc là bắt buộc");
       return;
     }
-    if (new Date(formData.startDate) >= new Date(formData.endDate)) {
+    const startDate = new Date(formData.startDate);
+    const endDate = new Date(formData.endDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Reset time to start of day for comparison
+    
+    if (startDate >= endDate) {
       setError("Ngày kết thúc phải sau ngày bắt đầu!");
       toastWarning("Ngày kết thúc phải sau ngày bắt đầu");
+      return;
+    }
+    
+    // Kiểm tra endDate không được ở quá khứ
+    if (endDate < today) {
+      setError("Ngày kết thúc không được ở quá khứ!");
+      toastWarning("Ngày kết thúc không được ở quá khứ");
+      return;
+    }
+    
+    // Kiểm tra startDate không được ở quá khứ (nếu đang tạo mới)
+    if (!voucher && startDate < today) {
+      setError("Ngày bắt đầu không được ở quá khứ!");
+      toastWarning("Ngày bắt đầu không được ở quá khứ");
       return;
     }
     // Ít nhất một trong: DiscountAmount hoặc DiscountPercentage (theo spec)
@@ -403,21 +588,23 @@ const VoucherModal: React.FC<VoucherModalProps> = ({
       if (voucher) {
         // Update voucher
         await voucherAPI.update(voucher.voucherId, voucherData);
-        toastSuccess("Cập nhật voucher thành công!");
+        toastSuccess("✅ Cập nhật voucher thành công!");
       } else {
         // Create voucher
         await voucherAPI.create(voucherData);
-        toastSuccess("Tạo voucher thành công!");
+        toastSuccess("✅ Tạo voucher thành công!");
       }
-      onSuccess();
+      // Delay slightly to show success message before closing
+      setTimeout(() => {
+        onSuccess();
+        onClose();
+      }, 500);
     } catch (err: any) {
-      const errorMsg = err.response?.data?.message || err.response?.data?.error || "Không thể lưu voucher";
-      setError(errorMsg);
-      toastError(errorMsg);
-      let errorMessage = "Không thể lưu voucher. Vui lòng thử lại!";
+      console.error("Failed to save voucher:", err);
+      let errorMessage = "❌ Không thể lưu voucher. Vui lòng thử lại!";
 
       if (err.response?.data?.message) {
-        errorMessage = err.response.data.message;
+        errorMessage = `❌ ${err.response.data.message}`;
       } else if (err.response?.data?.errors) {
         const errors = err.response.data.errors;
         const errorList = Object.entries(errors)
@@ -427,11 +614,12 @@ const VoucherModal: React.FC<VoucherModalProps> = ({
             return `${fieldName}: ${messageList}`;
           })
           .join("\n");
-        errorMessage = `Lỗi validation:\n${errorList}`;
+        errorMessage = `❌ Lỗi validation:\n${errorList}`;
       } else if (err.message) {
-        errorMessage = err.message;
+        errorMessage = `❌ ${err.message}`;
       }
       setError(errorMessage);
+      toastError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -689,24 +877,62 @@ const VoucherSettingsModal: React.FC<VoucherSettingsModalProps> = ({
   onSave,
 }) => {
   const [formData, setFormData] = useState<HostVoucherSettingDTO>({
-    autoGenerateVouchers: false,
-    defaultDiscountPercentage: undefined,
-    defaultDiscountAmount: undefined,
+    autoGenerate: false,
+    discountPercentage: undefined,
+    discountAmount: undefined,
     validMonths: 3, // Mặc định 3 tháng theo spec
-    defaultUsageLimit: undefined,
-    defaultMinimumOrderAmount: undefined,
-    voucherPrefix: "",
-    voucherLength: 8,
+    usageLimit: undefined,
   });
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (settings) {
-      setFormData(settings);
+      // Map từ settings cũ sang format mới
+      setFormData({
+        autoGenerate: settings.autoGenerate !== undefined ? settings.autoGenerate : (settings.autoGenerateVouchers || false),
+        discountPercentage: settings.discountPercentage !== undefined ? settings.discountPercentage : settings.defaultDiscountPercentage,
+        discountAmount: settings.discountAmount !== undefined ? settings.discountAmount : settings.defaultDiscountAmount,
+        validMonths: settings.validMonths || 3,
+        usageLimit: settings.usageLimit !== undefined ? settings.usageLimit : settings.defaultUsageLimit,
+      });
     }
   }, [settings]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
+    
+    // Validation theo spec
+    // Phải có ít nhất một trong hai: DiscountAmount HOẶC DiscountPercentage
+    if (!formData.discountAmount && !formData.discountPercentage) {
+      setError("Vui lòng nhập ít nhất một trong hai: Giảm giá theo số tiền HOẶC Giảm giá theo %");
+      return;
+    }
+    
+    // Validation discountAmount: 0 - 100,000,000
+    if (formData.discountAmount !== undefined && (formData.discountAmount < 0 || formData.discountAmount > 100000000)) {
+      setError("Giảm giá theo số tiền phải từ 0 đến 100,000,000 VNĐ");
+      return;
+    }
+    
+    // Validation discountPercentage: 0 - 100
+    if (formData.discountPercentage !== undefined && (formData.discountPercentage < 0 || formData.discountPercentage > 100)) {
+      setError("Giảm giá theo % phải từ 0 đến 100%");
+      return;
+    }
+    
+    // Validation validMonths: 1 - 24
+    if (!formData.validMonths || formData.validMonths < 1 || formData.validMonths > 24) {
+      setError("Thời hạn voucher phải từ 1 đến 24 tháng");
+      return;
+    }
+    
+    // Validation usageLimit: 1 - 1000 (nếu có)
+    if (formData.usageLimit !== undefined && (formData.usageLimit < 1 || formData.usageLimit > 1000)) {
+      setError("Giới hạn sử dụng phải từ 1 đến 1000 lần");
+      return;
+    }
+    
     onSave(formData);
   };
 
@@ -724,8 +950,8 @@ const VoucherSettingsModal: React.FC<VoucherSettingsModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-      <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-6">
+      <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="bg-white dark:bg-neutral-800 border-b border-neutral-200 dark:border-neutral-700 px-6 py-4 flex items-center justify-between flex-shrink-0">
           <h3 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">
             Cài đặt Voucher
           </h3>
@@ -739,69 +965,82 @@ const VoucherSettingsModal: React.FC<VoucherSettingsModalProps> = ({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Auto Generate Vouchers */}
-          <div>
-            <label className="flex items-center space-x-3 cursor-pointer">
+        <div className="overflow-y-auto flex-1 px-6 py-6">
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            onSave(formData);
+          }} className="space-y-6">
+            <div>
+              <label className="flex items-center space-x-3 cursor-pointer">
               <input
                 type="checkbox"
-                checked={formData.autoGenerateVouchers || false}
+                checked={formData.autoGenerate || false}
                 onChange={(e) =>
-                  setFormData({ ...formData, autoGenerateVouchers: e.target.checked })
+                  setFormData({ ...formData, autoGenerate: e.target.checked })
                 }
                 className="w-5 h-5 text-primary-600 border-neutral-300 rounded focus:ring-primary-500"
+                required
               />
               <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                Tự động tạo voucher
+                Tự động tạo voucher <span className="text-red-500">*</span>
               </span>
             </label>
             <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1 ml-8">
-              Tự động tạo voucher mới khi có điều kiện
+              Tự động tạo voucher khi booking chuyển sang Status = "Completed"
             </p>
           </div>
 
-          {/* Default Discount Percentage */}
+          {/* Discount Percentage - Optional (0-100%) */}
           <div>
             <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-              Giảm giá mặc định (%)
+              Giảm giá theo % (Tùy chọn)
             </label>
             <input
               type="number"
               min="0"
               max="100"
-              value={formData.defaultDiscountPercentage || ""}
+              step="0.01"
+              value={formData.discountPercentage !== undefined ? formData.discountPercentage : ""}
               onChange={(e) =>
                 setFormData({
                   ...formData,
-                  defaultDiscountPercentage: e.target.value ? Number(e.target.value) : undefined,
+                  discountPercentage: e.target.value ? Number(e.target.value) : undefined,
                 })
               }
               className="w-full px-4 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-neutral-700 dark:text-neutral-100"
-              placeholder="Nhập % giảm giá mặc định"
+              placeholder="Nhập % giảm giá (0-100)"
             />
+            <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
+              Phải có ít nhất một trong hai: Giảm giá theo % HOẶC Giảm giá theo số tiền
+            </p>
           </div>
 
-          {/* Default Discount Amount */}
+          {/* Discount Amount - Optional (0-100,000,000) */}
           <div>
             <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-              Giảm giá mặc định (VND)
+              Giảm giá theo số tiền (VNĐ) (Tùy chọn)
             </label>
             <input
               type="number"
               min="0"
-              value={formData.defaultDiscountAmount || ""}
+              max="100000000"
+              step="1000"
+              value={formData.discountAmount !== undefined ? formData.discountAmount : ""}
               onChange={(e) =>
                 setFormData({
                   ...formData,
-                  defaultDiscountAmount: e.target.value ? Number(e.target.value) : undefined,
+                  discountAmount: e.target.value ? Number(e.target.value) : undefined,
                 })
               }
               className="w-full px-4 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-neutral-700 dark:text-neutral-100"
-              placeholder="Nhập số tiền giảm giá mặc định"
+              placeholder="Nhập số tiền giảm giá (0-100,000,000)"
             />
+            <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
+              Phải có ít nhất một trong hai: Giảm giá theo % HOẶC Giảm giá theo số tiền
+            </p>
           </div>
 
-          {/* Valid Months - Thời hạn voucher (tháng) theo spec */}
+          {/* Valid Months - BẮT BUỘC (1-24 tháng) */}
           <div>
             <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
               Thời hạn voucher (tháng) <span className="text-red-500">*</span>
@@ -809,7 +1048,7 @@ const VoucherSettingsModal: React.FC<VoucherSettingsModalProps> = ({
             <input
               type="number"
               min="1"
-              max="12"
+              max="24"
               value={formData.validMonths || 3}
               onChange={(e) =>
                 setFormData({
@@ -818,89 +1057,43 @@ const VoucherSettingsModal: React.FC<VoucherSettingsModalProps> = ({
                 })
               }
               className="w-full px-4 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-neutral-700 dark:text-neutral-100"
-              placeholder="Nhập số tháng (1-12)"
+              placeholder="Nhập số tháng (1-24)"
               required
             />
             <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
-              Voucher sẽ có thời hạn bằng số tháng này khi tự động tạo
+              Voucher sẽ có thời hạn bằng số tháng này khi tự động tạo (1-24 tháng)
             </p>
           </div>
 
-          {/* Default Usage Limit */}
+          {/* Usage Limit - Optional (1-1000) */}
           <div>
             <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-              Giới hạn sử dụng mặc định
+              Giới hạn sử dụng (Tùy chọn)
             </label>
             <input
               type="number"
               min="1"
-              value={formData.defaultUsageLimit || ""}
+              max="1000"
+              value={formData.usageLimit !== undefined ? formData.usageLimit : ""}
               onChange={(e) =>
                 setFormData({
                   ...formData,
-                  defaultUsageLimit: e.target.value ? Number(e.target.value) : undefined,
+                  usageLimit: e.target.value ? Number(e.target.value) : undefined,
                 })
               }
               className="w-full px-4 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-neutral-700 dark:text-neutral-100"
-              placeholder="Nhập số lần sử dụng tối đa"
+              placeholder="Nhập số lần sử dụng tối đa (1-1000)"
             />
+            <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
+              Số lần sử dụng tối đa cho mỗi voucher (1-1000)
+            </p>
           </div>
 
-          {/* Default Minimum Order Amount */}
-          <div>
-            <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-              Đơn hàng tối thiểu mặc định (VND)
-            </label>
-            <input
-              type="number"
-              min="0"
-              value={formData.defaultMinimumOrderAmount || ""}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  defaultMinimumOrderAmount: e.target.value ? Number(e.target.value) : undefined,
-                })
-              }
-              className="w-full px-4 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-neutral-700 dark:text-neutral-100"
-              placeholder="Nhập giá trị đơn hàng tối thiểu"
-            />
-          </div>
-
-          {/* Voucher Prefix */}
-          <div>
-            <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-              Tiền tố mã voucher
-            </label>
-            <input
-              type="text"
-              value={formData.voucherPrefix || ""}
-              onChange={(e) =>
-                setFormData({ ...formData, voucherPrefix: e.target.value })
-              }
-              className="w-full px-4 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-neutral-700 dark:text-neutral-100"
-              placeholder="VD: SALE, PROMO, etc."
-            />
-          </div>
-
-          {/* Voucher Length */}
-          <div>
-            <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-              Độ dài mã voucher
-            </label>
-            <input
-              type="number"
-              min="4"
-              max="20"
-              value={formData.voucherLength || 8}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  voucherLength: e.target.value ? Number(e.target.value) : 8,
-                })
-              }
-              className="w-full px-4 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-neutral-700 dark:text-neutral-100"
-            />
-          </div>
+          {error && (
+            <div className="p-3 bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-200 rounded-lg text-sm">
+              {error}
+            </div>
+          )}
 
           {/* Actions */}
           <div className="flex justify-end space-x-3 pt-4 border-t border-neutral-200 dark:border-neutral-700">
@@ -911,7 +1104,8 @@ const VoucherSettingsModal: React.FC<VoucherSettingsModalProps> = ({
               {saving ? "Đang lưu..." : "Lưu cài đặt"}
             </ButtonPrimary>
           </div>
-        </form>
+          </form>
+        </div>
       </div>
     </div>
   );

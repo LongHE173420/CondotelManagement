@@ -4,6 +4,8 @@ import axiosClient from "./axiosClient";
 export interface ReviewDTO {
   reviewId?: number;
   bookingId: number;
+  condotelId?: number; // ID của căn hộ được review
+  condotelName?: string; // Tên căn hộ được review
   rating: number; // 1-5
   title?: string;
   comment?: string;
@@ -13,10 +15,13 @@ export interface ReviewDTO {
   customerName?: string;
   customerImageUrl?: string;
   // Mới thêm từ backend
-  userFullName?: string; // Tenant API
+  userId?: number; // ID của user review
+  userFullName?: string; // Tên đầy đủ của user review (Tenant API)
   userName?: string; // Host/Admin API
   userImageUrl?: string; // Avatar của user
   reply?: string; // Reply của host
+  canEdit?: boolean; // Có thể chỉnh sửa review không
+  canDelete?: boolean; // Có thể xóa review không
 }
 
 export interface CreateReviewDTO {
@@ -105,7 +110,7 @@ export const reviewAPI = {
   },
 
   // GET /api/tenant/reviews - Lấy danh sách review của tôi
-  // Backend mới không nhận query params và không trả về pagination
+  // Backend trả về: reviewId, condotelId, condotelName, userId, userFullName, userImageUrl, rating, comment, reply, createdAt, canEdit, canDelete
   getMyReviews: async (): Promise<ReviewListResponse> => {
     const response = await axiosClient.get<any>("/tenant/reviews");
     const data = response.data;
@@ -114,15 +119,20 @@ export const reviewAPI = {
     const reviews = (data.data || []).map((item: any) => ({
       reviewId: item.ReviewId || item.reviewId,
       bookingId: item.BookingId || item.bookingId,
+      condotelId: item.CondotelId || item.condotelId,
+      condotelName: item.CondotelName || item.condotelName,
       rating: item.Rating || item.rating,
       title: item.Title || item.title,
       comment: item.Comment || item.comment,
       createdAt: item.CreatedAt || item.createdAt,
       updatedAt: item.UpdatedAt || item.updatedAt,
       // Tenant API fields
+      userId: item.UserId || item.userId,
       userFullName: item.UserFullName || item.userFullName,
       userImageUrl: item.UserImageUrl || item.userImageUrl,
       reply: item.Reply || item.reply,
+      canEdit: item.CanEdit !== undefined ? item.CanEdit : item.canEdit,
+      canDelete: item.CanDelete !== undefined ? item.CanDelete : item.canDelete,
       // Backward compatibility
       customerName: item.UserFullName || item.userFullName || item.CustomerName || item.customerName,
       customerImageUrl: item.UserImageUrl || item.userImageUrl || item.CustomerImageUrl || item.customerImageUrl,

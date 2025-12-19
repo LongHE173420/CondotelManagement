@@ -1,14 +1,20 @@
-import React from "react";
+import React, { useEffect } from "react";
 import MyRouter from "routers/index";
 import { AuthProvider } from "contexts/AuthContext";
 import { ToastContainer } from "react-toastify";
 import 'react-toastify/dist/ReactToastify.css';
 import { GoogleOAuthProvider } from '@react-oauth/google';
-import { LanguageProvider } from "i18n/LanguageContext"; // <-- THÊM
+import { LanguageProvider } from "i18n/LanguageContext";
+import { setupCustomAlert } from "utils/setupAlert";
 
-const GOOGLE_CLIENT_ID = "105828161584-jvlaf5l2nlmle6hoh5bm0rul5h9fjd19.apps.googleusercontent.com";
+const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID || "";
 
 function App() {
+  useEffect(() => {
+    // Setup custom alert modal
+    setupCustomAlert();
+  }, []);
+
   return (
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
       <AuthProvider>

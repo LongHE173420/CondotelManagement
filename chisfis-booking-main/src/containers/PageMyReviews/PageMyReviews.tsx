@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import reviewAPI, { ReviewDTO } from "api/review";
-import bookingAPI, { BookingDTO } from "api/booking";
 import { toast } from "react-toastify";
 
 // Format ngày tháng
@@ -36,7 +35,6 @@ const StarRating: React.FC<{ rating: number }> = ({ rating }) => {
 const PageMyReviews: React.FC = () => {
   const navigate = useNavigate();
   const [reviews, setReviews] = useState<ReviewDTO[]>([]);
-  const [bookings, setBookings] = useState<Map<number, BookingDTO>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -47,21 +45,6 @@ const PageMyReviews: React.FC = () => {
         setError("");
         const response = await reviewAPI.getMyReviews();
         setReviews(response.data || []);
-
-        // Load booking info for each review
-        const bookingIds = response.data?.map((r) => r.bookingId).filter(Boolean) || [];
-        const bookingMap = new Map<number, BookingDTO>();
-        
-        for (const bookingId of bookingIds) {
-          try {
-            const booking = await bookingAPI.getBookingById(bookingId);
-            bookingMap.set(bookingId, booking);
-          } catch (err) {
-            console.error(`Error loading booking ${bookingId}:`, err);
-          }
-        }
-        
-        setBookings(bookingMap);
       } catch (err: any) {
         console.error("Error loading reviews:", err);
         setError(err.response?.data?.message || "Không thể tải danh sách đánh giá");
@@ -159,7 +142,6 @@ const PageMyReviews: React.FC = () => {
         ) : (
           <div className="space-y-4">
             {reviews.map((review) => {
-              const booking = bookings.get(review.bookingId);
               return (
                 <div
                   key={review.reviewId}
@@ -167,6 +149,45 @@ const PageMyReviews: React.FC = () => {
                 >
                   <div className="flex justify-between items-start mb-4">
                     <div className="flex-1">
+                      {/* Hiển thị tên người review và căn hộ */}
+                      <div className="flex items-center gap-3 mb-3">
+                        {review.customerImageUrl || review.userImageUrl ? (
+                          <img
+                            src={review.customerImageUrl || review.userImageUrl}
+                            alt={review.customerName || review.userFullName || "User"}
+                            className="w-10 h-10 rounded-full object-cover"
+                            onError={(e) => {
+                              // Nếu ảnh lỗi, thay bằng avatar mặc định
+                              const target = e.target as HTMLImageElement;
+                              target.style.display = 'none';
+                            }}
+                          />
+                        ) : null}
+                        {(!review.customerImageUrl && !review.userImageUrl) && (
+                          <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center">
+                            <span className="text-primary-600 font-semibold text-sm">
+                              {(review.customerName || review.userFullName || "U")[0].toUpperCase()}
+                            </span>
+                          </div>
+                        )}
+                        <div className="flex-1">
+                          <div className="font-semibold text-gray-900">
+                            {review.customerName || review.userFullName || "Người dùng"}
+                          </div>
+                          {review.condotelName && review.condotelId && (
+                            <div className="text-sm text-gray-600">
+                              Đánh giá cho:{" "}
+                              <Link
+                                to={`/listing-stay-detail/${review.condotelId}`}
+                                className="text-primary-600 hover:text-primary-700 font-medium"
+                              >
+                                {review.condotelName}
+                              </Link>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      
                       <div className="flex items-center gap-3 mb-2">
                         <StarRating rating={review.rating} />
                         <span className="text-sm text-gray-500">
@@ -192,16 +213,6 @@ const PageMyReviews: React.FC = () => {
                           <p className="text-gray-700 dark:text-gray-300">
                             {review.reply}
                           </p>
-                        </div>
-                      )}
-                      {booking && booking.condotelName && (
-                        <div className="flex items-center gap-2 text-sm text-gray-600">
-                          <Link
-                            to={`/listing-stay-detail/${booking.condotelId}`}
-                            className="text-primary-600 hover:text-primary-700"
-                          >
-                            {booking.condotelName}
-                          </Link>
                         </div>
                       )}
                     </div>

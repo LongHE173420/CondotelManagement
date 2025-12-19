@@ -11,7 +11,7 @@ import HostVoucherContent from "containers/HostVoucherPage/HostVoucherContent";
 import HostCustomerContent from "containers/HostCustomerPage/HostCustomerContent";
 import HostReportContent from "containers/HostReportPage/HostReportContent";
 import HostServicePackageContent from "containers/HostServicePackagePage/HostServicePackageContent";
-import HostReviewContent from "containers/HostReviewPage/HostReviewContent";
+
 import HostPackageContent from "containers/HostPackagePage/HostPackageContent";
 import HostPayoutContent from "containers/HostPayoutPage/HostPayoutContent";
 import HostWalletContent from "containers/HostWalletPage/HostWalletContent";
@@ -23,12 +23,30 @@ const HostCondotelDashboard = () => {
   const { user, isAuthenticated } = useAuth();
   const [condotels, setCondotels] = useState<CondotelDTO[]>([]);
   const [bookings, setBookings] = useState<BookingDTO[]>([]);
+  const [allBookings, setAllBookings] = useState<BookingDTO[]>([]); // Store all bookings for client-side pagination
   const [loading, setLoading] = useState(false);
   const [bookingsLoading, setBookingsLoading] = useState(false);
   const [updatingStatusId, setUpdatingStatusId] = useState<number | null>(null);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const activeTab = searchParams.get("tab") || "condotels";
+  
+  // Filter states
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("");
+  const [condotelFilter, setCondotelFilter] = useState<number | undefined>(undefined);
+  const [bookingDateFrom, setBookingDateFrom] = useState("");
+  const [bookingDateTo, setBookingDateTo] = useState("");
+  const [startDateFrom, setStartDateFrom] = useState("");
+  const [startDateTo, setStartDateTo] = useState("");
+  const [sortBy, setSortBy] = useState<"bookingDate" | "startDate" | "endDate" | "totalPrice">("bookingDate");
+  const [sortDescending, setSortDescending] = useState(true);
+  
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
 
   // Ensure only Host can access
   useEffect(() => {
@@ -41,10 +59,34 @@ const HostCondotelDashboard = () => {
     if (activeTab === "condotels") {
       fetchCondotels();
     } else if (activeTab === "bookings") {
+      fetchCondotels(); // Load condotels for filter dropdown
       fetchBookings();
     }
     // Reviews will be loaded by HostReviewContent component
   }, [activeTab]);
+  
+  // Refetch bookings when filters change (with debounce for searchTerm)
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    if (activeTab === "bookings") {
+      setCurrentPage(1); // Reset to page 1 when filters change
+      setAllBookings([]); // Clear client-side cache when filters change
+      const timeoutId = setTimeout(() => {
+        fetchBookings();
+      }, searchTerm ? 500 : 0); // Debounce 500ms for search, immediate for other filters
+      
+      return () => clearTimeout(timeoutId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm, statusFilter, condotelFilter, bookingDateFrom, bookingDateTo, startDateFrom, startDateTo, sortBy, sortDescending]);
+  
+  // Refetch bookings when page changes
+  useEffect(() => {
+    if (activeTab === "bookings") {
+      fetchBookings();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage]);
 
   const fetchCondotels = async () => {
     try {
@@ -61,13 +103,96 @@ const HostCondotelDashboard = () => {
   const fetchBookings = async () => {
     try {
       setBookingsLoading(true);
-      const data = await bookingAPI.getHostBookings();
-      setBookings(data);
-      } catch (err: any) {
-        toastError("Không thể tải danh sách booking");
+      const filters: any = {
+        pageNumber: currentPage,
+        pageSize: pageSize,
+      };
+      if (searchTerm.trim()) filters.searchTerm = searchTerm.trim();
+      if (statusFilter) filters.status = statusFilter;
+      if (condotelFilter) filters.condotelId = condotelFilter;
+      if (bookingDateFrom) filters.bookingDateFrom = bookingDateFrom;
+      if (bookingDateTo) filters.bookingDateTo = bookingDateTo;
+      if (startDateFrom) filters.startDateFrom = startDateFrom;
+      if (startDateTo) filters.startDateTo = startDateTo;
+      if (sortBy) filters.sortBy = sortBy;
+      filters.sortDescending = sortDescending;
+      
+      const result = await bookingAPI.getHostBookings(filters);
+      
+      // Handle both paginated and non-paginated responses
+      if (result && typeof result === 'object' && 'data' in result) {
+        // Paginated response: { data: [...], pagination: {...} }
+        const bookingsData = Array.isArray(result.data) ? result.data : [];
+        
+        if (result.pagination) {
+          // Server-side pagination
+          const pag = result.pagination;
+          const totalPagesValue = pag.totalPages || pag.TotalPages || Math.ceil((pag.totalCount || pag.TotalCount || bookingsData.length) / pageSize);
+          const totalCountValue = pag.totalCount || pag.TotalCount || bookingsData.length;
+          
+          setBookings(bookingsData);
+          setTotalPages(totalPagesValue);
+          setTotalCount(totalCountValue);
+          setAllBookings([]); // Clear client-side cache
+        } else {
+          // No pagination info, treat as all data - use client-side pagination
+          setAllBookings(bookingsData);
+          
+          const startIndex = (currentPage - 1) * pageSize;
+          const endIndex = startIndex + pageSize;
+          const paginatedData = bookingsData.slice(startIndex, endIndex);
+          
+          setBookings(paginatedData);
+          setTotalPages(Math.ceil(bookingsData.length / pageSize));
+          setTotalCount(bookingsData.length);
+        }
+      } else if (Array.isArray(result)) {
+        // Legacy format: just array - client-side pagination
+        setAllBookings(result); // Store all bookings
+        
+        const startIndex = (currentPage - 1) * pageSize;
+        const endIndex = startIndex + pageSize;
+        const paginatedData = result.slice(startIndex, endIndex);
+        
+        setBookings(paginatedData);
+        setTotalPages(Math.ceil(result.length / pageSize));
+        setTotalCount(result.length);
+      } else {
+        // Fallback
+        setBookings([]);
+        setAllBookings([]);
+        setTotalPages(1);
+        setTotalCount(0);
+      }
+    } catch (err: any) {
+      toastError("Không thể tải danh sách booking");
       setBookings([]);
+      setTotalPages(1);
+      setTotalCount(0);
     } finally {
       setBookingsLoading(false);
+    }
+  };
+  
+  const handleResetFilters = () => {
+    setSearchTerm("");
+    setStatusFilter("");
+    setCondotelFilter(undefined);
+    setBookingDateFrom("");
+    setBookingDateTo("");
+    setStartDateFrom("");
+    setStartDateTo("");
+    setSortBy("bookingDate");
+    setSortDescending(true);
+    setCurrentPage(1); // Reset to page 1 when resetting filters
+    setAllBookings([]); // Clear client-side cache
+  };
+  
+  const handlePageChange = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+      // Scroll to top of bookings section
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
@@ -236,10 +361,14 @@ const HostCondotelDashboard = () => {
     }
 
     try {
-      await condotelAPI.delete(condotelId);
-      toastSuccess("Đã vô hiệu hóa condotel thành công!");
-      // Refresh danh sách
-      await fetchCondotels();
+      const result = await condotelAPI.delete(condotelId);
+      if (result) {
+        toastSuccess("Đã vô hiệu hóa condotel thành công!");
+        // Refresh danh sách
+        await fetchCondotels();
+      } else {
+        toastError("Không thể vô hiệu hóa condotel. Vui lòng thử lại sau.");
+      }
     } catch (err: any) {
       const message = err.response?.data?.message || err.response?.data?.error || "Không thể vô hiệu hóa condotel. Vui lòng thử lại sau.";
       toastError(message);
@@ -363,21 +492,6 @@ const HostCondotelDashboard = () => {
             </span>
           </button>
           <button
-            onClick={() => handleTabChange("reviews")}
-            className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${
-              activeTab === "reviews"
-                ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-105"
-                : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-blue-600 dark:hover:text-blue-400"
-            }`}
-          >
-            <span className="flex items-center gap-2">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-              </svg>
-              Đánh giá
-            </span>
-          </button>
-          <button
             onClick={() => handleTabChange("bookings")}
             className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${
               activeTab === "bookings"
@@ -476,10 +590,6 @@ const HostCondotelDashboard = () => {
         <div className="mt-6 bg-white/80 dark:bg-neutral-800/80 backdrop-blur-sm rounded-2xl shadow-xl p-6 border border-white/20 dark:border-neutral-700/50">
           <HostReportContent />
         </div>
-      ) : activeTab === "reviews" ? (
-        <div className="mt-6 bg-white/80 dark:bg-neutral-800/80 backdrop-blur-sm rounded-2xl shadow-xl p-6 border border-white/20 dark:border-neutral-700/50">
-          <HostReviewContent />
-        </div>
       ) : activeTab === "package" ? (
         <div className="mt-6 bg-white/80 dark:bg-neutral-800/80 backdrop-blur-sm rounded-2xl shadow-xl p-6 border border-white/20 dark:border-neutral-700/50">
           <HostPackageContent />
@@ -506,9 +616,146 @@ const HostCondotelDashboard = () => {
             <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
               Danh sách đặt phòng
             </h2>
-            <p className="text-neutral-600 dark:text-neutral-400">
+            <p className="text-neutral-600 dark:text-neutral-400 mb-4">
               Các đặt phòng của căn hộ bạn quản lý
             </p>
+            
+            {/* Search and Filter Section */}
+            <div className="space-y-4">
+              {/* Search Bar */}
+              <div className="flex gap-3">
+                <div className="flex-1 relative">
+                  <input
+                    type="text"
+                    placeholder="Tìm kiếm theo tên khách hàng, căn hộ, email, số điện thoại..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full px-4 py-2.5 pl-10 rounded-xl border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                  <svg className="absolute left-3 top-3 h-5 w-5 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+                <button
+                  onClick={handleResetFilters}
+                  className="px-4 py-2.5 rounded-xl bg-neutral-200 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-300 dark:hover:bg-neutral-600 transition-colors font-medium"
+                >
+                  Đặt lại
+                </button>
+              </div>
+              
+              {/* Filter Row 1 */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                {/* Status Filter */}
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="px-4 py-2.5 rounded-xl border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Tất cả trạng thái</option>
+                  <option value="Pending">Đang xử lý</option>
+                  <option value="Confirmed">Đã xác nhận</option>
+                  <option value="Completed">Hoàn thành</option>
+                  <option value="Cancelled">Đã hủy</option>
+                </select>
+                
+                {/* Condotel Filter */}
+                <select
+                  value={condotelFilter || ""}
+                  onChange={(e) => setCondotelFilter(e.target.value ? Number(e.target.value) : undefined)}
+                  className="px-4 py-2.5 rounded-xl border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Tất cả căn hộ</option>
+                  {condotels.map((condotel) => (
+                    <option key={condotel.condotelId} value={condotel.condotelId}>
+                      {condotel.name}
+                    </option>
+                  ))}
+                </select>
+                
+                {/* Sort By */}
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as any)}
+                  className="px-4 py-2.5 rounded-xl border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="bookingDate">Sắp xếp theo ngày đặt</option>
+                  <option value="startDate">Sắp xếp theo ngày check-in</option>
+                  <option value="endDate">Sắp xếp theo ngày check-out</option>
+                  <option value="totalPrice">Sắp xếp theo giá</option>
+                </select>
+                
+                {/* Sort Order */}
+                <button
+                  onClick={() => setSortDescending(!sortDescending)}
+                  className="px-4 py-2.5 rounded-xl border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 hover:bg-neutral-50 dark:hover:bg-neutral-600 transition-colors font-medium flex items-center justify-center gap-2"
+                >
+                  {sortDescending ? (
+                    <>
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                      Giảm dần
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                      </svg>
+                      Tăng dần
+                    </>
+                  )}
+                </button>
+              </div>
+              
+              {/* Filter Row 2 - Date Ranges */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">
+                    Ngày đặt từ
+                  </label>
+                  <input
+                    type="date"
+                    value={bookingDateFrom}
+                    onChange={(e) => setBookingDateFrom(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">
+                    Ngày đặt đến
+                  </label>
+                  <input
+                    type="date"
+                    value={bookingDateTo}
+                    onChange={(e) => setBookingDateTo(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">
+                    Check-in từ
+                  </label>
+                  <input
+                    type="date"
+                    value={startDateFrom}
+                    onChange={(e) => setStartDateFrom(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">
+                    Check-in đến
+                  </label>
+                  <input
+                    type="date"
+                    value={startDateTo}
+                    onChange={(e) => setStartDateTo(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
           {bookingsLoading ? (
             <div className="flex flex-col items-center justify-center py-20">
@@ -526,8 +773,9 @@ const HostCondotelDashboard = () => {
               <p className="text-neutral-600 dark:text-neutral-400 text-lg">Chưa có đặt phòng nào.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto bg-white/80 dark:bg-neutral-800/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 dark:border-neutral-700/50">
-              <table className="min-w-full divide-y divide-neutral-200 dark:divide-neutral-700">
+            <>
+              <div className="overflow-x-auto bg-white/80 dark:bg-neutral-800/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 dark:border-neutral-700/50">
+                <table className="min-w-full divide-y divide-neutral-200 dark:divide-neutral-700">
                 <thead className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-neutral-700 dark:to-neutral-800">
                   <tr>
                     <th className="px-6 py-4 text-left text-xs font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wider">
@@ -608,13 +856,95 @@ const HostCondotelDashboard = () => {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500 dark:text-neutral-400">
-                        {formatDate(booking.createdAt)}
+                        {formatDate(booking.bookingDate || booking.createdAt)}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            </div>
+              </div>
+              
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="mt-6 flex items-center justify-between bg-white/80 dark:bg-neutral-800/80 backdrop-blur-sm rounded-2xl shadow-xl p-4 border border-white/20 dark:border-neutral-700/50">
+                  <div className="text-sm text-neutral-600 dark:text-neutral-400">
+                    Hiển thị {((currentPage - 1) * pageSize) + 1} - {Math.min(currentPage * pageSize, totalCount)} trong tổng số {totalCount} đặt phòng
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handlePageChange(1)}
+                      disabled={currentPage === 1}
+                      className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                        currentPage === 1
+                          ? "text-gray-400 cursor-not-allowed bg-gray-100 dark:bg-gray-800"
+                          : "text-white bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 shadow-md hover:shadow-lg"
+                      }`}
+                    >
+                      Đầu
+                    </button>
+                    <button
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                        currentPage === 1
+                          ? "text-gray-400 cursor-not-allowed bg-gray-100 dark:bg-gray-800"
+                          : "text-white bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 shadow-md hover:shadow-lg"
+                      }`}
+                    >
+                      Trước
+                    </button>
+                    
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                      if (
+                        page === 1 ||
+                        page === totalPages ||
+                        (page >= currentPage - 1 && page <= currentPage + 1)
+                      ) {
+                        return (
+                          <button
+                            key={page}
+                            onClick={() => handlePageChange(page)}
+                            className={`px-4 py-2 text-sm font-bold rounded-lg transition-all duration-300 ${
+                              currentPage === page
+                                ? "text-white bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg scale-105"
+                                : "text-neutral-700 dark:text-neutral-300 bg-white dark:bg-neutral-700 hover:bg-blue-50 dark:hover:bg-neutral-600 shadow-md hover:shadow-lg"
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        );
+                      } else if (page === currentPage - 2 || page === currentPage + 2) {
+                        return <span key={page} className="px-2 text-gray-400">...</span>;
+                      }
+                      return null;
+                    })}
+                    
+                    <button
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                      className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                        currentPage === totalPages
+                          ? "text-gray-400 cursor-not-allowed bg-gray-100 dark:bg-gray-800"
+                          : "text-white bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 shadow-md hover:shadow-lg"
+                      }`}
+                    >
+                      Sau
+                    </button>
+                    <button
+                      onClick={() => handlePageChange(totalPages)}
+                      disabled={currentPage === totalPages}
+                      className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                        currentPage === totalPages
+                          ? "text-gray-400 cursor-not-allowed bg-gray-100 dark:bg-gray-800"
+                          : "text-white bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 shadow-md hover:shadow-lg"
+                      }`}
+                    >
+                      Cuối
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       ) : (

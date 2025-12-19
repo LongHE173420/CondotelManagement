@@ -51,8 +51,8 @@ export const vi = {
     featuredPlacesSubtitle: "Những địa điểm lưu trú phổ biến mà Chisfis gợi ý cho bạn",
     popularDestinations: "Địa điểm du lịch nổi bật",
     popularDestinationsSubtitle: "Những địa điểm du lịch được Chisfis gợi ý cho bạn",
-    exploreByType: "Khám phá theo loại hình lưu trú",
-    exploreByTypeSubtitle: "Khám phá các loại hình lưu trú đa dạng tại Việt Nam",
+    exploreByType: "Khám phá các tiên nghi Condotel",
+    exploreByTypeSubtitle: "Tìm kiếm condotel với các tiện ích và dịch vụ phù hợp với nhu cầu của bạn",
     destinations: {
       hanoi: "Hà Nội",
       hoChiMinh: "Hồ Chí Minh",

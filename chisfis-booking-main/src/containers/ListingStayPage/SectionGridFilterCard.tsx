@@ -1,71 +1,17 @@
 import React, { FC, useState, useEffect, useMemo } from "react";
 import { useLocation } from "react-router-dom";
-import { DEMO_STAY_LISTINGS } from "data/listings";
-import { StayDataType } from "data/types";
 import Pagination from "shared/Pagination/Pagination";
 import TabFilters from "./TabFilters";
 import Heading2 from "components/Heading/Heading2";
 import { condotelAPI, CondotelDTO } from "api/condotel";
 import CondotelCard from "components/CondotelCard/CondotelCard";
-import { TaxonomyType } from "data/types";
 import { useTranslation } from "i18n/LanguageContext";
 import moment from "moment";
 
 export interface SectionGridFilterCardProps {
   className?: string;
-  data?: StayDataType[];
+  data?: any[];
 }
-
-const DEMO_DATA: StayDataType[] = DEMO_STAY_LISTINGS.filter((_, i) => i < 8);
-
-// Default category for condotels
-const DEFAULT_CONDOTEL_CATEGORY: TaxonomyType = {
-  id: "condotel",
-  name: "Condotel",
-  href: "/listing-stay",
-  taxonomy: "category",
-  listingType: "stay",
-};
-
-// Helper function to convert CondotelDTO to StayDataType for compatibility
-const convertCondotelToStay = (condotel: CondotelDTO): StayDataType => {
-  return {
-    id: condotel.condotelId.toString(),
-    author: {
-      id: "1",
-      firstName: condotel.hostName || "Host",
-      lastName: "",
-      displayName: condotel.hostName || "Host",
-      avatar: "",
-      count: 0,
-      desc: "",
-      jobName: "Host",
-      href: "/",
-    },
-    date: new Date().toISOString(),
-    href: `/listing-stay-detail/${condotel.condotelId}`,
-    title: condotel.name,
-    featuredImage: condotel.thumbnailUrl || "/images/placeholder.png",
-    galleryImgs: condotel.thumbnailUrl ? [condotel.thumbnailUrl] : [],
-    commentCount: 0,
-    viewCount: 0,
-    like: false,
-    address: condotel.resortName || "",
-    reviewStart: 0,
-    reviewCount: 0,
-    price: (condotel.pricePerNight || 0).toString(),
-    listingCategory: DEFAULT_CONDOTEL_CATEGORY,
-    maxGuests: condotel.beds || 0,
-    bedrooms: condotel.beds || 0,
-    bathrooms: condotel.bathrooms || 0,
-    saleOff: undefined,
-    isAds: false,
-    map: {
-      lat: 0,
-      lng: 0,
-    },
-  };
-};
 
 const SectionGridFilterCard: FC<SectionGridFilterCardProps> = ({
   className = "",
@@ -73,13 +19,33 @@ const SectionGridFilterCard: FC<SectionGridFilterCardProps> = ({
 }) => {
   const { t } = useTranslation();
   const location = useLocation();
+  const stateParams = (location.state as any)?.searchParams || {};
   const [condotels, setCondotels] = useState<CondotelDTO[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 6;
 
   const params = useMemo(() => new URLSearchParams(location.search), [location.search]);
-  const searchLocation = params.get("location");
-  const searchLocationId = params.get("locationId");
+  // Accept both ?name= and ?searchName= as the same filter
+  const searchName = params.get("name") || params.get("searchName") || stateParams.name || stateParams.searchName;
+  // Accept alternate keys for location
+  const searchLocation =
+    params.get("location") ||
+    params.get("searchLocation") ||
+    params.get("locationName") ||
+    params.get("city") ||
+    stateParams.location ||
+    stateParams.searchLocation ||
+    stateParams.locationName ||
+    stateParams.city;
+  const searchLocationId =
+    params.get("locationId") ||
+    params.get("searchLocationId") ||
+    params.get("cityId") ||
+    stateParams.locationId ||
+    stateParams.searchLocationId ||
+    stateParams.cityId;
   const searchHostId = params.get("hostId");
   const searchFromDate = params.get("startDate");
   const searchToDate = params.get("endDate");
@@ -89,6 +55,7 @@ const SectionGridFilterCard: FC<SectionGridFilterCardProps> = ({
   const beds = params.get("beds");
   const bathrooms = params.get("bathrooms");
 
+  // Fetch condotels when URL params change
   useEffect(() => {
     const fetchCondotels = async () => {
       try {
@@ -98,36 +65,43 @@ const SectionGridFilterCard: FC<SectionGridFilterCardProps> = ({
         // Build search query
         const searchQuery: any = {};
         
-        // Host ID filter (ưu tiên cao nhất)
+        // Name filter (highest priority for search)
+        if (searchName && searchName.trim()) {
+          searchQuery.name = searchName.trim();
+        }
+        
+        // Host ID filter
         if (searchHostId) {
           const hostId = Number(searchHostId);
           if (!isNaN(hostId)) {
             searchQuery.hostId = hostId;
-            console.log("🔍 Searching with hostId:", hostId);
           }
         }
         
-        // Ưu tiên locationId hơn location string (chỉ nếu không có hostId)
-        if (!searchHostId) {
-          if (searchLocationId) {
-            const locationId = Number(searchLocationId);
-            if (!isNaN(locationId)) {
-              searchQuery.locationId = locationId;
-              console.log("🔍 Searching with locationId:", locationId);
-            }
-          } else if (searchLocation) {
-            // Trim và decode location để đảm bảo đúng format
-            const locationValue = decodeURIComponent(searchLocation.trim());
+        // Location filters (can work together with name and dates)
+        if (searchLocationId) {
+          const locationId = Number(searchLocationId);
+          if (!isNaN(locationId)) {
+            searchQuery.locationId = locationId;
+          }
+        }
+        if (searchLocation && searchLocation.trim()) {
+          // Validate location is not a date format
+          const locationValue = decodeURIComponent(searchLocation.trim());
+          const isDate = /^\d{1,2}[/-]\d{1,2}[/-]\d{4}$/.test(locationValue) || /^\d{4}[/-]\d{1,2}[/-]\d{1,2}$/.test(locationValue);
+          if (!isDate) {
             searchQuery.location = locationValue;
-            console.log("🔍 Searching with location:", locationValue);
           }
         }
         
+        // Date filters (can work with location and name)
         if (searchFromDate) {
           searchQuery.fromDate = searchFromDate;
+          searchQuery.startDate = searchFromDate;
         }
         if (searchToDate) {
           searchQuery.toDate = searchToDate;
+          searchQuery.endDate = searchToDate;
         }
         
         // Add price filters
@@ -157,39 +131,30 @@ const SectionGridFilterCard: FC<SectionGridFilterCardProps> = ({
             searchQuery.bathrooms = bathroomsNum;
           }
         }
-        
-        console.log("📤 Search query:", searchQuery);
-        console.log("📤 URL params:", {
-          searchLocation,
-          searchLocationId,
-          searchHostId,
-          searchFromDate,
-          searchToDate,
-          minPrice,
-          maxPrice,
-          beds,
-          bathrooms
-        });
+
         
         // Nếu có hostId, sử dụng API riêng để lấy condotels của host
         let results: CondotelDTO[] = [];
         if (searchHostId) {
           const hostId = Number(searchHostId);
           if (!isNaN(hostId)) {
-            console.log("🏠 Fetching condotels for host:", hostId);
-            results = await condotelAPI.getCondotelsByHostId(hostId);
-            console.log("✅ Loaded condotels for host:", results.length);
+            const hostResults = await condotelAPI.getCondotelsByHostId(hostId);
+            results = Array.isArray(hostResults) ? hostResults : [];
           }
         } else {
           // Always fetch condotels - if no search params, get all condotels
-          results = await condotelAPI.search(searchQuery);
-          console.log("✅ Search results:", results.length, "condotels found");
+          const searchResult = await condotelAPI.search(searchQuery);
+          results = Array.isArray(searchResult) ? searchResult : [];
         }
         
-        console.log("✅ Results:", results);
-        
         // Ensure we only set the results from the search, not all condotels
+        // Ensure results is always an array
+        if (!Array.isArray(results)) {
+          console.error("❌ Results is not an array:", results);
+          results = [];
+        }
         setCondotels(results);
+        setCurrentPage(1); // Reset to page 1 when search results change
       } catch (err: any) {
         console.error("Error fetching condotels:", err);
         setError(err.response?.data?.message || "Không thể tải danh sách condotel");
@@ -200,7 +165,7 @@ const SectionGridFilterCard: FC<SectionGridFilterCardProps> = ({
     };
 
     fetchCondotels();
-  }, [searchLocation, searchLocationId, searchFromDate, searchToDate, minPrice, maxPrice, beds, bathrooms]); // Use specific params to trigger on changes
+  }, [location.search, searchName, searchLocation, searchLocationId, searchHostId, searchFromDate, searchToDate, minPrice, maxPrice, beds, bathrooms]);
 
   const heading = searchLocation 
     ? `${t.condotel.staysIn || "Stays in"} ${searchLocation}`
@@ -247,7 +212,7 @@ const SectionGridFilterCard: FC<SectionGridFilterCardProps> = ({
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
           <p className="mt-4 text-neutral-600 dark:text-neutral-400">{t.common.loading}</p>
         </div>
-      ) : condotels.length === 0 ? (
+      ) : !Array.isArray(condotels) || condotels.length === 0 ? (
         <div className="text-center py-20">
           <p className="text-neutral-600 dark:text-neutral-400 text-lg">
             {searchLocation 
@@ -257,14 +222,31 @@ const SectionGridFilterCard: FC<SectionGridFilterCardProps> = ({
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-6 md:gap-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {condotels.map((condotel) => (
-              <CondotelCard key={condotel.condotelId} data={condotel} />
-            ))}
+          <div className="grid grid-cols-1 gap-6 md:gap-8 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.isArray(condotels) && condotels
+              .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+              .map((condotel) => (
+                <CondotelCard key={condotel.condotelId} data={condotel} />
+              ))}
           </div>
-          {condotels.length > 12 && (
-            <div className="flex mt-16 justify-center items-center">
-              <Pagination />
+          {condotels.length > itemsPerPage && (
+            <div className="flex mt-16 justify-center items-center gap-2">
+              {Array.from({ length: Math.ceil(condotels.length / itemsPerPage) }, (_, i) => i + 1).map((page) => (
+                <button
+                  key={page}
+                  onClick={() => {
+                    setCurrentPage(page);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className={`inline-flex w-11 h-11 items-center justify-center rounded-full transition-colors ${
+                    currentPage === page
+                      ? 'bg-primary-600 text-white'
+                      : 'bg-white hover:bg-neutral-100 border border-neutral-200 text-neutral-600 dark:bg-neutral-900 dark:hover:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-400'
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
             </div>
           )}
         </>

@@ -52,6 +52,8 @@ const PageMyVouchers = () => {
   const [vouchers, setVouchers] = useState<Voucher[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   // 3. DÙNG useEffect ĐỂ GỌI API KHI TRANG TẢI
   useEffect(() => {
@@ -162,10 +164,49 @@ const PageMyVouchers = () => {
           </div>
         </div>
       ) : (
-        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {vouchers.map((voucher) => (
-            <VoucherCard key={voucher.id} voucher={voucher} />
-          ))}
+        <div>
+          <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {vouchers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((voucher) => (
+              <VoucherCard key={voucher.id} voucher={voucher} />
+            ))}
+          </div>
+          
+          {/* Pagination */}
+          {Math.ceil(vouchers.length / itemsPerPage) > 1 && (
+            <div className="max-w-7xl mx-auto mt-8 flex justify-center items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+              >
+                ← Trang trước
+              </button>
+              
+              <div className="flex items-center gap-2">
+                {Array.from({ length: Math.ceil(vouchers.length / itemsPerPage) }, (_, i) => i + 1).map(page => (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={`px-3 py-2 rounded-lg font-medium transition-colors ${
+                      currentPage === page
+                        ? "bg-blue-600 text-white"
+                        : "bg-white border border-gray-300 hover:bg-gray-50"
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ))}
+              </div>
+              
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(vouchers.length / itemsPerPage)))}
+                disabled={currentPage === Math.ceil(vouchers.length / itemsPerPage)}
+                className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+              >
+                Trang sau →
+              </button>
+            </div>
+          )}
         </div>
       )}
       

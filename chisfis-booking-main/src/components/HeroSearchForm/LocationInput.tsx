@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import ClearDataButton from "./ClearDataButton";
 import { useRef } from "react";
 import condotelAPI from "api/condotel";
+import locationAPI from "api/location";
 
 export interface LocationInputProps {
   defaultValue: string;
@@ -31,6 +32,7 @@ const LocationInput: FC<LocationInputProps> = ({
   const [showPopover, setShowPopover] = useState(autoFocus);
   const [locationSuggestions, setLocationSuggestions] = useState<string[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [allLocations, setAllLocations] = useState<string[]>([]);
 
   useEffect(() => {
     if (defaultValue !== value) {
@@ -46,6 +48,24 @@ const LocationInput: FC<LocationInputProps> = ({
   useEffect(() => {
     setShowPopover(autoFocus);
   }, [autoFocus]);
+
+  // ✅ Load all locations on component mount
+  useEffect(() => {
+    const loadLocations = async () => {
+      try {
+        const locations = await locationAPI.getAllPublic();
+        // Extract location names
+        const locationNames = locations.map(loc => loc.name).filter(Boolean) as string[];
+        setAllLocations(locationNames);
+      } catch (err) {
+        console.error("Error loading locations:", err);
+        // If API fails, use empty array - no hardcoded fallback
+        setAllLocations([]);
+      }
+    };
+
+    loadLocations();
+  }, []);
 
   useEffect(() => {
     if (eventClickOutsideDiv) {
@@ -129,7 +149,6 @@ const LocationInput: FC<LocationInputProps> = ({
 
   const handleSelectLocation = (item: string) => {
     const selectedLocation = item.trim();
-    console.log("🔍 LocationInput - Location selected:", selectedLocation);
     
     // Update local state
     setValue(selectedLocation);
@@ -151,7 +170,6 @@ const LocationInput: FC<LocationInputProps> = ({
       // Find the form element and submit it
       const form = containerRef.current?.closest('form');
       if (form) {
-        console.log("🔍 LocationInput - Auto-submitting form with location:", selectedLocation);
         // Use requestSubmit to trigger form validation and submit
         const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
         form.dispatchEvent(submitEvent);
@@ -166,93 +184,66 @@ const LocationInput: FC<LocationInputProps> = ({
   };
 
   const renderRecentSearches = () => {
-    const VN_LOCATIONS = [
-      "Hà Nội",
-      "TP. Hồ Chí Minh",
-      "Đà Nẵng",
-      "Nha Trang",
-      "Huế",
-      "Hạ Long",
-      "Hội An",
-      "Phú Quốc",
-      "Đà Lạt",
-      "Sapa",
-      "Mũi Né",
-      "Vũng Tàu",
-      "Cần Thơ",
-      "Vinh",
-    ];
     return (
       <>
         <h3 className="block mt-2 sm:mt-0 px-4 sm:px-8 font-semibold text-base sm:text-lg text-neutral-800 dark:text-neutral-100">
-          Địa điểm phổ biến tại Việt Nam
+          Địa điểm phổ biến
         </h3>
         <div className="mt-2">
-          {VN_LOCATIONS.map((item) => (
-            <span
-              onClick={() => handleSelectLocation(item)}
-              key={item}
-              className="flex px-4 sm:px-8 items-center space-x-3 sm:space-x-4 py-4 sm:py-5 hover:bg-neutral-100 dark:hover:bg-neutral-700 cursor-pointer"
-            >
-              <span className="block text-neutral-400">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-4 sm:h-6 w-4 sm:w-6"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                  />
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                  />
-                </svg>
+          {allLocations.length > 0 ? (
+            allLocations.slice(0, 10).map((item) => (
+              <span
+                onClick={() => handleSelectLocation(item)}
+                key={item}
+                className="flex px-4 sm:px-8 items-center space-x-3 sm:space-x-4 py-4 sm:py-5 hover:bg-neutral-100 dark:hover:bg-neutral-700 cursor-pointer"
+              >
+                <span className="block text-neutral-400">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-4 sm:h-6 w-4 sm:w-6"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                    />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                    />
+                  </svg>
+                </span>
+                <span className=" block font-medium text-neutral-700 dark:text-neutral-200">
+                  {item}
+                </span>
               </span>
-              <span className=" block font-medium text-neutral-700 dark:text-neutral-200">
-                {item}
-              </span>
-            </span>
-          ))}
+            ))
+          ) : (
+            <div className="px-4 sm:px-8 py-4 sm:py-5 text-center text-neutral-500">
+              Đang tải danh sách địa điểm...
+            </div>
+          )}
         </div>
       </>
     );
   };
 
   const renderSearchValue = () => {
-    const VN_LOCATIONS = [
-      "Hà Nội",
-      "TP. Hồ Chí Minh",
-      "Đà Nẵng",
-      "Nha Trang",
-      "Huế",
-      "Hạ Long",
-      "Hội An",
-      "Phú Quốc",
-      "Đà Lạt",
-      "Sapa",
-      "Mũi Né",
-      "Vũng Tàu",
-      "Cần Thơ",
-      "Vinh",
-    ];
-    
-    // Filter hardcoded locations
-    const filteredHardcoded = VN_LOCATIONS.filter((item) =>
+    // Filter all locations based on search value
+    const filteredLocations = allLocations.filter((item) =>
       item.toLowerCase().includes(value.toLowerCase())
     );
     
-    // Combine API suggestions with hardcoded locations
+    // Combine API suggestions with filtered locations (avoid duplicates)
     const allSuggestions = [
       ...locationSuggestions,
-      ...filteredHardcoded.filter((item) => !locationSuggestions.includes(item))
+      ...filteredLocations.filter((item) => !locationSuggestions.includes(item))
     ].slice(0, 10);
 
     if (loadingSuggestions && value.length >= 2) {

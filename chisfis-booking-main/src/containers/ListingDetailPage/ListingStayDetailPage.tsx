@@ -66,21 +66,15 @@ const ListingStayDetailPage: FC = () => {
   const loadAmenitiesAndUtilities = async (condotelId: number) => {
     try {
       setAmenitiesLoading(true);
-      console.log("🔄 Loading amenities and utilities for condotel:", condotelId);
       
       // Sử dụng endpoint amenities-utilities để tối ưu (chỉ 1 request)
       const result = await condotelAPI.getAmenitiesAndUtilitiesByCondotelId(condotelId);
       
-      console.log("✅ Loaded amenities:", result.amenities);
-      console.log("✅ Loaded utilities:", result.utilities);
-      
       setAmenities(result.amenities || []);
       setUtilities(result.utilities || []);
     } catch (err: any) {
-      console.error("❌ Error loading amenities/utilities:", err);
       // Nếu lỗi 404, có thể condotel không tồn tại hoặc chưa có amenities/utilities
       if (err.response?.status === 404) {
-        console.log("ℹ️ No amenities/utilities found for condotel", condotelId);
         setAmenities([]);
         setUtilities([]);
       } else {
@@ -114,9 +108,7 @@ const ListingStayDetailPage: FC = () => {
     } catch (err: any) {
       // 404 is expected if there are no reviews - don't log as error
       if (err.response?.status === 404) {
-        console.log("ℹ️ No reviews found for condotel", condotelId);
       } else {
-        console.error("Error loading reviews:", err);
       }
       // Không set error, chỉ log - reviews có thể không có
       setReviews([]);
@@ -153,7 +145,6 @@ const ListingStayDetailPage: FC = () => {
         setReviewableBookingId(null);
       }
     } catch (err: any) {
-      console.error("Error checking can write review:", err);
       // Nếu lỗi, không cho phép review
       setCanWriteReview(false);
       setReviewableBookingId(null);
@@ -171,25 +162,20 @@ const ListingStayDetailPage: FC = () => {
         const condotelId = Number(id);
         const res = await condotelAPI.getById(condotelId);
         setData(res);
-        console.log("📦 CondotelDetailDTO response:", res);
-        console.log("👤 Current user:", user);
         
         // Luôn ưu tiên hostName từ backend - không dùng tên user đang login
         if (res.hostName) {
-          console.log("✅ Backend trả về hostName:", res.hostName);
           setHostName(res.hostName);
           setHostImageUrl(res.hostImageUrl);
         } else {
           // Nếu backend không trả về hostName, chỉ dùng Host ID làm fallback
           // KHÔNG dùng tên user đang login vì user có thể là tenant, không phải host
-          console.warn("⚠️ Backend chưa trả về hostName, sử dụng Host ID");
           setHostName(`Host #${res.hostId}`);
           setHostImageUrl(undefined);
         }
 
         // Load amenities và utilities từ API mới (không block nếu lỗi)
         loadAmenitiesAndUtilities(condotelId).catch((err) => {
-          console.error("Failed to load amenities/utilities:", err);
           // Không throw error, chỉ log - amenities/utilities là optional
         });
 
@@ -201,7 +187,6 @@ const ListingStayDetailPage: FC = () => {
           await checkCanWriteReview(condotelId);
         }
       } catch (e: any) {
-        console.error("Error loading condotel:", e);
         setError("Không tìm thấy thông tin căn hộ");
       } finally {
         setLoading(false);
@@ -388,9 +373,6 @@ const ListingStayDetailPage: FC = () => {
 
   const renderAmenities = () => {
     if (!data) return null;
-    
-    console.log("🎨 Rendering amenities:", amenities);
-    console.log("🎨 Rendering utilities:", utilities);
     
     return (
       <div className="listingSection__wrap">
@@ -834,15 +816,6 @@ const ListingStayDetailPage: FC = () => {
     );
     
     // Debug log
-    console.log("💰 Price calculation:", {
-      pricePerNight: data.pricePerNight,
-      activePrice: data.activePrice,
-      checkInDate: checkInDate?.format("YYYY-MM-DD"),
-      checkOutDate: checkOutDate?.format("YYYY-MM-DD"),
-      basePricePerNight,
-      finalPricePerNight,
-      availablePromotion: availablePromotion?.name,
-    });
     
     // Tính tổng tiền cho tất cả các đêm
     const baseTotalPrice = nights > 0 ? nights * basePricePerNight : 0;

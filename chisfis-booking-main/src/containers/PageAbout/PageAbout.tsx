@@ -1,7 +1,7 @@
 import rightImg from "images/about-hero-right.png";
 import React, { FC } from "react";
-import SectionFounder from "./SectionFounder";
 import SectionStatistic from "./SectionStatistic";
+import SectionWhyChoose from "./SectionWhyChoose";
 import { Helmet } from "react-helmet";
 import SectionSubscribe2 from "components/SectionSubscribe2/SectionSubscribe2";
 import BgGlassmorphism from "components/BgGlassmorphism/BgGlassmorphism";
@@ -34,7 +34,8 @@ const PageAbout: FC<PageAboutProps> = ({ className = "" }) => {
           subHeading="Fiscondotel là nền tảng đặt phòng condotel hàng đầu tại Việt Nam. Chúng tôi cam kết mang đến trải nghiệm tuyệt vời cho khách hàng với dịch vụ chất lượng cao, giá cả hợp lý và hỗ trợ 24/7."
         />
 
-        <SectionFounder />
+        <SectionWhyChoose />
+
         <div className="relative py-16">
           <BackgroundSection />
           <SectionOurFeatures type="type2" />

@@ -157,7 +157,7 @@ export const pages: Page[] = [
 const RoutesContent = () => {
   const location = useLocation();
   const WIN_WIDTH = useWindowSize().width || window.innerWidth;
-  const isAdminRoute = location.pathname.startsWith("/admin");
+  const isAdminRoute = location.pathname.startsWith("/admin") || location.pathname.startsWith("/manage-blog") || location.pathname.startsWith("/manage-locations") || location.pathname.startsWith("/manage-vouchers") || location.pathname.startsWith("/account-list") || location.pathname.startsWith("/account-detail") || location.pathname.startsWith("/add-account");
   const isHostRoute = location.pathname.startsWith("/host-dashboard");
 
   return (
@@ -202,7 +202,7 @@ const RoutesContent = () => {
         <Route path="/subscription" element={<PageSubcription />} />
         <Route path="/pricing" element={<PricingPage />} />
         <Route path="/payment/success" element={<PaymentSuccess />} />
-
+        
         {pages.map(({ component, path }) => {
           const Component = component;
 
@@ -229,15 +229,83 @@ const RoutesContent = () => {
             );
           }
 
+          // Protect blog management routes - only Admin can access
+          if (path && path.startsWith("/manage-blog")) {
+            return (
+              <Route key={path} path={path} element={
+                <AdminLayout>
+                  <ProtectedRoute requireAuth={true} requireAdmin={true}>
+                    <Component />
+                  </ProtectedRoute>
+                </AdminLayout>
+              } />
+            );
+          }
+
+          // Protect account management routes - only Admin can access
+          if (path === "/account-list" || path === "/account-detail/:id" || path === "/add-account") {
+            return (
+              <Route key={path} path={path} element={
+                <AdminLayout>
+                  <ProtectedRoute requireAuth={true} requireAdmin={true}>
+                    <Component />
+                  </ProtectedRoute>
+                </AdminLayout>
+              } />
+            );
+          }
+
           // Skip add-listing routes (đã được handle ở trên)
           if (path && (path.startsWith("/add-listing") || path.startsWith("/add-condotel"))) {
             return null;
           }
 
-          return <Route key={path} element={<Component />} path={path} />;
+          return <Route key={path} path={path} element={<Component />} />;
         })}
 
-        {/* Protected Admin Route */}
+        {/* Protected Admin Routes - Direct paths for specific tabs */}
+        <Route
+          path="/admin/add-category-blog"
+          element={
+            <AdminLayout>
+              <ProtectedRoute requireAuth={true} requireAdmin={true}>
+                <AdminPage {...({ defaultTab: "add-category-blog" } as any)} />
+              </ProtectedRoute>
+            </AdminLayout>
+          }
+        />
+        <Route
+          path="/admin/add-blog"
+          element={
+            <AdminLayout>
+              <ProtectedRoute requireAuth={true} requireAdmin={true}>
+                <AdminPage {...({ defaultTab: "add-blog" } as any)} />
+              </ProtectedRoute>
+            </AdminLayout>
+          }
+        />
+        <Route
+          path="/admin/add-account"
+          element={
+            <AdminLayout>
+              <ProtectedRoute requireAuth={true} requireAdmin={true}>
+                <AdminPage {...({ defaultTab: "add-account" } as any)} />
+              </ProtectedRoute>
+            </AdminLayout>
+          }
+        />
+        <Route
+          path="/admin/edit-account"
+          element={
+            <AdminLayout>
+              <ProtectedRoute requireAuth={true} requireAdmin={true}>
+                <AdminPage {...({ defaultTab: "edit-account" } as any)} />
+              </ProtectedRoute>
+            </AdminLayout>
+          }
+        />
+
+        {/* Protected Admin Route - Catch-all for /admin/* */}
         <Route
           path="/admin/*"
           element={

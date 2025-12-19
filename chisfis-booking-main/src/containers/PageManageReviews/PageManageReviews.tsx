@@ -7,6 +7,18 @@ const PageManageReviews: FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  // Modal confirmation state
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    action: (() => void) | null;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    action: null,
+  });
 
   useEffect(() => {
     loadReportedReviews();
@@ -31,25 +43,28 @@ const PageManageReviews: FC = () => {
     }
   };
 
-  const handleDeleteReview = async (reviewId: number) => {
-    if (!window.confirm("Bạn có chắc chắn muốn xóa review này?")) {
-      return;
-    }
-
-    try {
-      setDeletingId(reviewId);
-      await reviewAPI.deleteReviewByAdmin(reviewId);
-      await loadReportedReviews();
-    } catch (err: any) {
-      console.error("Failed to delete review:", err);
-      alert(
-        err.response?.data?.message ||
-          err.message ||
-          "Không thể xóa review. Vui lòng thử lại."
-      );
-    } finally {
-      setDeletingId(null);
-    }
+  const handleDeleteReview = (reviewId: number) => {
+    setConfirmModal({
+      isOpen: true,
+      title: "Xóa Review",
+      message: "Bạn có chắc chắn muốn xóa review này? Hành động này không thể hoàn tác.",
+      action: async () => {
+        try {
+          setDeletingId(reviewId);
+          await reviewAPI.deleteReviewByAdmin(reviewId);
+          await loadReportedReviews();
+          setConfirmModal({ isOpen: false, title: "", message: "", action: null });
+        } catch (err: any) {
+          alert(
+            err.response?.data?.message ||
+              err.message ||
+              "Không thể xóa review. Vui lòng thử lại."
+          );
+        } finally {
+          setDeletingId(null);
+        }
+      },
+    });
   };
 
   const formatDate = (dateString?: string) => {
@@ -261,6 +276,34 @@ const PageManageReviews: FC = () => {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Custom Confirmation Modal */}
+      {confirmModal.isOpen && (
+        <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-neutral-800 rounded-lg shadow-2xl p-6 max-w-sm w-11/12">
+            <h3 className="text-lg font-bold text-neutral-900 dark:text-neutral-100 mb-2">
+              {confirmModal.title}
+            </h3>
+            <p className="text-neutral-600 dark:text-neutral-400 mb-6">
+              {confirmModal.message}
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setConfirmModal({ isOpen: false, title: "", message: "", action: null })}
+                className="px-4 py-2 rounded-lg bg-neutral-200 dark:bg-neutral-700 text-neutral-800 dark:text-neutral-100 font-medium hover:bg-neutral-300 dark:hover:bg-neutral-600 transition"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={() => confirmModal.action?.()}
+                className="px-4 py-2 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 transition"
+              >
+                Xóa
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

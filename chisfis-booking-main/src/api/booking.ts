@@ -13,6 +13,7 @@ export interface BookingDTO {
   promotionId?: number; // int? in C#
   isUsingRewardPoints: boolean;
   createdAt: string; // DateTime in C#
+  bookingDate?: string; // DateTime - Ngày đặt (mới thêm cho host bookings)
   canRefund?: boolean; // Field từ backend để check xem booking có thể hoàn tiền không
   refundStatus?: string | null; // "Pending", "Refunded", "Completed", hoặc null (chưa có refund request)
   
@@ -24,6 +25,7 @@ export interface BookingDTO {
   // Thông tin customer (nếu backend trả về khi join - cho host)
   customerName?: string;
   customerEmail?: string;
+  customerPhone?: string; // Số điện thoại khách hàng (mới thêm cho host bookings)
 }
 
 export interface ServicePackageBookingItem {
@@ -50,6 +52,22 @@ export interface UpdateBookingDTO {
   promotionId?: number;
   isUsingRewardPoints?: boolean;
   status?: string; // "Pending", "Confirmed", "Cancelled", "Completed"
+}
+
+// RefundRequestDTO từ backend - Yêu cầu hoàn tiền
+export interface RefundRequestDTO {
+  refundRequestId: number;
+  bookingId: number;
+  customerId: number;
+  status: string; // "Pending", "Completed", "Refunded", "Rejected", "Appealed"
+  reason?: string;
+  createdAt: string; // DateTime
+  updatedAt?: string; // DateTime
+  attemptNumber: number; // Lần thứ mấy appeal (0, 1, ...)
+  appealReason?: string; // Lý do kháng cáo
+  rejectionReason?: string; // Lý do từ chối hoàn tiền
+  rejectedAt?: string; // DateTime - Khi yêu cầu bị reject
+  appealedAt?: string; // DateTime - Khi customer appeal
 }
 
 export interface CheckAvailabilityResponse {
@@ -81,6 +99,8 @@ interface BookingResponseRaw {
   isUsingRewardPoints?: boolean;
   CreatedAt?: string;
   createdAt?: string;
+  BookingDate?: string; // Ngày đặt (mới thêm cho host bookings)
+  bookingDate?: string;
   CanRefund?: boolean;
   canRefund?: boolean;
   RefundStatus?: string | null;
@@ -95,6 +115,8 @@ interface BookingResponseRaw {
   customerName?: string;
   CustomerEmail?: string;
   customerEmail?: string;
+  CustomerPhone?: string; // Số điện thoại khách hàng (mới thêm cho host bookings)
+  customerPhone?: string;
 }
 
 // Helper function to normalize booking response
@@ -110,6 +132,7 @@ const normalizeBooking = (item: BookingResponseRaw): BookingDTO => {
     promotionId: item.PromotionId ?? item.promotionId,
     isUsingRewardPoints: item.IsUsingRewardPoints ?? item.isUsingRewardPoints ?? false,
     createdAt: item.CreatedAt ?? item.createdAt ?? "",
+    bookingDate: item.BookingDate ?? item.bookingDate,
     canRefund: item.CanRefund ?? item.canRefund,
     refundStatus: item.RefundStatus ?? item.refundStatus ?? null,
     condotelName: item.CondotelName ?? item.condotelName,
@@ -117,6 +140,7 @@ const normalizeBooking = (item: BookingResponseRaw): BookingDTO => {
     condotelPricePerNight: item.CondotelPricePerNight ?? item.condotelPricePerNight,
     customerName: item.CustomerName ?? item.customerName,
     customerEmail: item.CustomerEmail ?? item.customerEmail,
+    customerPhone: item.CustomerPhone ?? item.customerPhone,
   };
 };
 
@@ -286,80 +310,15 @@ export const bookingAPI = {
         AccountHolder: bankInfo.accountHolder,
       } : {};
       
-      // Log payload (ẩn thông tin nhạy cảm)
-      console.log("📤 Sending refund request:", {
-        bookingId: id,
-        payload: {
-          BankCode: payload.BankCode,
-          AccountNumber: payload.AccountNumber ? payload.AccountNumber.substring(0, 3) + "***" : undefined,
-          AccountHolder: payload.AccountHolder ? payload.AccountHolder.substring(0, 3) + "***" : undefined,
-        },
-        hasBankInfo: !!bankInfo,
-        bankInfoProvided: {
-          bankName: bankInfo?.bankName,
-          hasAccountNumber: !!bankInfo?.accountNumber,
-          hasAccountHolder: !!bankInfo?.accountHolder,
-        }
-      });
+
       
-      // Log full payload để debug (chỉ trong development)
-      if (process.env.NODE_ENV === 'development') {
-        console.log("📤 Full payload (dev only):", JSON.stringify(payload, null, 2));
-      }
+const response = await axiosClient.post(`/booking/${id}/refund`, payload);
+      const responseData = (response.data as any)?.Data || (response.data as any)?.data || response.data || {};
       
-      const response = await axiosClient.post<any>(`/booking/${id}/refund`, payload);
-      const data = response.data;
-      
-      console.log("📥 Refund API response:", data);
-      console.log("📥 Full response data:", JSON.stringify(data, null, 2));
-      
-      // Log để verify bank info có được gửi và backend có nhận được không
-      if (bankInfo) {
-        const responseData = data.Data || data.data || {};
-        // Backend trả về BankInfo object với BankCode, AccountNumber, AccountHolder
-        const receivedBankInfo = responseData.BankInfo || responseData.bankInfo || {};
-        
-        console.log("🔍 Verifying bank info in request:", {
-          sent: {
-            BankCode: payload.BankCode,
-            AccountNumber: payload.AccountNumber ? payload.AccountNumber.substring(0, 3) + "***" : undefined,
-            AccountHolder: payload.AccountHolder ? payload.AccountHolder.substring(0, 3) + "***" : undefined,
-          },
-          received: {
-            BankCode: receivedBankInfo.BankCode || receivedBankInfo.bankCode,
-            AccountNumber: receivedBankInfo.AccountNumber || receivedBankInfo.accountNumber 
-              ? (receivedBankInfo.AccountNumber || receivedBankInfo.accountNumber).substring(0, 3) + "***" 
-              : undefined,
-            AccountHolder: receivedBankInfo.AccountHolder || receivedBankInfo.accountHolder
-              ? (receivedBankInfo.AccountHolder || receivedBankInfo.accountHolder).substring(0, 3) + "***"
-              : undefined,
-          },
-          responseData: responseData,
-          responseSuccess: data.Success !== undefined ? data.Success : data.success,
-          responseMessage: data.Message || data.message,
-        });
-        
-        // Verify bank info được lưu
-        const receivedBankCode = receivedBankInfo.BankCode || receivedBankInfo.bankCode;
-        if (receivedBankCode) {
-          console.log("✅ Bank info đã được lưu vào database và trả về trong response:", {
-            BankCode: receivedBankCode,
-            hasAccountNumber: !!(receivedBankInfo.AccountNumber || receivedBankInfo.accountNumber),
-            hasAccountHolder: !!(receivedBankInfo.AccountHolder || receivedBankInfo.accountHolder),
-          });
-        } else {
-          console.warn("⚠️ Backend response không chứa bank info. Có thể backend chưa lưu vào database.");
-        }
-      }
-      
-      // Backend trả về ServiceResult: { Success: bool, Message: string, Data?: any }
-      // Data có thể chứa BankInfo object với BankCode, AccountNumber, AccountHolder
-      const responseData = data.Data || data.data || {};
       return {
-        success: data.Success !== undefined ? data.Success : data.success !== undefined ? data.success : true,
-        message: data.Message || data.message,
+        success: (response.data as any)?.Success !== undefined ? (response.data as any)?.Success : (response.data as any)?.success !== undefined ? (response.data as any)?.success : true,
+        message: (response.data as any)?.Message || (response.data as any)?.message,
         data: responseData,
-        // Thêm bankInfo để dễ truy cập
         bankInfo: responseData.BankInfo || responseData.bankInfo || null,
       };
     } catch (error: any) {
@@ -383,13 +342,86 @@ export const bookingAPI = {
 
   // ========== HOST BOOKING APIs ==========
   // GET /api/host/booking - Lấy tất cả bookings của host hiện tại
-  getHostBookings: async (): Promise<BookingDTO[]> => {
-    const response = await axiosClient.get<any>("/host/booking");
-    // Normalize response từ backend (PascalCase -> camelCase)
-    // Handle both array and object with data property
+  // Hỗ trợ các query parameters:
+  // - searchTerm: Tìm kiếm trong tên khách hàng, tên condotel, email, phone
+  // - status: Lọc theo status (Pending, Confirmed, Cancelled, Completed)
+  // - bookingDateFrom, bookingDateTo: Lọc theo khoảng ngày đặt (YYYY-MM-DD)
+  // - startDateFrom, startDateTo: Lọc theo ngày check-in (YYYY-MM-DD)
+  // - condotelId: Lọc theo condotel ID
+  // - sortBy: Sắp xếp theo bookingDate, startDate, endDate, totalPrice
+  // - sortDescending: true/false - Sắp xếp tăng/giảm dần
+  getHostBookings: async (filters?: {
+    searchTerm?: string;
+    status?: string;
+    bookingDateFrom?: string;
+    bookingDateTo?: string;
+    startDateFrom?: string;
+    startDateTo?: string;
+    condotelId?: number;
+    sortBy?: "bookingDate" | "startDate" | "endDate" | "totalPrice";
+    sortDescending?: boolean;
+    pageNumber?: number;
+    pageSize?: number;
+  }): Promise<BookingDTO[] | { data: BookingDTO[]; pagination?: any }> => {
+    const params: any = {};
+    
+    // Thêm các query parameters nếu có
+    if (filters) {
+      if (filters.searchTerm) params.searchTerm = filters.searchTerm;
+      if (filters.status) params.status = filters.status;
+      if (filters.bookingDateFrom) params.bookingDateFrom = filters.bookingDateFrom;
+      if (filters.bookingDateTo) params.bookingDateTo = filters.bookingDateTo;
+      if (filters.startDateFrom) params.startDateFrom = filters.startDateFrom;
+      if (filters.startDateTo) params.startDateTo = filters.startDateTo;
+      if (filters.condotelId !== undefined) params.condotelId = filters.condotelId;
+      if (filters.sortBy) params.sortBy = filters.sortBy;
+      if (filters.sortDescending !== undefined) params.sortDescending = filters.sortDescending;
+      if (filters.pageNumber) params.pageNumber = filters.pageNumber;
+      if (filters.pageSize) params.pageSize = filters.pageSize;
+    }
+    
+    const response = await axiosClient.get<any>("/host/booking", { params });
+    
+    // Check if response has pagination info
+    if (response.data && typeof response.data === 'object' && 'pagination' in response.data) {
+      // Paginated response: { data: [...], pagination: {...} }
+      let data: any[] = [];
+      if (Array.isArray(response.data.data)) {
+        data = response.data.data;
+      } else if (Array.isArray(response.data)) {
+        data = response.data;
+      }
+      
+
+      return {
+        data: data.map((item: any) => normalizeBooking(item)),
+        pagination: response.data.pagination,
+      };
+    }
+    
+    // Check for success wrapper: { success: true, data: [...], pagination: {...} }
+    if (response.data && typeof response.data === 'object' && 'success' in response.data && 'data' in response.data) {
+      let data: any[] = [];
+      if (Array.isArray(response.data.data)) {
+        data = response.data.data;
+      }
+      
+      const result: any = {
+        data: data.map((item: any) => normalizeBooking(item)),
+      };
+      
+      if ('pagination' in response.data) {
+        result.pagination = response.data.pagination;
+      }
+      
+      return result;
+    }
+    
+    // Legacy format: just array or { data: [...] }
     let data: any[] = [];
     if (Array.isArray(response.data)) {
       data = response.data;
+
     } else if (response.data && Array.isArray(response.data.data)) {
       data = response.data.data;
     } else if (response.data && typeof response.data === 'object') {
@@ -398,30 +430,10 @@ export const bookingAPI = {
     }
     
     if (!Array.isArray(data)) {
-      console.warn("getHostBookings: response.data is not an array:", response.data);
       return [];
     }
     
-    return data.map((item: any) => ({
-      bookingId: item.BookingId || item.bookingId,
-      condotelId: item.CondotelId || item.condotelId,
-      customerId: item.CustomerId || item.customerId,
-      startDate: item.StartDate || item.startDate,
-      endDate: item.EndDate || item.endDate,
-      totalPrice: item.TotalPrice !== undefined ? item.TotalPrice : item.totalPrice,
-      status: item.Status || item.status,
-      promotionId: item.PromotionId !== undefined ? item.PromotionId : item.promotionId,
-      isUsingRewardPoints: item.IsUsingRewardPoints !== undefined ? item.IsUsingRewardPoints : item.isUsingRewardPoints,
-      createdAt: item.CreatedAt || item.createdAt,
-      canRefund: item.CanRefund !== undefined ? item.CanRefund : item.canRefund,
-      refundStatus: item.RefundStatus !== undefined ? (item.RefundStatus || null) : (item.refundStatus !== undefined ? (item.refundStatus || null) : null),
-      // Thông tin condotel và customer nếu có
-      condotelName: item.CondotelName || item.condotelName,
-      condotelImageUrl: item.CondotelImageUrl || item.condotelImageUrl,
-      condotelPricePerNight: item.CondotelPricePerNight !== undefined ? item.CondotelPricePerNight : item.condotelPricePerNight,
-      customerName: item.CustomerName || item.customerName,
-      customerEmail: item.CustomerEmail || item.customerEmail,
-    }));
+    return data.map((item: any) => normalizeBooking(item));
   },
 
   // GET /api/host/booking/customer/{customerId} - Lấy bookings theo customer
@@ -444,24 +456,7 @@ export const bookingAPI = {
       return [];
     }
     
-    return data.map((item: any) => ({
-      bookingId: item.BookingId || item.bookingId,
-      condotelId: item.CondotelId || item.condotelId,
-      customerId: item.CustomerId || item.customerId,
-      startDate: item.StartDate || item.startDate,
-      endDate: item.EndDate || item.endDate,
-      totalPrice: item.TotalPrice !== undefined ? item.TotalPrice : item.totalPrice,
-      status: item.Status || item.status,
-      promotionId: item.PromotionId !== undefined ? item.PromotionId : item.promotionId,
-      isUsingRewardPoints: item.IsUsingRewardPoints !== undefined ? item.IsUsingRewardPoints : item.isUsingRewardPoints,
-      createdAt: item.CreatedAt || item.createdAt,
-      canRefund: item.CanRefund !== undefined ? item.CanRefund : item.canRefund,
-      condotelName: item.CondotelName || item.condotelName,
-      condotelImageUrl: item.CondotelImageUrl || item.condotelImageUrl,
-      condotelPricePerNight: item.CondotelPricePerNight !== undefined ? item.CondotelPricePerNight : item.condotelPricePerNight,
-      customerName: item.CustomerName || item.customerName,
-      customerEmail: item.CustomerEmail || item.customerEmail,
-    }));
+    return data.map((item: any) => normalizeBooking(item));
   },
 
   // PUT /api/host/booking/{id} - Host cập nhật booking status
@@ -504,6 +499,53 @@ export const bookingAPI = {
       canRefund: data.CanRefund !== undefined ? data.CanRefund : data.canRefund,
       message: data.Message || data.message,
     };
+  },
+
+  // POST /api/booking/refund-requests/{refundRequestId}/appeal - Kháng cáo yêu cầu hoàn tiền bị reject
+  appealRefundRequest: async (
+    refundRequestId: number,
+    appealReason: string
+  ): Promise<{ success: boolean; message?: string; data?: any }> => {
+    try {
+      if (!appealReason || appealReason.trim().length < 10 || appealReason.length > 500) {
+        return {
+          success: false,
+          message: "Lý do kháng cáo phải từ 10 đến 500 ký tự",
+        };
+      }
+
+      const payload = {
+        AppealReason: appealReason,
+      };
+
+      const response = await axiosClient.post<any>(
+        `/booking/refund-requests/${refundRequestId}/appeal`,
+        payload
+      );
+      const data = response.data;
+
+      return {
+        success: data.Success !== undefined ? data.Success : data.success !== undefined ? data.success : true,
+        message: data.Message || data.message,
+        data: data.Data || data.data,
+      };
+    } catch (error: any) {
+      console.error("❌ Error in appealRefundRequest API:", error);
+      console.error("❌ Error response:", error.response?.data);
+
+      if (error.response?.data) {
+        const serverData = error.response.data;
+        return {
+          success: false,
+          message: serverData.Message || serverData.message || "Kháng cáo hoàn tiền thất bại",
+        };
+      }
+
+      return {
+        success: false,
+        message: error.message || "Kháng cáo hoàn tiền thất bại",
+      };
+    }
   },
 };
 

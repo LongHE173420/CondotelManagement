@@ -6,16 +6,15 @@ import blogAPI, { BlogPostDetailDTO } from "api/blog";
 import Avatar from "shared/Avatar/Avatar";
 import Badge from "shared/Badge/Badge";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
-import ButtonSecondary from "shared/Button/ButtonSecondary";
-import Comment from "shared/Comment/Comment";
 import NcImage from "shared/NcImage/NcImage";
 import SocialsList from "shared/SocialsList/SocialsList";
-import Textarea from "shared/Textarea/Textarea";
 import { Helmet } from "react-helmet";
 
 const BlogSingle = () => {
   const { slug } = useParams<{ slug: string }>();
   const [post, setPost] = useState<BlogPostDetailDTO | null>(null);
+  const [relatedPosts, setRelatedPosts] = useState<BlogPostDetailDTO[]>([]);
+  const [moreRelatedPosts, setMoreRelatedPosts] = useState<BlogPostDetailDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -32,6 +31,23 @@ const BlogSingle = () => {
         const postData = await blogAPI.getPostBySlug(slug);
         if (postData) {
           setPost(postData);
+          // Load related posts by category
+          try {
+            const allPosts = await blogAPI.getPublishedPosts();
+            const related = allPosts
+              .filter((p: any) => p.postId !== postData.postId && p.categoryName === postData.categoryName)
+              .slice(0, 3);
+            setRelatedPosts(related as BlogPostDetailDTO[]);
+            
+            // Load more posts for the bottom "Khám phá thêm" section (up to 8 posts)
+            const moreRelated = allPosts
+              .filter((p: any) => p.postId !== postData.postId)
+              .slice(0, 8);
+            setMoreRelatedPosts(moreRelated as BlogPostDetailDTO[]);
+          } catch (err) {
+            console.error("Failed to load related posts:", err);
+            setRelatedPosts([]);
+          }
         } else {
           setError("Bài viết không tồn tại hoặc chưa được xuất bản");
         }
@@ -161,43 +177,58 @@ const BlogSingle = () => {
   };
 
   const renderCommentForm = () => {
-    return (
-      <div className="max-w-screen-md mx-auto pt-5">
-        <h3 className="text-xl font-semibold text-neutral-800 dark:text-neutral-200">
-          Responses (14)
-        </h3>
-        <form className="nc-SingleCommentForm mt-5">
-          <Textarea />
-          <div className="mt-2 space-x-3">
-            <ButtonPrimary>Submit</ButtonPrimary>
-            <ButtonSecondary>Cancel</ButtonSecondary>
-          </div>
-        </form>
-      </div>
-    );
+    return null;
   };
 
   const renderCommentLists = () => {
+    return null;
+  };
+
+  const renderRelatedPosts = () => {
+    if (relatedPosts.length === 0) {
+      return null;
+    }
+
     return (
       <div className="max-w-screen-md mx-auto">
-        <ul className="nc-SingleCommentLists space-y-5">
-          <li>
-            <Comment />
-            <ul className="pl-4 mt-5 space-y-5 md:pl-11">
-              <li>
-                <Comment isSmall />
-              </li>
-            </ul>
-          </li>
-          <li>
-            <Comment />
-            <ul className="pl-4 mt-5 space-y-5 md:pl-11">
-              <li>
-                <Comment isSmall />
-              </li>
-            </ul>
-          </li>
-        </ul>
+        <h3 className="text-2xl font-semibold text-neutral-900 dark:text-neutral-100 mb-6">
+          📚 Bài viết liên quan
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {relatedPosts.map((relatedPost) => (
+            <Link
+              key={relatedPost.postId}
+              to={`/blog-single/${relatedPost.slug}`}
+              className="group relative rounded-lg overflow-hidden bg-neutral-100 dark:bg-neutral-800 hover:shadow-lg transition-shadow duration-300"
+            >
+              {relatedPost.featuredImageUrl && (
+                <div className="relative aspect-video overflow-hidden bg-neutral-200 dark:bg-neutral-700">
+                  <NcImage
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    src={relatedPost.featuredImageUrl}
+                    alt={relatedPost.title}
+                  />
+                </div>
+              )}
+              <div className="p-4">
+                {relatedPost.categoryName && (
+                  <Badge color="purple" name={relatedPost.categoryName} />
+                )}
+                <h4 className="line-clamp-2 font-semibold text-neutral-900 dark:text-neutral-100 mt-2 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
+                  {relatedPost.title}
+                </h4>
+                <div className="flex items-center justify-between mt-4 text-xs text-neutral-500 dark:text-neutral-400">
+                  <span>{relatedPost.authorName || "Admin"}</span>
+                  <span>
+                    {relatedPost.publishedAt
+                      ? new Date(relatedPost.publishedAt).toLocaleDateString("vi-VN")
+                      : ""}
+                  </span>
+                </div>
+              </div>
+            </Link>
+          ))}
+        </div>
       </div>
     );
   };
@@ -288,16 +319,80 @@ const BlogSingle = () => {
         {renderTags()}
         <div className="max-w-screen-md mx-auto border-b border-t border-neutral-100 dark:border-neutral-700"></div>
         {renderAuthor()}
-        {renderCommentForm()}
-        {renderCommentLists()}
+        {renderRelatedPosts()}
       </div>
       <div className="relative bg-neutral-100 dark:bg-neutral-800 py-16 lg:py-28 mt-16 lg:mt-24">
         <div className="container ">
-          <h2 className="text-3xl font-semibold">Related posts</h2>
+          <h2 className="text-3xl font-semibold">Khám phá thêm</h2>
           <div className="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8">
-            {/*  */}
-            {DEMO_POSTS.filter((_, i) => i < 4).map(renderPostRelated)}
-            {/*  */}
+            {moreRelatedPosts.length > 0 ? (
+              moreRelatedPosts.map((blog) => (
+                <Link
+                  key={blog.postId}
+                  to={`/blog-single/${blog.slug}`}
+                  className="relative aspect-w-3 aspect-h-4 rounded-3xl overflow-hidden group"
+                >
+                  {blog.featuredImageUrl && (
+                    <NcImage
+                      className="object-cover w-full h-full transform group-hover:scale-105 transition-transform duration-300"
+                      src={blog.featuredImageUrl}
+                      alt={blog.title}
+                    />
+                  )}
+                  <div>
+                    <div className="absolute bottom-0 inset-x-0 h-1/2 bg-gradient-to-t from-black"></div>
+                  </div>
+                  <div className="flex flex-col justify-end items-start text-xs text-neutral-300 space-y-2.5 p-4">
+                    {blog.categoryName && <Badge name={blog.categoryName} />}
+                    <h2 className="block text-lg font-semibold text-white ">
+                      <span className="line-clamp-2">{blog.title}</span>
+                    </h2>
+                    <div className="flex">
+                      <span className="block text-neutral-200 hover:text-white font-medium truncate">
+                        {blog.authorName || "Admin"}
+                      </span>
+                      <span className="mx-1.5 font-medium">·</span>
+                      <span className="font-normal truncate">
+                        {blog.publishedAt
+                          ? new Date(blog.publishedAt).toLocaleDateString("vi-VN")
+                          : ""}
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              ))
+            ) : (
+              DEMO_POSTS.filter((_, i) => i < 4).map((post) => (
+                <div
+                  key={post.id}
+                  className="relative aspect-w-3 aspect-h-4 rounded-3xl overflow-hidden group"
+                >
+                  <Link to={post.href} />
+                  <NcImage
+                    className="object-cover w-full h-full transform group-hover:scale-105 transition-transform duration-300"
+                    src={post.featuredImage}
+                  />
+                  <div>
+                    <div className="absolute bottom-0 inset-x-0 h-1/2 bg-gradient-to-t from-black"></div>
+                  </div>
+                  <div className="flex flex-col justify-end items-start text-xs text-neutral-300 space-y-2.5 p-4">
+                    <Badge name="Categories" />
+                    <h2 className="block text-lg font-semibold text-white ">
+                      <span className="line-clamp-2">{post.title}</span>
+                    </h2>
+
+                    <div className="flex">
+                      <span className="block text-neutral-200 hover:text-white font-medium truncate">
+                        {post.author.displayName}
+                      </span>
+                      <span className="mx-1.5 font-medium">·</span>
+                      <span className="font-normal truncate">{post.date}</span>
+                    </div>
+                  </div>
+                  <Link to={post.href} />
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>

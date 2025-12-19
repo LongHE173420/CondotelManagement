@@ -19,6 +19,18 @@ const PageAdminResorts: React.FC = () => {
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [showUtilitiesModal, setShowUtilitiesModal] = useState(false);
   const [selectedResortForUtilities, setSelectedResortForUtilities] = useState<ResortDTO | null>(null);
+  // Modal confirmation state
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    action: (() => void) | null;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    action: null,
+  });
 
   useEffect(() => {
     loadResorts();
@@ -54,24 +66,28 @@ const PageAdminResorts: React.FC = () => {
     }
   };
 
-  const handleDelete = async (id: number, name: string) => {
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa resort "${name}"?`)) {
-      return;
-    }
-
-    setDeletingId(id);
-    try {
-      await resortAPI.deleteAdmin(id);
-      setSuccess(`Đã xóa resort "${name}" thành công!`);
-      await loadResorts();
-      toastSuccess(`Đã xóa resort "${name}" thành công!`);
-    } catch (err: any) {
-      const errorMsg = err.response?.data?.message || "Không thể xóa resort";
-      setError(errorMsg);
-      toastError(errorMsg);
-    } finally {
-      setDeletingId(null);
-    }
+  const handleDelete = (id: number, name: string) => {
+    setConfirmModal({
+      isOpen: true,
+      title: "Xóa Resort",
+      message: `Bạn có chắc chắn muốn xóa resort "${name}"?`,
+      action: async () => {
+        setDeletingId(id);
+        try {
+          await resortAPI.deleteAdmin(id);
+          setSuccess(`Đã xóa resort "${name}" thành công!`);
+          await loadResorts();
+          toastSuccess(`Đã xóa resort "${name}" thành công!`);
+          setConfirmModal({ isOpen: false, title: "", message: "", action: null });
+        } catch (err: any) {
+          const errorMsg = err.response?.data?.message || "Không thể xóa resort";
+          setError(errorMsg);
+          toastError(errorMsg);
+        } finally {
+          setDeletingId(null);
+        }
+      },
+    });
   };
 
   const getLocationName = (locationId?: number): string => {
@@ -207,9 +223,6 @@ const PageAdminResorts: React.FC = () => {
                     Địa chỉ
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wider">
-                    Thành phố / Quốc gia
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wider">
                     Hành động
                   </th>
                 </tr>
@@ -233,9 +246,6 @@ const PageAdminResorts: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 text-sm text-neutral-500 dark:text-neutral-400">
                       {resort.address || "-"}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500 dark:text-neutral-400">
-                      {resort.city || "-"} {resort.country ? `, ${resort.country}` : ""}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm space-x-2">
                       <ButtonSecondary
@@ -329,6 +339,34 @@ const PageAdminResorts: React.FC = () => {
           }}
         />
       )}
+
+      {/* Custom Confirmation Modal */}
+      {confirmModal.isOpen && (
+        <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-neutral-800 rounded-lg shadow-2xl p-6 max-w-sm w-11/12">
+            <h3 className="text-lg font-bold text-neutral-900 dark:text-neutral-100 mb-2">
+              {confirmModal.title}
+            </h3>
+            <p className="text-neutral-600 dark:text-neutral-400 mb-6">
+              {confirmModal.message}
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setConfirmModal({ isOpen: false, title: "", message: "", action: null })}
+                className="px-4 py-2 rounded-lg bg-neutral-200 dark:bg-neutral-700 text-neutral-800 dark:text-neutral-100 font-medium hover:bg-neutral-300 dark:hover:bg-neutral-600 transition"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={() => confirmModal.action?.()}
+                className="px-4 py-2 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 transition"
+              >
+                Xóa
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -348,8 +386,6 @@ const ResortModal: React.FC<ResortModalProps> = ({ resort, locations, loadingLoc
     description: resort?.description || "",
     locationId: resort?.locationId,
     address: resort?.address || "",
-    city: resort?.city || "",
-    country: resort?.country || "",
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -697,31 +733,6 @@ const ResortModal: React.FC<ResortModalProps> = ({ resort, locations, loadingLoc
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                    Thành phố
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.city || ""}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, city: e.target.value }))}
-                    className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 dark:bg-neutral-700 dark:text-neutral-100"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                    Quốc gia
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.country || ""}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, country: e.target.value }))}
-                    className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 dark:bg-neutral-700 dark:text-neutral-100"
-                  />
-                </div>
-              </div>
 
               {error && (
                 <div className="p-3 bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-200 rounded-lg text-sm whitespace-pre-line">
@@ -758,6 +769,18 @@ const ResortUtilitiesModal: React.FC<ResortUtilitiesModalProps> = ({ resort, onC
   const [success, setSuccess] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
   const [deletingUtilityId, setDeletingUtilityId] = useState<number | null>(null);
+  // Modal confirmation state
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    action: (() => void) | null;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    action: null,
+  });
 
   useEffect(() => {
     loadData();
@@ -800,25 +823,29 @@ const ResortUtilitiesModal: React.FC<ResortUtilitiesModalProps> = ({ resort, onC
     }
   };
 
-  const handleRemoveUtility = async (utilityId: number) => {
-    if (!window.confirm("Bạn có chắc chắn muốn xóa utility này khỏi resort?")) {
-      return;
-    }
-
-    setDeletingUtilityId(utilityId);
-    setError("");
-    try {
-      await resortAPI.removeUtility(resort.resortId, utilityId);
-      setSuccess("Xóa utility thành công!");
-      await loadData();
-      toastSuccess("Xóa utility thành công!");
-    } catch (err: any) {
-      const errorMsg = err.response?.data?.message || "Không thể xóa utility";
-      setError(errorMsg);
-      toastError(errorMsg);
-    } finally {
-      setDeletingUtilityId(null);
-    }
+  const handleRemoveUtility = (utilityId: number) => {
+    setConfirmModal({
+      isOpen: true,
+      title: "Xóa Utility",
+      message: "Bạn có chắc chắn muốn xóa utility này khỏi resort?",
+      action: async () => {
+        setDeletingUtilityId(utilityId);
+        setError("");
+        try {
+          await resortAPI.removeUtility(resort.resortId, utilityId);
+          setSuccess("Xóa utility thành công!");
+          await loadData();
+          toastSuccess("Xóa utility thành công!");
+          setConfirmModal({ isOpen: false, title: "", message: "", action: null });
+        } catch (err: any) {
+          const errorMsg = err.response?.data?.message || "Không thể xóa utility";
+          setError(errorMsg);
+          toastError(errorMsg);
+        } finally {
+          setDeletingUtilityId(null);
+        }
+      },
+    });
   };
 
   // Prevent body scroll when modal is open
@@ -939,6 +966,34 @@ const ResortUtilitiesModal: React.FC<ResortUtilitiesModalProps> = ({ resort, onC
           onAdd={handleAddUtility}
           loading={loadingUtilities}
         />
+      )}
+
+      {/* Custom Confirmation Modal */}
+      {confirmModal.isOpen && (
+        <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-neutral-800 rounded-lg shadow-2xl p-6 max-w-sm w-11/12">
+            <h3 className="text-lg font-bold text-neutral-900 dark:text-neutral-100 mb-2">
+              {confirmModal.title}
+            </h3>
+            <p className="text-neutral-600 dark:text-neutral-400 mb-6">
+              {confirmModal.message}
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setConfirmModal({ isOpen: false, title: "", message: "", action: null })}
+                className="px-4 py-2 rounded-lg bg-neutral-200 dark:bg-neutral-700 text-neutral-800 dark:text-neutral-100 font-medium hover:bg-neutral-300 dark:hover:bg-neutral-600 transition"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={() => confirmModal.action?.()}
+                className="px-4 py-2 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 transition"
+              >
+                Xóa
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

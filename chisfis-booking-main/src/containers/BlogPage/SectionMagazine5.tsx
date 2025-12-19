@@ -5,11 +5,15 @@ import Card13 from "./Card13";
 
 export interface SectionMagazine5Props {
   posts: PostDataType[];
+  className?: string;
 }
 
-const SectionMagazine5: FC<SectionMagazine5Props> = ({ posts }) => {
+const SectionMagazine5: FC<SectionMagazine5Props> = ({
+  posts,
+  className = ""
+}) => {
   return (
-    <div className="nc-SectionMagazine5">
+    <div className={`nc-SectionMagazine5 ${className}`}>
       <div className="grid lg:grid-cols-2 gap-6 md:gap-8">
         {posts[0] && <Card12 post={posts[0]} />}
         <div className="grid gap-6 md:gap-8">
