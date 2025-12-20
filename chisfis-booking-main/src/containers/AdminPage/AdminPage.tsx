@@ -7,8 +7,6 @@ import { adminAPI } from "api/admin";
 import PageAccountList from "containers/PageAccountList/PageAccountList";
 import AccountPage from "containers/AccountPage/AccountPage";
 import PageBlogList from "containers/PageManageBlog/PageBlogList";
-import PageBlogCategory from "containers/PageManageBlog/PageBlogCategory";
-import PageBlogAdd from "containers/PageManageBlog/PageBlogAdd";
 import PageManageReviews from "containers/PageManageReviews/PageManageReviews";
 import PageAdminRefund from "containers/PageAdminRefund/PageAdminRefund";
 import PageAdminPayoutBooking from "containers/PageAdminPayoutBooking/PageAdminPayoutBooking";
@@ -25,7 +23,7 @@ export interface AdminPageProps {
   className?: string;
 }
 
-type AdminTab = "dashboard" | "accounts" | "profile" | "blog" | "blog-categories" | "add-blog" | "reviews" | "refunds" | "payouts" | "locations" | "resorts" | "packages" | "utilities" | "reports" | "chat";
+type AdminTab = "dashboard" | "accounts" | "profile" | "blog" | "reviews" | "refunds" | "payouts" | "locations" | "resorts" | "packages" | "utilities" | "reports" | "chat";
 
 const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
   const { isAdmin, isLoading } = useAuth();
@@ -35,7 +33,7 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
 
   // Sync tab with URL
   useEffect(() => {
-    if (tabParam && ["dashboard", "accounts", "profile", "blog", "blog-categories", "add-blog", "reviews", "refunds", "payouts", "locations", "resorts", "packages", "utilities", "reports", "chat"].includes(tabParam)) {
+    if (tabParam && ["dashboard", "accounts", "profile", "blog", "reviews", "refunds", "payouts", "locations", "resorts", "packages", "utilities", "reports", "chat"].includes(tabParam)) {
       setActiveTab(tabParam);
     }
   }, [tabParam]);
@@ -242,36 +240,6 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                 </svg>
                 Blog
-              </span>
-            </button>
-            <button
-              onClick={() => handleTabChange("blog-categories")}
-              className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${
-                activeTab === "blog-categories"
-                  ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-105"
-                  : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-blue-600 dark:hover:text-blue-400"
-              }`}
-            >
-              <span className="flex items-center gap-2">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
-                </svg>
-                Danh mục Blog
-              </span>
-            </button>
-            <button
-              onClick={() => handleTabChange("add-blog")}
-              className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${
-                activeTab === "add-blog"
-                  ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-105"
-                  : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-blue-600 dark:hover:text-blue-400"
-              }`}
-            >
-              <span className="flex items-center gap-2">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                Thêm Blog
               </span>
             </button>
             <button
@@ -580,36 +548,6 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
                 </div>
               </div>
               <PageBlogList />
-            </div>
-          </div>
-        ) : activeTab === "blog-categories" ? (
-          <div className="space-y-6">
-            <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg p-6">
-              <div className="flex justify-between items-center mb-6">
-                <div>
-                  <h2 className="text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
-                    Quản lý Danh mục Blog
-                  </h2>
-                  <p className="text-neutral-600 dark:text-neutral-400 mt-1">
-                    Quản lý danh mục bài viết blog
-                  </p>
-                </div>
-              </div>
-              <PageBlogCategory />
-            </div>
-          </div>
-        ) : activeTab === "add-blog" ? (
-          <div className="space-y-6">
-            <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg p-6">
-              <div className="mb-6">
-                <h2 className="text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
-                  Thêm Bài Viết Blog Mới
-                </h2>
-                <p className="text-neutral-600 dark:text-neutral-400 mt-1">
-                  Tạo một bài viết blog mới
-                </p>
-              </div>
-              <PageBlogAdd />
             </div>
           </div>
         ) : activeTab === "profile" ? (

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axiosClient from "api/axiosClient";
-import { packageAPI, PackageDto } from "api/package";
+import { packageAPI, PackageDto, HostPackageDetailsDto } from "api/package";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
@@ -8,17 +8,28 @@ import { Helmet } from "react-helmet";
 
 const PricingPage: React.FC = () => {
     const [packages, setPackages] = useState<PackageDto[]>([]);
+    const [currentPackage, setCurrentPackage] = useState<HostPackageDetailsDto | null>(null);
     const [loading, setLoading] = useState(true);
     const [purchaseLoading, setPurchaseLoading] = useState<number | null>(null);
     const navigate = useNavigate();
 
     useEffect(() => {
-        const fetchPackages = async () => {
+        const fetchData = async () => {
             try {
                 setLoading(true);
-                const data = await packageAPI.getAllPackages();
-                const sorted = [...data].sort((a, b) => a.price - b.price);
+                // Load available packages
+                const packagesData = await packageAPI.getAllPackages();
+                const sorted = [...packagesData].sort((a, b) => a.price - b.price);
                 setPackages(sorted);
+
+                // Load current host package
+                try {
+                    const myPackage = await packageAPI.getMyPackage();
+                    setCurrentPackage(myPackage);
+                } catch (err) {
+                    // If 404 or 400, it's okay (no package yet)
+                    setCurrentPackage(null);
+                }
             } catch (error) {
                 toast.error("Không thể tải danh sách gói dịch vụ.");
             } finally {
@@ -26,16 +37,28 @@ const PricingPage: React.FC = () => {
             }
         };
 
-        fetchPackages();
+        fetchData();
     }, []);
 
     const handlePurchase = async (pkg: PackageDto) => {
-        // Use toast confirm instead of window.confirm
-        toast.info(`🔔 Xác nhận mua gói "${pkg.name}" - ${pkg.price.toLocaleString("vi-VN")} VNĐ?`, {
-            position: "bottom-center",
-            autoClose: false,
-            closeButton: true,
-        });
+        // Check if user is trying to purchase the same active package
+        if (currentPackage && currentPackage.status === "Active" && currentPackage.packageName === pkg.name) {
+            toast.warning("Bạn đang sử dụng gói này rồi!");
+            return;
+        }
+
+        // If user has an active package, only allow upgrading (higher packageId)
+        if (currentPackage && currentPackage.status === "Active") {
+            const currentPkg = packages.find(p => p.name === currentPackage.packageName);
+            if (currentPkg && pkg.packageId <= currentPkg.packageId) {
+                toast.warning("Bạn chỉ có thể nâng cấp lên gói cao hơn!");
+                return;
+            }
+        }
+
+        // Show confirmation
+        const confirm = window.confirm(`Bạn có chắc chắn muốn mua gói "${pkg.name}" với giá ${pkg.price.toLocaleString("vi-VN")} VNĐ?`);
+        if (!confirm) return;
 
         setPurchaseLoading(pkg.packageId);
         try {
@@ -57,7 +80,14 @@ const PricingPage: React.FC = () => {
                 toast.error("Không nhận được link thanh toán từ PayOS");
             }
         } catch (error: any) {
-            toast.error(error.response?.data?.message || error.message || "Mua gói thất bại");
+            // Check if error message indicates already having highest package
+            const errorMsg = error.response?.data?.message || error.message || "Mua gói thất bại";
+            toast.error(errorMsg);
+
+            // If error is about highest package, disable the button for highest package?
+            if (errorMsg.includes("cao nhất")) {
+                // Optionally, you can set a state to disable the button for the highest package
+            }
         } finally {
             setPurchaseLoading(null);
         }
@@ -74,7 +104,8 @@ const PricingPage: React.FC = () => {
         );
     }
 
-    const premiumPackage = packages.length > 1 ? packages[packages.length - 1] : null;
+    // Find the highest package (assuming sorted by price)
+    const highestPackage = packages.length > 0 ? packages[packages.length - 1] : null;
 
     return (
         <>
@@ -100,6 +131,16 @@ const PricingPage: React.FC = () => {
                         <p className="text-lg text-gray-600 leading-relaxed">
                             Chọn gói phù hợp để đăng nhiều condotel hơn, tiếp cận hàng nghìn khách hàng tiềm năng!
                         </p>
+
+                        {/* Display current package if any */}
+                        {currentPackage && currentPackage.status === "Active" && (
+                            <div className="mt-6 inline-flex items-center gap-2 bg-green-100 text-green-800 px-4 py-2 rounded-full text-sm font-medium">
+                                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                </svg>
+                                <span>Gói hiện tại: {currentPackage.packageName} (Hết hạn: {currentPackage.endDate})</span>
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -107,18 +148,29 @@ const PricingPage: React.FC = () => {
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
                     <div className={`grid gap-8 ${packages.length === 2 ? 'md:grid-cols-2 max-w-4xl' : packages.length === 3 ? 'md:grid-cols-3 max-w-6xl' : 'md:grid-cols-2 lg:grid-cols-4'} mx-auto`}>
                         {packages.map((pkg) => {
-                            const isPremium = premiumPackage?.packageId === pkg.packageId;
+                            const isPremium = highestPackage?.packageId === pkg.packageId;
+                            const isCurrentPackage = currentPackage && currentPackage.status === "Active" && currentPackage.packageName === pkg.name;
+                            const isLowerPackage = currentPackage && currentPackage.status === "Active" && packages.findIndex(p => p.name === currentPackage.packageName) >= packages.findIndex(p => p.name === pkg.name);
 
                             return (
                                 <div
                                     key={pkg.packageId}
                                     className={`relative bg-white rounded-2xl transition-all duration-300 hover:shadow-2xl ${isPremium
-                                            ? "ring-2 ring-purple-500 shadow-xl md:scale-105"
-                                            : "shadow-lg hover:scale-105"
-                                        }`}
+                                        ? "ring-2 ring-purple-500 shadow-xl md:scale-105"
+                                        : "shadow-lg hover:scale-105"
+                                        } ${isCurrentPackage ? "ring-2 ring-green-500" : ""}`}
                                 >
+                                    {/* Current Package Badge */}
+                                    {isCurrentPackage && (
+                                        <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 z-10">
+                                            <div className="bg-green-500 text-white px-4 py-1 rounded-full text-xs font-bold shadow-lg">
+                                                ĐANG SỬ DỤNG
+                                            </div>
+                                        </div>
+                                    )}
+
                                     {/* Premium Badge */}
-                                    {isPremium && (
+                                    {isPremium && !isCurrentPackage && (
                                         <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 z-10">
                                             <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-2 rounded-full text-sm font-bold shadow-lg">
                                                 PHỔ BIẾN NHẤT
@@ -223,10 +275,14 @@ const PricingPage: React.FC = () => {
                                         {/* CTA Button */}
                                         <button
                                             onClick={() => handlePurchase(pkg)}
-                                            disabled={purchaseLoading === pkg.packageId}
+                                            disabled={
+                                                purchaseLoading === pkg.packageId ||
+                                                isCurrentPackage ||
+                                                !!(currentPackage && currentPackage.status === "Active" && isLowerPackage)
+                                            }
                                             className={`w-full py-4 rounded-xl font-semibold text-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed ${isPremium
-                                                    ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg hover:shadow-xl hover:from-purple-700 hover:to-pink-700"
-                                                    : "bg-gray-900 text-white hover:bg-gray-800 shadow-md hover:shadow-lg"
+                                                ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg hover:shadow-xl hover:from-purple-700 hover:to-pink-700"
+                                                : "bg-gray-900 text-white hover:bg-gray-800 shadow-md hover:shadow-lg"
                                                 }`}
                                         >
                                             {purchaseLoading === pkg.packageId ? (
@@ -234,6 +290,10 @@ const PricingPage: React.FC = () => {
                                                     <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                                                     Đang xử lý...
                                                 </span>
+                                            ) : isCurrentPackage ? (
+                                                "Đang sử dụng"
+                                            ) : currentPackage && currentPackage.status === "Active" && isLowerPackage ? (
+                                                "Không thể chọn"
                                             ) : (
                                                 "Chọn gói này ngay"
                                             )}
