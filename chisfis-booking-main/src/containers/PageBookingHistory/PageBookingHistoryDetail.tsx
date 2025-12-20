@@ -6,6 +6,7 @@ import reviewAPI from "api/review";
 import { useAuth } from "contexts/AuthContext";
 import { validateBookingOwnership } from "utils/bookingSecurity";
 import { toastSuccess, toastError, showErrorMessage } from "utils/toast";
+import ConfirmModal from "components/ConfirmModal";
 
 // Format số tiền
 const formatPrice = (price: number | undefined): string => {
@@ -122,6 +123,8 @@ const PageBookingHistoryDetail = () => {
   const [cancelling, setCancelling] = useState(false);
   const [unauthorized, setUnauthorized] = useState(false);
   const [expiredMessage, setExpiredMessage] = useState("");
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showRefundModal, setShowRefundModal] = useState(false);
 
   // Fetch booking và condotel details
   useEffect(() => {
@@ -330,11 +333,13 @@ const PageBookingHistoryDetail = () => {
   // Xử lý hủy booking
   const handleCancel = async () => {
     if (!booking) return;
-    
-    if (!window.confirm("Bạn có chắc chắn muốn hủy đặt phòng này? Nếu hủy trong vòng 2 ngày, bạn có thể yêu cầu hoàn tiền.")) {
-      return;
-    }
+    setShowCancelModal(true);
+  };
 
+  const confirmCancel = async () => {
+    if (!booking) return;
+    setShowCancelModal(false);
+    
     setCancelling(true);
     try {
       const createdAt = booking.createdAt;
@@ -348,11 +353,9 @@ const PageBookingHistoryDetail = () => {
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         
         if (diffDays <= 2) {
-          // Nếu hủy trong vòng 2 ngày, tự động chuyển đến trang nhập thông tin hoàn tiền
-          if (window.confirm("Đã hủy đặt phòng thành công! Bạn có muốn điền thông tin để yêu cầu hoàn tiền ngay bây giờ không?")) {
-            navigate(`/request-refund/${booking.bookingId}`);
-            return; // Không reload, vì sẽ navigate đi
-          }
+          // Nếu hủy trong vòng 2 ngày, hỏi xem có muốn hoàn tiền không
+          setShowRefundModal(true);
+          return;
         }
       }
       
@@ -364,6 +367,27 @@ const PageBookingHistoryDetail = () => {
     } catch (err: any) {
       toastError("Không thể hủy booking");
       showErrorMessage("Hủy đặt phòng", err);
+    } finally {
+      setCancelling(false);
+    }
+  };
+
+  const confirmRefund = () => {
+    if (!booking) return;
+    setShowRefundModal(false);
+    navigate(`/request-refund/${booking.bookingId}`);
+  };
+
+  const skipRefund = async () => {
+    if (!booking) return;
+    setShowRefundModal(false);
+    toastSuccess("Đã hủy đặt phòng thành công.", { autoClose: 3000 });
+    // Reload booking để cập nhật trạng thái
+    try {
+      const updatedBooking = await bookingAPI.getBookingById(booking.bookingId);
+      setBooking(updatedBooking);
+    } catch (err) {
+      // Ignore error
     } finally {
       setCancelling(false);
     }

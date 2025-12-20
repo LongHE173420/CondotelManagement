@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import bookingAPI, { BookingDTO } from "api/booking";
+import bookingAPI, { BookingDTO, RefundRequestDTO } from "api/booking";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
 import ButtonSecondary from "shared/Button/ButtonSecondary";
 import { useAuth } from "contexts/AuthContext";
@@ -37,6 +37,8 @@ const PageRequestRefund = () => {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
+  const [existingRefund, setExistingRefund] = useState<RefundRequestDTO | null>(null);
+  const [isResubmission, setIsResubmission] = useState(false);
 
   // Form state
   const [bankName, setBankName] = useState("");
@@ -107,25 +109,39 @@ const PageRequestRefund = () => {
           
           if (!canRequestRefund) {
             setError(`Booking đang ở trạng thái "${bookingData.status}" không thể hoàn tiền. Chỉ có thể hoàn tiền cho booking đã bị hủy SAU KHI ĐÃ THANH TOÁN (Cancelled với totalPrice > 0) hoặc đang ở trạng thái Pending/Confirmed/Completed/Refunded (nếu chưa có refund request completed).`);
-          } else {
-            // ✅ Kiểm tra xem có trong vòng 2 ngày TRƯỚC ngày check-in không
-            if (bookingData.startDate) {
-              const checkInDate = new Date(bookingData.startDate);
-              const now = new Date();
-              const daysBeforeCheckIn = (checkInDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
-              
-              if (daysBeforeCheckIn < 2) {
-                const daysRemaining = Math.ceil(daysBeforeCheckIn);
-                if (daysRemaining < 0) {
-                  setError(`❌ Không thể hủy booking. Ngày check-in đã qua hoặc đang trong thời gian sử dụng (${checkInDate.toLocaleDateString('vi-VN')}).`);
-                } else if (daysRemaining === 0) {
-                  setError(`❌ Không thể hủy booking. Hôm nay là ngày check-in (${checkInDate.toLocaleDateString('vi-VN')}). Bạn chỉ có thể hủy trước ít nhất 2 ngày.`);
-                } else {
-                  setError(`❌ Không thể hủy booking. Bạn chỉ có thể hủy trước ít nhất 2 ngày so với ngày check-in. Còn ${daysRemaining} ngày nữa là đến ngày check-in (${checkInDate.toLocaleDateString('vi-VN')}).`);
-                }
+          }
+          // ✅ ĐÃ XÓA KIỂM TRA 2 NGÀY TRƯỚC CHECK-IN - Cho phép refund bất kỳ lúc nào sau khi hủy
+        }
+
+        // Load thông tin refund request hiện có (nếu có) để check resubmission
+        try {
+          const refundRequests = await bookingAPI.getRefundRequests();
+          const existingRefundForBooking = refundRequests?.find((r: any) => r.bookingId === bookingData.bookingId);
+          
+          if (existingRefundForBooking) {
+            setExistingRefund(existingRefundForBooking);
+            
+            // Nếu status là Rejected và resubmissionCount < 1, cho phép resubmit
+            if (existingRefundForBooking.status === "Rejected") {
+              const resubmissionCount = existingRefundForBooking.resubmissionCount || 0;
+              if (resubmissionCount < 1) {
+                setIsResubmission(true);
+                // Pre-fill form với thông tin cũ nếu có
+                if (existingRefundForBooking.bankCode) setBankName(existingRefundForBooking.bankCode);
+                if (existingRefundForBooking.accountNumber) setAccountNumber(existingRefundForBooking.accountNumber);
+                if (existingRefundForBooking.accountHolder) setAccountHolder(existingRefundForBooking.accountHolder);
+              } else {
+                setError("Bạn đã vượt quá số lần gửi lại yêu cầu hoàn tiền (tối đa 1 lần). Vui lòng liên hệ admin.");
               }
+            } else if (existingRefundForBooking.status === "Pending") {
+              setError("Bạn đã có yêu cầu hoàn tiền đang chờ xử lý. Vui lòng đợi admin xử lý.");
+            } else if (existingRefundForBooking.status === "Completed" || existingRefundForBooking.status === "Refunded") {
+              setError("Booking này đã được hoàn tiền thành công.");
             }
           }
+        } catch (refundErr) {
+          // Ignore error loading refund requests - continue with normal flow
+          console.log("Could not load existing refund requests:", refundErr);
         }
       } catch (err: any) {
         setError("Không thể tải thông tin booking. Vui lòng thử lại sau.");
@@ -248,23 +264,9 @@ const PageRequestRefund = () => {
         throw new Error("Booking không có số tiền hợp lệ để hoàn tiền.");
       }
 
-      // ✅ KIỂM TRA ĐIỀU KIỆN: Chỉ có thể yêu cầu hoàn tiền nếu hủy trước ít nhất 2 ngày so với ngày check-in
-      if (currentBooking.startDate) {
-        const checkInDate = new Date(currentBooking.startDate);
-        const currentDate = new Date();
-        const daysBeforeCheckIn = (checkInDate.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24);
-        
-        if (daysBeforeCheckIn < 2) {
-          const daysRemaining = Math.ceil(daysBeforeCheckIn);
-          if (daysRemaining < 0) {
-            throw new Error(`❌ Không thể hủy booking. Ngày check-in đã qua hoặc đang trong thời gian sử dụng (${checkInDate.toLocaleDateString('vi-VN')}).`);
-          } else if (daysRemaining === 0) {
-            throw new Error(`❌ Không thể hủy booking. Hôm nay là ngày check-in (${checkInDate.toLocaleDateString('vi-VN')}). Bạn chỉ có thể hủy trước ít nhất 2 ngày.`);
-          } else {
-            throw new Error(`❌ Không thể hủy booking. Bạn chỉ có thể hủy trước ít nhất 2 ngày so với ngày check-in. Còn ${daysRemaining} ngày nữa là đến ngày check-in (${checkInDate.toLocaleDateString('vi-VN')}).`);
-          }
-        }
-      }
+      // ✅ ĐÃ XÓA KIỂM TRA 2 NGÀY TRƯỚC CHECK-IN
+      // Theo tài liệu: "bỏ qua check 2 ngày từ kể ngày checkin"
+      // Cho phép refund bất kỳ lúc nào sau khi hủy booking
 
       const finalStatus = currentBooking.status?.toLowerCase()?.trim();
       const validStatuses = ["cancelled", "refunded", "completed", "confirmed", "pending"];
@@ -293,7 +295,7 @@ const PageRequestRefund = () => {
       });
 
       if (result.success) {
-        const successMsg = result.message || "Yêu cầu hoàn tiền đã được gửi thành công. Admin sẽ xử lý trong vòng 1-3 ngày làm việc.";
+        const successMsg = result.message || "Yêu cầu hoàn tiền đã được gửi thành công. Quản trị viên sẽ xử lý trong vòng 1-3 ngày làm việc.";
         
         // Parse bank info từ response (có thể là BankInfo hoặc bankInfo)
         const bankInfoFromResponse = result.bankInfo || result.data?.BankInfo || result.data?.bankInfo || null;
@@ -390,11 +392,45 @@ const PageRequestRefund = () => {
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Yêu cầu Hoàn tiền</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            {isResubmission ? "Gửi lại Yêu cầu Hoàn tiền" : "Yêu cầu Hoàn tiền"}
+          </h1>
           <p className="text-gray-600">
-            Điền thông tin tài khoản ngân hàng để nhận tiền hoàn cho booking #{booking.bookingId}
+            {isResubmission 
+              ? `Cập nhật thông tin ngân hàng và gửi lại yêu cầu hoàn tiền cho booking #${booking.bookingId}`
+              : `Điền thông tin tài khoản ngân hàng để nhận tiền hoàn cho booking #${booking.bookingId}`
+            }
           </p>
         </div>
+
+        {/* Resubmission Notice */}
+        {isResubmission && existingRefund && (
+          <div className="mb-6 p-4 bg-blue-50 border-2 border-blue-300 rounded-lg">
+            <div className="flex items-start">
+              <svg className="w-6 h-6 text-blue-600 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+              </svg>
+              <div className="flex-1">
+                <p className="font-semibold text-blue-900 mb-2">⚠️ Yêu cầu hoàn tiền trước đây đã bị từ chối</p>
+                <p className="text-sm text-blue-800 mb-2">
+                  <strong>Lý do từ chối:</strong> {existingRefund.rejectionReason || "Không có lý do cụ thể"}
+                </p>
+                <p className="text-sm text-blue-800 mb-2">
+                  <strong>Thời gian từ chối:</strong> {existingRefund.rejectedAt ? new Date(existingRefund.rejectedAt).toLocaleString("vi-VN") : "—"}
+                </p>
+                <div className="bg-yellow-50 border border-yellow-300 rounded p-3 mt-3">
+                  <p className="text-sm text-yellow-900">
+                    <strong>📌 Quan trọng:</strong> Bạn có thể sửa thông tin ngân hàng và gửi lại yêu cầu một lần duy nhất. 
+                    Vui lòng kiểm tra kỹ thông tin trước khi gửi.
+                  </p>
+                  <p className="text-sm text-yellow-900 mt-1">
+                    Số lần gửi lại: <strong>{(existingRefund.resubmissionCount || 0)}/1</strong>
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Success message */}
         {success && (
@@ -582,6 +618,8 @@ const PageRequestRefund = () => {
                     </svg>
                     Đã gửi thành công!
                   </>
+                ) : isResubmission ? (
+                  "🔄 Gửi lại yêu cầu"
                 ) : (
                   "Gửi yêu cầu hoàn tiền"
                 )}

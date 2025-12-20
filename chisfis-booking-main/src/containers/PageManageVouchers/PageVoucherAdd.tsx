@@ -24,14 +24,14 @@ const PageVoucherAdd = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!code || discountValue <= 0 || !startDate || !endDate) {
-      alert("Vui lòng điền đầy đủ thông tin: Mã, Giá trị, Ngày bắt đầu và Ngày kết thúc.");
+      toastWarning("Vui lòng điền đầy đủ thông tin: Mã, Giá trị, Ngày bắt đầu và Ngày kết thúc.");
       return;
     }
     setIsLoading(true);
     // TODO: Gọi API
     setTimeout(() => {
       setIsLoading(false);
-      alert("Tạo voucher thành công!");
+      toastSuccess("Tạo voucher thành công!");
       navigate("/manage-vouchers");
     }, 1000);
   };

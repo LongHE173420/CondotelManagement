@@ -35,42 +35,21 @@ const PageRefundRequests = () => {
     }
   };
 
-  const handleAppealClick = (refund: RefundRequestDTO) => {
+  const handleResubmitClick = (refund: RefundRequestDTO) => {
     if (refund.status !== "Rejected") {
-      toast.warning("Chỉ có thể kháng cáo cho yêu cầu đã bị từ chối");
+      toast.warning("Chỉ có thể gửi lại yêu cầu đã bị từ chối");
       return;
     }
-    setSelectedRefund(refund);
-    setAppealReason("");
-  };
-
-  const handleSubmitAppeal = async () => {
-    if (!selectedRefund) return;
-
-    if (!appealReason.trim() || appealReason.length < 10 || appealReason.length > 500) {
-      toast.error("Lý do kháng cáo phải từ 10-500 ký tự");
+    const resubmissionCount = (refund as any).resubmissionCount || 0;
+    if (resubmissionCount >= 1) {
+      toast.error("Bạn đã vượt quá số lần gửi lại yêu cầu hoàn tiền (tối đa 1 lần)");
       return;
     }
-
-    try {
-      setAppealing(true);
-      const result = await bookingAPI.appealRefundRequest(selectedRefund.refundRequestId, appealReason);
-      
-      if (result.success) {
-        toast.success("✅ Kháng cáo hoàn tiền thành công. Vui lòng chờ admin xem xét");
-        setSelectedRefund(null);
-        setAppealReason("");
-        loadRefundRequests();
-      } else {
-        toast.error(result.message || "Kháng cáo thất bại");
-      }
-    } catch (err: any) {
-      toast.error(err.message || "Lỗi khi kháng cáo");
-      console.error("Error appealing refund:", err);
-    } finally {
-      setAppealing(false);
-    }
+    // Navigate to request refund page with booking ID to resubmit
+    navigate(`/request-refund/${refund.bookingId}`);
   };
+
+  // Removed handleSubmitAppeal - now using direct navigation to request-refund page
 
   const getStatusBadge = (status: string) => {
     const statusMap: { [key: string]: { bg: string; text: string; label: string } } = {
@@ -88,16 +67,11 @@ const PageRefundRequests = () => {
     );
   };
 
-  const canAppeal = (refund: RefundRequestDTO): boolean => {
+  const canResubmit = (refund: RefundRequestDTO): boolean => {
     if (refund.status !== "Rejected") return false;
-    if ((refund.attemptNumber || 0) >= 2) return false;
-    
-    const rejectedAt = refund.rejectedAt ? new Date(refund.rejectedAt) : null;
-    if (!rejectedAt) return false;
-    
-    const now = new Date();
-    const daysDiff = (now.getTime() - rejectedAt.getTime()) / (1000 * 60 * 60 * 24);
-    return daysDiff <= 3;
+    // Check resubmissionCount (max 1 resubmission)
+    const resubmissionCount = (refund as any).resubmissionCount || 0;
+    return resubmissionCount < 1;
   };
 
   if (loading) {
@@ -151,8 +125,8 @@ const PageRefundRequests = () => {
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Lần kháng cáo</p>
-                  <p className="font-semibold">{(refund.attemptNumber || 0) + 1}/2</p>
+                  <p className="text-sm text-gray-600">Số lần gửi lại</p>
+                  <p className="font-semibold">{((refund as any).resubmissionCount || 0)}/1</p>
                 </div>
               </div>
 
@@ -173,6 +147,11 @@ const PageRefundRequests = () => {
                       <strong>Lý do:</strong> {refund.rejectionReason}
                     </p>
                   )}
+                  {((refund as any).resubmissionCount || 0) < 1 && (
+                    <p className="text-sm text-blue-800 mt-2 bg-blue-50 p-2 rounded">
+                      ⚠️ <strong>Quan trọng:</strong> Bạn có thể sửa thông tin ngân hàng và gửi lại yêu cầu hoàn tiền một lần.
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -189,19 +168,19 @@ const PageRefundRequests = () => {
                 </div>
               )}
 
-              {canAppeal(refund) ? (
+              {canResubmit(refund) ? (
                 <div className="flex gap-2">
                   <ButtonPrimary
-                    onClick={() => handleAppealClick(refund)}
+                    onClick={() => handleResubmitClick(refund)}
                     className="flex-1"
                   >
-                    🔄 Kháng cáo
+                    🔄 Gửi lại yêu cầu
                   </ButtonPrimary>
                 </div>
-              ) : refund.status === "Rejected" && !canAppeal(refund) && (
+              ) : refund.status === "Rejected" && !canResubmit(refund) && (
                 <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
                   <p className="text-sm text-yellow-800">
-                    ⏰ Hết thời hạn kháng cáo (3 ngày kể từ khi bị từ chối) hoặc đã kháng cáo đủ số lần
+                    ⚠️ Bạn đã vượt quá số lần gửi lại yêu cầu hoàn tiền (tối đa 1 lần). Vui lòng liên hệ admin.
                   </p>
                 </div>
               )}
@@ -210,58 +189,7 @@ const PageRefundRequests = () => {
         </div>
       )}
 
-      {/* Appeal Modal */}
-      {selectedRefund && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-2xl max-w-md w-full mx-4 p-6">
-            <h3 className="text-xl font-bold mb-4">🔄 Kháng cáo yêu cầu hoàn tiền</h3>
-            
-            <div className="bg-red-50 border border-red-200 rounded p-3 mb-4">
-              <p className="text-sm text-red-800">
-                Booking: <strong>#{selectedRefund.bookingId}</strong>
-              </p>
-            </div>
-
-            <div className="mb-4">
-              <label className="block text-sm font-semibold mb-2">
-                Lý do kháng cáo <span className="text-red-500">*</span>
-              </label>
-              <textarea
-                value={appealReason}
-                onChange={(e) => setAppealReason(e.target.value)}
-                placeholder="Vui lòng nhập lý do chi tiết (10-500 ký tự)"
-                className="w-full h-32 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
-                maxLength={500}
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                {appealReason.length}/500 ký tự
-              </p>
-            </div>
-
-            <div className="bg-blue-50 border border-blue-200 rounded p-3 mb-4">
-              <p className="text-xs text-blue-800">
-                ℹ️ Lý do kháng cáo phải có ít nhất 10 ký tự. Vui lòng giải thích chi tiết tại sao bạn cho rằng yêu cầu hoàn tiền của bạn là hợp lệ.
-              </p>
-            </div>
-
-            <div className="flex gap-3">
-              <ButtonSecondary
-                onClick={() => setSelectedRefund(null)}
-                className="flex-1"
-              >
-                Hủy
-              </ButtonSecondary>
-              <ButtonPrimary
-                onClick={handleSubmitAppeal}
-                disabled={appealing || appealReason.length < 10}
-                className="flex-1"
-              >
-                {appealing ? "Đang gửi..." : "Gửi kháng cáo"}
-              </ButtonPrimary>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* No modal needed - redirect to request refund page for resubmission */}
     </div>
   );
 };

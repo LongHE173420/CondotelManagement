@@ -5,6 +5,7 @@ import walletAPI, { WalletDTO, WalletCreateDTO, WalletUpdateDTO } from "api/wall
 import ButtonPrimary from "shared/Button/ButtonPrimary";
 import ButtonSecondary from "shared/Button/ButtonSecondary";
 import { toastSuccess, toastError } from "utils/toast";
+import ConfirmModal from "components/ConfirmModal";
 
 const HostWalletContent: React.FC = () => {
   const { user, isAuthenticated } = useAuth();
@@ -17,6 +18,9 @@ const HostWalletContent: React.FC = () => {
   const [editingWallet, setEditingWallet] = useState<WalletDTO | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [settingDefaultId, setSettingDefaultId] = useState<number | null>(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [deletingWalletId, setDeletingWalletId] = useState<number | null>(null);
+  const [deletingBankName, setDeletingBankName] = useState<string>("");
 
   useEffect(() => {
     // Check if user is Host
@@ -44,13 +48,17 @@ const HostWalletContent: React.FC = () => {
   };
 
   const handleDelete = async (walletId: number, bankName: string) => {
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa tài khoản ngân hàng "${bankName}"?`)) {
-      return;
-    }
+    setDeletingWalletId(walletId);
+    setDeletingBankName(bankName);
+    setShowConfirmModal(true);
+  };
 
-    setDeletingId(walletId);
+  const confirmDelete = async () => {
+    if (!deletingWalletId) return;
+    setShowConfirmModal(false);
+    setDeletingId(deletingWalletId);
     try {
-      await walletAPI.delete(walletId);
+      await walletAPI.delete(deletingWalletId);
       toastSuccess("✅ Xóa tài khoản ngân hàng thành công!");
       await loadData();
     } catch (err: any) {
@@ -59,6 +67,8 @@ const HostWalletContent: React.FC = () => {
       toastError(errorMsg);
     } finally {
       setDeletingId(null);
+      setDeletingWalletId(null);
+      setDeletingBankName("");
     }
   };
 

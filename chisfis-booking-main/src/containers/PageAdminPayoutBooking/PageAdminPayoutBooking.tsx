@@ -6,6 +6,7 @@ import ButtonPrimary from "shared/Button/ButtonPrimary";
 import ButtonSecondary from "shared/Button/ButtonSecondary";
 import moment from "moment";
 import { toastError, toastSuccess, toastWarning } from "utils/toast";
+import ConfirmModal from "components/ConfirmModal";
 
 interface HostOption {
   hostId: number;
@@ -37,6 +38,8 @@ const PageAdminPayoutBooking: React.FC = () => {
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showProcessAllModal, setShowProcessAllModal] = useState(false);
 
   const loadPendingPayouts = async () => {
     setLoading(true);
@@ -229,10 +232,12 @@ const PageAdminPayoutBooking: React.FC = () => {
 
   const handleConfirmTransfer = async () => {
     if (!selectedPayout) return;
+    setShowConfirmModal(true);
+  };
 
-    if (!window.confirm(`Xác nhận đã chuyển khoản ${formatPrice(selectedPayout.amount || selectedPayout.totalPrice)} cho booking #${selectedPayout.bookingId}?`)) {
-      return;
-    }
+  const confirmTransfer = async () => {
+    if (!selectedPayout) return;
+    setShowConfirmModal(false);
 
     setProcessing(true);
     setError("");
@@ -301,9 +306,11 @@ const PageAdminPayoutBooking: React.FC = () => {
   };
 
   const handleProcessAll = async () => {
-    if (!window.confirm("Xác nhận xử lý thanh toán cho TẤT CẢ booking đủ điều kiện?")) {
-      return;
-    }
+    setShowProcessAllModal(true);
+  };
+
+  const confirmProcessAll = async () => {
+    setShowProcessAllModal(false);
 
     setProcessingAll(true);
     setError("");

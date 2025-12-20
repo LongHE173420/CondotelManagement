@@ -6,6 +6,7 @@ import condotelAPI, { CondotelDTO } from "api/condotel";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
 import ButtonSecondary from "shared/Button/ButtonSecondary";
 import { toastSuccess, toastError, toastWarning, toastInfo } from "utils/toast";
+import ConfirmModal from "components/ConfirmModal";
 
 const HostVoucherContent: React.FC = () => {
   const { user, isAuthenticated } = useAuth();
@@ -27,6 +28,9 @@ const HostVoucherContent: React.FC = () => {
   const [pageSize] = useState(9);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [deletingVoucherId, setDeletingVoucherId] = useState<number | null>(null);
+  const [deletingVoucherCode, setDeletingVoucherCode] = useState<string>("");
 
   useEffect(() => {
     // Check if user is Host
@@ -131,13 +135,17 @@ const HostVoucherContent: React.FC = () => {
   }, []); // Add filter dependencies here if filters are added later
 
   const handleDelete = async (voucherId: number, code: string) => {
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa voucher "${code}"?`)) {
-      return;
-    }
+    setDeletingVoucherId(voucherId);
+    setDeletingVoucherCode(code);
+    setShowConfirmModal(true);
+  };
 
-    setDeletingId(voucherId);
+  const confirmDelete = async () => {
+    if (!deletingVoucherId) return;
+    setShowConfirmModal(false);
+    setDeletingId(deletingVoucherId);
     try {
-      await voucherAPI.delete(voucherId);
+      await voucherAPI.delete(deletingVoucherId);
       // Reset to page 1 and reload
       setCurrentPage(1);
       setAllVouchers([]); // Clear client-side cache

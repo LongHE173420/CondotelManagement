@@ -6,6 +6,7 @@ import "react-quill/dist/quill.snow.css";
 import blogAPI, { BlogCategoryDTO } from "api/blog";
 import { uploadAPI } from "api/upload";
 import { showSuccess, showError } from "utils/modalNotification";
+import ConfirmModal from "components/ConfirmModal";
 
 // Đăng ký module resize
 Quill.register("modules/imageResize", ImageResize);
@@ -33,6 +34,7 @@ const PageBlogEdit = () => {
   const [status, setStatus] = useState<string>("Draft");
   const quillRef = useRef<ReactQuill>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   // Load post data and categories
   useEffect(() => {
@@ -264,24 +266,27 @@ const PageBlogEdit = () => {
   // Handle delete
   const handleDelete = async () => {
     if (!id) return;
+    setShowConfirmModal(true);
+  };
 
-    if (window.confirm("Bạn có chắc chắn muốn xóa bài viết này không? Hành động này không thể hoàn tác.")) {
-      try {
-        setIsLoading(true);
-        const postId = parseInt(id);
-        const success = await blogAPI.adminDeletePost(postId);
-        if (success) {
-          showSuccess("Đã xóa bài viết.");
-          navigate("/manage-blog");
-        } else {
-          showError("Không tìm thấy bài viết để xóa.");
-        }
-      } catch (err: any) {
-        console.error("Failed to delete post:", err);
-        showError(err.response?.data?.message || "Không thể xóa bài viết.");
-      } finally {
-        setIsLoading(false);
+  const confirmDelete = async () => {
+    if (!id) return;
+    setShowConfirmModal(false);
+    try {
+      setIsLoading(true);
+      const postId = parseInt(id);
+      const success = await blogAPI.adminDeletePost(postId);
+      if (success) {
+        showSuccess("Đã xóa bài viết.");
+        navigate("/manage-blog");
+      } else {
+        showError("Không tìm thấy bài viết để xóa.");
       }
+    } catch (err: any) {
+      console.error("Failed to delete post:", err);
+      showError(err.response?.data?.message || "Không thể xóa bài viết. Vui lòng thử lại.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -481,6 +486,17 @@ const PageBlogEdit = () => {
           </div>
         </div>
       </form>
+
+      <ConfirmModal
+        show={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        onConfirm={confirmDelete}
+        title="Xác nhận xóa bài viết"
+        message="Bạn có chắc chắn muốn xóa bài viết này không? Hành động này không thể hoàn tác."
+        confirmText="Xóa"
+        cancelText="Hủy"
+        type="danger"
+      />
     </div>
   );
 };

@@ -64,6 +64,11 @@ export interface RefundRequestDTO {
   createdAt: string; // DateTime
   updatedAt?: string; // DateTime
   attemptNumber: number; // Lần thứ mấy appeal (0, 1, ...)
+  // Optional fields returned by some endpoints for resubmission + bank prefill
+  resubmissionCount?: number;
+  bankCode?: string;
+  accountNumber?: string;
+  accountHolder?: string;
   appealReason?: string; // Lý do kháng cáo
   rejectionReason?: string; // Lý do từ chối hoàn tiền
   rejectedAt?: string; // DateTime - Khi yêu cầu bị reject
@@ -535,6 +540,33 @@ const response = await axiosClient.post(`/booking/${id}/refund`, payload);
         createdAt: item.CreatedAt ?? item.createdAt,
         updatedAt: item.UpdatedAt ?? item.updatedAt,
         attemptNumber: item.AttemptNumber ?? item.attemptNumber ?? 0,
+        resubmissionCount:
+          item.ResubmissionCount ??
+          item.resubmissionCount ??
+          item.AttemptNumber ??
+          item.attemptNumber ??
+          0,
+        bankCode:
+          item.BankCode ??
+          item.bankCode ??
+          item.BankInfo?.BankCode ??
+          item.BankInfo?.bankCode ??
+          item.bankInfo?.BankCode ??
+          item.bankInfo?.bankCode,
+        accountNumber:
+          item.AccountNumber ??
+          item.accountNumber ??
+          item.BankInfo?.AccountNumber ??
+          item.BankInfo?.accountNumber ??
+          item.bankInfo?.AccountNumber ??
+          item.bankInfo?.accountNumber,
+        accountHolder:
+          item.AccountHolder ??
+          item.accountHolder ??
+          item.BankInfo?.AccountHolder ??
+          item.BankInfo?.accountHolder ??
+          item.bankInfo?.AccountHolder ??
+          item.bankInfo?.accountHolder,
         appealReason: item.AppealReason ?? item.appealReason,
         rejectionReason: item.RejectionReason ?? item.rejectionReason,
         rejectedAt: item.RejectedAt ?? item.rejectedAt,
