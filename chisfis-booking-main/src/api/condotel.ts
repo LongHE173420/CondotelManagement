@@ -298,8 +298,6 @@ export const condotelAPI = {
 
       // Normalize response - handle both array, object with data property, and success wrapper
       let data: any[] = [];
-      let pagination: PaginationInfo | undefined = undefined;
-
       if (Array.isArray(response.data)) {
         data = response.data;
       } else if (response.data && typeof response.data === 'object') {
@@ -599,18 +597,18 @@ export const condotelAPI = {
       } : null;
 
       return {
-      condotelId: item.CondotelId || item.condotelId,
-      name: item.Name || item.name,
-      pricePerNight: item.PricePerNight !== undefined ? item.PricePerNight : item.pricePerNight,
-      beds: item.Beds !== undefined ? item.Beds : item.beds,
-      bathrooms: item.Bathrooms !== undefined ? item.Bathrooms : item.bathrooms,
-      status: item.Status || item.status,
-      thumbnailUrl: item.ThumbnailUrl || item.thumbnailUrl,
-      resortName: item.ResortName || item.resortName,
-      hostName: item.HostName || item.hostName,
-      reviewCount: item.ReviewCount !== undefined ? item.ReviewCount : item.reviewCount,
-      reviewRate: item.ReviewRate !== undefined ? item.ReviewRate : item.reviewRate,
-      activePromotion: normalizePromotion(item.ActivePromotion || item.activePromotion),
+        condotelId: item.CondotelId || item.condotelId,
+        name: item.Name || item.name,
+        pricePerNight: item.PricePerNight !== undefined ? item.PricePerNight : item.pricePerNight,
+        beds: item.Beds !== undefined ? item.Beds : item.beds,
+        bathrooms: item.Bathrooms !== undefined ? item.Bathrooms : item.bathrooms,
+        status: item.Status || item.status,
+        thumbnailUrl: item.ThumbnailUrl || item.thumbnailUrl,
+        resortName: item.ResortName || item.resortName,
+        hostName: item.HostName || item.hostName,
+        reviewCount: item.ReviewCount !== undefined ? item.ReviewCount : item.reviewCount,
+        reviewRate: item.ReviewRate !== undefined ? item.ReviewRate : item.reviewRate,
+        activePromotion: normalizePromotion(item.ActivePromotion || item.activePromotion),
         activePrice: normalizedActivePrice,
       };
     });
@@ -809,14 +807,14 @@ export const condotelAPI = {
     const response = await axiosClient.get<any>("/host/condotel/inactive", {
       params: { pageNumber, pageSize }
     });
-    
+
     const data = response.data;
-    
+
     // Handle response format: { success: true, data: { items: [...], totalCount: 10, totalPages: 1 } }
     const actualData = data.success && data.data ? data.data : data;
-    
+
     const items = Array.isArray(actualData.items) ? actualData.items : (Array.isArray(actualData) ? actualData : []);
-    
+
     // Normalize items
     const normalizedItems = items.map((item: any) => {
       const rawActivePrice = item.ActivePrice || item.activePrice;
@@ -880,9 +878,9 @@ export const condotelAPI = {
 
   // PUT /api/host/condotel/{id}/status - Cập nhật status của condotel
   updateStatus: async (condotelId: number, status: string): Promise<{ success: boolean, message: string }> => {
-    const response = await axiosClient.put<any>(`/host/condotel/${condotelId}/status`, { 
+    const response = await axiosClient.put<any>(`/host/condotel/${condotelId}/status`, {
       condotelId: condotelId,
-      status: status 
+      status: status
     });
     return {
       success: response.data.success !== undefined ? response.data.success : true,

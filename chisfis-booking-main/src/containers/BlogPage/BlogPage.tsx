@@ -36,13 +36,13 @@ const convertToPostDataType = (post: BlogPostSummaryDTO): PostDataType => {
     },
     categories: post.categoryName
       ? [
-          {
-            id: 0,
-            name: post.categoryName,
-            href: `/blog?category=${post.categoryName}`,
-            taxonomy: "category",
-          },
-        ]
+        {
+          id: 0,
+          name: post.categoryName,
+          href: `/blog?category=${post.categoryName}`,
+          taxonomy: "category",
+        },
+      ]
       : [],
   };
 };
@@ -97,7 +97,7 @@ const BlogPage: React.FC = () => {
       </Helmet>
 
       <BgGlassmorphism />
-      
+
       <div className="container relative">
         {error && (
           <div className="pt-12 pb-4">

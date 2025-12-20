@@ -38,7 +38,7 @@ const BlogSingle = () => {
               .filter((p: any) => p.postId !== postData.postId && p.categoryName === postData.categoryName)
               .slice(0, 3);
             setRelatedPosts(related as BlogPostDetailDTO[]);
-            
+
             // Load more posts for the bottom "Khám phá thêm" section (up to 8 posts)
             const moreRelated = allPosts
               .filter((p: any) => p.postId !== postData.postId)
@@ -159,8 +159,8 @@ const BlogSingle = () => {
     return (
       <div className="max-w-screen-md mx-auto ">
         <div className="nc-SingleAuthor flex">
-          <Avatar 
-            sizeClass="w-11 h-11 md:w-24 md:h-24" 
+          <Avatar
+            sizeClass="w-11 h-11 md:w-24 md:h-24"
             userName={post.authorName || "Admin"}
           />
           <div className="flex flex-col ml-3 max-w-lg sm:ml-5 space-y-1">
