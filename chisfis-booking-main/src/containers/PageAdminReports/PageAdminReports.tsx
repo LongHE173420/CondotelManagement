@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { adminAPI, AdminReportCreateDTO, AdminReportListDTO, AdminReportResponseDTO, HostListItemDTO } from "api/admin";
 import { toastSuccess, toastError } from "utils/toast";
 import { useAuth } from "contexts/AuthContext";
+import ConfirmModal from "components/ConfirmModal";
 
 interface HostOption {
   hostId: number;
@@ -17,6 +18,8 @@ const PageAdminReports: React.FC = () => {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [hosts, setHosts] = useState<HostOption[]>([]);
   const [loadingHosts, setLoadingHosts] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [deletingReportId, setDeletingReportId] = useState<number | null>(null);
 
   // Form state
   const [formData, setFormData] = useState<AdminReportCreateDTO>({
@@ -133,16 +136,24 @@ const PageAdminReports: React.FC = () => {
   };
 
   const handleDeleteReport = async (reportId: number) => {
-    if (!window.confirm("Bạn có chắc chắn muốn xóa báo cáo này?")) {
-      return;
-    }
+    setDeletingReportId(reportId);
+    setShowConfirmModal(true);
+  };
 
+  const confirmDelete = async () => {
+    if (!deletingReportId) return;
+
+    setShowConfirmModal(false);
     try {
+      const reportId = deletingReportId;
       await adminAPI.deleteReport(reportId);
       toastSuccess("Xóa báo cáo thành công!");
+      setDeletingReportId(null);
       loadReports();
     } catch (err: any) {
       toastError(err.response?.data?.message || "Không thể xóa báo cáo");
+    } finally {
+      setDeletingReportId(null);
     }
   };
 
@@ -525,6 +536,20 @@ const PageAdminReports: React.FC = () => {
           </div>
         )}
       </div>
+
+      <ConfirmModal
+        show={showConfirmModal}
+        onClose={() => {
+          setShowConfirmModal(false);
+          setDeletingReportId(null);
+        }}
+        onConfirm={confirmDelete}
+        title="Xác nhận xóa báo cáo"
+        message="Bạn có chắc chắn muốn xóa báo cáo này?"
+        confirmText="Xóa"
+        cancelText="Hủy"
+        type="danger"
+      />
     </div>
   );
 };

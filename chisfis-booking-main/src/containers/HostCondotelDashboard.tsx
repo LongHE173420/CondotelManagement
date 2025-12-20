@@ -16,7 +16,9 @@ import HostPackageContent from "containers/HostPackagePage/HostPackageContent";
 import HostPayoutContent from "containers/HostPayoutPage/HostPayoutContent";
 import HostWalletContent from "containers/HostWalletPage/HostWalletContent";
 import HostAmenityContent from "containers/HostAmenityPage/HostAmenityContent";
+import HostInactiveCondotelContent from "containers/HostInactiveCondotelPage/HostInactiveCondotelContent";
 import { toastSuccess, toastError, toastWarning, toastInfo } from "utils/toast";
+import ConfirmModal from "components/ConfirmModal";
 
 const HostCondotelDashboard = () => {
   const { user, isAuthenticated } = useAuth();
@@ -28,6 +30,15 @@ const HostCondotelDashboard = () => {
   const [updatingStatusId, setUpdatingStatusId] = useState<number | null>(null);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  
+  // Confirm modal states
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmModalData, setConfirmModalData] = useState<{
+    type: "status" | "delete";
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  } | null>(null);
   const activeTab = searchParams.get("tab") || "condotels";
   
   // Filter states
@@ -276,13 +287,14 @@ const HostCondotelDashboard = () => {
       return;
     }
 
-    if (!window.confirm(`Bạn có chắc chắn muốn đổi trạng thái từ "${mapStatusToVN(currentStatus)}" sang "${mapStatusToVN(normalizedStatus)}"?`)) {
-      // Reload để reset select về giá trị cũ
-      fetchBookings();
-      return;
-    }
-
-    setUpdatingStatusId(bookingId);
+    // Show confirmation modal
+    setConfirmModalData({
+      type: "status",
+      title: "Xác nhận đổi trạng thái",
+      message: `Bạn có chắc chắn muốn đổi trạng thái từ "${mapStatusToVN(currentStatus)}" sang "${mapStatusToVN(normalizedStatus)}"?`,
+      onConfirm: async () => {
+        setShowConfirmModal(false);
+        setUpdatingStatusId(bookingId);
     try {
       await bookingAPI.updateHostBookingStatus(bookingId, normalizedStatus);
       
@@ -344,6 +356,9 @@ const HostCondotelDashboard = () => {
     } finally {
       setUpdatingStatusId(null);
     }
+      }
+    });
+    setShowConfirmModal(true);
   };
 
   const handleAdd = () => {
@@ -355,23 +370,25 @@ const HostCondotelDashboard = () => {
   };
 
   const handleDelete = async (condotelId: number, condotelName: string) => {
-    if (!window.confirm(`Bạn có chắc chắn muốn vô hiệu hóa condotel "${condotelName}"?\nCondotel sẽ được chuyển sang trạng thái "Inactive" và không còn hiển thị cho khách hàng.`)) {
-      return;
-    }
-
-    try {
-      const result = await condotelAPI.delete(condotelId);
-      if (result) {
-        toastSuccess("Đã vô hiệu hóa condotel thành công!");
-        // Refresh danh sách
-        await fetchCondotels();
-      } else {
-        toastError("Không thể vô hiệu hóa condotel. Vui lòng thử lại sau.");
+    setConfirmModalData({
+      type: "delete",
+      title: "Xác nhận vô hiệu hóa",
+      message: `Bạn có chắc chắn muốn vô hiệu hóa condotel "${condotelName}"?\n\nCondotel sẽ được chuyển sang trạng thái "Inactive" và không còn hiển thị cho khách hàng.`,
+      onConfirm: async () => {
+        setShowConfirmModal(false);
+        try {
+          // Gọi DELETE API để vô hiệu hóa condotel
+          await condotelAPI.delete(condotelId);
+          toastSuccess("Đã vô hiệu hóa condotel thành công!");
+          // Refresh danh sách
+          await fetchCondotels();
+        } catch (err: any) {
+          const message = err.response?.data?.message || err.response?.data?.error || "Không thể vô hiệu hóa condotel. Vui lòng thử lại sau.";
+          toastError(message);
+        }
       }
-    } catch (err: any) {
-      const message = err.response?.data?.message || err.response?.data?.error || "Không thể vô hiệu hóa condotel. Vui lòng thử lại sau.";
-      toastError(message);
-    }
+    });
+    setShowConfirmModal(true);
   };
 
   return (
@@ -413,6 +430,21 @@ const HostCondotelDashboard = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
               </svg>
               Căn hộ
+            </span>
+          </button>
+          <button
+            onClick={() => handleTabChange("inactive-condotels")}
+            className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${
+              activeTab === "inactive-condotels"
+                ? "bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg transform scale-105"
+                : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-orange-600 dark:hover:text-orange-400"
+            }`}
+          >
+            <span className="flex items-center gap-2">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+              </svg>
+              Không hoạt động
             </span>
           </button>
           <button
@@ -554,7 +586,11 @@ const HostCondotelDashboard = () => {
       </div>
 
       {/* Tab Content */}
-      {activeTab === "promotions" ? (
+      {activeTab === "inactive-condotels" ? (
+        <div className="mt-6 bg-white/80 dark:bg-neutral-800/80 backdrop-blur-sm rounded-2xl shadow-xl p-6 border border-white/20 dark:border-neutral-700/50">
+          <HostInactiveCondotelContent />
+        </div>
+      ) : activeTab === "promotions" ? (
         <div className="mt-6 bg-white/80 dark:bg-neutral-800/80 backdrop-blur-sm rounded-2xl shadow-xl p-6 border border-white/20 dark:border-neutral-700/50">
           <HostPromotionContent />
         </div>
@@ -995,13 +1031,13 @@ const HostCondotelDashboard = () => {
                     </ButtonPrimary>
                     <Button
                       onClick={() => handleDelete(item.condotelId, item.name)}
-                      className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-md hover:shadow-lg transition-all duration-300"
+                      className="flex-1 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-md hover:shadow-lg transition-all duration-300"
                     >
                       <span className="flex items-center justify-center gap-2">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
                         </svg>
-                        Xóa
+                        Vô hiệu hóa
                       </span>
                     </Button>
                   </div>
@@ -1010,6 +1046,26 @@ const HostCondotelDashboard = () => {
             </div>
           )}
         </>
+      )}
+      
+      {/* Confirm Modal */}
+      {confirmModalData && (
+        <ConfirmModal
+          show={showConfirmModal}
+          onClose={() => {
+            setShowConfirmModal(false);
+            if (confirmModalData.type === "status") {
+              // Reload để reset select về giá trị cũ
+              fetchBookings();
+            }
+          }}
+          onConfirm={confirmModalData.onConfirm}
+          title={confirmModalData.title}
+          message={confirmModalData.message}
+          type={confirmModalData.type === "delete" ? "danger" : "warning"}
+          confirmText="Xác nhận"
+          cancelText="Hủy"
+        />
       )}
       </div>
     </div>

@@ -66,6 +66,8 @@ export default function AvatarDropdown() {
         
         // Lấy vouchers từ tất cả condotel đã booking
         const allVouchers: VoucherDTO[] = [];
+        const voucherIdSet = new Set<number>(); // Dùng Set để loại bỏ voucher trùng lặp
+        
         for (const condotelId of condotelIds) {
           try {
             const vouchers = await voucherAPI.getByCondotel(condotelId);
@@ -76,7 +78,14 @@ export default function AvatarDropdown() {
               const endDate = new Date(v.endDate);
               return endDate >= now;
             });
-            allVouchers.push(...activeVouchers);
+            
+            // Chỉ thêm voucher chưa có trong danh sách (loại bỏ trùng lặp)
+            activeVouchers.forEach(v => {
+              if (!voucherIdSet.has(v.voucherId)) {
+                voucherIdSet.add(v.voucherId);
+                allVouchers.push(v);
+              }
+            });
           } catch (err) {
             console.error(`Error loading vouchers for condotel ${condotelId}:`, err);
           }

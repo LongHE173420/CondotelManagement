@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import ConfirmModal from "components/ConfirmModal";
 
 // Component con Sidebar
 const SidebarCard: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
@@ -25,6 +26,7 @@ const PageVoucherEdit = () => {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [status, setStatus] = useState("Active");
   const [isLoading, setIsLoading] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   // Tải dữ liệu giả lập
   useEffect(() => {
@@ -41,27 +43,32 @@ const PageVoucherEdit = () => {
     setStatus("Active");
   }, [id]);
 
+  const toastSuccess = (msg: string) => alert(msg);
+
   const handleUpdate = (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     // TODO: Gọi API cập nhật
     setTimeout(() => {
       setIsLoading(false);
-      alert("Cập nhật voucher thành công!");
+      toastSuccess("Cập nhật voucher thành công!");
       navigate("/manage-vouchers");
     }, 1000);
   };
   
   const handleDelete = () => {
-    if (window.confirm(`Bạn có chắc muốn xóa voucher "${code}" không?`)) {
-      setIsLoading(true);
-      // TODO: Gọi API xóa
-      setTimeout(() => {
-        setIsLoading(false);
-        alert("Đã xóa voucher.");
-        navigate("/manage-vouchers");
-      }, 1000);
-    }
+    setShowConfirmModal(true);
+  };
+
+  const confirmDelete = () => {
+    setShowConfirmModal(false);
+    setIsLoading(true);
+    // TODO: Gọi API xóa
+    setTimeout(() => {
+      setIsLoading(false);
+      alert("Đã xóa voucher.");
+      navigate("/manage-vouchers");
+    }, 1000);
   };
 
 

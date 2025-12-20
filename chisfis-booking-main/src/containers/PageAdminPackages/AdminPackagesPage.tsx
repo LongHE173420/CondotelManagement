@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import adminPackageAPI, { HostPackageItem, CatalogPackage } from 'api/adminPackageAPI';
 import AdminPackageCatalog from './AdminPackageCatalog';
+import ConfirmModal from 'components/ConfirmModal';
 
 const AdminPackagesPage: React.FC = () => {
     // State cho phần quản lý đơn hàng (HostPackages)
@@ -14,6 +15,8 @@ const AdminPackagesPage: React.FC = () => {
     const [catalogData, setCatalogData] = useState<CatalogPackage[]>([]);
     const [loadingCatalog, setLoadingCatalog] = useState(false);
     const [activeTab, setActiveTab] = useState<'orders' | 'catalog'>('orders');
+    const [showConfirmModal, setShowConfirmModal] = useState(false);
+    const [confirmModalData, setConfirmModalData] = useState<{ id: number; type: 'activate' | 'delete' }>({ id: 0, type: 'activate' });
 
     // ==========================================
     // PHẦN 1: QUẢN LÝ ĐƠN HÀNG (HostPackages)
@@ -36,8 +39,13 @@ const AdminPackagesPage: React.FC = () => {
     };
 
     const handleActivate = async (id: number) => {
-        if (!window.confirm('Bạn có chắc muốn kích hoạt gói này không?')) return;
+        setConfirmModalData({ id, type: 'activate' });
+        setShowConfirmModal(true);
+    };
 
+    const confirmActivate = async () => {
+        setShowConfirmModal(false);
+        const id = confirmModalData.id;
         try {
             const res = await adminPackageAPI.activate(id);
             toast.success(res.message || 'Kích hoạt thành công!');
@@ -96,8 +104,14 @@ const AdminPackagesPage: React.FC = () => {
     };
 
     const handleCatalogDelete = async (id: number) => {
-        if (!window.confirm('Bạn có chắc muốn xóa gói này?')) return false;
+        setConfirmModalData({ id, type: 'delete' });
+        setShowConfirmModal(true);
+        return true; // Will be handled by modal
+    };
 
+    const confirmDelete = async () => {
+        setShowConfirmModal(false);
+        const id = confirmModalData.id;
         try {
             await adminPackageAPI.deleteCatalog(id);
             toast.success('Xóa gói thành công!');

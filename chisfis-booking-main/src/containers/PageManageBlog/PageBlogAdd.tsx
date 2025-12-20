@@ -108,7 +108,7 @@ const videoHandler = useCallback(() => {
     }
 
     if (!embedUrl) {
-      alert('Không thể xử lý URL video này. Vui lòng kiểm tra lại.');
+      toastError('Không thể xử lý URL video này. Vui lòng kiểm tra lại.');
       return;
     }
 
@@ -202,11 +202,11 @@ const videoHandler = useCallback(() => {
         const file = e.target.files?.[0];
         if (file) {
             if (!file.type.startsWith('image/')) {
-                alert('Vui lòng chọn file ảnh!');
+                toastWarning('Vui lòng chọn file ảnh!');
                 return;
             }
             if (file.size > 5 * 1024 * 1024) {
-                alert('Kích thước file không được vượt quá 5MB!');
+                toastError('Kích thước file không được vượt quá 5MB!');
                 return;
             }
             setFeaturedImageFile(file);
@@ -228,7 +228,7 @@ const videoHandler = useCallback(() => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!title || !content) {
-            alert("Vui lòng nhập Tiêu đề và Nội dung.");
+            toastWarning("Vui lòng nhập Tiêu đề và Nội dung.");
             return;
         }
         
@@ -243,7 +243,7 @@ const videoHandler = useCallback(() => {
                     featuredImageUrl = uploadResult.imageUrl;
                 } catch (uploadErr) {
                     console.error("Failed to upload image:", uploadErr);
-                    alert("Không thể tải ảnh lên. Vui lòng thử lại.");
+                    toastError("Không thể tải ảnh lên. Vui lòng thử lại.");
                     setIsLoading(false);
                     return;
                 }
@@ -258,11 +258,11 @@ const videoHandler = useCallback(() => {
                 categoryId,
             });
 
-            alert("Đã thêm bài viết thành công!");
+            toastSuccess("Đã thêm bài viết thành công!");
             navigate("/manage-blog");
         } catch (err: any) {
             console.error("Failed to create post:", err);
-            alert(err.response?.data?.message || "Không thể tạo bài viết. Vui lòng thử lại.");
+            toastError(err.response?.data?.message || "Không thể tạo bài viết. Vui lòng thử lại.");
         } finally {
             setIsLoading(false);
         }

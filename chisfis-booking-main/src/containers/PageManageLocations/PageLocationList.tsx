@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
+import ConfirmModal from "components/ConfirmModal";
 
 // --- Định nghĩa kiểu dữ liệu ---
 interface Location {
@@ -30,12 +31,23 @@ const mockLocationData: Location[] = [
 // --- Component Trang Danh sách Địa điểm ---
 const PageLocationList = () => {
   const [locations, setLocations] = useState<Location[]>(mockLocationData);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [deletingLocationId, setDeletingLocationId] = useState<string | null>(null);
+  const [deletingLocationName, setDeletingLocationName] = useState<string>("");
 
   const handleDelete = (id: string, name: string) => {
-    if (window.confirm(`Bạn có chắc muốn xóa địa điểm "${name}" không?`)) {
-      // TODO: Gọi API xóa
-      setLocations(current => current.filter(loc => loc.id !== id));
-    }
+    setDeletingLocationId(id);
+    setDeletingLocationName(name);
+    setShowConfirmModal(true);
+  };
+
+  const confirmDelete = () => {
+    if (!deletingLocationId) return;
+    setShowConfirmModal(false);
+    // TODO: Gọi API xóa
+    setLocations(current => current.filter(loc => loc.id !== deletingLocationId));
+    setDeletingLocationId(null);
+    setDeletingLocationName("");
   };
 
   return (

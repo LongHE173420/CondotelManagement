@@ -14,7 +14,7 @@ export interface PriceDTO {
   endDate: string;
   basePrice: number;
   priceType: string;
-  description: string;
+  description?: string; // Optional - không bắt buộc
 }
 
 export interface DetailDTO {
@@ -599,16 +599,18 @@ export const condotelAPI = {
       } : null;
 
       return {
-        condotelId: item.CondotelId || item.condotelId,
-        name: item.Name || item.name,
-        pricePerNight: item.PricePerNight !== undefined ? item.PricePerNight : item.pricePerNight,
-        beds: item.Beds !== undefined ? item.Beds : item.beds,
-        bathrooms: item.Bathrooms !== undefined ? item.Bathrooms : item.bathrooms,
-        status: item.Status || item.status,
-        thumbnailUrl: item.ThumbnailUrl || item.thumbnailUrl,
-        resortName: item.ResortName || item.resortName,
-        hostName: item.HostName || item.hostName,
-        activePromotion: normalizePromotion(item.ActivePromotion || item.activePromotion),
+      condotelId: item.CondotelId || item.condotelId,
+      name: item.Name || item.name,
+      pricePerNight: item.PricePerNight !== undefined ? item.PricePerNight : item.pricePerNight,
+      beds: item.Beds !== undefined ? item.Beds : item.beds,
+      bathrooms: item.Bathrooms !== undefined ? item.Bathrooms : item.bathrooms,
+      status: item.Status || item.status,
+      thumbnailUrl: item.ThumbnailUrl || item.thumbnailUrl,
+      resortName: item.ResortName || item.resortName,
+      hostName: item.HostName || item.hostName,
+      reviewCount: item.ReviewCount !== undefined ? item.ReviewCount : item.reviewCount,
+      reviewRate: item.ReviewRate !== undefined ? item.ReviewRate : item.reviewRate,
+      activePromotion: normalizePromotion(item.ActivePromotion || item.activePromotion),
         activePrice: normalizedActivePrice,
       };
     });
@@ -766,19 +768,9 @@ export const condotelAPI = {
     return response.data;
   },
 
-  // DELETE /api/condotel/{id} - "Xóa" condotel bằng cách chuyển status sang "Inactive"
-  delete: async (id: number): Promise<CondotelDetailDTO> => {
-    // Lấy thông tin condotel hiện tại
-    const currentCondotel = await axiosClient.get<CondotelDetailDTO>(`/host/condotel/${id}`).then(res => res.data);
-
-    // Cập nhật status thành "Inactive" thay vì xóa thật sự
-    const updatedCondotel: CondotelDetailDTO = {
-      ...currentCondotel,
-      status: "Inactive",
-    };
-
-    // Gọi API update để thay đổi status
-    const response = await axiosClient.put<CondotelDetailDTO>(`/host/condotel/${id}`, updatedCondotel);
+  // DELETE /api/host/condotel/{id} - Vô hiệu hóa condotel (chuyển status sang "Inactive")
+  delete: async (id: number): Promise<any> => {
+    const response = await axiosClient.delete(`/host/condotel/${id}`);
     return response.data;
   },
 
@@ -810,6 +802,92 @@ export const condotelAPI = {
 
   deletePromotion: async (promotionId: number): Promise<void> => {
     await axiosClient.delete(`/host/promotion/${promotionId}`);
+  },
+
+  // GET /api/host/condotel/inactive - Lấy danh sách condotel Inactive của host với pagination
+  getInactiveCondotels: async (pageNumber: number = 1, pageSize: number = 10): Promise<{ items: CondotelDTO[], totalCount: number, totalPages: number }> => {
+    const response = await axiosClient.get<any>("/host/condotel/inactive", {
+      params: { pageNumber, pageSize }
+    });
+    
+    const data = response.data;
+    
+    // Handle response format: { success: true, data: { items: [...], totalCount: 10, totalPages: 1 } }
+    const actualData = data.success && data.data ? data.data : data;
+    
+    const items = Array.isArray(actualData.items) ? actualData.items : (Array.isArray(actualData) ? actualData : []);
+    
+    // Normalize items
+    const normalizedItems = items.map((item: any) => {
+      const rawActivePrice = item.ActivePrice || item.activePrice;
+      const normalizedActivePrice = rawActivePrice ? {
+        priceId: rawActivePrice.PriceId || rawActivePrice.priceId,
+        startDate: rawActivePrice.StartDate || rawActivePrice.startDate,
+        endDate: rawActivePrice.EndDate || rawActivePrice.endDate,
+        basePrice: rawActivePrice.BasePrice !== undefined ? rawActivePrice.BasePrice : rawActivePrice.basePrice,
+        priceType: rawActivePrice.PriceType || rawActivePrice.priceType,
+        description: rawActivePrice.Description || rawActivePrice.description,
+      } : null;
+
+      const normalizedPromotion = item.ActivePromotion || item.activePromotion ? {
+        promotionId: (item.ActivePromotion || item.activePromotion).PromotionId || (item.ActivePromotion || item.activePromotion).promotionId || 0,
+        condotelId: (item.ActivePromotion || item.activePromotion).CondotelId || (item.ActivePromotion || item.activePromotion).condotelId || 0,
+        condotelName: (item.ActivePromotion || item.activePromotion).CondotelName || (item.ActivePromotion || item.activePromotion).condotelName,
+        name: (item.ActivePromotion || item.activePromotion).Name || (item.ActivePromotion || item.activePromotion).name || "",
+        description: (item.ActivePromotion || item.activePromotion).Description || (item.ActivePromotion || item.activePromotion).description,
+        discountPercentage: (item.ActivePromotion || item.activePromotion).DiscountPercentage !== undefined ? (item.ActivePromotion || item.activePromotion).DiscountPercentage : (item.ActivePromotion || item.activePromotion).discountPercentage,
+        discountAmount: (item.ActivePromotion || item.activePromotion).DiscountAmount !== undefined ? (item.ActivePromotion || item.activePromotion).DiscountAmount : (item.ActivePromotion || item.activePromotion).discountAmount,
+        startDate: (item.ActivePromotion || item.activePromotion).StartDate || (item.ActivePromotion || item.activePromotion).startDate || "",
+        endDate: (item.ActivePromotion || item.activePromotion).EndDate || (item.ActivePromotion || item.activePromotion).endDate || "",
+        isActive: (item.ActivePromotion || item.activePromotion).IsActive !== undefined ? (item.ActivePromotion || item.activePromotion).IsActive : ((item.ActivePromotion || item.activePromotion).isActive !== undefined ? (item.ActivePromotion || item.activePromotion).isActive : false),
+        status: (item.ActivePromotion || item.activePromotion).Status || (item.ActivePromotion || item.activePromotion).status,
+        createdAt: (item.ActivePromotion || item.activePromotion).CreatedAt || (item.ActivePromotion || item.activePromotion).createdAt,
+        updatedAt: (item.ActivePromotion || item.activePromotion).UpdatedAt || (item.ActivePromotion || item.activePromotion).updatedAt,
+      } : null;
+
+      return {
+        condotelId: item.CondotelId || item.condotelId,
+        name: item.Name || item.name,
+        pricePerNight: item.PricePerNight !== undefined ? item.PricePerNight : item.pricePerNight,
+        beds: item.Beds !== undefined ? item.Beds : item.beds,
+        bathrooms: item.Bathrooms !== undefined ? item.Bathrooms : item.bathrooms,
+        status: item.Status || item.status,
+        thumbnailUrl: item.ThumbnailUrl || item.thumbnailUrl,
+        resortName: item.ResortName || item.resortName,
+        hostName: item.HostName || item.hostName,
+        reviewCount: item.ReviewCount !== undefined ? item.ReviewCount : item.reviewCount,
+        reviewRate: item.ReviewRate !== undefined ? item.ReviewRate : item.reviewRate,
+        activePromotion: normalizedPromotion,
+        activePrice: normalizedActivePrice,
+      };
+    });
+
+    return {
+      items: normalizedItems,
+      totalCount: actualData.totalCount || actualData.TotalCount || normalizedItems.length,
+      totalPages: actualData.totalPages || actualData.TotalPages || Math.ceil((actualData.totalCount || actualData.TotalCount || normalizedItems.length) / pageSize),
+    };
+  },
+
+  // PUT /api/host/condotel/{id}/activate - Kích hoạt lại condotel (chuyển Inactive → Active)
+  activateCondotel: async (condotelId: number): Promise<{ success: boolean, message: string }> => {
+    const response = await axiosClient.put<any>(`/host/condotel/${condotelId}/activate`);
+    return {
+      success: response.data.success !== undefined ? response.data.success : true,
+      message: response.data.message || "Condotel đã được kích hoạt thành công",
+    };
+  },
+
+  // PUT /api/host/condotel/{id}/status - Cập nhật status của condotel
+  updateStatus: async (condotelId: number, status: string): Promise<{ success: boolean, message: string }> => {
+    const response = await axiosClient.put<any>(`/host/condotel/${condotelId}/status`, { 
+      condotelId: condotelId,
+      status: status 
+    });
+    return {
+      success: response.data.success !== undefined ? response.data.success : true,
+      message: response.data.message || `Cập nhật trạng thái condotel thành công`,
+    };
   },
 };
 

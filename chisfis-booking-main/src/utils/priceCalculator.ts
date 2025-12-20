@@ -25,10 +25,11 @@ const isPriceActive = (
 
 /**
  * Tính giá cơ bản dựa trên activePrice và pricePerNight
+ * Logic đơn giản: Nếu có activePrice (không null) thì dùng activePrice.basePrice, không thì dùng pricePerNight
  * @param pricePerNight - Giá mặc định
  * @param activePrice - Giá đang active (nếu có)
- * @param checkInDate - Ngày check-in (optional, để kiểm tra activePrice có hợp lệ không)
- * @param checkOutDate - Ngày check-out (optional, để kiểm tra activePrice có hợp lệ không)
+ * @param checkInDate - Ngày check-in (optional, không sử dụng trong logic hiện tại)
+ * @param checkOutDate - Ngày check-out (optional, không sử dụng trong logic hiện tại)
  * @returns Giá cơ bản để tính toán
  */
 export const calculateBasePrice = (
@@ -37,38 +38,13 @@ export const calculateBasePrice = (
   checkInDate?: string | moment.Moment,
   checkOutDate?: string | moment.Moment
 ): number => {
-  // Nếu không có activePrice, dùng pricePerNight
-  if (!activePrice) {
-    return pricePerNight;
-  }
-
-  // Nếu có checkInDate và checkOutDate, kiểm tra activePrice có nằm trong thời gian chỉ định không
-  if (checkInDate && checkOutDate) {
-    const checkIn = moment(checkInDate);
-    const checkOut = moment(checkOutDate);
-    const priceStart = moment(activePrice.startDate);
-    const priceEnd = moment(activePrice.endDate);
-
-    // Kiểm tra xem check-in và check-out có nằm trong khoảng thời gian của activePrice không
-    // activePrice hợp lệ nếu check-in và check-out đều nằm trong [startDate, endDate]
-    const isPriceValid = 
-      (checkIn.isSameOrAfter(priceStart, 'day') && checkIn.isSameOrBefore(priceEnd, 'day')) &&
-      (checkOut.isSameOrAfter(priceStart, 'day') && checkOut.isSameOrBefore(priceEnd, 'day'));
-
-    if (isPriceValid) {
-      return activePrice.basePrice;
-    } else {
-      // activePrice không nằm trong thời gian chỉ định, dùng pricePerNight
-      return pricePerNight;
-    }
-  }
-
-  // Nếu không có checkInDate/checkOutDate (như trong listing card), kiểm tra activePrice có đang active tại thời điểm hiện tại không
-  if (isPriceActive(activePrice)) {
+  // Logic đơn giản: Nếu có activePrice (không null) thì dùng activePrice.basePrice
+  // Không cần kiểm tra thời gian vì backend đã xử lý logic activePrice
+  if (activePrice && activePrice.basePrice !== undefined && activePrice.basePrice !== null) {
     return activePrice.basePrice;
   }
 
-  // activePrice không đang active, dùng pricePerNight
+  // Nếu không có activePrice hoặc activePrice.basePrice không hợp lệ, dùng pricePerNight
   return pricePerNight;
 };
 

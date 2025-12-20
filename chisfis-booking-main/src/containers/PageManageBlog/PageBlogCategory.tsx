@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import blogAPI, { BlogCategoryDTO } from "api/blog";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
 import ButtonSecondary from "shared/Button/ButtonSecondary";
+import ConfirmModal from "components/ConfirmModal";
 
 const PageBlogCategory = () => {
   const [categories, setCategories] = useState<BlogCategoryDTO[]>([]);
@@ -15,6 +16,9 @@ const PageBlogCategory = () => {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [categoryName, setCategoryName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [deletingCategoryId, setDeletingCategoryId] = useState<number | null>(null);
+  const [deletingCategoryName, setDeletingCategoryName] = useState<string>("");
 
   useEffect(() => {
     loadCategories();
@@ -100,11 +104,16 @@ const PageBlogCategory = () => {
   };
 
   const handleDelete = async (categoryId: number, categoryName: string) => {
-    if (!window.confirm(`Bạn có chắc muốn xóa danh mục "${categoryName}" không?`)) {
-      return;
-    }
+    setDeletingCategoryId(categoryId);
+    setDeletingCategoryName(categoryName);
+    setShowConfirmModal(true);
+  };
 
+  const confirmDelete = async () => {
+    if (!deletingCategoryId) return;
+    setShowConfirmModal(false);
     try {
+      const categoryId = deletingCategoryId;
       const success = await blogAPI.adminDeleteCategory(categoryId);
       if (success) {
         setSuccessMessage("Xóa danh mục thành công!");
@@ -115,6 +124,9 @@ const PageBlogCategory = () => {
     } catch (err: any) {
       console.error("Failed to delete category:", err);
       setError(err.response?.data?.message || "Không thể xóa danh mục");
+    } finally {
+      setDeletingCategoryId(null);
+      setDeletingCategoryName("");
     }
   };
 

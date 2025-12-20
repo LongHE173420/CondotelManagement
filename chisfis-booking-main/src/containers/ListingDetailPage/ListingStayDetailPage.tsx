@@ -28,6 +28,13 @@ import { calculateFinalPrice } from "utils/priceCalculator";
 import { toastWarning, toastError, showValidationError } from "utils/toast";
 import { useChat } from "api/useChat"; // Điều chỉnh đường dẫn nếu khác
 
+const formatPrice = (price: number) => {
+  return new Intl.NumberFormat("vi-VN", {
+    style: "currency",
+    currency: "VND",
+  }).format(price);
+};
+
 
 const ListingStayDetailPage: FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -264,19 +271,21 @@ const ListingStayDetailPage: FC = () => {
   );
 
   const renderSectionIntro = () => {
-    // Tính giá cơ bản cho 1 đêm (có thể từ activePrice hoặc pricePerNight)
-    // Sử dụng rangeDates hiện tại để kiểm tra activePrice
+    // Logic tính giá:
+    // 1. Nếu activePrice không null và hợp lệ (trong khoảng thời gian) -> dùng activePrice.basePrice
+    // 2. Nếu không có activePrice hoặc không hợp lệ -> dùng pricePerNight
+    // 3. Sau đó áp dụng promotion (nếu có) lên giá base đã chọn
     const checkInDate = rangeDates.startDate;
     const checkOutDate = rangeDates.endDate;
 
     // Lấy available promotion cho dates đã chọn
     const availablePromotion = getAvailablePromotion();
-
-    // Tính giá với promotion
+    
+    // calculateFinalPrice sẽ tự động ưu tiên activePrice nếu có, không thì dùng pricePerNight
     const { basePrice: basePricePerNight, finalPrice: finalPricePerNight, discountAmount } = calculateFinalPrice(
       data.pricePerNight || 0,
       data.activePrice || null,
-      availablePromotion, // Áp dụng promotion
+      availablePromotion,
       checkInDate || undefined,
       checkOutDate || undefined
     );
@@ -295,29 +304,36 @@ const ListingStayDetailPage: FC = () => {
         <div className="text-neutral-6000 dark:text-neutral-300">{data.description || "Mô tả đang cập nhật."}</div>
         <div className="w-full border-b border-neutral-100 dark:border-neutral-700" />
         <div className="flex items-center justify-between xl:justify-start space-x-8 xl:space-x-12 text-sm text-neutral-700 dark:text-neutral-300">
-          {data.resortName && (
-            <div className="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 text-center sm:text-left sm:space-x-3">
-              <i className="las la-building text-2xl"></i>
-              <span>{data.resortName}</span>
-            </div>
-          )}
-          <div className="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 text-center sm:text-left sm:space-x-3 "><i className="las la-bath text-2xl"></i><span>{data.bathrooms} bathrooms</span></div>
-          <div className="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 text-center sm:text-left sm:space-x-3 ">
-            <i className="las la-tag text-2xl"></i>
-            <div className="flex flex-col items-center sm:items-start">
-              {hasDiscount ? (
-                <>
-                  <span className="text-red-600 dark:text-red-400 font-semibold">
-                    {Math.round(finalPricePerNight).toLocaleString()} đ / đêm
+        {data.resortName && (
+          <div className="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 text-center sm:text-left sm:space-x-3">
+            <i className="las la-building text-2xl"></i>
+            <span>{data.resortName}</span>
+          </div>
+        )}
+        <div className="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 text-center sm:text-left sm:space-x-3 "><i className="las la-bath text-2xl"></i><span>{data.bathrooms} bathrooms</span></div>
+        <div className="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 text-center sm:text-left sm:space-x-3 ">
+          <i className="las la-tag text-2xl"></i>
+          <div className="flex flex-col items-center sm:items-start">
+            {hasDiscount ? (
+              <>
+                <span className="text-base font-semibold text-red-600 dark:text-red-400">
+                  {formatPrice(finalPricePerNight)}
+                  <span className="text-sm text-neutral-500 dark:text-neutral-400 font-normal">
+                    /đêm
                   </span>
-                  <span className="text-xs text-neutral-400 dark:text-neutral-500 line-through">
-                    {Math.round(basePricePerNight).toLocaleString()} đ
-                  </span>
-                </>
-              ) : (
-                <span>{Math.round(basePricePerNight).toLocaleString()} đ / đêm</span>
-              )}
-            </div>
+                </span>
+                <span className="text-xs text-neutral-400 dark:text-neutral-500 line-through">
+                  {formatPrice(basePricePerNight)}
+                </span>
+              </>
+            ) : (
+              <span className="text-base font-semibold">
+                {formatPrice(basePricePerNight)}
+                <span className="text-sm text-neutral-500 dark:text-neutral-400 font-normal">
+                  /đêm
+                </span>
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -759,6 +775,7 @@ const ListingStayDetailPage: FC = () => {
     // Tính giá cơ bản cho 1 đêm (có thể từ activePrice hoặc pricePerNight)
     const checkInDate = rangeDates.startDate;
     const checkOutDate = rangeDates.endDate;
+    // Tính giá base: ưu tiên activePrice nếu có và hợp lệ, không thì dùng pricePerNight
     const { basePrice: basePricePerNight } = calculateFinalPrice(
       data.pricePerNight || 0,
       data.activePrice || null,
@@ -865,8 +882,11 @@ const ListingStayDetailPage: FC = () => {
 
     // Get available promotion
     const availablePromotion = getAvailablePromotion();
-
-    // Tính giá cho 1 đêm: basePrice (từ activePrice hoặc pricePerNight) + promotion
+    
+    // Tính giá cho 1 đêm:
+    // - Ưu tiên activePrice nếu không null và hợp lệ trong khoảng thời gian
+    // - Nếu không có activePrice hoặc không hợp lệ, dùng pricePerNight
+    // - Sau đó áp dụng promotion (nếu có)
     const { basePrice: basePricePerNight, finalPrice: finalPricePerNight } = calculateFinalPrice(
       data.pricePerNight || 0,
       data.activePrice || null,
@@ -898,16 +918,16 @@ const ListingStayDetailPage: FC = () => {
             {discountAmount > 0 && nights > 0 ? (
               <>
                 <span className="text-3xl font-semibold text-red-600 dark:text-red-400">
-                  {Math.round(finalPricePerNight).toLocaleString()} đ
+                  {formatPrice(finalPricePerNight)}
                   <span className="ml-1 text-base font-normal text-neutral-500 dark:text-neutral-400">/đêm</span>
                 </span>
-                <span className="text-sm text-neutral-400 line-through">
-                  {Math.round(basePricePerNight).toLocaleString()} đ/đêm
+                <span className="text-sm text-neutral-400 dark:text-neutral-500 line-through">
+                  {formatPrice(basePricePerNight)}
                 </span>
               </>
             ) : (
               <span className="text-3xl font-semibold">
-                {Math.round(basePricePerNight).toLocaleString()} đ
+                {formatPrice(basePricePerNight)}
                 <span className="ml-1 text-base font-normal text-neutral-500 dark:text-neutral-400">/đêm</span>
               </span>
             )}
@@ -916,8 +936,8 @@ const ListingStayDetailPage: FC = () => {
                 {availablePromotion.discountPercentage
                   ? `-${availablePromotion.discountPercentage}%`
                   : availablePromotion.discountAmount
-                    ? `-${availablePromotion.discountAmount.toLocaleString()} đ`
-                    : "Khuyến mãi"}
+                  ? `-${formatPrice(availablePromotion.discountAmount)}`
+                  : "Khuyến mãi"}
               </span>
             )}
           </div>
@@ -994,9 +1014,9 @@ const ListingStayDetailPage: FC = () => {
               <div className="border-b border-neutral-200 dark:border-neutral-700"></div>
               <div className="flex justify-between text-neutral-6000 dark:text-neutral-300">
                 <span>
-                  {Math.round(basePricePerNight).toLocaleString()} đ x {nights} đêm
+                  {formatPrice(basePricePerNight)} x {nights} đêm
                 </span>
-                <span>{baseTotalPrice.toLocaleString()} đ</span>
+                <span>{formatPrice(baseTotalPrice)}</span>
               </div>
               {availablePromotion && discountAmount > 0 && (
                 <div className="flex justify-between text-red-600 dark:text-red-400">
@@ -1004,10 +1024,10 @@ const ListingStayDetailPage: FC = () => {
                     Giảm giá {availablePromotion.discountPercentage
                       ? `(${availablePromotion.discountPercentage}%)`
                       : availablePromotion.discountAmount
-                        ? `(${availablePromotion.discountAmount.toLocaleString()} đ)`
-                        : ""}
+                      ? `(${formatPrice(availablePromotion.discountAmount)})`
+                      : ""}
                   </span>
-                  <span>-{discountAmount.toLocaleString()} đ</span>
+                  <span>-{formatPrice(discountAmount)}</span>
                 </div>
               )}
             </>
@@ -1016,7 +1036,7 @@ const ListingStayDetailPage: FC = () => {
           <div className="flex justify-between font-semibold">
             <span>Tổng</span>
             <span className={availablePromotion && discountAmount > 0 ? "text-red-600 dark:text-red-400" : ""}>
-              {totalPrice > 0 ? totalPrice.toLocaleString() : baseTotalPrice.toLocaleString()} đ
+              {formatPrice(totalPrice > 0 ? totalPrice : baseTotalPrice)}
             </span>
           </div>
         </div>

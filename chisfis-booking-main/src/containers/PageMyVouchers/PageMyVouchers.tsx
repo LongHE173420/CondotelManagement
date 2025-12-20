@@ -87,10 +87,18 @@ const PageMyVouchers = () => {
         
         // Filter: chỉ lấy voucher active và chưa hết hạn
         const now = new Date();
+        now.setHours(0, 0, 0, 0); // Reset về đầu ngày để so sánh chính xác
+        
         const activeVouchers = vouchersData.filter(v => {
+          // VoucherDTO chỉ có isActive field, không có status
           if (!v.isActive) return false;
+          
+          // So sánh ngày (bỏ qua giờ/phút/giây)
           const endDate = new Date(v.endDate);
+          endDate.setHours(0, 0, 0, 0);
           const startDate = new Date(v.startDate);
+          startDate.setHours(0, 0, 0, 0);
+          
           return startDate <= now && endDate >= now;
         });
         

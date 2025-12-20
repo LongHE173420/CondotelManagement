@@ -55,7 +55,7 @@ const PageManageReviews: FC = () => {
           await loadReportedReviews();
           setConfirmModal({ isOpen: false, title: "", message: "", action: null });
         } catch (err: any) {
-          alert(
+          toastError(
             err.response?.data?.message ||
               err.message ||
               "Không thể xóa review. Vui lòng thử lại."
