@@ -298,6 +298,8 @@ export const condotelAPI = {
 
       // Normalize response - handle both array, object with data property, and success wrapper
       let data: any[] = [];
+      let pagination: PaginationInfo | undefined = undefined;
+
       if (Array.isArray(response.data)) {
         data = response.data;
       } else if (response.data && typeof response.data === 'object') {
@@ -335,20 +337,20 @@ export const condotelAPI = {
         } : null;
 
         const normalizedPromotion = normalizePromotion(item.ActivePromotion || item.activePromotion);
-        
+
         return {
-        condotelId: item.CondotelId || item.condotelId,
-        name: item.Name || item.name,
-        pricePerNight: item.PricePerNight !== undefined ? item.PricePerNight : item.pricePerNight,
-        beds: item.Beds !== undefined ? item.Beds : item.beds,
-        bathrooms: item.Bathrooms !== undefined ? item.Bathrooms : item.bathrooms,
-        status: item.Status || item.status,
+          condotelId: item.CondotelId || item.condotelId,
+          name: item.Name || item.name,
+          pricePerNight: item.PricePerNight !== undefined ? item.PricePerNight : item.pricePerNight,
+          beds: item.Beds !== undefined ? item.Beds : item.beds,
+          bathrooms: item.Bathrooms !== undefined ? item.Bathrooms : item.bathrooms,
+          status: item.Status || item.status,
           thumbnailUrl: thumbnailUrl,
-        resortName: item.ResortName || item.resortName,
-        hostName: item.HostName || item.hostName,
-        reviewCount: item.ReviewCount !== undefined ? item.ReviewCount : item.reviewCount,
-        reviewRate: item.ReviewRate !== undefined ? item.ReviewRate : item.reviewRate,
-        activePromotion: normalizedPromotion,
+          resortName: item.ResortName || item.resortName,
+          hostName: item.HostName || item.hostName,
+          reviewCount: item.ReviewCount !== undefined ? item.ReviewCount : item.reviewCount,
+          reviewRate: item.ReviewRate !== undefined ? item.ReviewRate : item.reviewRate,
+          activePromotion: normalizedPromotion,
           activePrice: normalizedActivePrice,
         };
       });
@@ -380,7 +382,7 @@ export const condotelAPI = {
     const normalizedUtilities = normalizeUtilities(rawUtilities);
     const normalizedPromotions = normalizePromotions(rawPromotions);
     const normalizedActivePromotion = normalizePromotion(rawActivePromotion);
-    
+
     // Normalize activePrice
     const normalizedActivePrice = rawActivePrice ? {
       priceId: rawActivePrice.PriceId || rawActivePrice.priceId,
@@ -446,7 +448,7 @@ export const condotelAPI = {
     try {
       const response = await axiosClient.get<any>(`/tenant/condotels/host/${hostId}`);
       const data = response.data;
-      
+
       // Handle response format: { success: true, data: [...] } or array
       let condotels: any[] = [];
       if (data && typeof data === 'object') {
@@ -460,7 +462,7 @@ export const condotelAPI = {
           condotels = data.Data;
         }
       }
-      
+
       // Normalize response - map PascalCase to camelCase
       return condotels.map((item: any) => {
         const normalizedActivePrice = item.ActivePrice || item.activePrice ? {
@@ -618,7 +620,7 @@ export const condotelAPI = {
   getByIdForHost: async (id: number): Promise<CondotelDetailDTO> => {
     const response = await axiosClient.get<any>(`/host/condotel/${id}`);
     const data = response.data;
-    
+
     // Handle response wrapper: { success: true, data: {...} }
     const actualData = data.success && data.data ? data.data : data;
 
@@ -661,7 +663,7 @@ export const condotelAPI = {
       activePromotion: normalizePromotion(rawActivePromotion),
       activePrice: normalizedActivePrice,
     };
-    
+
     return result;
   },
 

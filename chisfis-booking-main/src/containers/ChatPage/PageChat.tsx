@@ -27,7 +27,7 @@ const PageChat: React.FC = () => {
     const { user, isAdmin } = useAuth();
     const location = useLocation();
     const [searchParams] = useSearchParams();
-    
+
     // Nhận targetUserId từ query parameter (hostId) hoặc state
     const hostIdFromQuery = searchParams.get('hostId');
     const initialTargetId = hostIdFromQuery || location.state?.targetUserId;
@@ -49,6 +49,9 @@ const PageChat: React.FC = () => {
     const [inputText, setInputText] = useState("");
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
+    // === THÊM DÒNG NÀY ĐỂ NGĂN SPAM ===
+    const hasAutoOpenedRef = useRef(false);
+
     // Auto scroll xuống cuối khi có tin nhắn mới
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -61,22 +64,23 @@ const PageChat: React.FC = () => {
         }
     }, [currentUserId, loadConversations]);
 
-    // --- LOGIC MỚI: TỰ ĐỘNG MỞ CHAT TỪ TRANG DETAIL ---
+    // === ĐOẠN ĐÃ SỬA: CHỈ MỞ CHAT 1 LẦN DUY NHẤT ===
     useEffect(() => {
-        // Chỉ chạy khi đã kết nối SignalR thành công và có targetId từ router hoặc query param
-        if (isConnected && initialTargetId && currentUserId > 0) {
+        if (
+            isConnected &&
+            initialTargetId &&
+            currentUserId > 0 &&
+            !hasAutoOpenedRef.current  // ← Ngăn chạy lại nhiều lần
+        ) {
             const targetId = Number(initialTargetId);
-            // Không tự chat với chính mình
             if (targetId !== currentUserId && !isNaN(targetId)) {
                 console.log("Auto opening chat with:", targetId);
                 openChatWithUser(targetId);
+                hasAutoOpenedRef.current = true; // ← Đánh dấu đã mở rồi
 
-                // Xóa query parameter để tránh trigger lại khi F5
+                // Xóa query parameter để tránh trigger lại khi F5 hoặc back
                 if (hostIdFromQuery) {
                     window.history.replaceState({}, document.title, '/chat');
-                } else {
-                    // Xóa state history nếu dùng state
-                    window.history.replaceState({}, document.title);
                 }
             }
         }
@@ -95,20 +99,19 @@ const PageChat: React.FC = () => {
         const contentToSend = inputText.trim();
 
         // A. Tạo tin nhắn giả lập để hiện ngay lập tức (Optimistic UI)
-        // Lưu ý: Cấu trúc này phải khớp với những gì useChat đang check trùng lặp (content, senderId, sentAt)
         const optimisticMessage: any = {
-            messageId: 0, // ID tạm bằng 0 hoặc null
+            messageId: 0,
             conversationId: currentConvId,
             senderId: currentUserId,
             content: contentToSend,
-            sentAt: new Date().toISOString(), // Thời gian hiện tại
+            sentAt: new Date().toISOString(),
             isRead: false
         };
 
         // B. Cập nhật giao diện NGAY LẬP TỨC
         setMessages((prev) => [...prev, optimisticMessage]);
 
-        // C. Gửi xuống server (Server sẽ lưu và bắn socket lại)
+        // C. Gửi xuống server
         sendMessage(currentConvId, contentToSend);
 
         // D. Xóa ô nhập liệu
@@ -126,18 +129,15 @@ const PageChat: React.FC = () => {
 
     const getPartnerName = (conv: any) => {
         if (!conv) return "Hỗ trợ khách hàng";
-        // Ưu tiên sử dụng otherUser từ API
         if (conv.otherUser && conv.otherUser.fullName) {
             return conv.otherUser.fullName;
         }
-        // Fallback về logic cũ nếu không có otherUser
         const partnerId = conv.userAId === currentUserId ? conv.userBId : conv.userAId;
         return partnerId === ADMIN_ID ? "Hỗ trợ khách hàng" : `User ${partnerId}`;
     };
 
     const getPartnerImage = (conv: any) => {
         if (!conv) return null;
-        // Ưu tiên sử dụng otherUser từ API
         if (conv.otherUser && conv.otherUser.imageUrl) {
             return conv.otherUser.imageUrl;
         }
@@ -367,7 +367,7 @@ const PageChat: React.FC = () => {
                             ) : (
                                 <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-20 w-20 mb-4 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                                     </svg>
                                     <p className="text-lg">Chọn một cuộc hội thoại để bắt đầu</p>
                                 </div>
