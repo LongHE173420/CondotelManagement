@@ -226,10 +226,10 @@ export const authAPI = {
   changePassword: async (data: {
     currentPassword: string;
     newPassword: string;
-    confirmNewPassword: string;  // <-- THÊM DÒNG NÀY
+    confirmNewPassword: string;
   }): Promise<{ message: string }> => {
     const response = await axiosClient.post<{ message: string }>(
-      "/auth/change-password",  // <-- thêm /api/ cho chắc chắn
+      "/auth/change-password",
       data
     );
     return response.data;

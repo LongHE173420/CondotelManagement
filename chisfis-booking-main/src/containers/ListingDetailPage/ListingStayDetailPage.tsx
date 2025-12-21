@@ -18,7 +18,6 @@ import Avatar from "shared/Avatar/Avatar";
 import MobileFooterSticky from "./MobileFooterSticky";
 import moment from "moment";
 import ModalSelectDate from "components/ModalSelectDate";
-import ModalSelectGuests from "components/ModalSelectGuests";
 import { DateRage } from "components/HeroSearchForm/StaySearchForm";
 import { GuestsObject } from "components/HeroSearchForm2Mobile/GuestsInput";
 import converSelectedDateToString from "utils/converSelectedDateToString";
@@ -952,33 +951,6 @@ const ListingStayDetailPage: FC = () => {
               )}
             />
           </div>
-
-          {/* Chọn số khách */}
-          <div className="border border-neutral-200 dark:border-neutral-700 rounded-2xl overflow-hidden">
-            <ModalSelectGuests
-              defaultValue={guests}
-              onChangeGuests={setGuests}
-              renderChildren={({ openModal }) => (
-                <button
-                  onClick={openModal}
-                  className="text-left w-full p-4 flex justify-between items-center hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
-                  type="button"
-                >
-                  <div className="flex flex-col">
-                    <span className="text-sm text-neutral-400">Khách</span>
-                    <span className="mt-1.5 text-base font-semibold">
-                      {(guests.guestAdults || 0) + (guests.guestChildren || 0) + (guests.guestInfants || 0)} khách
-                      {(guests.guestAdults || 0) > 0 && ` (${guests.guestAdults} người lớn`}
-                      {(guests.guestChildren || 0) > 0 && `, ${guests.guestChildren} trẻ em`}
-                      {(guests.guestInfants || 0) > 0 && `, ${guests.guestInfants} em bé`}
-                      {(guests.guestAdults || 0) > 0 && ")"}
-                    </span>
-                  </div>
-                  <PencilSquareIcon className="w-5 h-5 text-neutral-6000 dark:text-neutral-400" />
-                </button>
-              )}
-            />
-          </div>
         </div>
 
         {/* Chi tiết giá */}
@@ -1048,7 +1020,6 @@ const ListingStayDetailPage: FC = () => {
                 {data.details?.map((d: any, i: number) => (
                   <div key={i} className="border rounded p-3">
                     <div><b>Tòa nhà:</b> {d.buildingName || "—"} · <b>Phòng:</b> {d.roomNumber || "—"}</div>
-                    <div><b>Giường:</b> {d.beds} · <b>Phòng tắm:</b> {d.bathrooms}</div>
                     {d.safetyFeatures && <div><b>An toàn:</b> {d.safetyFeatures}</div>}
                     {d.hygieneStandards && <div><b>Vệ sinh:</b> {d.hygieneStandards}</div>}
                   </div>
