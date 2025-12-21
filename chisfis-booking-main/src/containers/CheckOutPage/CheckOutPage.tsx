@@ -11,7 +11,6 @@ import ModalSelectDate from "components/ModalSelectDate";
 import moment from "moment";
 import { DateRage } from "components/HeroSearchForm/StaySearchForm";
 import converSelectedDateToString from "utils/converSelectedDateToString";
-import ModalSelectGuests from "components/ModalSelectGuests";
 import { GuestsObject } from "components/HeroSearchForm2Mobile/GuestsInput";
 import { useAuth } from "contexts/AuthContext";
 import bookingAPI, { CreateBookingDTO, ServicePackageBookingItem } from "api/booking";
@@ -1291,31 +1290,6 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
                     <span className="text-sm text-neutral-400">Date</span>
                     <span className="mt-1.5 text-lg font-semibold">
                       {converSelectedDateToString(rangeDates)}
-                    </span>
-                  </div>
-                  <PencilSquareIcon className="w-6 h-6 text-neutral-6000 dark:text-neutral-400" />
-                </button>
-              )}
-            />
-
-            <ModalSelectGuests
-              defaultValue={guests}
-              onChangeGuests={setGuests}
-              renderChildren={({ openModal }) => (
-                <button
-                  type="button"
-                  onClick={openModal}
-                  className="text-left flex-1 p-5 flex justify-between space-x-5"
-                >
-                  <div className="flex flex-col">
-                    <span className="text-sm text-neutral-400">Guests</span>
-                    <span className="mt-1.5 text-lg font-semibold">
-                      <span className="line-clamp-1">
-                        {`${
-                          (guests.guestAdults || 0) +
-                          (guests.guestChildren || 0)
-                        } Guests, ${guests.guestInfants || 0} Infants`}
-                      </span>
                     </span>
                   </div>
                   <PencilSquareIcon className="w-6 h-6 text-neutral-6000 dark:text-neutral-400" />

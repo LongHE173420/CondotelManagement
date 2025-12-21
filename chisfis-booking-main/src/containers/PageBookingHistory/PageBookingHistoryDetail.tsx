@@ -579,6 +579,49 @@ const PageBookingHistoryDetail = () => {
                   <dt className="text-sm font-medium text-gray-500">Trả phòng</dt>
                   <dd className="text-sm text-gray-700">{formatDate(booking.endDate)}</dd>
                 </div>
+                
+                {/* Địa chỉ cụ thể */}
+                {condotel && (
+                  <div className="pt-4 border-t border-gray-200">
+                    <div className="flex flex-col">
+                      <dt className="text-sm font-medium text-gray-500 mb-2">Địa chỉ cụ thể</dt>
+                      <dd className="text-sm text-gray-700">
+                        {condotel.resortAddress ? (
+                          <div className="space-y-1">
+                            <p>{condotel.resortAddress}</p>
+                            {condotel.details && condotel.details.length > 0 && (
+                              <div className="mt-2 space-y-1">
+                                {condotel.details.map((detail: any, index: number) => (
+                                  <div key={index} className="text-xs text-gray-600">
+                                    {detail.buildingName && detail.roomNumber && (
+                                      <span>
+                                        Tòa nhà: <strong>{detail.buildingName}</strong> · Phòng: <strong>{detail.roomNumber}</strong>
+                                      </span>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ) : condotel.details && condotel.details.length > 0 ? (
+                          <div className="space-y-1">
+                            {condotel.details.map((detail: any, index: number) => (
+                              <div key={index}>
+                                {detail.buildingName && detail.roomNumber && (
+                                  <p>
+                                    Tòa nhà: <strong>{detail.buildingName}</strong> · Phòng: <strong>{detail.roomNumber}</strong>
+                                  </p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-gray-400 italic">Chưa có thông tin địa chỉ</p>
+                        )}
+                      </dd>
+                    </div>
+                  </div>
+                )}
               </dl>
 
               {/* Chi tiết thanh toán */}
