@@ -2,10 +2,6 @@
 import { Helmet } from "react-helmet";
 import SectionSubscribe2 from "components/SectionSubscribe2/SectionSubscribe2";
 import SocialsList from "shared/SocialsList/SocialsList";
-import Label from "components/Label/Label";
-import Input from "shared/Input/Input";
-import Textarea from "shared/Textarea/Textarea";
-import ButtonPrimary from "shared/Button/ButtonPrimary";
 import SectionOurFeatures from "components/SectionOurFeatures/SectionOurFeatures";
 import BackgroundSection from "components/BackgroundSection/BackgroundSection";
 
@@ -42,8 +38,8 @@ const PageContact: FC<PageContactProps> = ({ className = "" }) => {
           Liên hệ
         </h2>
         <div className="container max-w-7xl mx-auto">
-          <div className="flex-shrink-0 grid grid-cols-1 sm:grid-cols-2 gap-12 ">
-            <div className="max-w-sm space-y-8">
+          <div className="flex-shrink-0 max-w-sm mx-auto">
+            <div className="space-y-8">
               {info.map((item, index) => (
                 <div key={index}>
                   <h3 className="uppercase font-semibold text-sm dark:text-neutral-200 tracking-wider">
@@ -60,36 +56,6 @@ const PageContact: FC<PageContactProps> = ({ className = "" }) => {
                 </h3>
                 <SocialsList className="mt-2" />
               </div>
-            </div>
-            <div>
-              <form className="grid grid-cols-1 gap-6" action="#" method="post">
-                <label className="block">
-                  <Label>Họ và tên</Label>
-
-                  <Input
-                    placeholder="Nhập họ và tên của bạn"
-                    type="text"
-                    className="mt-1"
-                  />
-                </label>
-                <label className="block">
-                  <Label>Địa chỉ email</Label>
-
-                  <Input
-                    type="email"
-                    placeholder="example@example.com"
-                    className="mt-1"
-                  />
-                </label>
-                <label className="block">
-                  <Label>Tin nhắn</Label>
-
-                  <Textarea className="mt-1" rows={6} placeholder="Nhập tin nhắn của bạn..." />
-                </label>
-                <div>
-                  <ButtonPrimary type="submit">Gửi tin nhắn</ButtonPrimary>
-                </div>
-              </form>
             </div>
           </div>
         </div>
