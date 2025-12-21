@@ -1,4 +1,4 @@
-export default function isInViewport(element: HTMLElement) {
+﻿export default function isInViewport(element: HTMLElement) {
   const rect = element.getBoundingClientRect();
   return (
     rect.top >= 0 &&

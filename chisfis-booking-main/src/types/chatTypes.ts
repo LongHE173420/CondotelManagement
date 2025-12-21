@@ -1,4 +1,4 @@
-// src/types/chatTypes.ts
+﻿// src/types/chatTypes.ts
 
 export interface ChatUser {
     userId: number;

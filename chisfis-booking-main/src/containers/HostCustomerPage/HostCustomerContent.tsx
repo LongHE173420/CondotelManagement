@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "contexts/AuthContext";
 import customerAPI, { CustomerDTO } from "api/customer";
@@ -42,7 +42,6 @@ const HostCustomerContent: React.FC = () => {
       const customersData = await customerAPI.getCustomers();
       setCustomers(customersData);
     } catch (err: any) {
-      console.error("Failed to load customers:", err);
       setError(err.response?.data?.message || "Không thể tải danh sách khách hàng");
       setCustomers([]);
     } finally {
@@ -56,7 +55,6 @@ const HostCustomerContent: React.FC = () => {
       const bookings = await bookingAPI.getHostBookingsByCustomer(userId);
       setCustomerBookings(bookings);
     } catch (err: any) {
-      console.error("Failed to load customer bookings:", err);
       setCustomerBookings([]);
     } finally {
       setLoadingBookings(false);

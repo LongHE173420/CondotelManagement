@@ -1,4 +1,4 @@
-import { DEMO_POSTS } from "data/posts";
+﻿import { DEMO_POSTS } from "data/posts";
 import { PostDataType } from "data/types";
 import React, { useState, useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
@@ -45,14 +45,12 @@ const BlogSingle = () => {
               .slice(0, 8);
             setMoreRelatedPosts(moreRelated as BlogPostDetailDTO[]);
           } catch (err) {
-            console.error("Failed to load related posts:", err);
             setRelatedPosts([]);
           }
         } else {
           setError("Bài viết không tồn tại hoặc chưa được xuất bản");
         }
       } catch (err: any) {
-        console.error("Failed to load blog post:", err);
         setError(err.response?.data?.message || "Không thể tải bài viết");
       } finally {
         setLoading(false);

@@ -1,4 +1,4 @@
-import React, { FC } from "react";
+﻿import React, { FC } from "react";
 import { DEMO_EXPERIENCES_LISTINGS } from "data/listings";
 import { ExperiencesDataType, StayDataType } from "data/types";
 import Pagination from "shared/Pagination/Pagination";

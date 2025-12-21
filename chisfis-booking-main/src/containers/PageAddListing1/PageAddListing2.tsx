@@ -1,4 +1,4 @@
-import { MapPinIcon } from "@heroicons/react/24/solid";
+﻿import { MapPinIcon } from "@heroicons/react/24/solid";
 import LocationMarker from "components/AnyReactComponent/LocationMarker";
 import Label from "components/Label/Label";
 import GoogleMapReact from "google-map-react";
@@ -64,7 +64,6 @@ const PageAddListing2: FC<PageAddListing2Props> = () => {
           setLocation(formData.location);
         }
       } catch (err: any) {
-        console.error("Failed to load location from resort:", err);
       }
     };
     loadLocationFromResort();

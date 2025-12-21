@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "contexts/AuthContext";
 import amenityAPI, { AmenityDTO, AmenityRequestDTO } from "api/amenity";
@@ -40,7 +40,6 @@ const HostAmenityContent: React.FC = () => {
       ) as string[];
       setCategories(uniqueCategories);
     } catch (err: any) {
-      console.error("Failed to load amenities:", err);
       setError(err.response?.data?.message || "Không thể tải danh sách tiện ích");
       setAmenities([]);
     } finally {
@@ -60,7 +59,6 @@ const HostAmenityContent: React.FC = () => {
       const amenitiesData = await amenityAPI.getByCategory(category);
       setAmenities(amenitiesData);
     } catch (err: any) {
-      console.error("Failed to load amenities by category:", err);
       setError(err.response?.data?.message || "Không thể tải danh sách tiện ích");
       setAmenities([]);
     } finally {
@@ -378,7 +376,6 @@ const AmenityModal: React.FC<AmenityModalProps> = ({
       }
       onSuccess();
     } catch (err: any) {
-      console.error("Failed to save amenity:", err);
       let errorMessage = "Không thể lưu tiện ích. Vui lòng thử lại!";
 
       if (err.response?.data?.message) {

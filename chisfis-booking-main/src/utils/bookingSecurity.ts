@@ -1,4 +1,4 @@
-import { BookingDTO } from "api/booking";
+﻿import { BookingDTO } from "api/booking";
 import { UserProfile } from "api/auth";
 
 /**
@@ -35,11 +35,6 @@ export const validateBookingOwnership = (
   }
   
   if (!isBookingOwner(booking, user)) {
-    console.error("⚠️ SECURITY: User attempted to access booking of another user", {
-      bookingCustomerId: booking.customerId,
-      currentUserId: user.userId,
-      bookingId: booking.bookingId
-    });
     throw new Error("Bạn không có quyền truy cập booking này");
   }
 };

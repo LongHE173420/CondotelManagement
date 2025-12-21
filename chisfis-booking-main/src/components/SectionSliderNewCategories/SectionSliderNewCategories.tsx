@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useMemo } from "react";
+﻿import React, { FC, useEffect, useMemo } from "react";
 import Heading from "components/Heading/Heading";
 import Glide from "@glidejs/glide";
 import { TaxonomyType } from "data/types";
@@ -66,7 +66,6 @@ const SectionSliderNewCategories: FC<SectionSliderNewCategoriesProps> = ({
         },
       });
     } catch (error) {
-      console.error("Error creating Glide instance:", error);
       return null;
     }
   }, [UNIQUE_CLASS, itemPerRow]);
@@ -80,19 +79,16 @@ const SectionSliderNewCategories: FC<SectionSliderNewCategoriesProps> = ({
     const checkAndMount = () => {
       const element = document.querySelector(`.${UNIQUE_CLASS}`);
       if (!element) {
-        console.warn(`Glide element not found: .${UNIQUE_CLASS}`);
         return false;
       }
 
       // Check if element has valid dimensions
       const rect = element.getBoundingClientRect();
       if (rect.width === 0 || rect.height === 0) {
-        console.warn(`Glide element has zero dimensions: .${UNIQUE_CLASS}`);
         return false;
       }
 
       if (!MY_GLIDEJS) {
-        console.warn("Glide instance is null");
         return false;
       }
 
@@ -100,7 +96,6 @@ const SectionSliderNewCategories: FC<SectionSliderNewCategoriesProps> = ({
         MY_GLIDEJS.mount();
         return true;
       } catch (error) {
-        console.error("Error mounting Glide:", error);
         return false;
       }
     };
@@ -128,7 +123,6 @@ const SectionSliderNewCategories: FC<SectionSliderNewCategoriesProps> = ({
             (MY_GLIDEJS as any).unmount();
           }
         } catch (error) {
-          console.error("Error unmounting Glide:", error);
         }
       }
     };

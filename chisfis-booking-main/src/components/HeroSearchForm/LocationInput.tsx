@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import { FC } from "react";
 import { useEffect } from "react";
 import ClearDataButton from "./ClearDataButton";
@@ -58,7 +58,6 @@ const LocationInput: FC<LocationInputProps> = ({
         const locationNames = locations.map(loc => loc.name).filter(Boolean) as string[];
         setAllLocations(locationNames);
       } catch (err) {
-        console.error("Error loading locations:", err);
         // If API fails, use empty array - no hardcoded fallback
         setAllLocations([]);
       }
@@ -117,7 +116,6 @@ const LocationInput: FC<LocationInputProps> = ({
         
         setLocationSuggestions(Array.from(uniqueLocations).slice(0, 10));
       } catch (err) {
-        console.error("Error fetching location suggestions:", err);
         // Don't set empty array on error - let hardcoded locations show
         setLocationSuggestions([]);
       } finally {

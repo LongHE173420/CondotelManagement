@@ -1,4 +1,4 @@
-import StartRating from "components/StartRating/StartRating";
+﻿import StartRating from "components/StartRating/StartRating";
 import React, { FC, useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import ButtonPrimary from "shared/Button/ButtonPrimary";

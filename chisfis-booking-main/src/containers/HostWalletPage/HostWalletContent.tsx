@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "contexts/AuthContext";
 import walletAPI, { WalletDTO, WalletCreateDTO, WalletUpdateDTO } from "api/wallet";
@@ -39,7 +39,6 @@ const HostWalletContent: React.FC = () => {
       const walletsData = await walletAPI.getAll();
       setWallets(walletsData);
     } catch (err: any) {
-      console.error("Failed to load wallets:", err);
       setError(err.response?.data?.message || "Không thể tải danh sách tài khoản ngân hàng");
       setWallets([]);
     } finally {
@@ -62,7 +61,6 @@ const HostWalletContent: React.FC = () => {
       toastSuccess("✅ Xóa tài khoản ngân hàng thành công!");
       await loadData();
     } catch (err: any) {
-      console.error("Failed to delete wallet:", err);
       const errorMsg = err.response?.data?.message || "❌ Không thể xóa tài khoản ngân hàng";
       toastError(errorMsg);
     } finally {
@@ -89,7 +87,6 @@ const HostWalletContent: React.FC = () => {
         toastError(errorMsg);
       }
     } catch (err: any) {
-      console.error("Failed to set default wallet:", err);
       const errorMsg = err.response?.data?.message || err.response?.data?.error || err.message || "❌ Không thể đặt tài khoản làm mặc định";
       setError(errorMsg);
       toastError(errorMsg);
@@ -427,7 +424,6 @@ const WalletModal: React.FC<WalletModalProps> = ({ wallet, onClose, onSuccess })
         onClose();
       }, 500);
     } catch (err: any) {
-      console.error("Failed to save wallet:", err);
       let errorMessage = "❌ Không thể lưu tài khoản ngân hàng. Vui lòng thử lại!";
 
       if (err.response?.data?.message) {

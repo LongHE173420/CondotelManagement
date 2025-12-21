@@ -1,4 +1,4 @@
-import React, { FC } from "react";
+﻿import React, { FC } from "react";
 import Heading from "components/Heading/Heading";
 import { DEMO_POSTS } from "data/posts";
 import { PostDataType } from "data/types";

@@ -1,4 +1,4 @@
-import React, { FC, useState, useEffect, useMemo } from "react";
+﻿import React, { FC, useState, useEffect, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import StayCardH from "components/StayCardH/StayCardH";
 import { StayDataType } from "data/types";
@@ -250,7 +250,6 @@ const SectionGridNoMap: FC<SectionGridNoMapProps> = () => {
           setPagination(null);
         }
       } catch (err: any) {
-        console.error("Lỗi khi tải danh sách condotel:", err);
         setError(err.response?.data?.message || "Không thể tải danh sách condotel");
         setCondotels([]);
         setPagination(null);

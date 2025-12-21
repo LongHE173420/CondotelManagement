@@ -1,4 +1,4 @@
-import React, { FC } from "react";
+﻿import React, { FC } from "react";
 import Logo from "shared/Logo/Logo";
 import Navigation from "shared/Navigation/Navigation";
 import SearchDropdown from "./SearchDropdown";

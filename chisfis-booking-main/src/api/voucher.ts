@@ -1,4 +1,4 @@
-import axiosClient from "./axiosClient";
+﻿import axiosClient from "./axiosClient";
 
 // DTOs từ backend Voucher
 export interface VoucherDTO {
@@ -17,6 +17,7 @@ export interface VoucherDTO {
   updatedAt?: string;
   condotelId?: number;
   condotelName?: string;
+  userId?: number; // ID của user sở hữu voucher (null = voucher công khai)
 }
 
 // Helper function để normalize voucher từ PascalCase sang camelCase
@@ -50,6 +51,9 @@ const normalizeVoucher = (item: any): VoucherDTO => {
   }
   if (item.CondotelID || item.condotelID || item.condotelId) {
     normalized.condotelId = item.CondotelID || item.condotelID || item.condotelId;
+  }
+  if (item.UserID || item.userId || item.UserId) {
+    normalized.userId = item.UserID || item.userId || item.UserId;
   }
   
   return normalized;

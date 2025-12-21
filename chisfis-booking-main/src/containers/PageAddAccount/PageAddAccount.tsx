@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { adminAPI, AdminCreateUserDTO } from "api/admin";
 
@@ -116,7 +116,6 @@ const PageAddAccount = () => {
         newAccountData.address = address.trim();
       }
 
-      console.log("Saving new account:", newAccountData);
 
       const response = await adminAPI.createUser(newAccountData);
 
@@ -124,7 +123,6 @@ const PageAddAccount = () => {
       navigate("/admin?tab=accounts");
 
     } catch (err: any) {
-      console.error("Failed to create user:", err);
       let errorMessage = "Không thể tạo tài khoản";
 
       if (err.response?.data?.message) {

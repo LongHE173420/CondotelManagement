@@ -1,4 +1,4 @@
-// src/api/useChat.ts
+﻿// src/api/useChat.ts
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { HubConnection, HubConnectionBuilder, HubConnectionState, LogLevel } from '@microsoft/signalr';
 import { ChatConversation, ChatMessageDto } from '../types/chatTypes';
@@ -46,11 +46,10 @@ export const useChat = (currentUserId: number) => {
             try {
                 if (connection.state === HubConnectionState.Disconnected) {
                     await connection.start();
-                    console.log('✅ SignalR Connected to:', HUB_URL);
                     setIsConnected(true);
                 }
             } catch (err) {
-                console.error('❌ SignalR Connection Error:', err);
+                // Có thể retry logic ở đây nếu muốn
             }
         };
 
@@ -120,7 +119,6 @@ export const useChat = (currentUserId: number) => {
             });
             setUnreadCounts(counts);
         } catch (err) {
-            console.error("Load conversations failed:", err);
         }
     }, [currentUserId]);
 
@@ -134,7 +132,6 @@ export const useChat = (currentUserId: number) => {
             const sorted = res.data.sort((a: any, b: any) => new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime());
             setMessages(sorted);
         } catch (err) {
-            console.error("Load messages failed:", err);
         }
     }, []);
 
@@ -144,17 +141,17 @@ export const useChat = (currentUserId: number) => {
             try {
                 await connection.invoke("SendMessage", conversationId, content);
             } catch (err) {
-                console.error("Send failed:", err);
+                // Có thể thêm logic retry hoặc thông báo toast error ở đây
             }
         } else {
-            console.warn("⚠️ SignalR chưa sẵn sàng.");
+
+            // Logic tự động reconnect nếu bị rớt mạng (Optional)
             try {
                 if (connection && connection.state === HubConnectionState.Disconnected) {
                     await connection.start();
                     await connection.invoke("SendMessage", conversationId, content);
                 }
             } catch (e) {
-                console.error("Reconnect failed:", e);
             }
         }
     };
@@ -236,7 +233,6 @@ export const useChat = (currentUserId: number) => {
             setCurrentConvId(convId);
             await loadConversations();
         } catch (err) {
-            console.error("Error opening chat with user:", err);
         }
     };
 

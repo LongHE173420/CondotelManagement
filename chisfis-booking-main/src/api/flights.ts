@@ -1,4 +1,4 @@
-import axiosClient from "./axiosClient";
+﻿import axiosClient from "./axiosClient";
 import axios from "axios";
 
 export interface FlightSearchParams {
@@ -141,7 +141,6 @@ const flightsAPI = {
           : [];
         if (items.length) return items;
       } catch (e) {
-        console.warn("⚠️ RapidAPI Skyscanner failed, falling back to demo.", e);
       }
     }
     // 2) Optional custom backend (if available)

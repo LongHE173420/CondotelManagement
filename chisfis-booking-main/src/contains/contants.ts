@@ -1,4 +1,4 @@
-const avatarColors = [
+﻿const avatarColors = [
   "#ffdd00",
   "#fbb034",
   "#ff4c4c",

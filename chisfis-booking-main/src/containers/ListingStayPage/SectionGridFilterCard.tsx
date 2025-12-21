@@ -1,4 +1,4 @@
-import React, { FC, useState, useEffect, useMemo } from "react";
+﻿import React, { FC, useState, useEffect, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import Pagination from "shared/Pagination/Pagination";
 import TabFilters from "./TabFilters";
@@ -150,13 +150,11 @@ const SectionGridFilterCard: FC<SectionGridFilterCardProps> = ({
         // Ensure we only set the results from the search, not all condotels
         // Ensure results is always an array
         if (!Array.isArray(results)) {
-          console.error("❌ Results is not an array:", results);
           results = [];
         }
         setCondotels(results);
         setCurrentPage(1); // Reset to page 1 when search results change
       } catch (err: any) {
-        console.error("Error fetching condotels:", err);
         setError(err.response?.data?.message || "Không thể tải danh sách condotel");
         setCondotels([]);
       } finally {

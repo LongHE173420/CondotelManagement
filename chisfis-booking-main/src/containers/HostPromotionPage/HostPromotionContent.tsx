@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "contexts/AuthContext";
 import { condotelAPI, CondotelDTO, PromotionDTO } from "api/condotel";
@@ -92,7 +92,6 @@ const HostPromotionContent: React.FC = () => {
         }
       }
     } catch (err: any) {
-      console.error("Failed to load promotions:", err);
       setError(err.response?.data?.message || "Không thể tải danh sách khuyến mãi");
       // Set empty arrays on error
       setPromotions([]);
@@ -451,7 +450,6 @@ const PromotionModal: React.FC<PromotionModalProps> = ({
         onClose();
       }, 500);
     } catch (err: any) {
-      console.error("Failed to save promotion:", err);
       let errorMessage = "❌ Không thể lưu promotion. Vui lòng thử lại!";
 
       if (err.response?.data?.message) {

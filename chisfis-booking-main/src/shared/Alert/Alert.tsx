@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import ButtonClose from "shared/ButtonClose/ButtonClose";
 
 export interface AlertProps {

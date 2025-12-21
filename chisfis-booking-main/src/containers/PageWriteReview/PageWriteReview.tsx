@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import reviewAPI from "api/review";
 import bookingAPI, { BookingDTO } from "api/booking";
@@ -72,7 +72,6 @@ const PageWriteReview = () => {
           setBooking(bookingData);
           setUnauthorized(false);
         } catch (securityError: any) {
-          console.error("Security error:", securityError);
           setError(securityError.message || "Bạn không có quyền truy cập booking này");
           setUnauthorized(true);
           setBooking(null);
@@ -111,7 +110,6 @@ const PageWriteReview = () => {
         // Nếu đã review rồi hoặc không đủ điều kiện, backend sẽ trả về lỗi khi submit review
         setCanReview(true);
       } catch (err: any) {
-        console.error("Error checking can review:", err);
         if (err.response?.status === 403 || err.response?.status === 401) {
           setError("Bạn không có quyền truy cập booking này");
           setUnauthorized(true);

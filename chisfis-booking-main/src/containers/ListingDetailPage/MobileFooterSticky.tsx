@@ -1,4 +1,4 @@
-import { DateRage } from "components/HeroSearchForm/StaySearchForm";
+﻿import { DateRage } from "components/HeroSearchForm/StaySearchForm";
 import { GuestsObject } from "components/HeroSearchForm2Mobile/GuestsInput";
 import ModalSelectDate from "components/ModalSelectDate";
 import moment from "moment";

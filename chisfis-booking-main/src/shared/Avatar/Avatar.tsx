@@ -1,4 +1,4 @@
-import { avatarColors } from "contains/contants";
+﻿import { avatarColors } from "contains/contants";
 import React, { FC } from "react";
 
 export interface AvatarProps {

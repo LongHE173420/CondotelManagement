@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "contexts/AuthContext";
 import { packageAPI, HostPackageDetailsDto } from "api/package";
@@ -23,7 +23,6 @@ const HostPackageContent: React.FC = () => {
     if (hostPackage) {
       const invalidStatus = ["Inactive", "PendingPayment", "Cancelled", "Expired"];
       if (invalidStatus.includes(hostPackage.status)) {
-        console.warn(`Host có package với trạng thái ${hostPackage.status}. Vẫn cho phép truy cập trang này nhưng hạn chế quyền.`);
       }
     }
 
@@ -37,7 +36,6 @@ const HostPackageContent: React.FC = () => {
       const pkg = await packageAPI.getMyPackage();
       setCurrentPackage(pkg);
     } catch (err: any) {
-      console.error("Failed to load package:", err);
       if (err.response?.status === 400 || err.response?.status === 404) {
         // Host chưa có package → bình thường
         setCurrentPackage(null);

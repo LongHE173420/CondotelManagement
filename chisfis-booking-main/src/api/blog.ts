@@ -1,4 +1,4 @@
-import axiosClient from "./axiosClient";
+﻿import axiosClient from "./axiosClient";
 
 // DTOs từ backend Blog - khớp với C# DTOs
 export interface BlogPostSummaryDTO {
@@ -249,9 +249,7 @@ export const blogAPI = {
       }
     }
 
-    console.log("📤 Creating blog post with data:", JSON.stringify(requestData, null, 2));
     const response = await axiosClient.post<any>("/admin/blog/posts", requestData);
-    console.log("✅ Blog post created:", response.data);
     return normalizePostDetail(response.data);
   },
 
@@ -275,9 +273,7 @@ export const blogAPI = {
       }
     }
 
-    console.log("📤 Updating blog post with data:", JSON.stringify(requestData, null, 2));
     const response = await axiosClient.put<any>(`/admin/blog/posts/${postId}`, requestData);
-    console.log("✅ Blog post updated:", response.data);
     return normalizePostDetail(response.data);
   },
 
@@ -317,7 +313,6 @@ export const blogAPI = {
 
       return normalizeCategory(categoryData);
     } catch (error: any) {
-      console.error("Error creating category:", error);
       // Re-throw để component có thể xử lý
       throw error;
     }
@@ -382,7 +377,6 @@ export const blogAPI = {
       await axiosClient.post(`/admin/blog/requests/${requestId}/approve`);
       return true;
     } catch (error) {
-      console.error("Error approving request:", error);
       throw error;
     }
   },
@@ -400,7 +394,6 @@ export const blogAPI = {
       );
       return true;
     } catch (error) {
-      console.error("Error rejecting request:", error);
       throw error;
     }
   },

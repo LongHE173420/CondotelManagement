@@ -1,4 +1,4 @@
-import SectionHero from "components/SectionHero/SectionHero";
+﻿import SectionHero from "components/SectionHero/SectionHero";
 import SectionSliderNewCategories from "components/SectionSliderNewCategories/SectionSliderNewCategories";
 import React, { useState, useEffect } from "react";
 import SectionSubscribe2 from "components/SectionSubscribe2/SectionSubscribe2";

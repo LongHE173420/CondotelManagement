@@ -1,4 +1,4 @@
-import Glide from "@glidejs/glide";
+﻿import Glide from "@glidejs/glide";
 import useNcId from "hooks/useNcId";
 import React, { FC, useEffect, useMemo } from "react";
 import NcImage from "shared/NcImage/NcImage";
@@ -31,7 +31,6 @@ const GallerySlider: FC<GallerySliderProps> = ({
         keyboard: false,
       });
     } catch (error) {
-      console.error("Error creating Glide instance:", error);
       return null;
     }
   }, [UNIQUE_CLASS]);
@@ -44,19 +43,16 @@ const GallerySlider: FC<GallerySliderProps> = ({
     const checkAndMount = () => {
       const element = document.querySelector(`.${UNIQUE_CLASS}`);
       if (!element) {
-        console.warn(`Glide element not found: .${UNIQUE_CLASS}`);
         return false;
       }
 
       // Check if element has valid dimensions
       const rect = element.getBoundingClientRect();
       if (rect.width === 0 || rect.height === 0) {
-        console.warn(`Glide element has zero dimensions: .${UNIQUE_CLASS}`);
         return false;
       }
 
       if (!MY_GLIDEJS) {
-        console.warn("Glide instance is null");
         return false;
       }
 
@@ -64,7 +60,6 @@ const GallerySlider: FC<GallerySliderProps> = ({
         MY_GLIDEJS.mount();
         return true;
       } catch (error) {
-        console.error("Error mounting Glide:", error);
         return false;
       }
     };
@@ -84,7 +79,6 @@ const GallerySlider: FC<GallerySliderProps> = ({
             (MY_GLIDEJS as any).unmount();
           }
         } catch (error) {
-          console.error("Error unmounting Glide:", error);
         }
       }
     };

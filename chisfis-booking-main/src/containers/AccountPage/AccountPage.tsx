@@ -1,4 +1,4 @@
-import Label from "components/Label/Label";
+﻿import Label from "components/Label/Label";
 import React, { FC, useState, useEffect, useRef } from "react";
 import Avatar from "shared/Avatar/Avatar";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
@@ -17,6 +17,15 @@ export interface AccountPageProps {
   className?: string;
   noLayout?: boolean;
 }
+
+const normalizeGender = (genderBE?: string): string => {
+  if (!genderBE) return "";
+  const g = genderBE.toLowerCase();
+  if (g === "male" || g === "nam") return "Male";
+  if (g === "female" || g === "nữ" || g === "nu") return "Female";
+  if (g === "other" || g === "khác" || g === "khac") return "Other";
+  return genderBE;
+};
 
 const AccountPage: FC<AccountPageProps> = ({ className = "", noLayout = false }) => {
   const { user, updateUser } = useAuth();
@@ -46,7 +55,7 @@ const AccountPage: FC<AccountPageProps> = ({ className = "", noLayout = false })
       fullName: user.fullName || "",
       email: user.email || "",
       phone: user.phone || "",
-      gender: user.gender || "",
+      gender: normalizeGender(user.gender),
       dateOfBirth: user.dateOfBirth ? user.dateOfBirth.split("T")[0] : "",
       address: user.address || "",
     });

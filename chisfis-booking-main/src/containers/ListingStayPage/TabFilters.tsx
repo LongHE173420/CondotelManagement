@@ -1,4 +1,4 @@
-import React, { Fragment, useState, useEffect } from "react";
+﻿import React, { Fragment, useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Dialog, Popover, Transition } from "@headlessui/react";
 import NcInputNumber from "components/NcInputNumber/NcInputNumber";
@@ -856,12 +856,6 @@ const TabFilters = () => {
         {renderTabMoreFilter()}
       </div>
       {renderTabMoreFilterMobile()}
-      <ButtonPrimary
-        onClick={handleSearch}
-        className="ml-4 px-6 py-2"
-      >
-        🔍 Tìm kiếm
-      </ButtonPrimary>
     </div>
   );
 };

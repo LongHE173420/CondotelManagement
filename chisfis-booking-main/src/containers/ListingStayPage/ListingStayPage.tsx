@@ -1,4 +1,4 @@
-import BackgroundSection from "components/BackgroundSection/BackgroundSection";
+﻿import BackgroundSection from "components/BackgroundSection/BackgroundSection";
 import BgGlassmorphism from "components/BgGlassmorphism/BgGlassmorphism";
 import SectionHeroArchivePage from "components/SectionHeroArchivePage/SectionHeroArchivePage";
 import SectionSubscribe2 from "components/SectionSubscribe2/SectionSubscribe2";
@@ -60,7 +60,6 @@ const ListingStayPage: FC<ListingStayPageProps> = ({ className = "" }) => {
             setLocationName(locationData.name);
           }
         } catch (err) {
-          console.error("Error loading location name:", err);
           setLocationName("");
         }
       } else {
@@ -141,7 +140,6 @@ const ListingStayPage: FC<ListingStayPageProps> = ({ className = "" }) => {
           setPropertyCount(0);
         }
       } catch (err) {
-        console.error("Error fetching condotel count:", err);
         setPropertyCount(0);
       }
     };

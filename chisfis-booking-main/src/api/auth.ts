@@ -1,4 +1,4 @@
-import axiosClient from "./axiosClient";
+﻿import axiosClient from "./axiosClient";
 
 // =====================
 // 🔹 DTOs (Interfaces)
@@ -266,10 +266,7 @@ export const authAPI = {
       if (errorMessage.includes("Invalid column name") || 
           errorMessage.includes("PriorityLevel") || 
           errorMessage.includes("DisplayColorTheme")) {
-        console.warn("⚠️ Backend database missing columns. Returning default profile. Backend needs to add columns or fix query.");
-        console.warn("Error details:", errorMessage);
       }
-      console.error("Error fetching host public profile:", error);
       // Return default profile on error
       return {
         hostId: 0,

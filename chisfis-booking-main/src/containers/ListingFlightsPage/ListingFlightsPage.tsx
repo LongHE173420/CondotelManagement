@@ -1,4 +1,4 @@
-import BgGlassmorphism from "components/BgGlassmorphism/BgGlassmorphism";
+﻿import BgGlassmorphism from "components/BgGlassmorphism/BgGlassmorphism";
 import SectionHeroArchivePage from "components/SectionHeroArchivePage/SectionHeroArchivePage";
 import SectionSliderNewCategories from "components/SectionSliderNewCategories/SectionSliderNewCategories";
 import SectionSubscribe2 from "components/SectionSubscribe2/SectionSubscribe2";

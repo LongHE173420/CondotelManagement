@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useState } from "react";
+﻿import React, { FC, useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import condotelAPI, { CondotelDetailDTO } from "api/condotel";
 import { useAuth } from "contexts/AuthContext";
@@ -289,10 +289,8 @@ const ListingStayDetailPage: FC = () => {
     return (
       <div className="listingSection__wrap !space-y-6">
         <div className="flex justify-between items-center">
-          <div className="flex items-center space-x-4">
-            <StartRating />
-          </div>
-          <LikeSaveBtns />
+        <div className="flex items-center space-x-4">
+          <StartRating point={averageRating > 0 ? Number(averageRating.toFixed(1)) : 0} reviewCount={reviewsTotalCount} />
         </div>
         <h2 className="text-2xl sm:text-3xl lg:text-4xl font-semibold">{data.name}</h2>
         <div className="text-neutral-6000 dark:text-neutral-300">{data.description || "Mô tả đang cập nhật."}</div>
@@ -474,21 +472,19 @@ const ListingStayDetailPage: FC = () => {
       <div className="listingSection__wrap">
         <h2 className="text-2xl font-semibold">{t.condotel.host || "Thông tin Host"}</h2>
         <div className="w-14 border-b border-neutral-200 dark:border-neutral-700"></div>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <Avatar
-              hasChecked
-              hasCheckedClass="w-4 h-4 -top-0.5 right-0.5"
-              sizeClass="h-14 w-14"
-              radius="rounded-full"
-              imgUrl={finalHostImageUrl || undefined}
-              userName={finalHostName}
-            />
-            <div>
-              <div className="block text-xl font-medium">{finalHostName}</div>
-              <div className="mt-1.5 flex items-center text-sm text-neutral-500 dark:text-neutral-400">
-                <StartRating /><span className="mx-2">·</span><span>Verified Host</span>
-              </div>
+        <div className="flex items-center space-x-4">
+          <Avatar
+            hasChecked
+            hasCheckedClass="w-4 h-4 -top-0.5 right-0.5"
+            sizeClass="h-14 w-14"
+            radius="rounded-full"
+            imgUrl={finalHostImageUrl || undefined}
+            userName={finalHostName}
+          />
+          <div>
+            <div className="block text-xl font-medium">{finalHostName}</div>
+            <div className="mt-1.5 flex items-center text-sm text-neutral-500 dark:text-neutral-400">
+              <StartRating point={averageRating > 0 ? Number(averageRating.toFixed(1)) : 0} reviewCount={reviewsTotalCount} /><span className="mx-2">·</span><span>Verified Host</span>
             </div>
           </div>
 
@@ -926,7 +922,7 @@ const ListingStayDetailPage: FC = () => {
               </span>
             )}
           </div>
-          <StartRating />
+          <StartRating point={averageRating > 0 ? Number(averageRating.toFixed(1)) : 0} reviewCount={reviewsTotalCount} />
         </div>
 
         {/* Form chọn ngày và số khách */}

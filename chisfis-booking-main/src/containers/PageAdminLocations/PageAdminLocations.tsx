@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+﻿import React, { useState, useEffect, useRef } from "react";
 import locationAPI, { LocationDTO, LocationCreateUpdateDTO } from "api/location";
 import uploadAPI from "api/upload";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
@@ -38,7 +38,6 @@ const PageAdminLocations: React.FC = () => {
       const data = await locationAPI.getAllAdmin();
       setLocations(data);
     } catch (err: any) {
-      console.error("Failed to load locations:", err);
       setError(err.response?.data?.message || "Không thể tải danh sách locations");
       setLocations([]);
     } finally {
@@ -211,7 +210,6 @@ const PageAdminLocations: React.FC = () => {
                           alt={location.name}
                           className="w-16 h-16 object-cover rounded-lg border border-neutral-200 dark:border-neutral-700"
                           onError={(e) => {
-                            console.error("❌ Image load error:", location.imageUrl);
                             (e.target as HTMLImageElement).style.display = "none";
                           }}
                         />
@@ -385,7 +383,6 @@ const LocationModal: React.FC<LocationModalProps> = ({ location, onClose, onSucc
         throw new Error("Không nhận được URL ảnh từ server");
       }
     } catch (err: any) {
-      console.error("Upload image error:", err);
       setError(err.response?.data?.message || err.message || "Upload ảnh thất bại!");
       setImagePreview(location?.imageUrl || null);
     } finally {
@@ -416,7 +413,6 @@ const LocationModal: React.FC<LocationModalProps> = ({ location, onClose, onSucc
       }
       onSuccess();
     } catch (err: any) {
-      console.error("Failed to save location:", err);
       setError(err.response?.data?.message || "Không thể lưu location. Vui lòng thử lại!");
     } finally {
       setLoading(false);
@@ -484,7 +480,6 @@ const LocationModal: React.FC<LocationModalProps> = ({ location, onClose, onSucc
                         alt="Preview"
                         className="w-full h-48 object-cover rounded-lg border border-neutral-300 dark:border-neutral-600"
                         onError={(e) => {
-                          console.error("❌ Image preview error");
                           (e.target as HTMLImageElement).style.display = "none";
                         }}
                       />

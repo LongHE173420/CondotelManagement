@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
 import Input from "shared/Input/Input";
 import Label from "components/Label/Label";
@@ -32,7 +32,6 @@ const AccountBilling = () => {
       // await saveBillingInfo(formData);
       setMessage("Cập nhật thông tin thanh toán thành công!");
     } catch (err: any) {
-      console.error("Save billing error:", err);
       setError("Không thể cập nhật thông tin!");
     } finally {
       setLoading(false);

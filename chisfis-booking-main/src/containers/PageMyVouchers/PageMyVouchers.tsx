@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import voucherAPI, { VoucherDTO } from "api/voucher";
 import moment from "moment";
@@ -85,21 +85,20 @@ const PageMyVouchers = () => {
           return;
         }
         
-        // Filter: chỉ lấy voucher active và chưa hết hạn
+        // Filter: chỉ lấy voucher active và chưa hết hạn (bao gồm cả voucher sắp bắt đầu)
         const now = new Date();
         now.setHours(0, 0, 0, 0); // Reset về đầu ngày để so sánh chính xác
         
         const activeVouchers = vouchersData.filter(v => {
-          // VoucherDTO chỉ có isActive field, không có status
+          // Check isActive field (đã được normalize từ status trong voucher.ts)
           if (!v.isActive) return false;
           
           // So sánh ngày (bỏ qua giờ/phút/giây)
           const endDate = new Date(v.endDate);
           endDate.setHours(0, 0, 0, 0);
-          const startDate = new Date(v.startDate);
-          startDate.setHours(0, 0, 0, 0);
           
-          return startDate <= now && endDate >= now;
+          // Chỉ loại bỏ voucher đã hết hạn, giữ lại cả voucher sắp bắt đầu
+          return endDate >= now;
         });
         
         // Map VoucherDTO sang Voucher format cho component
@@ -140,6 +139,11 @@ const PageMyVouchers = () => {
       <div className="max-w-7xl mx-auto mb-6">
         <h2 className="text-2xl font-bold text-gray-800">
           Ví Voucher Của Bạn
+          {!authLoading && !isLoading && (
+            <span className="ml-3 text-lg font-normal text-blue-600">
+              ({vouchers.length} voucher có sẵn)
+            </span>
+          )}
         </h2>
         <p className="text-gray-600">Những voucher có sẵn để bạn sử dụng.</p>
       </div>

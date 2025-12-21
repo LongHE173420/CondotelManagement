@@ -204,7 +204,7 @@ const NavMobile: React.FC<NavMobileProps> = ({
                 <span>{t.header.dashboard}</span>
               </button>
             )}
-            {user?.roleName !== "Host" && user?.roleName !== "Admin" && (
+            {user?.roleName !== "Admin" && (
               <button
                 onClick={() => {
                   if (onClickClose) onClickClose();

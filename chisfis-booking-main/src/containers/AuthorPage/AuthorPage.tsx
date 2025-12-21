@@ -1,4 +1,4 @@
-import { Tab } from "@headlessui/react";
+﻿import { Tab } from "@headlessui/react";
 import CommentListing from "components/CommentListing/CommentListing";
 import StartRating from "components/StartRating/StartRating";
 import CondotelCard from "components/CondotelCard/CondotelCard";
@@ -69,7 +69,6 @@ const AuthorPage: FC<AuthorPageProps> = ({ className = "" }) => {
           const profile = await authAPI.getHostPublicProfile(hostIdNum);
           setHostInfo(profile);
         } catch (err: any) {
-          console.error("Error fetching host profile:", err);
           // If profile not found, use top host info if available
           if (foundTopHost) {
             setHostInfo({
@@ -85,7 +84,6 @@ const AuthorPage: FC<AuthorPageProps> = ({ className = "" }) => {
           }
         }
       } catch (error) {
-        console.error("Error fetching host info:", error);
       } finally {
         setLoadingHost(false);
       }
@@ -109,7 +107,6 @@ const AuthorPage: FC<AuthorPageProps> = ({ className = "" }) => {
           setCondotels(data);
         }
       } catch (error) {
-        console.error("Error fetching condotels:", error);
         // Set empty array on error so UI still renders
         setCondotels([]);
       } finally {
@@ -145,13 +142,13 @@ const AuthorPage: FC<AuthorPageProps> = ({ className = "" }) => {
         {/* ---- */}
         <div className="space-y-3 text-center flex flex-col items-center">
           <h2 className="text-3xl font-semibold">{displayName}</h2>
-          {averageRating && totalReviews > 0 ? (
-            <div className="flex items-center gap-2">
-              <StartRating className="!text-base" point={averageRating} reviewCount={totalReviews} />
-            </div>
-          ) : (
-            <StartRating className="!text-base" />
-          )}
+          <div className="flex items-center gap-2">
+            <StartRating 
+              className="!text-base" 
+              point={averageRating || 0} 
+              reviewCount={totalReviews || 0} 
+            />
+          </div>
         </div>
 
         {/* ---- */}

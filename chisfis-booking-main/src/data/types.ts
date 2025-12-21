@@ -1,4 +1,4 @@
-//  ######  CustomLink  ######## //
+﻿//  ######  CustomLink  ######## //
 export interface CustomLink {
   label: string;
   href: string;
@@ -31,6 +31,7 @@ export interface AuthorType {
   jobName: string;
   href: string;
   starRating?: number;
+  reviewCount?: number;
 }
 
 export interface PostDataType {

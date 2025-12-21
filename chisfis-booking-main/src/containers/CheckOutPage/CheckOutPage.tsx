@@ -1,4 +1,4 @@
-import { PencilSquareIcon } from "@heroicons/react/24/outline";
+﻿import { PencilSquareIcon } from "@heroicons/react/24/outline";
 import React, { FC, Fragment, useState, useEffect } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import Input from "shared/Input/Input";
@@ -218,12 +218,19 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
           if (user) {
             try {
               const myVouchers = await voucherAPI.getMyVouchers();
-              // Filter: chỉ lấy voucher active và chưa hết hạn
+              // Filter: chỉ lấy voucher active, chưa hết hạn, áp dụng cho condotel này VÀ thuộc quyền sở hữu
               const activeMyVouchers = myVouchers.filter(v => {
                 if (!v.isActive) return false;
                 const endDate = new Date(v.endDate);
                 const startDate = new Date(v.startDate);
-                return startDate <= now && endDate >= now;
+                if (!(startDate <= now && endDate >= now)) return false;
+                
+                // Chỉ lấy voucher không giới hạn condotel HOẶC voucher của condotel đang đặt
+                if (v.condotelId && v.condotelId !== state.condotelId) return false;
+                
+                // Voucher cá nhân: chỉ hiển thị nếu là chủ sở hữu
+                // Voucher công khai (userId = null/undefined): hiển thị cho tất cả
+                return !v.userId || v.userId === user.userId;
               });
               myVouchersList = activeMyVouchers;
               allVouchers.push(...activeMyVouchers);
@@ -374,27 +381,27 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
           if (!v.isActive) return false;
           const endDate = new Date(v.endDate);
           const startDate = new Date(v.startDate);
-          // Validate condotelId phải khớp
-          const voucherCondotelId = (v as any).condotelId;
-          if (!voucherCondotelId || voucherCondotelId !== state.condotelId) return false;
-          return startDate <= now && endDate >= now;
+          // Chỉ lấy voucher không giới hạn condotel HOẶC voucher của condotel đang đặt
+          return startDate <= now && endDate >= now && (!v.condotelId || v.condotelId === state.condotelId);
         });
         
-        // Load vouchers của user và filter chỉ lấy voucher có condotelId khớp
+        // Load vouchers của user và filter chỉ lấy voucher áp dụng cho condotel này
         let myVouchersList: VoucherDTO[] = [];
         if (user) {
           try {
             const myVouchers = await voucherAPI.getMyVouchers();
-            // Filter: chỉ lấy voucher active, còn hiệu lực, và có condotelId khớp
+            // Filter: chỉ lấy voucher active, còn hiệu lực, áp dụng cho condotel này VÀ thuộc quyền sở hữu
             const activeMyVouchers = myVouchers.filter(v => {
               if (!v.isActive) return false;
               const endDate = new Date(v.endDate);
               const startDate = new Date(v.startDate);
               if (startDate > now || endDate < now) return false;
-              // Validate condotelId phải khớp với condotel đang booking
-              const voucherCondotelId = (v as any).condotelId;
-              if (!voucherCondotelId || voucherCondotelId !== state.condotelId) return false;
-              return true;
+              // Chỉ lấy voucher không giới hạn condotel HOẶC voucher của condotel đang đặt
+              if (v.condotelId && v.condotelId !== state.condotelId) return false;
+              
+              // Voucher cá nhân: chỉ hiển thị nếu là chủ sở hữu
+              // Voucher công khai (userId = null/undefined): hiển thị cho tất cả
+              return !v.userId || v.userId === user.userId;
             });
             myVouchersList = activeMyVouchers;
           } catch (myVoucherErr) {
@@ -574,14 +581,14 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
       return;
     }
     
-    // Validate: Voucher phải có condotelId và khớp với condotel đang booking
-    const voucherCondotelId = (voucher as any).condotelId;
-    if (!voucherCondotelId || voucherCondotelId <= 0) {
-      setVoucherError("Voucher không hợp lệ (thiếu thông tin condotel)");
+    // Validate: Voucher cá nhân - chỉ chủ sở hữu mới dùng được
+    if (voucher.userId && voucher.userId !== user?.userId) {
+      setVoucherError("Voucher này không thuộc quyền sở hữu của bạn");
       return;
     }
     
-    if (voucherCondotelId !== state.condotelId) {
+    // Validate: Voucher phải không giới hạn condotel HOẶC khớp với condotel đang booking
+    if (voucher.condotelId && voucher.condotelId !== state.condotelId) {
       setVoucherError("Voucher này không áp dụng cho condotel này");
       return;
     }

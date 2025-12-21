@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from "react";
+﻿import React, { useState, useRef, useCallback, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import ReactQuill, { Quill } from "react-quill";
 import ImageResize from "quill-image-resize-module-react";
@@ -38,7 +38,6 @@ const PageBlogAdd = () => {
                 const cats = await blogAPI.getCategories();
                 setCategories(cats);
             } catch (err) {
-                console.error("Failed to load categories:", err);
             }
         };
         loadCategories();
@@ -242,7 +241,6 @@ const videoHandler = useCallback(() => {
                     const uploadResult = await uploadAPI.uploadImage(featuredImageFile);
                     featuredImageUrl = uploadResult.imageUrl;
                 } catch (uploadErr) {
-                    console.error("Failed to upload image:", uploadErr);
                     toastError("Không thể tải ảnh lên. Vui lòng thử lại.");
                     setIsLoading(false);
                     return;
@@ -261,7 +259,6 @@ const videoHandler = useCallback(() => {
             toastSuccess("Đã thêm bài viết thành công!");
             navigate("/manage-blog");
         } catch (err: any) {
-            console.error("Failed to create post:", err);
             toastError(err.response?.data?.message || "Không thể tạo bài viết. Vui lòng thử lại.");
         } finally {
             setIsLoading(false);

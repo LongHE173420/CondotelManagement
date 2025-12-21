@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "contexts/AuthContext";
 import voucherAPI, { VoucherDTO, VoucherCreateDTO, HostVoucherSettingDTO } from "api/voucher";
@@ -608,7 +608,6 @@ const VoucherModal: React.FC<VoucherModalProps> = ({
         onClose();
       }, 500);
     } catch (err: any) {
-      console.error("Failed to save voucher:", err);
       let errorMessage = "❌ Không thể lưu voucher. Vui lòng thử lại!";
 
       if (err.response?.data?.message) {

@@ -1,4 +1,4 @@
-import React, { FC, ReactNode, useState, useEffect } from "react";
+﻿import React, { FC, ReactNode, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { DEMO_STAY_LISTINGS } from "data/listings";
 import { StayDataType } from "data/types";
@@ -157,7 +157,6 @@ const SectionGridFeaturePlaces: FC<SectionGridFeaturePlacesProps> = ({
           setActiveTab(tabsList[0]);
         }
       } catch (err: any) {
-        console.error("Error loading locations:", err);
         // Fallback to provided tabs or default translations
         const fallbackTabs = tabs || [
           t.home.destinations.hanoi,
@@ -203,7 +202,6 @@ const SectionGridFeaturePlaces: FC<SectionGridFeaturePlacesProps> = ({
         setCondotels(data.slice(0, 8));
         setApiSuccess(true); // Mark API as successful
       } catch (err: any) {
-        console.error("Error fetching condotels:", err);
         setError("Không có căn hộ"); // Show error message instead of trying to fetch again
         setCondotels([]); // Clear condotels so mock data won't show
         setApiSuccess(false);

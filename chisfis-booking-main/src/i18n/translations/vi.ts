@@ -1,4 +1,4 @@
-export const vi = {
+﻿export const vi = {
   // Common
   common: {
     search: "Tìm kiếm",

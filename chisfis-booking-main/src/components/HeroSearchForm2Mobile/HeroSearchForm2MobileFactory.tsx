@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { useLocation } from "react-router-dom";
 import { PathName } from "routers/types";
 import HeroSearchForm2Mobile from "./HeroSearchForm2Mobile";

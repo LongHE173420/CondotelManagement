@@ -1,4 +1,4 @@
-// src/containers/PageAdminPackages/AdminPackageCatalog.tsx
+﻿// src/containers/PageAdminPackages/AdminPackageCatalog.tsx
 import React, { useState } from 'react';
 import { toast } from 'react-toastify';
 import { CatalogPackage } from 'api/adminPackageAPI';

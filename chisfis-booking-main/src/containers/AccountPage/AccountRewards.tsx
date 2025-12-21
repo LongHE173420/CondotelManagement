@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { useAuth } from "contexts/AuthContext";
 import rewardAPI, {
   RewardPointsDTO,
@@ -21,7 +21,6 @@ const AccountRewards: React.FC = () => {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [error, setError] = useState("");
 
-  console.log("🎁 AccountRewards component rendered", { isAuthenticated, user: user?.userId });
   const [redeemPoints, setRedeemPoints] = useState("");
   const [redeeming, setRedeeming] = useState(false);
   const [showRedeemModal, setShowRedeemModal] = useState(false);
@@ -59,7 +58,6 @@ const AccountRewards: React.FC = () => {
       setPromotions(promotionsData);
       await loadHistory();
     } catch (err: any) {
-      console.error("Failed to load rewards data:", err);
       const errorMessage = err.response?.data?.message || err.message || "Không thể tải thông tin điểm thưởng";
       setError(errorMessage);
       // Vẫn hiển thị trang ngay cả khi có lỗi
@@ -90,7 +88,6 @@ const AccountRewards: React.FC = () => {
         pageSize: historyData.pageSize,
       });
     } catch (err: any) {
-      console.error("Failed to load history:", err);
     } finally {
       setHistoryLoading(false);
     }
@@ -137,7 +134,6 @@ const AccountRewards: React.FC = () => {
         setError(result.message || "Không thể đổi điểm");
       }
     } catch (err: any) {
-      console.error("Failed to redeem points:", err);
       setError(err.response?.data?.message || "Không thể đổi điểm. Vui lòng thử lại!");
     } finally {
       setRedeeming(false);
@@ -192,7 +188,6 @@ const AccountRewards: React.FC = () => {
     }
   };
 
-  console.log("🎁 AccountRewards render state", { loading, error, points: !!points, history: history.length, promotions: promotions.length });
 
   return (
     <CommonLayout>

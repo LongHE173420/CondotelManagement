@@ -1,4 +1,4 @@
-import React, { FC } from "react";
+﻿import React, { FC } from "react";
 import { Link } from "react-router-dom";
 import NcImage from "shared/NcImage/NcImage";
 import rightImgDemo from "images/BecomeAnAuthorImg.png";

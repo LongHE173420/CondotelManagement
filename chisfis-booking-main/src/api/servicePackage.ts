@@ -1,4 +1,4 @@
-import axiosClient from "./axiosClient";
+﻿import axiosClient from "./axiosClient";
 
 // DTOs từ backend ServicePackage
 // ServicePackage gồm 6 trường chính: ServiceID, Name, Description, Price, Status, HostID
@@ -78,8 +78,6 @@ const normalizeServicePackage = (item: any): ServicePackageDTO => {
   
   // Debug log nếu không tìm thấy ID
   if (!servicePackageId) {
-    console.warn("⚠️ No valid ID found in service package:", item);
-    console.warn("⚠️ Available keys:", Object.keys(item));
   }
   
   const status = item.Status || item.status || "Active";

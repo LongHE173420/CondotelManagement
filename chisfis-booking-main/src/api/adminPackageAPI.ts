@@ -1,4 +1,4 @@
-// src/api/adminPackageAPI.ts
+﻿// src/api/adminPackageAPI.ts
 import axiosClient from "./axiosClient";
 
 export interface HostPackageItem {
@@ -115,7 +115,6 @@ export const adminPackageAPI = {
             );
             const data = Array.isArray(response.data) ? response.data : (response.data?.data || []);
             if (!Array.isArray(data)) {
-                console.warn("AdminPackageAPI.getCatalog: Expected an array, but received:", response.data);
                 return [];
             }
             return data.map(adminPackageAPI.normalizeCatalogPackage);
@@ -129,12 +128,9 @@ export const adminPackageAPI = {
                 errorMessage.includes("MaxBlogRequestsPerMonth") ||
                 errorMessage.includes("MaxListingCount") ||
                 errorMessage.includes("PriorityLevel")) {
-                console.warn("⚠️ Backend database missing columns. Returning empty array. Backend needs to add columns or fix query.");
-                console.warn("Error details:", errorMessage);
                 // Return empty array to prevent crashes - backend needs to fix this
                 return [];
             }
-            console.error("Error fetching catalog packages:", error);
             // Return empty array on error to prevent crashes
             return [];
         }

@@ -1,4 +1,4 @@
-import React, { FC } from "react";
+﻿import React, { FC } from "react";
 import NcImage from "shared/NcImage/NcImage";
 import { TaxonomyType } from "data/types";
 import { Link } from "react-router-dom";

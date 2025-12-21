@@ -1,4 +1,4 @@
-// src/containers/PageAdminPackages/AdminPackagesPage.tsx
+﻿// src/containers/PageAdminPackages/AdminPackagesPage.tsx
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import adminPackageAPI, { HostPackageItem, CatalogPackage } from 'api/adminPackageAPI';
@@ -66,11 +66,6 @@ const AdminPackagesPage: React.FC = () => {
             const data = await adminPackageAPI.getCatalog();
             setCatalogData(data);
         } catch (err: any) {
-            console.error('Lỗi lấy danh mục:', {
-                message: err.message,
-                response: err.response?.data,
-                status: err.response?.status
-            });
             toast.error('Lấy danh mục gói thất bại: ' + (err.response?.data?.message || err.message));
         } finally {
             setLoadingCatalog(false);
@@ -84,7 +79,6 @@ const AdminPackagesPage: React.FC = () => {
             fetchCatalogData();
             return true;
         } catch (err: any) {
-            console.error('Lỗi tạo gói:', err.response?.data || err.message);
             toast.error(err.response?.data?.message || 'Tạo gói thất bại!');
             return false;
         }
@@ -97,7 +91,6 @@ const AdminPackagesPage: React.FC = () => {
             fetchCatalogData();
             return true;
         } catch (err: any) {
-            console.error('Lỗi cập nhật:', err.response?.data || err.message);
             toast.error(err.response?.data?.message || 'Cập nhật thất bại!');
             return false;
         }
@@ -118,7 +111,6 @@ const AdminPackagesPage: React.FC = () => {
             fetchCatalogData();
             return true;
         } catch (err: any) {
-            console.error('Lỗi xóa:', err.response?.data || err.message);
             toast.error(err.response?.data?.message || 'Xóa gói thất bại!');
             return false;
         }

@@ -1,4 +1,4 @@
-import React, { FC } from "react";
+﻿import React, { FC } from "react";
 import { CondotelDTO } from "api/condotel";
 import { StarIcon, MapPinIcon, HomeIcon, WrenchScrewdriverIcon } from "@heroicons/react/24/solid";
 import { Link } from "react-router-dom";

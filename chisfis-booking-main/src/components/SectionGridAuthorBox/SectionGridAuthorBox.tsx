@@ -1,4 +1,4 @@
-import CardAuthorBox from "components/CardAuthorBox/CardAuthorBox";
+﻿import CardAuthorBox from "components/CardAuthorBox/CardAuthorBox";
 import CardAuthorBox2 from "components/CardAuthorBox2/CardAuthorBox2";
 import Heading from "components/Heading/Heading";
 import { DEMO_AUTHORS } from "data/authors";

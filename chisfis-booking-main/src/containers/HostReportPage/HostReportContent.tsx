@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "contexts/AuthContext";
 import reportAPI, { HostReportDTO } from "api/report";
@@ -67,7 +67,6 @@ const HostReportContent: React.FC = () => {
         const reportData = await reportAPI.getReport(fromDate, toDate);
         setReport(reportData);
       } catch (err: any) {
-        console.error("Failed to load report:", err);
         setError(err.response?.data?.message || "Không thể tải báo cáo");
         setReport(null);
       } finally {
@@ -93,7 +92,6 @@ const HostReportContent: React.FC = () => {
       const reportData = await reportAPI.getReport(dateFrom, dateTo);
       setReport(reportData);
     } catch (err: any) {
-      console.error("Failed to load report:", err);
       setError(err.response?.data?.message || "Không thể tải báo cáo");
       setReport(null);
     } finally {
@@ -195,7 +193,6 @@ const HostReportContent: React.FC = () => {
       const reportData = await reportAPI.getReport(fromDate, toDate);
       setReport(reportData);
     } catch (err: any) {
-      console.error("Failed to load report:", err);
       setError(err.response?.data?.message || "Không thể tải báo cáo");
       setReport(null);
     } finally {

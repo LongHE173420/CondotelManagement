@@ -260,12 +260,63 @@ const RoutesContent = () => {
             );
           }
 
+          // Protect voucher management routes - only Admin can access
+          if (path && path.startsWith("/manage-vouchers")) {
+            return (
+              <Route key={path} path={path} element={
+                <AdminLayout>
+                  <ProtectedRoute requireAuth={true} requireAdmin={true}>
+                    <Component />
+                  </ProtectedRoute>
+                </AdminLayout>
+              } />
+            );
+          }
+
+          // Protect location management routes - only Admin can access
+          if (path && path.startsWith("/manage-locations")) {
+            return (
+              <Route key={path} path={path} element={
+                <AdminLayout>
+                  <ProtectedRoute requireAuth={true} requireAdmin={true}>
+                    <Component />
+                  </ProtectedRoute>
+                </AdminLayout>
+              } />
+            );
+          }
+
+          // Protect admin refunds and payouts routes - only Admin can access
+          if (path === "/admin/refunds" || path === "/admin/payouts") {
+            return (
+              <Route key={path} path={path} element={
+                <AdminLayout>
+                  <ProtectedRoute requireAuth={true} requireAdmin={true}>
+                    <Component />
+                  </ProtectedRoute>
+                </AdminLayout>
+              } />
+            );
+          }
+
           // Skip add-listing routes (đã được handle ở trên)
           if (path && (path.startsWith("/add-listing") || path.startsWith("/add-condotel"))) {
             return null;
           }
 
-          return <Route key={path} path={path} element={<Component />} />;
+          // Wrap all public routes with ProtectedRoute to block Admin from accessing them
+          // Admin can only access /admin routes and personal account routes
+          return (
+            <Route 
+              key={path} 
+              path={path} 
+              element={
+                <ProtectedRoute requireAuth={false}>
+                  <Component />
+                </ProtectedRoute>
+              } 
+            />
+          );
         })}
         <Route
           path="/host-dashboard/create-blog"

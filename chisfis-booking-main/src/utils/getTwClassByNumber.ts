@@ -1,4 +1,4 @@
-export default function getTwClassByNumber(
+﻿export default function getTwClassByNumber(
   index: number,
   type: "grid-cols" | "gap",
   screen?: "sm" | "md" | "lg" | "xl" | "2xl"

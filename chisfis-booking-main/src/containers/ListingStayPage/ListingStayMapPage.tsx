@@ -1,4 +1,4 @@
-import React, { FC, useMemo, useState, useEffect } from "react";
+﻿import React, { FC, useMemo, useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import BackgroundSection from "components/BackgroundSection/BackgroundSection";
 import BgGlassmorphism from "components/BgGlassmorphism/BgGlassmorphism";
@@ -103,7 +103,6 @@ const ListingStayMapPage: FC<ListingStayMapPageProps> = ({
         // Result is an array, so the count is the array length
         setPropertyCount(result.length);
       } catch (err) {
-        console.error("Error fetching condotel count:", err);
         setPropertyCount(0);
       }
     };
@@ -145,7 +144,6 @@ const ListingStayMapPage: FC<ListingStayMapPageProps> = ({
         
         setTopHosts(mappedHosts);
       } catch (err: any) {
-        console.error("Error loading top hosts:", err);
         toastError("Không thể tải danh sách host nổi bật");
         setTopHosts([]);
       }

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+﻿import React, { useEffect, useState } from "react";
 import NcInputNumber from "components/NcInputNumber/NcInputNumber";
 import { FC } from "react";
 import ClearDataButton from "./ClearDataButton";

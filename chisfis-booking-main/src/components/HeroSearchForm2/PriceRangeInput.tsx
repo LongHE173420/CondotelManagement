@@ -1,4 +1,4 @@
-import React, { Fragment, useState } from "react";
+﻿import React, { Fragment, useState } from "react";
 import { Popover, Transition } from "@headlessui/react";
 import { FC } from "react";
 import Slider from "rc-slider";

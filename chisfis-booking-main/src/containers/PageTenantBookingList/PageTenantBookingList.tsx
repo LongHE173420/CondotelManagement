@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import bookingAPI, { BookingDTO } from "api/booking";
 import moment from "moment";
@@ -389,6 +389,22 @@ const PageTenantBookings = () => {
     const [selectedBooking, setSelectedBooking] = useState<BookingDTO | null>(null);
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [confirmModal, setConfirmModal] = useState<{isOpen: boolean, title: string, message: string, action: (() => void) | null}>({isOpen: false, title: "", message: "", action: null});
+    
+    // Pagination state
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
+    
+    // Calculate pagination
+    const totalItems = bookings.length;
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
+    const currentBookings = bookings.slice(startIndex, endIndex);
+    
+    // Reset to page 1 when changing items per page or sort
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [itemsPerPage, sortBy]);
 
     // Fetch bookings từ API
     useEffect(() => {
@@ -523,9 +539,9 @@ const PageTenantBookings = () => {
 
             {/* --- [NÂNG CẤP UI] Main Content Card --- */}
             <div className="max-w-7xl mx-auto bg-white p-6 md:p-8 rounded-2xl shadow-xl">
-                {/* --- Tiêu đề (Đã sửa) --- */}
-                <div className="flex flex-col md:flex-row justify-between items-center mb-6 pb-4 border-b border-gray-200">
-                    <div className="flex items-center gap-4 mb-4 md:mb-0">
+                {/* --- Tiêu đề và Controls --- */}
+                <div className="flex flex-col md:flex-row justify-between items-center mb-6 pb-4 border-b border-gray-200 gap-4">
+                    <div className="flex items-center gap-4">
                         <h2 className="text-2xl font-bold text-gray-800 whitespace-nowrap">
                             Danh sách đặt phòng của bạn
                         </h2>
@@ -538,16 +554,30 @@ const PageTenantBookings = () => {
                         </button>
                     </div>
 
-                    {/* --- Hộp Sắp xếp (Đã sửa) --- */}
-                    <select 
-                        value={sortBy}
-                        onChange={(e) => setSortBy(e.target.value)}
-                        className="w-full md:w-64 px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-700 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                        <option value="newest">Sắp xếp theo: Mới nhất</option>
-                        <option value="oldest">Ngày cũ nhất</option>
-                        <option value="status">Trạng thái</option>
-                    </select>
+                    <div className="flex items-center gap-3 w-full md:w-auto">
+                        {/* Items per page selector */}
+                        <select 
+                            value={itemsPerPage}
+                            onChange={(e) => setItemsPerPage(Number(e.target.value))}
+                            className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-700 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                        >
+                            <option value={5}>5 / trang</option>
+                            <option value={10}>10 / trang</option>
+                            <option value={20}>20 / trang</option>
+                            <option value={50}>50 / trang</option>
+                        </select>
+                        
+                        {/* Sort selector */}
+                        <select 
+                            value={sortBy}
+                            onChange={(e) => setSortBy(e.target.value)}
+                            className="flex-1 md:w-48 px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-700 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                            <option value="newest">Sắp xếp: Mới nhất</option>
+                            <option value="oldest">Ngày cũ nhất</option>
+                            <option value="status">Trạng thái</option>
+                        </select>
+                    </div>
                 </div>
 
                 {/* --- Bảng Dữ liệu --- */}
@@ -585,17 +615,35 @@ const PageTenantBookings = () => {
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
-                                {bookings.map((booking, index) => (
+                                {currentBookings.map((booking, index) => (
                                     <tr key={booking.bookingId} className="hover:bg-gray-50 transition-colors">
                                         <td className="px-5 py-4 whitespace-nowrap text-sm font-medium text-gray-900 align-middle">
-                                            {index + 1}
+                                            {startIndex + index + 1}
                                         </td>
                                         <td className="px-5 py-4 whitespace-nowrap align-middle">
-                                            <img 
-                                                src={booking.condotelImageUrl || ""}
-                                                alt={booking.condotelName || "Condotel"} 
-                                                className="w-24 h-16 object-cover rounded-lg shadow-sm" 
-                                            />
+                                            {(booking.thumbnailImage || booking.condotelImageUrl) ? (
+                                                <img 
+                                                    src={booking.thumbnailImage || booking.condotelImageUrl}
+                                                    alt={booking.condotelName || "Condotel"} 
+                                                    className="w-24 h-16 object-cover rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer" 
+                                                    onClick={() => booking.condotelId && navigate(`/listing-stay-detail/${booking.condotelId}`)}
+                                                    onError={(e) => {
+                                                        const target = e.target as HTMLImageElement;
+                                                        target.style.display = 'none';
+                                                        const parent = target.parentElement;
+                                                        if (parent) {
+                                                            parent.innerHTML = '<div class="w-24 h-16 bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-600 dark:to-gray-700 rounded-lg flex items-center justify-center"><svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg></div>';
+                                                        }
+                                                    }}
+                                                />
+                                            ) : (
+                                                <div className="w-24 h-16 bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-600 dark:to-gray-700 rounded-lg flex items-center justify-center cursor-pointer hover:shadow-md transition-shadow"
+                                                    onClick={() => booking.condotelId && navigate(`/listing-stay-detail/${booking.condotelId}`)}>
+                                                    <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                    </svg>
+                                                </div>
+                                            )}
                                         </td>
                                         <td className="px-5 py-4 whitespace-nowrap text-sm font-medium text-gray-800 align-middle">
                                             {booking.condotelName || `Condotel #${booking.condotelId}`}
@@ -644,11 +692,89 @@ const PageTenantBookings = () => {
 
                 {/* --- [NÂNG CẤP UI] Phân trang (Pagination) --- */}
                 {bookings.length > 0 && (
-                    <div className="flex justify-between items-center mt-6 pt-4 border-t border-gray-200">
+                    <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-6 pt-4 border-t border-gray-200">
                         <span className="text-sm text-gray-600">
-                            Hiển thị <strong>1</strong>-<strong>{bookings.length}</strong> trên <strong>{bookings.length}</strong> đặt phòng
+                            Hiển thị <strong>{startIndex + 1}</strong>-<strong>{endIndex}</strong> trên <strong>{totalItems}</strong> đặt phòng
                         </span>
-                        {/* Pagination có thể thêm sau nếu cần */}
+                        
+                        {totalPages > 1 && (
+                            <div className="flex items-center gap-2">
+                                {/* Previous button */}
+                                <button
+                                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                    disabled={currentPage === 1}
+                                    className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    ← Trước
+                                </button>
+                                
+                                {/* Page numbers */}
+                                <div className="flex items-center gap-1">
+                                    {/* First page */}
+                                    {currentPage > 3 && (
+                                        <>
+                                            <button
+                                                onClick={() => setCurrentPage(1)}
+                                                className="w-9 h-9 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                                            >
+                                                1
+                                            </button>
+                                            {currentPage > 4 && (
+                                                <span className="px-2 text-gray-400">...</span>
+                                            )}
+                                        </>
+                                    )}
+                                    
+                                    {/* Pages around current page */}
+                                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+                                        .filter(page => {
+                                            return page === currentPage || 
+                                                   page === currentPage - 1 || 
+                                                   page === currentPage + 1 ||
+                                                   (page === 1 && currentPage <= 2) ||
+                                                   (page === totalPages && currentPage >= totalPages - 1);
+                                        })
+                                        .map(page => (
+                                            <button
+                                                key={page}
+                                                onClick={() => setCurrentPage(page)}
+                                                className={`w-9 h-9 border rounded-lg text-sm font-medium transition-colors ${
+                                                    page === currentPage
+                                                        ? 'bg-blue-600 text-white border-blue-600'
+                                                        : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                                                }`}
+                                            >
+                                                {page}
+                                            </button>
+                                        ))
+                                    }
+                                    
+                                    {/* Last page */}
+                                    {currentPage < totalPages - 2 && (
+                                        <>
+                                            {currentPage < totalPages - 3 && (
+                                                <span className="px-2 text-gray-400">...</span>
+                                            )}
+                                            <button
+                                                onClick={() => setCurrentPage(totalPages)}
+                                                className="w-9 h-9 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                                            >
+                                                {totalPages}
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
+                                
+                                {/* Next button */}
+                                <button
+                                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                    disabled={currentPage === totalPages}
+                                    className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    Tiếp →
+                                </button>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>

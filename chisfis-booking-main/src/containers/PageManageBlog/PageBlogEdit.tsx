@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from "react";
+﻿import React, { useState, useRef, useCallback, useEffect } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import ReactQuill, { Quill } from "react-quill";
 import ImageResize from "quill-image-resize-module-react";
@@ -68,7 +68,6 @@ const PageBlogEdit = () => {
         const cats = await blogAPI.getCategories();
         setCategories(cats);
       } catch (err: any) {
-        console.error("Failed to load post:", err);
         showError(err.response?.data?.message || "Không thể tải bài viết");
         navigate("/manage-blog");
       } finally {
@@ -234,7 +233,6 @@ const PageBlogEdit = () => {
           const uploadResult = await uploadAPI.uploadImage(featuredImageFile);
           featuredImageUrl = uploadResult.imageUrl;
         } catch (uploadErr) {
-          console.error("Failed to upload image:", uploadErr);
           showError("Không thể tải ảnh lên. Vui lòng thử lại.");
           setIsLoading(false);
           return;
@@ -256,7 +254,6 @@ const PageBlogEdit = () => {
       showSuccess("Đã cập nhật bài viết thành công!");
       navigate("/manage-blog");
     } catch (err: any) {
-      console.error("Failed to update post:", err);
       showError(err.response?.data?.message || "Không thể cập nhật bài viết. Vui lòng thử lại.");
     } finally {
       setIsLoading(false);
@@ -283,7 +280,6 @@ const PageBlogEdit = () => {
         showError("Không tìm thấy bài viết để xóa.");
       }
     } catch (err: any) {
-      console.error("Failed to delete post:", err);
       showError(err.response?.data?.message || "Không thể xóa bài viết. Vui lòng thử lại.");
     } finally {
       setIsLoading(false);

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+﻿import React, { useEffect, useState } from "react";
 import {
   LineChart,
   Line,
@@ -36,8 +36,6 @@ const RevenueChart: React.FC<RevenueChartProps> = ({
         const revenueData = await reportAPI.getRevenueReport(year, month);
         setData(revenueData);
       } catch (err: any) {
-        console.error("📈 [RevenueChart] Failed to load revenue data:", err);
-        console.error("📈 [RevenueChart] Error response:", err.response?.data);
         setError(err.response?.data?.message || "Không thể tải dữ liệu doanh thu");
         setData([]);
       } finally {

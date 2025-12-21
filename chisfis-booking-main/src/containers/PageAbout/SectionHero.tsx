@@ -1,4 +1,4 @@
-import React, { FC, ReactNode } from "react";
+﻿import React, { FC, ReactNode } from "react";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
 
 export interface SectionHeroProps {

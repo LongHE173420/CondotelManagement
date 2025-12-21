@@ -1,4 +1,4 @@
-import React, { FC, useState, useEffect, useMemo } from "react";
+﻿import React, { FC, useState, useEffect, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import AnyReactComponent from "components/AnyReactComponent/AnyReactComponent";
 import StayCardH from "components/StayCardH/StayCardH";
@@ -235,7 +235,6 @@ const SectionGridHasMap: FC<SectionGridHasMapProps> = () => {
         
         setCondotels(results);
       } catch (err: any) {
-        console.error("Error fetching condotels:", err);
         setError(err.response?.data?.message || "Không thể tải danh sách condotel");
         setCondotels([]);
       } finally {

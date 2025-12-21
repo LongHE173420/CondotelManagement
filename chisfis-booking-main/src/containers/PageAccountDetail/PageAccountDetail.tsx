@@ -1,8 +1,40 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { adminAPI, AdminUserDTO, AdminUpdateUserDTO } from "api/admin";
 
-const FormInput: React.FC<{
+type UserRole = "Owner" | "Tenant" | "Admin" | "Marketer" | "";
+type UserStatus = "Active" | "Inactive" | "Pending";
+
+const roleNameToId = (roleName?: string): number | undefined => {
+  switch (roleName) {
+    case "Admin": return 1;
+    case "Owner": return 2;
+    case "Tenant": return 3;
+    case "Marketer": return 4;
+    default: return undefined;
+  }
+};
+
+const roleIdToName = (roleNameBE?: string): UserRole => {
+  switch (roleNameBE) {
+    case "Host": return "Owner";
+    case "User": return "Tenant";
+    case "ContentManager": return "Marketer";
+    case "Admin": return "Admin";
+    default: return "";
+  }
+};
+
+const normalizeGender = (genderBE?: string): string => {
+  if (!genderBE) return "";
+  const g = genderBE.toLowerCase();
+  if (g === "male" || g === "nam") return "Male";
+  if (g === "female" || g === "nữ" || g === "nu") return "Female";
+  if (g === "other" || g === "khác" || g === "khac") return "Other";
+  return genderBE;
+};
+
+interface FormInputProps {
   label: string;
   value: string;
   onChange: (value: string) => void;
@@ -98,8 +130,8 @@ const PageAccountDetail: React.FC = () => {
 
         setFormData({
           ...userData,
-          displayRole,
-          originalDisplayRole: displayRole,
+          roleName: roleIdToName(userData.roleName),
+          gender: normalizeGender(userData.gender),
           originalStatus: userData.status,
         });
       } catch (err: any) {
@@ -195,14 +227,44 @@ const PageAccountDetail: React.FC = () => {
               <FormInput label="Tên người dùng *" value={formData.fullName || ""} onChange={val => handleChange("fullName", val)} disabled={isAdmin} />
               <FormInput label="Email *" value={formData.email || ""} onChange={val => handleChange("email", val)} disabled={true} />
 
-              <FormSelect label="Vai trò" value={formData.displayRole || ""} onChange={val => handleChange("displayRole", val)} disabled={isAdmin}>
+              <FormInput
+                label="Tên người dùng *"
+                value={formData.fullName || ""}
+                onChange={(val) => handleChange("fullName", val)}
+                disabled={isAdmin}
+              />
+
+              <FormInput
+                label="Email *"
+                value={formData.email || ""}
+                onChange={(val) => handleChange("email", val)}
+                disabled={true}
+              />
+
+              <FormSelect
+                label="Vai trò"
+                value={formData.roleName || ""}
+                onChange={(val) => handleChange("roleName", val)}
+                disabled={isAdmin}
+              >
                 <option value="">-- Chọn vai trò --</option>
                 <option value="Khách Hàng">Khách Hàng</option>
                 <option value="Chủ Condotel">Chủ Condotel</option>
               </FormSelect>
 
-              <FormInput label="Số điện thoại" value={formData.phone || ""} onChange={val => handleChange("phone", val)} disabled={isAdmin} />
-              <FormSelect label="Giới tính" value={formData.gender || ""} onChange={val => handleChange("gender", val)} disabled={isAdmin}>
+              <FormInput
+                label="Số điện thoại"
+                value={formData.phone || ""}
+                onChange={(val) => handleChange("phone", val)}
+                disabled={true}
+              />
+
+              <FormSelect
+                label="Giới tính"
+                value={formData.gender || ""}
+                onChange={(val) => handleChange("gender", val)}
+                disabled={isAdmin}
+              >
                 <option value="">-- Chọn giới tính --</option>
                 <option value="Male">Nam</option>
                 <option value="Female">Nữ</option>
