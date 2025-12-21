@@ -169,8 +169,6 @@ const ListingStayDetailPage: FC = () => {
         }
         const condotelId = Number(id);
         const res = await condotelAPI.getById(condotelId);
-        console.log("Condotel data:", res);
-        console.log("Resort Address:", res.resortAddress);
         setData(res);
 
         // Luôn ưu tiên hostName từ backend - không dùng tên user đang login
