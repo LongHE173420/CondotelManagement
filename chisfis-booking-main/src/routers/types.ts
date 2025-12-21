@@ -25,7 +25,6 @@ export interface LocationStates {
   "/account-password"?: {};
   "/account-billing"?: {};
   "/account-rewards"?: {};
-  "/account-vouchers"?: {};
   //
   "/blog"?: {};
   "/blog-single"?: {};
