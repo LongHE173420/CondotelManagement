@@ -40,7 +40,9 @@ interface FormInputProps {
   onChange: (value: string) => void;
   disabled?: boolean;
   type?: string;
-}> = ({ label, value, onChange, disabled = false, type = "text" }) => (
+}
+
+const FormInput: React.FC<FormInputProps> = ({ label, value, onChange, disabled = false, type = "text" }) => (
   <div>
     <label className="block text-sm font-bold text-neutral-700 dark:text-neutral-300 mb-2">{label}</label>
     <input

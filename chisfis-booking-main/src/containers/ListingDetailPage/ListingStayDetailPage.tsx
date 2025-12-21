@@ -289,8 +289,9 @@ const ListingStayDetailPage: FC = () => {
     return (
       <div className="listingSection__wrap !space-y-6">
         <div className="flex justify-between items-center">
-        <div className="flex items-center space-x-4">
-          <StartRating point={averageRating > 0 ? Number(averageRating.toFixed(1)) : 0} reviewCount={reviewsTotalCount} />
+          <div className="flex items-center space-x-4">
+            <StartRating point={averageRating > 0 ? Number(averageRating.toFixed(1)) : 0} reviewCount={reviewsTotalCount} />
+          </div>
         </div>
         <h2 className="text-2xl sm:text-3xl lg:text-4xl font-semibold">{data.name}</h2>
         <div className="text-neutral-6000 dark:text-neutral-300">{data.description || "Mô tả đang cập nhật."}</div>
