@@ -904,6 +904,18 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
             </div>
             <div className="flex flex-col space-y-4">
               <h3 className="text-2xl font-semibold">Chi tiết giá</h3>
+              {rangeDates.startDate && (
+                <div className="flex justify-between text-neutral-6000 dark:text-neutral-300">
+                  <span>Nhận Phòng</span>
+                  <span>{rangeDates.startDate.format("DD-MM-YYYY")}(14:00)</span>
+                </div>
+              )}
+              {rangeDates.endDate && (
+                <div className="flex justify-between text-neutral-6000 dark:text-neutral-300">
+                  <span>Trả Phòng</span>
+                  <span>{rangeDates.endDate.format("DD-MM-YYYY")}(12:00)</span>
+                </div>
+              )}
               {nights > 0 && basePricePerNight > 0 && (
                 <div className="flex justify-between text-neutral-6000 dark:text-neutral-300">
                   <span>{Math.round(basePricePerNight).toLocaleString()} đ x {nights} đêm</span>
