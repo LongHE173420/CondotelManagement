@@ -48,8 +48,9 @@ const AccountPass = () => {
       await authAPI.changePassword({
         currentPassword: formData.currentPassword,
         newPassword: formData.newPassword,
+        confirmNewPassword: formData.confirmPassword,  // ← THÊM DÒNG NÀY
       });
-      
+
       setMessage("Đổi mật khẩu thành công!");
       setFormData({
         currentPassword: "",
@@ -57,24 +58,31 @@ const AccountPass = () => {
         confirmPassword: "",
       });
     } catch (err: any) {
+      setLoading(false);
+
       let errorMessage = "Không thể đổi mật khẩu!";
-      
+
+      // 1. Ưu tiên message từ backend
       if (err.response?.data?.message) {
         errorMessage = err.response.data.message;
-      } else if (err.response?.data?.error) {
-        errorMessage = err.response.data.error;
-      } else if (err.message) {
-        errorMessage = err.message;
       }
-      
-      // Handle specific error cases
-      if (err.response?.status === 400) {
+
+      // 2. Nếu có chi tiết errors từ validation (StrongPassword, Required, v.v.)
+      if (err.response?.data?.errors && typeof err.response.data.errors === 'object') {
+        const validationErrors = Object.values(err.response.data.errors).flat() as string[];
+        if (validationErrors.length > 0) {
+          errorMessage = validationErrors.join("\n");
+        }
+      }
+
+      // 3. Chỉ khi nào backend báo cụ thể "mật khẩu hiện tại sai" thì mới hiển thị riêng
+      // (Bạn nên sửa backend ChangePasswordAsync trả message rõ ràng khi Verify thất bại)
+      if (err.response?.data?.message?.includes("hiện tại không đúng")) {
         errorMessage = "Mật khẩu hiện tại không đúng!";
-      } else if (err.response?.status === 401) {
-        errorMessage = "Bạn cần đăng nhập lại!";
       }
-      
+
       setError(errorMessage);
+
     } finally {
       setLoading(false);
     }
