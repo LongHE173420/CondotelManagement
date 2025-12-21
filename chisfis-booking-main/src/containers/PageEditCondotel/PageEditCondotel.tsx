@@ -11,6 +11,7 @@ import ButtonPrimary from "shared/Button/ButtonPrimary";
 import ButtonSecondary from "shared/Button/ButtonSecondary";
 import NcInputNumber from "components/NcInputNumber/NcInputNumber";
 import { toastSuccess, showErrorMessage } from "utils/toast";
+import PriceModal from "components/PriceModal/PriceModal";
 
 interface ImageDTO { imageUrl: string; caption?: string }
 
@@ -58,6 +59,7 @@ const PageEditCondotel: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [showPriceModal, setShowPriceModal] = useState(false);
 
   // Fields
   const [name, setName] = useState("");
@@ -145,7 +147,7 @@ const PageEditCondotel: React.FC = () => {
             endDate: p.endDate || "",
             basePrice: p.basePrice || 0,
             priceType: normalizedPriceType,
-            description: p.description || "",
+            description: undefined,
           };
         }));
         setDetails((data.details || []).map((d: any) => ({
@@ -259,47 +261,8 @@ const PageEditCondotel: React.FC = () => {
     load();
   }, [id, user, navigate]);
 
-  // Load utilities khi resortId thay đổi
-  useEffect(() => {
-    const loadResortUtilities = async () => {
-      if (resortId) {
-        try {
-          const resortUtils = await utilityAPI.getByResort(resortId);
-          setResortUtilities(resortUtils);
-          
-          // CHỈ hiển thị utilities của resort mới, không thêm utilities từ condotel ban đầu
-          // Khi chọn resort mới, chỉ hiển thị utilities của resort đó
-          setUtilities(resortUtils);
-          
-          // CHỈ chọn utilities của resort mới
-          const resortUtilityIds = resortUtils.map(u => u.utilityId);
-          setUtilityIds(resortUtilityIds);
-        } catch (err) {
-          setResortUtilities([]);
-          setUtilities([]);
-          setUtilityIds([]);
-        }
-      } else {
-        setResortUtilities([]);
-        // Nếu không có resort, chỉ hiển thị utilities đã chọn từ condotel data
-        if (originalCondotelUtilities.length > 0) {
-          setUtilities(originalCondotelUtilities);
-          setUtilityIds(originalCondotelUtilities.map(u => u.utilityId));
-        } else {
-          // Nếu không có originalCondotelUtilities, xóa hết
-          setUtilities([]);
-          setUtilityIds([]);
-        }
-      }
-    };
-    
-    // Chỉ load khi resortId thay đổi và đã có originalCondotelUtilities được set
-    // Hoặc load ngay nếu resortId có giá trị
-    if (resortId !== undefined) {
-      loadResortUtilities();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resortId]);
+  // NOTE: Không cần load lại utilities khi resortId thay đổi trong edit mode
+  // vì resort đã bị disable và utilities đã được load đúng trong useEffect trên
 
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -511,9 +474,9 @@ const PageEditCondotel: React.FC = () => {
               <select
                 value={resortId !== undefined && resortId !== null ? String(resortId) : ""}
                 onChange={(e) => setResortId(e.target.value ? Number(e.target.value) : undefined)}
-                className="w-full px-4 py-3.5 border-2 border-neutral-300 dark:border-neutral-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:bg-neutral-700 dark:text-neutral-100 transition-all duration-200 hover:border-primary-400 dark:hover:border-primary-500 bg-white dark:bg-neutral-800 shadow-sm hover:shadow-md"
+                disabled
+                className="w-full px-4 py-3.5 border-2 border-neutral-300 dark:border-neutral-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:bg-neutral-700 dark:text-neutral-100 transition-all duration-200 bg-neutral-100 dark:bg-neutral-700 shadow-sm cursor-not-allowed opacity-75"
               >
-                <option value="">-- Không chọn resort --</option>
                 {resorts.map((resort) => (
                   <option key={resort.resortId} value={String(resort.resortId)}>
                     {resort.name}
@@ -575,104 +538,40 @@ const PageEditCondotel: React.FC = () => {
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-semibold text-neutral-700 dark:text-neutral-300 mb-4">
-                Tình trạng phòng <span className="text-red-500">*</span>
-              </label>
-              <div className="grid grid-cols-2 gap-4">
-                <label
-                  className={`relative flex items-center p-5 border-2 rounded-xl cursor-pointer transition-all duration-200 hover:shadow-lg ${
-                    status === "Active"
-                      ? "border-green-500 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/30 dark:to-emerald-900/20 shadow-md shadow-green-500/20"
-                      : "border-neutral-300 dark:border-neutral-600 hover:border-green-300 dark:hover:border-green-600 hover:bg-green-50/50 dark:hover:bg-green-900/10"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="availability"
-                    className="sr-only"
-                    checked={status === "Active"}
-                    onChange={() => setStatus("Active")}
-                  />
-                  <div className="flex items-center gap-3 w-full">
-                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                      status === "Active" ? "border-green-500 bg-green-500" : "border-neutral-400"
-                    }`}>
-                      {status === "Active" && (
-                        <div className="w-2 h-2 bg-white rounded-full"></div>
-                      )}
-                    </div>
-                    <div>
-                      <div className="font-semibold text-neutral-900 dark:text-neutral-100">Còn phòng</div>
-                      <div className="text-xs text-neutral-500 dark:text-neutral-400">Căn hộ đang có sẵn</div>
-                    </div>
-                  </div>
-                </label>
-
-                <label
-                  className={`relative flex items-center p-5 border-2 rounded-xl cursor-pointer transition-all duration-200 hover:shadow-lg ${
-                    status === "Inactive"
-                      ? "border-gray-500 bg-gradient-to-br from-gray-50 to-neutral-50 dark:from-gray-900/30 dark:to-neutral-900/20 shadow-md shadow-gray-500/20"
-                      : "border-neutral-300 dark:border-neutral-600 hover:border-gray-400 dark:hover:border-gray-500 hover:bg-gray-50/50 dark:hover:bg-gray-900/10"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="availability"
-                    className="sr-only"
-                    checked={status === "Inactive"}
-                    onChange={() => setStatus("Inactive")}
-                  />
-                  <div className="flex items-center gap-3 w-full">
-                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                      status === "Inactive" ? "border-gray-500 bg-gray-500" : "border-neutral-400"
-                    }`}>
-                      {status === "Inactive" && (
-                        <div className="w-2 h-2 bg-white rounded-full"></div>
-                      )}
-                    </div>
-                    <div>
-                      <div className="font-semibold text-neutral-900 dark:text-neutral-100">Hết phòng</div>
-                      <div className="text-xs text-neutral-500 dark:text-neutral-400">Căn hộ đã hết chỗ</div>
-                    </div>
-                  </div>
-                </label>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Chi tiết */}
-        <div className="bg-white/80 dark:bg-neutral-800/80 backdrop-blur-sm rounded-2xl shadow-xl border border-neutral-200/50 dark:border-neutral-700/50 overflow-hidden hover:shadow-2xl transition-all duration-300">
-          <div className="px-6 py-5 border-b border-neutral-200 dark:border-neutral-700 bg-gradient-to-r from-cyan-50/50 to-teal-50/50 dark:from-cyan-900/20 dark:to-teal-900/20">
-            <h2 className="text-xl font-bold text-neutral-900 dark:text-neutral-100 flex items-center gap-3">
-              <div className="p-2 bg-gradient-to-br from-cyan-500 to-teal-500 rounded-lg text-white shadow-lg">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                </svg>
-              </div>
-              Chi tiết căn hộ
-            </h2>
-          </div>
-          <div className="p-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
-                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-                  Số giường
+                <label className="block text-sm font-semibold text-neutral-700 dark:text-neutral-300 mb-2">
+                  Số giường <span className="text-red-500">*</span>
                 </label>
-                <NcInputNumber key={`beds-${beds}`} defaultValue={beds} onChange={setBeds} />
+                <NcInputNumber
+                  defaultValue={beds}
+                  onChange={(val) => setBeds(val)}
+                  min={1}
+                />
               </div>
               <div>
-                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-                  Số phòng tắm
+                <label className="block text-sm font-semibold text-neutral-700 dark:text-neutral-300 mb-2">
+                  Số phòng tắm <span className="text-red-500">*</span>
                 </label>
-                <NcInputNumber key={`bathrooms-${bathrooms}`} defaultValue={bathrooms} onChange={setBathrooms} />
+                <NcInputNumber
+                  defaultValue={bathrooms}
+                  onChange={(val) => setBathrooms(val)}
+                  min={1}
+                />
               </div>
               <div>
-                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-                  Giá mỗi đêm (VNĐ) *
+                <label className="block text-sm font-semibold text-neutral-700 dark:text-neutral-300 mb-2">
+                  Giá mỗi đêm (VNĐ) <span className="text-red-500">*</span>
                 </label>
-                <NcInputNumber key={`price-${pricePerNight}`} defaultValue={pricePerNight} onChange={setPricePerNight} />
+                <Input
+                  type="number"
+                  value={pricePerNight}
+                  onChange={(e) => setPricePerNight(Number(e.target.value))}
+                  min={0}
+                  step={1000}
+                  className="w-full"
+                  placeholder="0"
+                />
               </div>
             </div>
           </div>
@@ -688,247 +587,58 @@ const PageEditCondotel: React.FC = () => {
                 </svg>
               </div>
               Giá theo thời gian
+              <span className="ml-auto text-sm font-normal text-neutral-600 dark:text-neutral-400">
+                {prices.length} giá đã thiết lập
+              </span>
             </h2>
           </div>
-          <div className="p-6 space-y-4">
-            {prices.map((price, index) => {
-              const startDate = price.startDate ? new Date(price.startDate) : null;
-              const endDate = price.endDate ? new Date(price.endDate) : null;
-              const hasDateError = !!(startDate && endDate && startDate >= endDate);
-              
-              return (
-                <div key={index} className={`p-5 border-2 rounded-xl space-y-4 transition-all duration-200 ${
-                  hasDateError 
-                    ? "border-red-400 dark:border-red-600 bg-gradient-to-br from-red-50 to-pink-50 dark:from-red-900/30 dark:to-pink-900/20 shadow-md shadow-red-500/20" 
-                    : "border-neutral-200 dark:border-neutral-700 bg-white/50 dark:bg-neutral-800/50 hover:border-primary-300 dark:hover:border-primary-600 hover:shadow-lg"
-                }`}>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-                        Ngày bắt đầu
-                      </label>
-                      <Input
-                        type="date"
-                        value={price.startDate || ""}
-                        onChange={(e) => {
-                          const newPrices = [...prices];
-                          newPrices[index].startDate = e.target.value;
-                          setPrices(newPrices);
-                          setError(""); // Clear error when user edits
-                        }}
-                        className={`w-full ${hasDateError ? "border-red-500" : ""}`}
-                      />
-                      {hasDateError && (
-                        <p className="text-xs text-red-600 dark:text-red-400 mt-1">
-                          ⚠️ Ngày bắt đầu phải nhỏ hơn ngày kết thúc
-                        </p>
-                      )}
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-                        Ngày kết thúc
-                      </label>
-                      <Input
-                        type="date"
-                        value={price.endDate || ""}
-                        onChange={(e) => {
-                          const newPrices = [...prices];
-                          newPrices[index].endDate = e.target.value;
-                          setPrices(newPrices);
-                          setError(""); // Clear error when user edits
-                        }}
-                        className={`w-full ${hasDateError ? "border-red-500" : ""}`}
-                      />
-                      {hasDateError && (
-                        <p className="text-xs text-red-600 dark:text-red-400 mt-1">
-                          ⚠️ Ngày kết thúc phải lớn hơn ngày bắt đầu
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-                      Giá cơ bản (VNĐ) *
-                    </label>
-                    <Input
-                      type="number"
-                      value={price.basePrice || ""}
-                      onChange={(e) => {
-                        const newPrices = [...prices];
-                        newPrices[index].basePrice = e.target.value ? Number(e.target.value) : 0;
-                        setPrices(newPrices);
-                      }}
-                      className="w-full"
-                      placeholder="Nhập giá (VNĐ)"
-                      min="0"
-                      step="1000"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-                      Loại giá
-                    </label>
-                    <select
-                      value={price.priceType || "Thường"}
-                      onChange={(e) => {
-                        const newPrices = [...prices];
-                        newPrices[index].priceType = e.target.value;
-                        setPrices(newPrices);
-                      }}
-                      className="w-full px-4 py-3 border border-neutral-300 dark:border-neutral-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-neutral-700 dark:text-neutral-100"
-                    >
-                      <option value="Thường">Thường</option>
-                      <option value="Cuối tuần">Cuối tuần</option>
-                      <option value="Ngày lễ">Ngày lễ</option>
-                      <option value="Cao điểm">Cao điểm</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-                      Mô tả
-                    </label>
-                    <Input
-                      value={price.description || ""}
-                      onChange={(e) => {
-                        const newPrices = [...prices];
-                        newPrices[index].description = e.target.value;
-                        setPrices(newPrices);
-                      }}
-                      className="w-full"
-                      placeholder="Mô tả giá"
-                    />
-                  </div>
-                </div>
-                <div className="flex justify-end gap-2 pt-2 border-t border-neutral-200 dark:border-neutral-700">
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      // Validate price trước khi lưu
-                      if (!price.startDate || !price.endDate) {
-                        setError("Vui lòng nhập đầy đủ ngày bắt đầu và ngày kết thúc");
-                        return;
-                      }
-                      const startDate = new Date(price.startDate);
-                      const endDate = new Date(price.endDate);
-                      const today = new Date();
-                      today.setHours(0, 0, 0, 0); // Reset time to start of day for comparison
-                      
-                      if (startDate >= endDate) {
-                        setError("Ngày bắt đầu phải nhỏ hơn ngày kết thúc");
-                        return;
-                      }
-                      
-                      // Kiểm tra endDate không được ở quá khứ
-                      if (endDate < today) {
-                        setError("Ngày kết thúc không được ở quá khứ");
-                        return;
-                      }
-                      
-                      // Lưu ngay giá này vào backend (lưu toàn bộ condotel bao gồm giá này)
-                      try {
-                        setSaving(true);
-                        setError("");
-                        if (!id) return;
-                        
-                        // Validate price trước khi lưu
-                        if (!price.startDate || !price.endDate) {
-                          setError("Vui lòng nhập đầy đủ ngày bắt đầu và ngày kết thúc");
-                          setSaving(false);
-                          return;
-                        }
-                        const startDate = new Date(price.startDate);
-                        const endDate = new Date(price.endDate);
-                        if (startDate >= endDate) {
-                          setError("Ngày bắt đầu phải nhỏ hơn ngày kết thúc");
-                          setSaving(false);
-                          return;
-                        }
-                        
-                        const payload: CondotelDetailDTO = {
-                          condotelId: Number(id),
-                          hostId: user?.userId || 0,
-                          resortId: resortId,
-                          name: name.trim(),
-                          description: description.trim() || undefined,
-                          pricePerNight,
-                          beds,
-                          bathrooms,
-                          status,
-                          images: images.length ? images.map((i, idx) => ({ imageId: idx, imageUrl: i.imageUrl, caption: i.caption })) : undefined,
-                          prices: prices.length > 0 ? prices : undefined, // Gửi tất cả giá
-                          details: details.length > 0 ? details : undefined,
-                        } as CondotelDetailDTO;
-
-                        const updatePayload: any = {
-                          ...payload,
-                          amenityIds: amenityIds.length > 0 ? amenityIds : undefined,
-                          utilityIds: utilityIds.length > 0 ? utilityIds : undefined,
-                        };
-
-                        await condotelAPI.update(Number(id), updatePayload);
-                        toastSuccess("Đã lưu giá thành công!");
-                        // Reload data để cập nhật priceId
-                        const data = await condotelAPI.getByIdForHost(Number(id));
-                        if (data.prices) {
-                          setPrices(data.prices);
-                        }
-                      } catch (err: any) {
-                        setError(err?.response?.data?.message || err.message || "Không thể lưu giá");
-                      } finally {
-                        setSaving(false);
-                      }
-                    }}
-                    disabled={saving || hasDateError}
-                    className="px-5 py-2.5 bg-gradient-to-r from-primary-600 to-blue-600 hover:from-primary-700 hover:to-blue-700 text-white rounded-lg text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-md hover:shadow-lg flex items-center gap-2"
-                  >
-                    {saving ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                        Đang lưu...
-                      </>
-                    ) : (
-                      <>
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                        Lưu giá này
-                      </>
-                    )}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPrices(prices.filter((_, i) => i !== index))}
-                    className="px-5 py-2.5 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-lg text-sm font-semibold transition-all duration-200 shadow-md hover:shadow-lg flex items-center gap-2"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                    Xóa giá này
-                  </button>
-                </div>
-              </div>
-              );
-            })}
+          <div className="p-6">
             <button
               type="button"
-              onClick={() => setPrices([...prices, {
-                priceId: 0,
-                startDate: "",
-                endDate: "",
-                basePrice: 0,
-                priceType: "Thường",
-                description: "",
-              }])}
-              className="w-full px-5 py-3 bg-gradient-to-r from-primary-50 to-blue-50 dark:from-primary-900/20 dark:to-blue-900/20 hover:from-primary-100 hover:to-blue-100 dark:hover:from-primary-900/30 dark:hover:to-blue-900/30 border-2 border-dashed border-primary-300 dark:border-primary-600 text-primary-700 dark:text-primary-300 rounded-xl font-semibold transition-all duration-200 hover:shadow-lg flex items-center justify-center gap-2"
+              onClick={() => setShowPriceModal(true)}
+              className="w-full px-6 py-4 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center gap-3"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              Thêm giá mới
+              Quản lý giá theo thời gian
             </button>
+            {prices.length > 0 && (
+              <div className="mt-4 p-4 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-xl border border-amber-200 dark:border-amber-800">
+                <div className="space-y-2">
+                  {prices.slice(0, 3).map((price, index) => (
+                    <div key={index} className="text-sm text-neutral-700 dark:text-neutral-300 flex items-center justify-between">
+                      <span className="flex items-center gap-2">
+                        <svg className="w-4 h-4 text-amber-500" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                        {price.priceType}: {price.basePrice?.toLocaleString('vi-VN')} VNĐ
+                      </span>
+                      <span className="text-xs text-neutral-500">
+                        {price.startDate} → {price.endDate}
+                      </span>
+                    </div>
+                  ))}
+                  {prices.length > 3 && (
+                    <div className="text-xs text-amber-600 dark:text-amber-400 font-medium pt-2 border-t border-amber-200 dark:border-amber-800">
+                      +{prices.length - 3} giá khác
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
+
+        <PriceModal
+          show={showPriceModal}
+          onClose={() => setShowPriceModal(false)}
+          prices={prices}
+          onSave={(newPrices) => setPrices(newPrices.map(p => ({
+            ...p,
+            priceId: p.priceId || 0
+          })) as PriceDTO[])}
+        />
 
         {/* Details với safetyFeatures và hygieneStandards */}
         <div className="bg-white/80 dark:bg-neutral-800/80 backdrop-blur-sm rounded-2xl shadow-xl border border-neutral-200/50 dark:border-neutral-700/50 overflow-hidden hover:shadow-2xl transition-all duration-300">
@@ -977,34 +687,6 @@ const PageEditCondotel: React.FC = () => {
                     />
                   </div>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-                      Số giường
-                    </label>
-                    <NcInputNumber
-                      defaultValue={detail.beds || beds}
-                      onChange={(val) => {
-                        const newDetails = [...details];
-                        newDetails[index].beds = val;
-                        setDetails(newDetails);
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-                      Số phòng tắm
-                    </label>
-                    <NcInputNumber
-                      defaultValue={detail.bathrooms || bathrooms}
-                      onChange={(val) => {
-                        const newDetails = [...details];
-                        newDetails[index].bathrooms = val;
-                        setDetails(newDetails);
-                      }}
-                    />
-                  </div>
-                </div>
                 <div>
                   <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
                     Tính năng an toàn
@@ -1040,61 +722,6 @@ const PageEditCondotel: React.FC = () => {
                 <div className="flex justify-end gap-2 pt-2 border-t border-neutral-200 dark:border-neutral-700">
                   <button
                     type="button"
-                    onClick={async () => {
-                      // Lưu ngay detail này vào backend (lưu toàn bộ condotel bao gồm detail này)
-                      try {
-                        setSaving(true);
-                        setError("");
-                        if (!id) return;
-                        
-                        const payload: CondotelDetailDTO = {
-                          condotelId: Number(id),
-                          hostId: user?.userId || 0,
-                          resortId: resortId,
-                          name: name.trim(),
-                          description: description.trim() || undefined,
-                          pricePerNight,
-                          beds,
-                          bathrooms,
-                          status,
-                          images: images.length ? images.map((i, idx) => ({ imageId: idx, imageUrl: i.imageUrl, caption: i.caption })) : undefined,
-                          prices: prices.length > 0 ? prices : undefined,
-                          details: details.length > 0 ? details : undefined, // Gửi tất cả details
-                        } as CondotelDetailDTO;
-
-                        const updatePayload: any = {
-                          ...payload,
-                          amenityIds: amenityIds.length > 0 ? amenityIds : undefined,
-                          utilityIds: utilityIds.length > 0 ? utilityIds : undefined,
-                        };
-
-                        await condotelAPI.update(Number(id), updatePayload);
-                        toastSuccess("Đã lưu chi tiết phòng thành công!");
-                      } catch (err: any) {
-                        setError(err?.response?.data?.message || err.message || "Không thể lưu chi tiết phòng");
-                      } finally {
-                        setSaving(false);
-                      }
-                    }}
-                    disabled={saving}
-                    className="px-5 py-2.5 bg-gradient-to-r from-primary-600 to-blue-600 hover:from-primary-700 hover:to-blue-700 text-white rounded-lg text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-md hover:shadow-lg flex items-center gap-2"
-                  >
-                    {saving ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                        Đang lưu...
-                      </>
-                    ) : (
-                      <>
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                        Lưu chi tiết này
-                      </>
-                    )}
-                  </button>
-                  <button
-                    type="button"
                     onClick={() => setDetails(details.filter((_, i) => i !== index))}
                     className="px-5 py-2.5 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-lg text-sm font-semibold transition-all duration-200 shadow-md hover:shadow-lg flex items-center gap-2"
                   >
@@ -1111,8 +738,6 @@ const PageEditCondotel: React.FC = () => {
               onClick={() => setDetails([...details, {
                 buildingName: "",
                 roomNumber: "",
-                beds: beds,
-                bathrooms: bathrooms,
                 safetyFeatures: "",
                 hygieneStandards: "",
               }])}

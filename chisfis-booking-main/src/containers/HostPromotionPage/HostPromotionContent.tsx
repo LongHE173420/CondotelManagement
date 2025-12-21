@@ -7,6 +7,22 @@ import ButtonSecondary from "shared/Button/ButtonSecondary";
 import { toast } from "react-toastify";
 import { showSuccess, showError } from "utils/modalNotification";
 
+// Helper function to translate backend error messages to Vietnamese
+const translateErrorMessage = (message: string): string => {
+  const translations: { [key: string]: string } = {
+    "Promotion period overlaps": "Khoảng thời gian khuyến mãi bị trùng lặp với khuyến mãi khác",
+    "overlaps": "bị trùng lặp",
+    "with another promotion": "với khuyến mãi khác",
+  };
+
+  let translated = message;
+  for (const [english, vietnamese] of Object.entries(translations)) {
+    const regex = new RegExp(english, "gi");
+    translated = translated.replace(regex, vietnamese);
+  }
+  return translated;
+};
+
 const HostPromotionContent: React.FC = () => {
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
@@ -246,16 +262,6 @@ const HostPromotionContent: React.FC = () => {
                     </span>
                   </div>
                 )}
-                {promotion.discountAmount && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-neutral-500 dark:text-neutral-400">
-                      Giảm giá:
-                    </span>
-                    <span className="text-lg font-bold text-green-600 dark:text-green-400">
-                      {formatCurrency(promotion.discountAmount)}
-                    </span>
-                  </div>
-                )}
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-neutral-500 dark:text-neutral-400">Từ:</span>
                   <span className="text-neutral-900 dark:text-neutral-100">
@@ -349,7 +355,6 @@ const PromotionModal: React.FC<PromotionModalProps> = ({
     name: promotion?.name || "",
     description: promotion?.description || "",
     discountPercentage: promotion?.discountPercentage || undefined,
-    discountAmount: promotion?.discountAmount || undefined,
     startDate: promotion?.startDate || "",
     endDate: promotion?.endDate || "",
     isActive: promotion?.isActive !== undefined ? promotion.isActive : true,
@@ -406,8 +411,8 @@ const PromotionModal: React.FC<PromotionModalProps> = ({
       setError("Ngày kết thúc phải sau ngày bắt đầu!");
       return;
     }
-    if (!formData.discountPercentage && !formData.discountAmount) {
-      setError("Vui lòng nhập phần trăm giảm giá hoặc số tiền giảm giá!");
+    if (!formData.discountPercentage) {
+      setError("Vui lòng nhập phần trăm giảm giá!");
       return;
     }
 
@@ -420,7 +425,6 @@ const PromotionModal: React.FC<PromotionModalProps> = ({
           name: formData.name.trim(),
           description: formData.description?.trim(),
           discountPercentage: formData.discountPercentage,
-          discountAmount: formData.discountAmount,
           startDate: formData.startDate,
           endDate: formData.endDate,
           isActive: formData.isActive,
@@ -434,7 +438,6 @@ const PromotionModal: React.FC<PromotionModalProps> = ({
           name: formData.name.trim(),
           description: formData.description?.trim(),
           discountPercentage: formData.discountPercentage,
-          discountAmount: formData.discountAmount,
           startDate: formData.startDate,
           endDate: formData.endDate,
           isActive: formData.isActive,
@@ -452,7 +455,7 @@ const PromotionModal: React.FC<PromotionModalProps> = ({
       let errorMessage = "❌ Không thể lưu promotion. Vui lòng thử lại!";
 
       if (err.response?.data?.message) {
-        errorMessage = `❌ ${err.response.data.message}`;
+        errorMessage = `❌ ${translateErrorMessage(err.response.data.message)}`;
       } else if (err.response?.data?.errors) {
         const errors = err.response.data.errors;
         const errorList = Object.entries(errors)
@@ -559,31 +562,13 @@ const PromotionModal: React.FC<PromotionModalProps> = ({
                       setFormData((prev) => ({
                         ...prev,
                         discountPercentage: e.target.value ? Number(e.target.value) : undefined,
-                        discountAmount: undefined, // Clear discountAmount if percentage is set
                       }))
                     }
                     className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-neutral-700 dark:text-neutral-100"
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                    Giảm giá (VNĐ)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={formData.discountAmount || ""}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        discountAmount: e.target.value ? Number(e.target.value) : undefined,
-                        discountPercentage: undefined, // Clear percentage if amount is set
-                      }))
-                    }
-                    className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-neutral-700 dark:text-neutral-100"
-                  />
-                </div>
+
               </div>
 
               <div className="grid grid-cols-2 gap-4">

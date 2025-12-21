@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import blogAPI from "api/blog";
 import { showSuccess, showError } from "utils/modalNotification";
+import ConfirmModal from "components/ConfirmModal";
 
 interface BlogPost {
     id: number;
@@ -22,6 +23,9 @@ const PageBlogList = () => {
     const [selectedCategory, setSelectedCategory] = useState("");
     const [selectedStatus, setSelectedStatus] = useState<string>(""); // THÊM FILTER STATUS
     const [categories, setCategories] = useState<{ id: number; name: string }[]>([]);
+    const [showConfirmModal, setShowConfirmModal] = useState(false);
+    const [deletingPostId, setDeletingPostId] = useState<number | null>(null);
+    const [deletingPostTitle, setDeletingPostTitle] = useState<string>("");
 
     useEffect(() => {
         const loadData = async () => {
@@ -63,19 +67,28 @@ const PageBlogList = () => {
     }, []);
 
     const handleDelete = async (postId: number, postTitle: string) => {
-        if (window.confirm(`Bạn có chắc muốn xóa bài viết "${postTitle}" không?`)) {
-            try {
-                const success = await blogAPI.adminDeletePost(postId);
-                if (success) {
-                    setPosts(currentPosts => currentPosts.filter(p => p.id !== postId));
-                    showSuccess("Xóa bài viết thành công!");
-                } else {
-                    showError("Không tìm thấy bài viết để xóa.");
-                }
-            } catch (err: any) {
-                console.error("Failed to delete post:", err);
-                showError(err.response?.data?.message || "Không thể xóa bài viết");
+        setDeletingPostId(postId);
+        setDeletingPostTitle(postTitle);
+        setShowConfirmModal(true);
+    };
+
+    const confirmDelete = async () => {
+        if (!deletingPostId) return;
+        setShowConfirmModal(false);
+        try {
+            const success = await blogAPI.adminDeletePost(deletingPostId);
+            if (success) {
+                setPosts(currentPosts => currentPosts.filter(p => p.id !== deletingPostId));
+                showSuccess("Xóa bài viết thành công!");
+            } else {
+                showError("Không tìm thấy bài viết để xóa.");
             }
+        } catch (err: any) {
+            console.error("Failed to delete post:", err);
+            showError(err.response?.data?.message || "Không thể xóa bài viết");
+        } finally {
+            setDeletingPostId(null);
+            setDeletingPostTitle("");
         }
     };
 

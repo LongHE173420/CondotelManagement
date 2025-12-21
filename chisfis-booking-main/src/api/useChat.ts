@@ -3,20 +3,17 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { HubConnection, HubConnectionBuilder, HubConnectionState, LogLevel } from '@microsoft/signalr';
 import { ChatConversation, ChatMessageDto } from '../types/chatTypes';
 import axios from 'axios';
+import { toastError } from 'utils/toast'; // Nếu bạn có toastError, nếu không thì thay bằng console.error
 
 // --- CẤU HÌNH URL ---
 const getBaseUrl = (): string => {
-    // Nếu biến môi trường có dạng "http://localhost:7216/api", ta cắt bỏ "/api"
     const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:7216/api';
     return apiUrl.replace(/\/api\/?$/, '');
 };
 
 const BASE_URL = getBaseUrl();
 const API_URL = `${BASE_URL}/api/Chat`;
-// Lưu ý: Kiểm tra lại backend của bạn mapHub là "/chatHub" hay "/hubs/chat". 
-// Dựa trên code cũ bạn gửi thì có vẻ là "/hubs/chat" hoặc "/chatHub". 
-// Tôi để mặc định theo chuẩn thường dùng, nếu lỗi 404 hãy đổi lại thành `${BASE_URL}/hubs/chat`
-const HUB_URL = `${BASE_URL}/hubs/chat`;
+const HUB_URL = `${BASE_URL}/hubs/chat`; // Điều chỉnh nếu backend dùng /chatHub hoặc khác
 
 export const useChat = (currentUserId: number) => {
     const [connection, setConnection] = useState<HubConnection | null>(null);
@@ -54,52 +51,43 @@ export const useChat = (currentUserId: number) => {
                 }
             } catch (err) {
                 console.error('❌ SignalR Connection Error:', err);
-                // Có thể retry logic ở đây nếu muốn
             }
         };
 
         startConnection();
 
-        // Xử lý sự kiện nhận tin nhắn mới
-
-
         connection.on('ReceiveMessage', (messageDto: ChatMessageDto) => {
-            // A. Cập nhật danh sách tin nhắn
             setMessages(prev => {
-                // 1. Nếu tin nhắn này ĐÃ CÓ ID THẬT trong list rồi -> Bỏ qua (chống trùng tuyệt đối)
                 if (prev.some(m => m.messageId === messageDto.messageId && m.messageId !== 0)) {
                     return prev;
                 }
 
-                // 2. Tìm tin nhắn giả lập (Optimistic) để THAY THẾ
-                // (Tìm tin có ID=0, cùng nội dung, cùng người gửi, lệch giờ < 5s)
                 const optimisticIndex = prev.findIndex(m =>
-                    (m.messageId === 0 || !m.messageId) && // Tin giả thường ID = 0
+                    (m.messageId === 0 || !m.messageId) &&
                     m.content === messageDto.content &&
                     m.senderId === messageDto.senderId &&
                     Math.abs(new Date(m.sentAt).getTime() - new Date(messageDto.sentAt).getTime()) < 5000
                 );
 
                 if (optimisticIndex !== -1) {
-                    // ✅ TÌM THẤY: Thay thế tin giả bằng tin thật (để cập nhật ID chuẩn)
                     const newMsgs = [...prev];
                     newMsgs[optimisticIndex] = messageDto;
                     return newMsgs;
                 }
 
-                // 3. Nếu không phải tin mình vừa gửi -> Thêm mới vào cuối
                 const newMsgs = [...prev, messageDto];
                 return newMsgs.sort((a, b) => new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime());
             });
 
-            // B. Cập nhật Sidebar (Logic cũ giữ nguyên)
             setConversations(prev => {
                 const updated = prev.map(c => {
                     if (c.conversationId !== messageDto.conversationId) return c;
                     return {
                         ...c,
                         lastMessage: messageDto,
-                        unreadCount: (messageDto.senderId !== currentUserId) ? (c as any).unreadCount + 1 : (c as any).unreadCount
+                        unreadCount: (messageDto.senderId !== currentUserId)
+                            ? (c.unreadCount || 0) + 1
+                            : c.unreadCount || 0
                     };
                 });
                 return updated.sort((a, b) =>
@@ -110,11 +98,13 @@ export const useChat = (currentUserId: number) => {
 
         return () => {
             connection.off('ReceiveMessage');
-            connection.stop();
+            if (connection.state === HubConnectionState.Connected) {
+                connection.stop();
+            }
         };
     }, [connection, currentUserId]);
 
-    // 3. API: Load danh sách hội thoại
+    // 3. Load danh sách hội thoại
     const loadConversations = useCallback(async () => {
         if (currentUserId <= 0) return;
         try {
@@ -124,26 +114,23 @@ export const useChat = (currentUserId: number) => {
             });
             setConversations(res.data);
 
-            // Map unread counts
             const counts: Record<number, number> = {};
             res.data.forEach((conv) => {
                 counts[conv.conversationId] = conv.unreadCount || 0;
             });
             setUnreadCounts(counts);
-
         } catch (err) {
             console.error("Load conversations failed:", err);
         }
     }, [currentUserId]);
 
-    // 4. API: Load tin nhắn của 1 hội thoại
+    // 4. Load tin nhắn của 1 hội thoại
     const loadMessages = useCallback(async (conversationId: number) => {
         try {
             const token = localStorage.getItem('token');
             const res = await axios.get<ChatMessageDto[]>(`${API_URL}/messages/${conversationId}?take=100`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            // Sắp xếp tăng dần theo thời gian (cũ trên, mới dưới)
             const sorted = res.data.sort((a: any, b: any) => new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime());
             setMessages(sorted);
         } catch (err) {
@@ -152,27 +139,19 @@ export const useChat = (currentUserId: number) => {
     }, []);
 
     // 5. Gửi tin nhắn
-    // Trong file src/api/useChat.ts
-
     const sendMessage = async (conversationId: number, content: string) => {
-        // Kiểm tra kỹ: Phải có connection VÀ trạng thái phải là Connected
         if (connection && connection.state === HubConnectionState.Connected) {
             try {
                 await connection.invoke("SendMessage", conversationId, content);
             } catch (err) {
                 console.error("Send failed:", err);
-                // Có thể thêm logic retry hoặc thông báo toast error ở đây
             }
         } else {
-            console.warn("⚠️ SignalR chưa sẵn sàng. Đang thử kết nối lại...");
-
-            // Logic tự động reconnect nếu bị rớt mạng (Optional)
+            console.warn("⚠️ SignalR chưa sẵn sàng.");
             try {
                 if (connection && connection.state === HubConnectionState.Disconnected) {
                     await connection.start();
-                    await connection.invoke("SendMessage", conversationId, content); // Gửi lại sau khi connect
-                } else {
-                    alert("Mất kết nối máy chủ. Vui lòng tải lại trang.");
+                    await connection.invoke("SendMessage", conversationId, content);
                 }
             } catch (e) {
                 console.error("Reconnect failed:", e);
@@ -180,25 +159,82 @@ export const useChat = (currentUserId: number) => {
         }
     };
 
-    // 6. QUAN TRỌNG: Mở chat với User bất kỳ (Logic cho nút "Nhắn tin" ở trang Detail)
+    // 6. MỚI: Mở chat với host của một condotel (dùng condotelId)
+    const openChatWithCondotelHost = async (condotelId: number, initialMessage?: string) => {
+        if (!connection || connection.state !== HubConnectionState.Connected) {
+            toastError("Đang kết nối chat, vui lòng thử lại trong giây lát");
+            return false;
+        }
+
+        const defaultMessage = initialMessage || "Xin chào, tôi quan tâm đến căn hộ của bạn.";
+
+        try {
+            const token = localStorage.getItem('token');
+
+            // Định nghĩa kiểu trả về từ backend
+            interface SendToHostResponse {
+                conversationId: number;
+            }
+
+            // Gửi request và khai báo kiểu generic để TypeScript biết cấu trúc data
+            const response = await axios.post<SendToHostResponse>(
+                `${API_URL}/messages/send-to-host`,
+                {
+                    condotelId,
+                    content: defaultMessage
+                },
+                {
+                    headers: { Authorization: `Bearer ${token}` }
+                }
+            );
+
+            // Bây giờ TS biết response.data có thuộc tính conversationId → không còn lỗi TS2571
+            const conversationId = response.data.conversationId;
+
+            if (!conversationId || typeof conversationId !== 'number') {
+                throw new Error("Không nhận được conversationId hợp lệ từ server");
+            }
+
+            // Join room realtime
+            await connection.invoke('JoinConversation', conversationId);
+
+            // Load tin nhắn của conversation mới
+            await loadMessages(conversationId);
+
+            // Set làm conversation hiện tại
+            setCurrentConvId(conversationId);
+
+            // Refresh sidebar để hiển thị conversation mới + last message
+            await loadConversations();
+
+            return true;
+
+        } catch (err: any) {
+            console.error("Lỗi mở chat với host:", err);
+
+            // Xử lý lỗi chi tiết hơn
+            let msg = "Không thể mở chat với host";
+            if (err.response?.data) {
+                // Backend trả lỗi dạng { error: "..." } hoặc { message: "..." }
+                msg = err.response.data.error || err.response.data.message || msg;
+            } else if (err.message) {
+                msg = err.message;
+            }
+
+            toastError(msg);
+            return false;
+        }
+    };
+
+    // 7. Mở chat trực tiếp với user (cũ, vẫn giữ lại nếu cần)
     const openChatWithUser = async (targetUserId: number) => {
         if (!connection || !isConnected) return;
         try {
-            // a. Lấy hoặc tạo ConversationId từ Server
             const convId = await connection.invoke('GetOrCreateDirectConversation', targetUserId);
-
-            // b. Join group chat
             await connection.invoke('JoinConversation', convId);
-
-            // c. Load lịch sử tin nhắn
             await loadMessages(convId);
-
-            // d. Set state hiển thị
             setCurrentConvId(convId);
-
-            // e. Refresh lại sidebar để thấy hội thoại mới
             await loadConversations();
-
         } catch (err) {
             console.error("Error opening chat with user:", err);
         }
@@ -212,9 +248,10 @@ export const useChat = (currentUserId: number) => {
         setCurrentConvId,
         setMessages,
         loadConversations,
-        loadMessages, // Export hàm này để dùng bên ngoài nếu cần
+        loadMessages,
         sendMessage,
-        openChatWithUser, // Hàm quan trọng mới
+        openChatWithUser,
+        openChatWithCondotelHost,   // Hàm mới quan trọng
         isConnected,
         connection
     };

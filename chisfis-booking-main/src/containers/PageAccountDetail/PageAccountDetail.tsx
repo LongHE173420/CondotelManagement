@@ -258,7 +258,7 @@ const PageAccountDetail: React.FC = () => {
                 label="Email *"
                 value={formData.email || ""}
                 onChange={(val) => handleChange("email", val)}
-                disabled={isAdmin}
+                disabled={true}
               />
 
               <FormSelect
@@ -270,7 +270,7 @@ const PageAccountDetail: React.FC = () => {
                 <option value="">-- Chọn vai trò --</option>
                 <option value="Tenant">Khách hàng (User)</option>
                 <option value="Owner">Chủ condotel (Host)</option>
-                <option value="Marketer">Nhân viên tiếp thị</option>
+
                 {isAdmin && <option value="Admin">Quản trị viên (Không thể thay đổi)</option>}
               </FormSelect>
 
@@ -350,11 +350,10 @@ const PageAccountDetail: React.FC = () => {
               <button
                 type="submit"
                 disabled={saving || isAdmin}
-                className={`px-6 py-3 rounded-xl font-bold shadow-md hover:shadow-lg transition-all duration-300 ${
-                  isAdmin
-                    ? "bg-gray-400 cursor-not-allowed text-white"
-                    : "bg-gradient-to-r from-slate-500 to-gray-500 hover:from-slate-600 hover:to-gray-600 text-white"
-                }`}
+                className={`px-6 py-3 rounded-xl font-bold shadow-md hover:shadow-lg transition-all duration-300 ${isAdmin
+                  ? "bg-gray-400 cursor-not-allowed text-white"
+                  : "bg-gradient-to-r from-slate-500 to-gray-500 hover:from-slate-600 hover:to-gray-600 text-white"
+                  }`}
               >
                 {saving ? "Đang lưu..." : isAdmin ? "Không thể sửa Admin" : "Lưu thay đổi"}
               </button>

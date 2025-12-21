@@ -5,6 +5,7 @@ import { Navigate } from "react-router-dom";
 import { condotelAPI, CondotelDTO, PromotionDTO } from "api/condotel";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
 import ButtonSecondary from "shared/Button/ButtonSecondary";
+import ConfirmModal from "components/ConfirmModal";
 
 export interface HostPromotionPageProps {
   className?: string;
@@ -19,6 +20,9 @@ const HostPromotionPage: React.FC<HostPromotionPageProps> = ({ className = "" })
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingPromotion, setEditingPromotion] = useState<PromotionDTO | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [deletingPromotionId, setDeletingPromotionId] = useState<number | null>(null);
+  const [deletingPromotionName, setDeletingPromotionName] = useState<string>("");
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -72,13 +76,17 @@ const HostPromotionPage: React.FC<HostPromotionPageProps> = ({ className = "" })
   };
 
   const handleDelete = async (promotionId: number, name: string) => {
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa promotion "${name}"?`)) {
-      return;
-    }
+    setDeletingPromotionId(promotionId);
+    setDeletingPromotionName(name);
+    setShowConfirmModal(true);
+  };
 
-    setDeletingId(promotionId);
+  const confirmDelete = async () => {
+    if (!deletingPromotionId) return;
+    setShowConfirmModal(false);
+    setDeletingId(deletingPromotionId);
     try {
-      await condotelAPI.deletePromotion(promotionId);
+      await condotelAPI.deletePromotion(deletingPromotionId);
       await loadData();
       alert("Xóa promotion thành công!");
     } catch (err: any) {
@@ -86,6 +94,8 @@ const HostPromotionPage: React.FC<HostPromotionPageProps> = ({ className = "" })
       alert(err.response?.data?.message || "Không thể xóa promotion");
     } finally {
       setDeletingId(null);
+      setDeletingPromotionId(null);
+      setDeletingPromotionName("");
     }
   };
 

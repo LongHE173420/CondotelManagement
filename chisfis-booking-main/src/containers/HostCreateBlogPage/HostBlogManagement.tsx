@@ -3,10 +3,13 @@ import { Link } from 'react-router-dom';
 import blogAPI, { HostBlogSummaryDTO } from 'api/blog';
 import { toast } from 'react-toastify';
 import ButtonPrimary from 'shared/Button/ButtonPrimary';
+import ConfirmModal from 'components/ConfirmModal';
 
 const HostBlogManagement = () => {
     const [blogs, setBlogs] = useState<HostBlogSummaryDTO[]>([]);
     const [loading, setLoading] = useState(true);
+    const [showConfirmModal, setShowConfirmModal] = useState(false);
+    const [deletingBlogId, setDeletingBlogId] = useState<number | null>(null);
 
     const fetchBlogs = async () => {
         setLoading(true);
@@ -25,14 +28,21 @@ const HostBlogManagement = () => {
     }, []);
 
     const handleDelete = async (id: number) => {
-        if (window.confirm("Bạn có chắc chắn muốn xóa bài viết này không?")) {
-            try {
-                await blogAPI.deleteHostRequest(id);
-                toast.success("Đã xóa bài viết.");
-                fetchBlogs(); // Reload lại danh sách
-            } catch (error) {
-                toast.error("Xóa thất bại.");
-            }
+        setDeletingBlogId(id);
+        setShowConfirmModal(true);
+    };
+
+    const confirmDelete = async () => {
+        if (!deletingBlogId) return;
+        setShowConfirmModal(false);
+        try {
+            await blogAPI.deleteHostRequest(deletingBlogId);
+            toast.success("Đã xóa bài viết.");
+            fetchBlogs(); // Reload lại danh sách
+        } catch (error) {
+            toast.error("Xóa thất bại.");
+        } finally {
+            setDeletingBlogId(null);
         }
     };
 
