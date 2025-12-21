@@ -169,6 +169,8 @@ const ListingStayDetailPage: FC = () => {
         }
         const condotelId = Number(id);
         const res = await condotelAPI.getById(condotelId);
+        console.log("Condotel data:", res);
+        console.log("Resort Address:", res.resortAddress);
         setData(res);
 
         // Luôn ưu tiên hostName từ backend - không dùng tên user đang login
@@ -294,6 +296,12 @@ const ListingStayDetailPage: FC = () => {
         </div>
         <h2 className="text-2xl sm:text-3xl lg:text-4xl font-semibold">{data.name}</h2>
         <div className="text-neutral-6000 dark:text-neutral-300">{data.description || "Mô tả đang cập nhật."}</div>
+        {(data.resortAddress || (data as any).address || (data as any).Address) && (
+          <div className="flex items-center space-x-2 text-neutral-6000 dark:text-neutral-300">
+            <i className="las la-map-marker text-xl"></i>
+            <span>{data.resortAddress || (data as any).address || (data as any).Address}</span>
+          </div>
+        )}
         <div className="w-full border-b border-neutral-100 dark:border-neutral-700" />
         <div className="flex items-center justify-between xl:justify-start space-x-8 xl:space-x-12 text-sm text-neutral-700 dark:text-neutral-300">
           {data.resortName && (
@@ -963,6 +971,18 @@ const ListingStayDetailPage: FC = () => {
             <span>Phòng tắm</span>
             <span>{data.bathrooms}</span>
           </div>
+          {rangeDates.startDate && (
+            <div className="flex justify-between text-neutral-6000 dark:text-neutral-300">
+              <span>Nhận Phòng</span>
+              <span>{rangeDates.startDate.format("DD-MM-YYYY")}(14:00)</span>
+            </div>
+          )}
+          {rangeDates.endDate && (
+            <div className="flex justify-between text-neutral-6000 dark:text-neutral-300">
+              <span>Trả Phòng</span>
+              <span>{rangeDates.endDate.format("DD-MM-YYYY")}(12:00)</span>
+            </div>
+          )}
           {nights > 0 && (
             <>
               <div className="border-b border-neutral-200 dark:border-neutral-700"></div>
