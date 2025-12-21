@@ -5,6 +5,7 @@ import ImageResize from "quill-image-resize-module-react";
 import "react-quill/dist/quill.snow.css";
 import blogAPI, { BlogCategoryDTO } from "api/blog";
 import { uploadAPI } from "api/upload";
+import { toastSuccess, toastError, toastWarning, toastInfo } from "utils/toast";
 
 // Đăng ký module resize với Quill
 Quill.register("modules/imageResize", ImageResize);
@@ -77,42 +78,42 @@ const PageBlogAdd = () => {
 
     // Video handler - ĐÃ SỬA HOÀN TOÀN
     // Video handler - THAY THẾ HOÀN TOÀN PHẦN NÀY
-const videoHandler = useCallback(() => {
-  const url = prompt('Nhập URL video (YouTube, Vimeo...):');
-  
-  if (!url) return;
+    const videoHandler = useCallback(() => {
+        const url = prompt('Nhập URL video (YouTube, Vimeo...):');
 
-  const editor = quillRef.current?.getEditor();
-  const range = editor?.getSelection();
-  
-  if (range && editor) {
-    let embedUrl = '';
-    let videoTitle = 'Video nhúng';
+        if (!url) return;
 
-    // Xử lý YouTube URL - SỬA LỖI Ở ĐÂY
-    if (url.includes('youtube.com') || url.includes('youtu.be')) {
-      const videoId = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^#&?]{11})/)?.[1];
-      if (videoId) {
-        embedUrl = `https://www.youtube.com/embed/${videoId}`;
-        videoTitle = 'YouTube Video';
-      }
-    }
-    // Xử lý Vimeo URL
-    else if (url.includes('vimeo.com')) {
-      const videoId = url.match(/vimeo\.com\/(\d+)/)?.[1];
-      if (videoId) {
-        embedUrl = `https://player.vimeo.com/video/${videoId}`;
-        videoTitle = 'Vimeo Video';
-      }
-    }
+        const editor = quillRef.current?.getEditor();
+        const range = editor?.getSelection();
 
-    if (!embedUrl) {
-      toastError('Không thể xử lý URL video này. Vui lòng kiểm tra lại.');
-      return;
-    }
+        if (range && editor) {
+            let embedUrl = '';
+            let videoTitle = 'Video nhúng';
 
-    // Tạo HTML cho video embed
-    const videoHtml = `
+            // Xử lý YouTube URL - SỬA LỖI Ở ĐÂY
+            if (url.includes('youtube.com') || url.includes('youtu.be')) {
+                const videoId = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^#&?]{11})/)?.[1];
+                if (videoId) {
+                    embedUrl = `https://www.youtube.com/embed/${videoId}`;
+                    videoTitle = 'YouTube Video';
+                }
+            }
+            // Xử lý Vimeo URL
+            else if (url.includes('vimeo.com')) {
+                const videoId = url.match(/vimeo\.com\/(\d+)/)?.[1];
+                if (videoId) {
+                    embedUrl = `https://player.vimeo.com/video/${videoId}`;
+                    videoTitle = 'Vimeo Video';
+                }
+            }
+
+            if (!embedUrl) {
+                toastError('Không thể xử lý URL video này. Vui lòng kiểm tra lại.');
+                return;
+            }
+
+            // Tạo HTML cho video embed
+            const videoHtml = `
       <div class="video-embed-wrapper">
         <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; border-radius: 8px; background: #000;">
           <iframe 
@@ -130,15 +131,15 @@ const videoHandler = useCallback(() => {
       <p><br></p>
     `;
 
-    // Chèn video vào editor
-    editor.clipboard.dangerouslyPasteHTML(range.index, videoHtml);
-    
-    // Di chuyển cursor xuống sau video
-    setTimeout(() => {
-      editor.setSelection(range.index + 2, 0);
-    }, 100);
-  }
-}, []);
+            // Chèn video vào editor
+            editor.clipboard.dangerouslyPasteHTML(range.index, videoHtml);
+
+            // Di chuyển cursor xuống sau video
+            setTimeout(() => {
+                editor.setSelection(range.index + 2, 0);
+            }, 100);
+        }
+    }, []);
 
     // Link handler
     const linkHandler = useCallback(() => {
@@ -230,11 +231,11 @@ const videoHandler = useCallback(() => {
             toastWarning("Vui lòng nhập Tiêu đề và Nội dung.");
             return;
         }
-        
+
         setIsLoading(true);
         try {
             let featuredImageUrl: string | undefined = undefined;
-            
+
             // Upload featured image if exists
             if (featuredImageFile) {
                 try {
@@ -323,11 +324,15 @@ const videoHandler = useCallback(() => {
             <style>{resizeStyles}</style>
 
             <form onSubmit={handleSubmit}>
-                <div className="mb-4">
-                    <Link to="/manage-blog" className="text-sm text-blue-600 hover:underline">
-                        &larr; Quay lại danh sách
-                    </Link>
-                </div>
+                <button
+                    onClick={() => navigate(-1)}
+                    className="flex items-center text-indigo-600 hover:text-indigo-800 font-medium transition"
+                >
+                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    </svg>
+                    Quay lại Dashboard
+                </button>
 
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
 

@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import blogAPI, { BlogCategoryDTO } from "api/blog";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
 import ButtonSecondary from "shared/Button/ButtonSecondary";
@@ -10,7 +10,7 @@ const PageBlogCategory = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
-  
+
   // Form state
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -19,7 +19,7 @@ const PageBlogCategory = () => {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [deletingCategoryId, setDeletingCategoryId] = useState<number | null>(null);
   const [deletingCategoryName, setDeletingCategoryName] = useState<string>("");
-
+  const navigate = useNavigate();
   useEffect(() => {
     loadCategories();
   }, []);
@@ -40,7 +40,7 @@ const PageBlogCategory = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!categoryName.trim()) {
       setError("Vui lòng nhập tên danh mục!");
       return;
@@ -60,17 +60,17 @@ const PageBlogCategory = () => {
         await blogAPI.adminCreateCategory(categoryName.trim());
         setSuccessMessage("Tạo danh mục thành công!");
       }
-      
+
       // Reset form
       setCategoryName("");
       setIsEditing(false);
       setEditingId(null);
-      
+
       // Reload categories
       await loadCategories();
     } catch (err: any) {
       let errorMessage = "Không thể lưu danh mục";
-      
+
       if (err.response?.data?.message) {
         errorMessage = err.response.data.message;
       } else if (err.response?.data?.error) {
@@ -78,7 +78,7 @@ const PageBlogCategory = () => {
       } else if (err.message) {
         errorMessage = err.message;
       }
-      
+
       setError(errorMessage);
     } finally {
       setIsSubmitting(false);
@@ -150,12 +150,15 @@ const PageBlogCategory = () => {
             </h1>
             <p className="text-gray-600">Tạo, chỉnh sửa và xóa các danh mục blog</p>
           </div>
-          <Link
-            to="/manage-blog"
-            className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+          <button
+            onClick={() => navigate(-1)}
+            className="flex items-center text-indigo-600 hover:text-indigo-800 font-medium transition"
           >
-            ← Quay lại Danh sách Bài viết
-          </Link>
+            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            Quay lại Dashboard
+          </button>
         </div>
 
         {/* Messages */}
@@ -175,7 +178,7 @@ const PageBlogCategory = () => {
           <h2 className="text-xl font-semibold mb-4 text-gray-800">
             {isEditing ? "Chỉnh sửa Danh mục" : "Thêm Danh mục Mới"}
           </h2>
-          
+
           <div className="flex gap-4">
             <input
               type="text"
