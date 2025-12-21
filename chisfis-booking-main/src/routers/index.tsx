@@ -17,7 +17,6 @@ import AccountPass from "containers/AccountPage/AccountPass";
 import AccountSavelists from "containers/AccountPage/AccountSavelists";
 import AccountBilling from "containers/AccountPage/AccountBilling";
 import AccountRewards from "containers/AccountPage/AccountRewards";
-import AccountVouchers from "containers/AccountPage/AccountVouchers";
 import AdminPage from "containers/AdminPage/AdminPage";
 import AdminLayout from "containers/AdminPage/AdminLayout";
 import HostLayout from "containers/HostCondotelDashboard/HostLayout";
@@ -110,7 +109,6 @@ export const pages: Page[] = [
   { path: "/account-savelists", component: AccountSavelists },
   { path: "/account-billing", component: AccountBilling },
   { path: "/account-rewards", component: AccountRewards },
-  { path: "/account-vouchers", component: AccountVouchers },
   //
   { path: "/listing-stay", component: ListingStayPage },
   { path: "/listing-stay-map", component: ListingStayMapPage },
