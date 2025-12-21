@@ -2,47 +2,13 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { adminAPI, AdminUserDTO, AdminUpdateUserDTO } from "api/admin";
 
-type UserRole = "Owner" | "Tenant" | "Admin" | "Marketer" | "";
-type UserStatus = "Active" | "Inactive" | "Pending";
-
-const roleNameToId = (roleName?: string): number | undefined => {
-  switch (roleName) {
-    case "Admin": return 1;
-    case "Owner": return 2;
-    case "Tenant": return 3;
-    case "Marketer": return 4;
-    default: return undefined;
-  }
-};
-
-const roleIdToName = (roleNameBE?: string): UserRole => {
-  switch (roleNameBE) {
-    case "Host": return "Owner";
-    case "User": return "Tenant";
-    case "ContentManager": return "Marketer";
-    case "Admin": return "Admin";
-    default: return "";
-  }
-};
-
-const normalizeGender = (genderBE?: string): string => {
-  if (!genderBE) return "";
-  const g = genderBE.toLowerCase();
-  if (g === "male" || g === "nam") return "Male";
-  if (g === "female" || g === "nữ" || g === "nu") return "Female";
-  if (g === "other" || g === "khác" || g === "khac") return "Other";
-  return genderBE;
-};
-
-interface FormInputProps {
+const FormInput: React.FC<{
   label: string;
   value: string;
   onChange: (value: string) => void;
   disabled?: boolean;
   type?: string;
-}
-
-const FormInput: React.FC<FormInputProps> = ({ label, value, onChange, disabled = false, type = "text" }) => (
+}> = ({ label, value, onChange, disabled = false, type = "text" }) => (
   <div>
     <label className="block text-sm font-bold text-neutral-700 dark:text-neutral-300 mb-2">{label}</label>
     <input
@@ -132,8 +98,8 @@ const PageAccountDetail: React.FC = () => {
 
         setFormData({
           ...userData,
-          roleName: roleIdToName(userData.roleName),
-          gender: normalizeGender(userData.gender),
+          displayRole,
+          originalDisplayRole: displayRole,
           originalStatus: userData.status,
         });
       } catch (err: any) {
@@ -161,37 +127,48 @@ const PageAccountDetail: React.FC = () => {
     try {
       const userId = parseInt(id, 10);
 
-      if (!formData.fullName?.trim() || !formData.email?.trim()) {
-        throw new Error("Vui lòng điền đầy đủ Tên và Email");
-      }
-
       const updateData: AdminUpdateUserDTO = {
-        fullName: formData.fullName!.trim(),
-        email: formData.email!.trim(),
+        fullName: formData.fullName?.trim() || "",
+        email: formData.email?.trim() || "",
+        phone: formData.phone?.trim(),
+        gender: formData.gender?.trim(),
+        dateOfBirth: formData.dateOfBirth?.trim(),
+        address: formData.address?.trim(),
       };
 
-      if (formData.phone?.trim()) updateData.phone = formData.phone.trim();
-      if (formData.gender?.trim()) updateData.gender = formData.gender.trim();
-      if (formData.dateOfBirth?.trim()) updateData.dateOfBirth = formData.dateOfBirth.trim();
-      if (formData.address?.trim()) updateData.address = formData.address.trim();
-
-      // Cập nhật role nếu thay đổi (trừ Admin)
-      if (formData.displayRole && formData.displayRole !== formData.originalDisplayRole && formData.displayRole !== "Admin") {
+      // === BẮT BUỘC GỬI ROLEID NẾU KHÔNG PHẢI ADMIN ===
+      if (!isAdmin) {
+        if (!formData.displayRole || formData.displayRole === "") {
+          setError("Vui lòng chọn vai trò cho người dùng");
+          setSaving(false);
+          return;
+        }
         updateData.roleId = displayRoleToRoleId(formData.displayRole);
       }
+      // Nếu là Admin → không gửi roleId để tránh bị thay đổi
 
-      // Cập nhật status
+      // Cập nhật status nếu có thay đổi
       if (formData.status && formData.status !== formData.originalStatus) {
         await adminAPI.updateUserStatus(userId, formData.status as "Active" | "Inactive" | "Pending");
       }
 
       await adminAPI.updateUser(userId, updateData);
+
       setSuccess("Cập nhật thành công!");
       setTimeout(() => navigate("/admin?tab=accounts"), 1500);
     } catch (err: any) {
-      setError(err.response?.data?.message || err.message || "Không thể cập nhật thông tin");
-    } finally {
       setSaving(false);
+
+      if (err.response?.status === 400) {
+        const errors = err.response.data?.errors;
+        if (Array.isArray(errors) && errors.length > 0) {
+          setError(errors.join("\n")); // Hiển thị lỗi chi tiết
+        } else {
+          setError(err.response.data?.message || "Dữ liệu không hợp lệ");
+        }
+      } else {
+        setError(err.message || "Có lỗi xảy ra khi cập nhật");
+      }
     }
   };
 
@@ -229,44 +206,14 @@ const PageAccountDetail: React.FC = () => {
               <FormInput label="Tên người dùng *" value={formData.fullName || ""} onChange={val => handleChange("fullName", val)} disabled={isAdmin} />
               <FormInput label="Email *" value={formData.email || ""} onChange={val => handleChange("email", val)} disabled={true} />
 
-              <FormInput
-                label="Tên người dùng *"
-                value={formData.fullName || ""}
-                onChange={(val) => handleChange("fullName", val)}
-                disabled={isAdmin}
-              />
-
-              <FormInput
-                label="Email *"
-                value={formData.email || ""}
-                onChange={(val) => handleChange("email", val)}
-                disabled={true}
-              />
-
-              <FormSelect
-                label="Vai trò"
-                value={formData.roleName || ""}
-                onChange={(val) => handleChange("roleName", val)}
-                disabled={isAdmin}
-              >
+              <FormSelect label="Vai trò" value={formData.displayRole || ""} onChange={val => handleChange("displayRole", val)} disabled={isAdmin}>
                 <option value="">-- Chọn vai trò --</option>
                 <option value="Khách Hàng">Khách Hàng</option>
                 <option value="Chủ Condotel">Chủ Condotel</option>
               </FormSelect>
 
-              <FormInput
-                label="Số điện thoại"
-                value={formData.phone || ""}
-                onChange={(val) => handleChange("phone", val)}
-                disabled={true}
-              />
-
-              <FormSelect
-                label="Giới tính"
-                value={formData.gender || ""}
-                onChange={(val) => handleChange("gender", val)}
-                disabled={isAdmin}
-              >
+              <FormInput label="Số điện thoại" value={formData.phone || ""} onChange={val => handleChange("phone", val)} disabled={isAdmin} />
+              <FormSelect label="Giới tính" value={formData.gender || ""} onChange={val => handleChange("gender", val)} disabled={isAdmin}>
                 <option value="">-- Chọn giới tính --</option>
                 <option value="Male">Nam</option>
                 <option value="Female">Nữ</option>
