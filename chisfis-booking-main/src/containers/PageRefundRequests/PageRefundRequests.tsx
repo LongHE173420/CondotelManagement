@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import bookingAPI, { RefundRequestDTO } from "api/booking";
 import { useAuth } from "contexts/AuthContext";
@@ -29,7 +29,6 @@ const PageRefundRequests = () => {
       setRefundRequests(response || []);
     } catch (err: any) {
       setError(err.message || "Không thể tải danh sách yêu cầu hoàn tiền");
-      console.error("Error loading refund requests:", err);
     } finally {
       setLoading(false);
     }

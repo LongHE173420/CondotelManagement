@@ -1,4 +1,4 @@
-// src/containers/ChatPage/PageChat.tsx
+﻿// src/containers/ChatPage/PageChat.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import { useChat } from '../../api/useChat';
@@ -68,7 +68,6 @@ const PageChat: React.FC = () => {
             const targetId = Number(initialTargetId);
             // Không tự chat với chính mình
             if (targetId !== currentUserId && !isNaN(targetId)) {
-                console.log("Auto opening chat with:", targetId);
                 openChatWithUser(targetId);
 
                 // Xóa query parameter để tránh trigger lại khi F5

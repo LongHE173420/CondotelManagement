@@ -1,4 +1,4 @@
-import axiosClient from "./axiosClient";
+﻿import axiosClient from "./axiosClient";
 
 // PaymentRequestDTO - DTO để tạo payment link
 export interface PaymentRequestDTO {
@@ -55,7 +55,6 @@ export interface PaymentCallbackDTO {
 export const paymentAPI = {
   // POST /api/payment/create - Tạo payment link (backward compatibility, redirects to /payment/payos/create)
   createPayment: async (request: PaymentRequestDTO): Promise<PaymentResponseDTO> => {
-    console.log("📤 Creating payment link with data:", JSON.stringify(request, null, 2));
     
     // Build request payload - use PascalCase to match C# DTO (PaymentRequestDTO)
     // Only include fields with actual values (omit null/undefined to avoid validation issues)
@@ -70,7 +69,6 @@ export const paymentAPI = {
       const description = String(request.description).substring(0, 25);
       if (description.length > 0) {
         payload.Description = description;
-        console.log(`📝 Sending description (${description.length} chars): "${description}"`);
       }
     }
     if (request.returnUrl) {
@@ -80,11 +78,9 @@ export const paymentAPI = {
       payload.CancelUrl = request.cancelUrl;
     }
     
-    console.log("📤 Sending payment request payload:", JSON.stringify(payload, null, 2));
     
     try {
       const response = await axiosClient.post<any>("/payment/create", payload);
-      console.log("✅ Payment response:", response.data);
 
       const responseData = response.data;
       
@@ -137,7 +133,6 @@ export const paymentAPI = {
       // Handle PayOS errors specifically
       if (error.response?.data?.message?.includes("PayOS error")) {
         const payosError = error.response.data.message;
-        console.error("❌ PayOS Error:", payosError);
         
         let errorMessage = `Không thể tạo link thanh toán: ${payosError}`;
         

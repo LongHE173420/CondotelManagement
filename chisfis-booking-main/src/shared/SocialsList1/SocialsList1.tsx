@@ -1,4 +1,4 @@
-import { SocialType } from "shared/SocialsShare/SocialsShare";
+﻿import { SocialType } from "shared/SocialsShare/SocialsShare";
 import React, { FC } from "react";
 
 export interface SocialsList1Props {

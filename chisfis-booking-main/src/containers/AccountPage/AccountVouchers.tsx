@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { useAuth } from "contexts/AuthContext";
 import voucherAPI, { VoucherDTO } from "api/voucher";
 import CommonLayout from "./CommonLayout";
@@ -29,7 +29,6 @@ const AccountVouchers: React.FC = () => {
       );
       setVouchers(activeVouchers);
     } catch (err: any) {
-      console.error("Failed to load vouchers:", err);
       setError(err.response?.data?.message || "Không thể tải danh sách mã giảm giá");
       setVouchers([]);
     } finally {

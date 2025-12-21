@@ -1,4 +1,4 @@
-import React, { FC } from "react";
+﻿import React, { FC } from "react";
 import GallerySlider from "components/GallerySlider/GallerySlider";
 import { DEMO_STAY_LISTINGS } from "data/listings";
 import StartRating from "components/StartRating/StartRating";

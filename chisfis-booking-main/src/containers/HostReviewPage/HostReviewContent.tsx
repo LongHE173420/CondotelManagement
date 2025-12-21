@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "contexts/AuthContext";
 import { reviewAPI, ReviewDTO } from "api/review";
@@ -45,7 +45,6 @@ const HostReviewContent: React.FC = () => {
       const reviewsData = await reviewAPI.getHostReviews();
       setReviews(reviewsData);
     } catch (err: any) {
-      console.error("Failed to load reviews:", err);
       setError(
         err.response?.data?.message ||
           err.message ||
@@ -70,7 +69,6 @@ const HostReviewContent: React.FC = () => {
       setReplyText("");
       await loadReviews(); // Reload để cập nhật reply
     } catch (err: any) {
-      console.error("Failed to reply review:", err);
       alert(
         err.response?.data?.message ||
           err.message ||
@@ -92,7 +90,6 @@ const HostReviewContent: React.FC = () => {
           await loadReviews();
           setConfirmModal({ isOpen: false, title: "", message: "", action: null });
         } catch (err: any) {
-          console.error("Failed to report review:", err);
           alert(
             err.response?.data?.message ||
               err.message ||

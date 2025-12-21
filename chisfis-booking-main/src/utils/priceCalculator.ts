@@ -1,4 +1,4 @@
-import { PriceDTO, PromotionDTO } from "api/condotel";
+﻿import { PriceDTO, PromotionDTO } from "api/condotel";
 import moment from "moment";
 
 /**

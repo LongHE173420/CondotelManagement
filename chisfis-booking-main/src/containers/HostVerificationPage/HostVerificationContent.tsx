@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+﻿import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "contexts/AuthContext";
 import hostAPI, { HostVerificationStatusDTO, ValidateIdCardResponseDTO } from "api/host";
@@ -50,7 +50,6 @@ const HostVerificationContent: React.FC = () => {
     } catch (err: any) {
       // Nếu endpoint không tồn tại hoặc chưa có verification, không báo lỗi
       if (err.response?.status !== 404) {
-        console.error("Failed to load verification status:", err);
       }
       setVerificationStatus(null);
     } finally {
@@ -72,7 +71,6 @@ const HostVerificationContent: React.FC = () => {
         setError(result.message || "Thông tin CCCD không khớp với thông tin tài khoản");
       }
     } catch (err: any) {
-      console.error("Failed to validate ID card:", err);
       setError(err.response?.data?.message || "Không thể xác thực thông tin CCCD");
     } finally {
       setValidating(false);
@@ -156,7 +154,6 @@ const HostVerificationContent: React.FC = () => {
         setError(result.message || "Upload thất bại");
       }
     } catch (err: any) {
-      console.error("Failed to upload ID card:", err);
       setError(err.response?.data?.message || "Không thể upload ảnh CCCD. Vui lòng thử lại!");
     } finally {
       setUploading(false);

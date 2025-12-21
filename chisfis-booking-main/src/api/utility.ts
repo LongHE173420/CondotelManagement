@@ -1,4 +1,4 @@
-import axiosClient from "./axiosClient";
+﻿import axiosClient from "./axiosClient";
 
 export interface UtilityDTO {
   utilityId: number;
@@ -41,7 +41,6 @@ const utilityAPI = {
       
       return utilities.map(normalizeUtility);
     } catch (error) {
-      console.error("Failed to load utilities from /admin/utility/all, trying fallback:", error);
       // Fallback: trả về mảng rỗng nếu cả hai endpoint đều fail
       return [];
     }

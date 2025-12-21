@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import RentalCarDatesRangeInput from "./RentalCarDatesRangeInput";
 import { FC } from "react";
 import { Popover, Transition } from "@headlessui/react";
@@ -66,7 +66,6 @@ const FlightSearchForm: FC<FlightSearchFormProps> = ({ haveDefaultValue }) => {
         }));
         setAllLocations(locationOptions);
       } catch (err) {
-        console.error("Error loading locations:", err);
         setAllLocations(LOCATIONS_VN);
       }
     };

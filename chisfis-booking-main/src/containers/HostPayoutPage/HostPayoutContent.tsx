@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { useAuth } from "contexts/AuthContext";
 import payoutAPI, { HostPayoutDTO } from "api/payout";
 import moment from "moment";
@@ -20,9 +20,7 @@ const HostPayoutContent: React.FC = () => {
     try {
       const data = await payoutAPI.getPendingPayouts();
       setPendingPayouts(data);
-      console.log("💰 Pending payouts loaded:", data);
     } catch (err: any) {
-      console.error("Failed to load pending payouts:", err);
       setError(err.response?.data?.message || "Không thể tải danh sách booking chờ thanh toán");
       setPendingPayouts([]);
     } finally {
@@ -39,9 +37,7 @@ const HostPayoutContent: React.FC = () => {
         toDate: filterToDate || undefined,
       });
       setPaidPayouts(data);
-      console.log("💰 Paid payouts loaded:", data, "filters:", { filterFromDate, filterToDate });
     } catch (err: any) {
-      console.error("Failed to load paid payouts:", err);
       setError(err.response?.data?.message || "Không thể tải danh sách booking đã thanh toán");
       setPaidPayouts([]);
     } finally {

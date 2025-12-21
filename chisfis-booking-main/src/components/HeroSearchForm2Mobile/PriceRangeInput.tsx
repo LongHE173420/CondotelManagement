@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+﻿import React, { useEffect, useState } from "react";
 import { FC } from "react";
 import Slider from "rc-slider";
 import convertNumbThousand from "utils/convertNumbThousand";

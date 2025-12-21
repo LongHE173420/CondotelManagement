@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { adminAPI, AdminUserDTO, AdminUpdateUserDTO, AdminUserResponse } from "api/admin";
 
@@ -23,6 +23,15 @@ const roleIdToName = (roleNameBE?: string): UserRole => {
     case "Admin": return "Admin";
     default: return "";
   }
+};
+
+const normalizeGender = (genderBE?: string): string => {
+  if (!genderBE) return "";
+  const g = genderBE.toLowerCase();
+  if (g === "male" || g === "nam") return "Male";
+  if (g === "female" || g === "nữ" || g === "nu") return "Female";
+  if (g === "other" || g === "khác" || g === "khac") return "Other";
+  return genderBE;
 };
 
 interface FormInputProps {
@@ -117,6 +126,7 @@ const PageAccountDetail: React.FC = () => {
         setFormData({
           ...userData,
           roleName: roleIdToName(userData.roleName),
+          gender: normalizeGender(userData.gender),
           originalStatus: userData.status,
         });
       } catch (err: any) {
@@ -258,7 +268,7 @@ const PageAccountDetail: React.FC = () => {
                 label="Email *"
                 value={formData.email || ""}
                 onChange={(val) => handleChange("email", val)}
-                disabled={isAdmin}
+                disabled={true}
               />
 
               <FormSelect
@@ -278,7 +288,7 @@ const PageAccountDetail: React.FC = () => {
                 label="Số điện thoại"
                 value={formData.phone || ""}
                 onChange={(val) => handleChange("phone", val)}
-                disabled={isAdmin}
+                disabled={true}
               />
 
               <FormSelect

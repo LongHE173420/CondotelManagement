@@ -1,4 +1,4 @@
-import { DateRage } from "components/HeroSearchForm/StaySearchForm";
+﻿import { DateRage } from "components/HeroSearchForm/StaySearchForm";
 
 const converSelectedDateToString = ({ startDate, endDate }: DateRage) => {
   const startDateString = startDate?.format("MMM DD");

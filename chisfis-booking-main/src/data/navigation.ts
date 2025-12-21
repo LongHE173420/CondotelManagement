@@ -1,4 +1,4 @@
-import { NavItemType } from "shared/Navigation/NavigationItem";
+﻿import { NavItemType } from "shared/Navigation/NavigationItem";
 import ncNanoId from "utils/ncNanoId";
 import type { Translations } from "i18n/LanguageContext";
 

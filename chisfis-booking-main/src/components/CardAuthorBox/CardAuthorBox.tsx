@@ -1,4 +1,4 @@
-import React, { FC } from "react";
+﻿import React, { FC } from "react";
 import { AuthorType } from "data/types";
 import { StarIcon } from "@heroicons/react/24/solid";
 import { Link } from "react-router-dom";
@@ -16,7 +16,7 @@ const CardAuthorBox: FC<CardAuthorBoxProps> = ({
   author,
   index,
 }) => {
-  const { displayName, href = "/", avatar, starRating } = author;
+  const { displayName, href = "/", avatar, starRating, reviewCount } = author;
   return (
     <Link
       to={href}
@@ -65,6 +65,11 @@ const CardAuthorBox: FC<CardAuthorBoxProps> = ({
           ))}
         </div>
       </div>
+      {reviewCount !== undefined && reviewCount > 0 && (
+        <div className="mt-2 text-xs text-neutral-500 dark:text-neutral-400">
+          {reviewCount} đánh giá
+        </div>
+      )}
     </Link>
   );
 };

@@ -1,4 +1,4 @@
-import React, { FC } from "react";
+﻿import React, { FC } from "react";
 import { CheckCircleIcon, StarIcon, ShieldCheckIcon, HeartIcon } from "@heroicons/react/24/solid";
 
 export interface SectionWhyChooseProps {

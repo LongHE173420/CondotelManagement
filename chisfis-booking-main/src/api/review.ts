@@ -1,4 +1,4 @@
-import axiosClient from "./axiosClient";
+﻿import axiosClient from "./axiosClient";
 
 // ReviewDTO từ backend
 export interface ReviewDTO {
@@ -91,10 +91,8 @@ export const reviewAPI = {
       requestData.Comment = review.comment;
     }
 
-    console.log("📤 Creating review with data:", JSON.stringify(requestData, null, 2));
 
     const response = await axiosClient.post<ReviewResponse>("/tenant/reviews", requestData);
-    console.log("✅ Review created successfully:", response.data);
 
     // Normalize response từ backend (PascalCase -> camelCase)
     const data: any = response.data.data || response.data;

@@ -1,4 +1,4 @@
-// shared/Badge/VerifiedBadge.tsx
+﻿// shared/Badge/VerifiedBadge.tsx
 import React from "react";
 
 interface VerifiedBadgeProps {

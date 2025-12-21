@@ -1,4 +1,4 @@
-import axiosClient from "./axiosClient";
+﻿import axiosClient from "./axiosClient";
 
 // HostReportDTO - Báo cáo của host
 // Response từ GET /api/host/report: { success: true, data: { revenue, totalBookings, totalCustomers, averageBookingValue, pendingBookings, confirmedBookings, completedBookings, totalCancellations, totalRooms, roomsBooked, occupancyRate } }

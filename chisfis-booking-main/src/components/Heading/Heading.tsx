@@ -1,4 +1,4 @@
-import React, { HTMLAttributes, ReactNode } from "react";
+﻿import React, { HTMLAttributes, ReactNode } from "react";
 import NextPrev from "shared/NextPrev/NextPrev";
 
 export interface HeadingProps extends HTMLAttributes<HTMLHeadingElement> {

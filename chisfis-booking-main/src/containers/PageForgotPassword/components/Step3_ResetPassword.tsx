@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import axiosClient from "api/axiosClient";
 import { useTranslation } from "i18n/LanguageContext";
 
@@ -52,7 +52,6 @@ const Step3_ResetPassword: React.FC<Props> = ({ email, token, onSuccess }) => {
       alert("Đổi mật khẩu thành công! Quay lại đăng nhập.");
       onSuccess();
     } catch (err: any) {
-      console.error("Reset password error:", err);
       let errorMessage = "Không thể đổi mật khẩu. Vui lòng thử lại.";
       
       if (err.response?.data?.message) {

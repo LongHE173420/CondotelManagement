@@ -1,4 +1,4 @@
-import React, { FC, useState, useEffect } from "react";
+﻿import React, { FC, useState, useEffect } from "react";
 import { reviewAPI, ReportedReviewDTO } from "api/review";
 import StartRating from "components/StartRating/StartRating";
 
@@ -31,7 +31,6 @@ const PageManageReviews: FC = () => {
       const reviews = await reviewAPI.getReportedReviews();
       setReportedReviews(reviews);
     } catch (err: any) {
-      console.error("Failed to load reported reviews:", err);
       setError(
         err.response?.data?.message ||
           err.message ||

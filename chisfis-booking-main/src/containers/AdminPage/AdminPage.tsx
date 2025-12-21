@@ -1,4 +1,4 @@
-import React, { FC, useState, useEffect } from "react";
+﻿import React, { FC, useState, useEffect } from "react";
 import { Helmet } from "react-helmet";
 import { useAuth } from "contexts/AuthContext";
 import { Navigate, useSearchParams } from "react-router-dom";
@@ -83,7 +83,6 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
           setTopCondotels(topData);
           setTenantAnalytics(analyticsData);
         } catch (err: any) {
-          console.error("Failed to load dashboard:", err);
           let errorMessage = "Không thể tải dashboard. Vui lòng thử lại sau.";
 
           if (err.networkError || err.noResponse) {
@@ -475,7 +474,6 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
                       setTopCondotels(topData);
                       setTenantAnalytics(analyticsData);
                     } catch (err: any) {
-                      console.error("Failed to load dashboard:", err);
                       const errorMessage =
                         err.response?.data?.message ||
                         err.message ||

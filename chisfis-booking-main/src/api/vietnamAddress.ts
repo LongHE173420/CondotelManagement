@@ -1,4 +1,4 @@
-import axios from "axios";
+﻿import axios from "axios";
 
 // API từ https://provinces.open-api.vn/ - Miễn phí, không cần authentication
 const VIETNAM_ADDRESS_API_BASE = "https://provinces.open-api.vn/api";
@@ -415,7 +415,6 @@ export const vietnamAddressAPI = {
       const response = await axios.get<ProvinceDTO[]>(`${VIETNAM_ADDRESS_API_BASE}/p/`);
       return response.data;
     } catch (error: any) {
-      console.error("Error loading provinces from external API:", error);
       return [];
     }
   },

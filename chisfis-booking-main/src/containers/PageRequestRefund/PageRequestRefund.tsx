@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import bookingAPI, { BookingDTO, RefundRequestDTO } from "api/booking";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
@@ -141,7 +141,6 @@ const PageRequestRefund = () => {
           }
         } catch (refundErr) {
           // Ignore error loading refund requests - continue with normal flow
-          console.log("Could not load existing refund requests:", refundErr);
         }
       } catch (err: any) {
         setError("Không thể tải thông tin booking. Vui lòng thử lại sau.");

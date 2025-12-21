@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import axiosClient from "api/axiosClient";
 import { useTranslation } from "i18n/LanguageContext";
 
@@ -42,7 +42,6 @@ const Step2_VerifyCode: React.FC<Props> = ({ email, onSuccess }) => {
           otp: code,
         });
 
-        console.log("✅ Verify OTP response:", res.data);
         
         // Nếu backend trả về token, dùng token đó
         // Nếu không, dùng code (OTP) làm "token" để bước 3 sử dụng
@@ -55,18 +54,14 @@ const Step2_VerifyCode: React.FC<Props> = ({ email, onSuccess }) => {
         // hoặc backend không có endpoint này, chuyển thẳng sang bước reset
         // OTP sẽ được verify ở bước 3 khi reset password
         if (verifyErr.response?.status === 404 || verifyErr.response?.status === 405) {
-          console.log("ℹ️ Verify OTP endpoint not found, will verify in reset step");
-          console.log("ℹ️ Proceeding to reset password step with OTP:", code);
           // Chuyển sang bước reset password, OTP sẽ được verify ở bước 3
           onSuccess(code);
         } else {
           // Nếu là lỗi khác (như OTP sai, 400), throw lỗi để hiển thị thông báo
-          console.error("❌ Verify OTP error:", verifyErr.response?.status, verifyErr.response?.data);
           throw verifyErr;
         }
       }
     } catch (err: any) {
-      console.error("Verify OTP error:", err);
       let errorMessage = "Mã OTP không đúng hoặc đã hết hạn. Vui lòng thử lại.";
       
       if (err.response?.data?.message) {

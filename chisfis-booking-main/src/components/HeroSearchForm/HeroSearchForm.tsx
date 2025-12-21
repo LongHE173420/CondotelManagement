@@ -1,4 +1,4 @@
-import React, { FC } from "react";
+﻿import React, { FC } from "react";
 import StaySearchForm from "./StaySearchForm";
 
 export type SearchTab = "Stays";

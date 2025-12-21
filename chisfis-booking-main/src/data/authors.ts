@@ -1,4 +1,4 @@
-import __authors from "./jsons/__users.json";
+﻿import __authors from "./jsons/__users.json";
 import { AuthorType } from "./types";
 import avatar1 from "images/avatars/Image-1.png";
 import avatar2 from "images/avatars/Image-2.png";

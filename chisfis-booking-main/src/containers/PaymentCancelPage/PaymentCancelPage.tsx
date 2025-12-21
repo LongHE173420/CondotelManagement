@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useState } from "react";
+﻿import React, { FC, useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
 import ButtonSecondary from "shared/Button/ButtonSecondary";
@@ -56,7 +56,6 @@ const PaymentCancelPage: FC<PaymentCancelPageProps> = ({ className = "" }) => {
           setBooking(bookingData);
           setUnauthorized(false);
         } catch (securityError: any) {
-          console.error("Security error:", securityError);
           setError(securityError.message || "Bạn không có quyền truy cập booking này");
           setUnauthorized(true);
           setBooking(null);
@@ -67,7 +66,6 @@ const PaymentCancelPage: FC<PaymentCancelPageProps> = ({ className = "" }) => {
           return;
         }
       } catch (err: any) {
-        console.error("Error fetching booking:", err);
         if (err.response?.status === 403 || err.response?.status === 401) {
           setError("Bạn không có quyền truy cập booking này");
           setUnauthorized(true);

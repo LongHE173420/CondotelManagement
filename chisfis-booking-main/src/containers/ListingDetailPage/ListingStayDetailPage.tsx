@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useState } from "react";
+﻿import React, { FC, useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import condotelAPI, { CondotelDetailDTO } from "api/condotel";
 import { useAuth } from "contexts/AuthContext";
@@ -288,7 +288,7 @@ const ListingStayDetailPage: FC = () => {
       <div className="listingSection__wrap !space-y-6">
         <div className="flex justify-between items-center">
         <div className="flex items-center space-x-4">
-          <StartRating />
+          <StartRating point={averageRating > 0 ? Number(averageRating.toFixed(1)) : 0} reviewCount={reviewsTotalCount} />
         </div>
         <LikeSaveBtns />
         </div>
@@ -486,7 +486,7 @@ const ListingStayDetailPage: FC = () => {
           <div>
             <div className="block text-xl font-medium">{finalHostName}</div>
             <div className="mt-1.5 flex items-center text-sm text-neutral-500 dark:text-neutral-400">
-              <StartRating /><span className="mx-2">·</span><span>Verified Host</span>
+              <StartRating point={averageRating > 0 ? Number(averageRating.toFixed(1)) : 0} reviewCount={reviewsTotalCount} /><span className="mx-2">·</span><span>Verified Host</span>
             </div>
           </div>
         </div>
@@ -873,7 +873,7 @@ const ListingStayDetailPage: FC = () => {
               </span>
             )}
           </div>
-          <StartRating />
+          <StartRating point={averageRating > 0 ? Number(averageRating.toFixed(1)) : 0} reviewCount={reviewsTotalCount} />
         </div>
 
         {/* Form chọn ngày và số khách */}

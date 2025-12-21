@@ -1,4 +1,4 @@
-import CardHostCondotel from "components/CardHostCondotel/CardHostCondotel";
+﻿import CardHostCondotel from "components/CardHostCondotel/CardHostCondotel";
 import Heading from "components/Heading/Heading";
 import { DEMO_AUTHORS } from "data/authors";
 import { AuthorType } from "data/types";
@@ -60,12 +60,12 @@ const SectionTopHostCondotel: FC<SectionTopHostCondotelProps> = ({
             jobName: host.companyName || 'Host',
             href: `/author/${host.hostId}`,
             starRating: host.averageRating || 0,
+            reviewCount: host.totalReviews || 0,
           };
         });
 
         setDisplayAuthors(mappedHosts);
       } catch (err) {
-        console.error("Error loading top hosts:", err);
         setDisplayAuthors(DEMO_DATA);
       } finally {
         setIsLoading(false);

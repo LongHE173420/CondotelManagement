@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import NavigationItem from "./NavigationItem";
 import { getNavigationItems } from "data/navigation";
 import { useTranslation } from "i18n/LanguageContext";

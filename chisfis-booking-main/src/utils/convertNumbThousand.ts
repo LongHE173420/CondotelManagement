@@ -1,4 +1,4 @@
-const convertNumbThousand = (x?: number): string => {
+﻿const convertNumbThousand = (x?: number): string => {
   if (!x) {
     return "0";
   }

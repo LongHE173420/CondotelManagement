@@ -1,4 +1,4 @@
-import { Tab } from "@headlessui/react";
+﻿import { Tab } from "@headlessui/react";
 import React, { Fragment, useState, useEffect } from "react";
 import ButtonSecondary from "shared/Button/ButtonSecondary";
 import CommonLayout from "./CommonLayout";
@@ -23,7 +23,6 @@ const AccountSavelists = () => {
         const data = await condotelAPI.getAll();
         setCondotels(data);
       } catch (err: any) {
-        console.error("Failed to load condotels:", err);
         setError("Không thể tải danh sách condotels");
       } finally {
         setLoading(false);

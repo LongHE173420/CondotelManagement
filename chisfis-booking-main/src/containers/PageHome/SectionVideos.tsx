@@ -1,4 +1,4 @@
-import Heading from "shared/Heading/Heading";
+﻿import Heading from "shared/Heading/Heading";
 import NcImage from "shared/NcImage/NcImage";
 import NcPlayIcon from "shared/NcPlayIcon/NcPlayIcon";
 import NcPlayIcon2 from "shared/NcPlayIcon2/NcPlayIcon2";

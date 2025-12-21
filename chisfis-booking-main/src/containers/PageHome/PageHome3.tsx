@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+﻿import React, { useEffect } from "react";
 import SectionSubscribe2 from "components/SectionSubscribe2/SectionSubscribe2";
 import SectionGridFeaturePlaces from "./SectionGridFeaturePlaces";
 import SectionHowItWork from "components/SectionHowItWork/SectionHowItWork";

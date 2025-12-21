@@ -1,4 +1,4 @@
-const hexToRGB = (h: string) => {
+﻿const hexToRGB = (h: string) => {
   let r: number | string = 0,
     g: number | string = 0,
     b: number | string = 0;

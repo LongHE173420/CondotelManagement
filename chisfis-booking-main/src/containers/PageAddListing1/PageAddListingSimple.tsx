@@ -1,4 +1,4 @@
-import React, { FC, useState, useEffect, useRef } from "react";
+﻿import React, { FC, useState, useEffect, useRef } from "react";
 import { Helmet } from "react-helmet";
 import { useNavigate } from "react-router-dom";
 import { useAddCondotel } from "./_context";
@@ -107,7 +107,6 @@ const PageAddListingSimple: FC = () => {
             }));
           }
         } catch (err) {
-          console.error("Error loading location from resort:", err);
         }
       }
     };
@@ -122,7 +121,6 @@ const PageAddListingSimple: FC = () => {
         const resortsData = await resortAPI.getAll();
         setResorts(resortsData);
       } catch (err) {
-        console.error("Error loading resorts:", err);
         setResorts([]);
       } finally {
         setLoadingResorts(false);
@@ -139,7 +137,6 @@ const PageAddListingSimple: FC = () => {
         const amenitiesData = await amenityAPI.getAll();
         setAmenities(amenitiesData);
       } catch (err) {
-        console.error("Error loading amenities:", err);
         setAmenities([]);
       } finally {
         setLoadingAmenities(false);
@@ -164,7 +161,6 @@ const PageAddListingSimple: FC = () => {
           setUtilities([]);
         }
       } catch (err) {
-        console.error("Error loading utilities:", err);
         setUtilities([]);
       } finally {
         setLoadingUtilities(false);
@@ -253,7 +249,6 @@ const PageAddListingSimple: FC = () => {
           throw new Error("Không nhận được URL ảnh từ server");
         }
       } catch (err: any) {
-        console.error("Upload image error:", err);
         toastError(`Không thể upload ảnh ${file.name}: ${err.response?.data?.message || err.message}`);
         return null;
       }
@@ -512,7 +507,6 @@ const PageAddListingSimple: FC = () => {
         navigate("/host-dashboard");
       }, 500);
     } catch (err: any) {
-      console.error("❌ Failed to create condotel:", err);
       let errorMessage = "Không thể tạo condotel. Vui lòng thử lại!";
 
       if (err.response?.data?.message) {
@@ -827,7 +821,6 @@ const PageAddListingSimple: FC = () => {
                           alt={`${index + 1}`}
                           className="w-full h-32 object-cover rounded-lg border-2 border-neutral-200 dark:border-neutral-700"
                           onError={(e) => {
-                            console.error("❌ Image load error:", img.imageUrl);
                             (e.target as HTMLImageElement).style.display = "none";
                           }}
                         />

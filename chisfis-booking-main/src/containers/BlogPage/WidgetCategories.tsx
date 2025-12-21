@@ -1,4 +1,4 @@
-import CardCategory1 from "components/CardCategory1/CardCategory1";
+﻿import CardCategory1 from "components/CardCategory1/CardCategory1";
 import { DEMO_CATEGORIES } from "data/taxonomies";
 import { TaxonomyType } from "data/types";
 import React, { FC } from "react";

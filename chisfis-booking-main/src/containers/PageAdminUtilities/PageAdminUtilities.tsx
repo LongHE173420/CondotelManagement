@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import utilityAPI, { UtilityDTO, UtilityCreateUpdateDTO } from "api/utility";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
 import ButtonSecondary from "shared/Button/ButtonSecondary";
@@ -36,7 +36,6 @@ const PageAdminUtilities: React.FC = () => {
       const data = await utilityAPI.getAllAdmin();
       setUtilities(data);
     } catch (err: any) {
-      console.error("Failed to load utilities:", err);
       setError(err.response?.data?.message || "Không thể tải danh sách utilities");
       setUtilities([]);
     } finally {
@@ -57,7 +56,6 @@ const PageAdminUtilities: React.FC = () => {
           await loadUtilities();
           setConfirmModal({ isOpen: false, title: "", message: "", action: null });
         } catch (err: any) {
-          console.error("Failed to delete utility:", err);
           setError(err.response?.data?.message || "Không thể xóa utility. Có thể utility đang được sử dụng bởi một số condotel.");
         } finally {
           setDeletingId(null);
@@ -349,7 +347,6 @@ const UtilityModal: React.FC<UtilityModalProps> = ({ utility, onClose, onSuccess
       }
       onSuccess();
     } catch (err: any) {
-      console.error("Failed to save utility:", err);
       let errorMessage = "Không thể lưu utility. Vui lòng thử lại!";
 
       if (err.response?.data?.message) {

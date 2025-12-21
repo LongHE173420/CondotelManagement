@@ -1,4 +1,4 @@
-import React, { FC, ReactNode } from "react";
+﻿import React, { FC, ReactNode } from "react";
 import imagePng from "images/hero-right2.png";
 import HeroSearchForm, {
   SearchTab,

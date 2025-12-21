@@ -1,4 +1,4 @@
-import axiosClient from "./axiosClient";
+﻿import axiosClient from "./axiosClient";
 import logger from "utils/logger";
 
 // BookingDTO từ backend - khớp với C# DTO
@@ -20,6 +20,7 @@ export interface BookingDTO {
   // Thông tin condotel (nếu backend trả về khi join)
   condotelName?: string;
   condotelImageUrl?: string;
+  thumbnailImage?: string; // URL ảnh đầu tiên của condotel (mới từ /api/Booking/my)
   condotelPricePerNight?: number;
   
   // Thông tin customer (nếu backend trả về khi join - cho host)
@@ -114,6 +115,8 @@ interface BookingResponseRaw {
   condotelName?: string;
   CondotelImageUrl?: string;
   condotelImageUrl?: string;
+  ThumbnailImage?: string;
+  thumbnailImage?: string;
   CondotelPricePerNight?: number;
   condotelPricePerNight?: number;
   CustomerName?: string;
@@ -142,6 +145,7 @@ const normalizeBooking = (item: BookingResponseRaw): BookingDTO => {
     refundStatus: item.RefundStatus ?? item.refundStatus ?? null,
     condotelName: item.CondotelName ?? item.condotelName,
     condotelImageUrl: item.CondotelImageUrl ?? item.condotelImageUrl,
+    thumbnailImage: item.ThumbnailImage ?? item.thumbnailImage,
     condotelPricePerNight: item.CondotelPricePerNight ?? item.condotelPricePerNight,
     customerName: item.CustomerName ?? item.customerName,
     customerEmail: item.CustomerEmail ?? item.customerEmail,
@@ -158,13 +162,9 @@ export const bookingAPI = {
       // Normalize response từ backend (PascalCase -> camelCase)
       return response.data.map(normalizeBooking);
     } catch (error: any) {
-      console.error("❌ Error in getMyBookings API:", error);
-      console.error("❌ Error response:", error.response?.data);
-      console.error("❌ Status:", error.response?.status);
       
       // If endpoint doesn't exist or returns 500, log for debugging
       if (error.response?.status === 500) {
-        console.warn("⚠️ Backend returned 500 error. Endpoint may not be implemented.");
       }
       
       // Return empty array instead of throwing to allow graceful handling
@@ -178,8 +178,6 @@ export const bookingAPI = {
       const response = await axiosClient.get<BookingResponseRaw>(`/booking/${id}`);
       return normalizeBooking(response.data);
     } catch (error: any) {
-      console.error("❌ Error in getBookingById API:", error);
-      console.error("❌ Error response:", error.response?.data);
       throw error;
     }
   },
@@ -347,8 +345,6 @@ const response = await axiosClient.post(`/booking/${id}/refund`, payload);
         bankInfo: responseData.BankInfo || responseData.bankInfo || null,
       };
     } catch (error: any) {
-      console.error("❌ Error in refundBooking API:", error);
-      console.error("❌ Error response:", error.response?.data);
       
       // Nếu có response từ server, trả về message từ server
       if (error.response?.data) {
@@ -477,7 +473,6 @@ const response = await axiosClient.post(`/booking/${id}/refund`, payload);
     }
     
     if (!Array.isArray(data)) {
-      console.warn("getHostBookingsByCustomer: response.data is not an array:", response.data);
       return [];
     }
     
@@ -573,7 +568,6 @@ const response = await axiosClient.post(`/booking/${id}/refund`, payload);
         appealedAt: item.AppealedAt ?? item.appealedAt,
       }));
     } catch (error: any) {
-      console.error("❌ Error in getRefundRequests API:", error);
       return [];
     }
   },
@@ -607,8 +601,6 @@ const response = await axiosClient.post(`/booking/${id}/refund`, payload);
         data: data.Data || data.data,
       };
     } catch (error: any) {
-      console.error("❌ Error in appealRefundRequest API:", error);
-      console.error("❌ Error response:", error.response?.data);
 
       if (error.response?.data) {
         const serverData = error.response.data;

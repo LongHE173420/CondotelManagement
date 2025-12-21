@@ -1,4 +1,4 @@
-import SectionSliderNewCategories from "components/SectionSliderNewCategories/SectionSliderNewCategories";
+﻿import SectionSliderNewCategories from "components/SectionSliderNewCategories/SectionSliderNewCategories";
 import React, { useEffect } from "react";
 import SectionSubscribe2 from "components/SectionSubscribe2/SectionSubscribe2";
 import SectionOurFeatures from "components/SectionOurFeatures/SectionOurFeatures";

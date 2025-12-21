@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { adminAPI } from "api/admin";
 
@@ -105,7 +105,6 @@ const PageAccountList = () => {
       }));
       setUsers(mappedUsers);
     } catch (err: any) {
-      console.error("Failed to load users:", err);
       let errorMessage = "Không thể tải danh sách tài khoản";
       if (err.networkError || err.noResponse) {
         errorMessage = "Không thể kết nối đến server. Vui lòng kiểm tra lại kết nối mạng hoặc đảm bảo backend đang chạy.";

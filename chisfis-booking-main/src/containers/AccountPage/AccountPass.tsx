@@ -1,4 +1,4 @@
-import Label from "components/Label/Label";
+﻿import Label from "components/Label/Label";
 import React, { useState } from "react";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
 import Input from "shared/Input/Input";
@@ -57,7 +57,6 @@ const AccountPass = () => {
         confirmPassword: "",
       });
     } catch (err: any) {
-      console.error("Change password error:", err);
       let errorMessage = "Không thể đổi mật khẩu!";
       
       if (err.response?.data?.message) {

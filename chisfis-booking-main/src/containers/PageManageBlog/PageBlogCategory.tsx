@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import blogAPI, { BlogCategoryDTO } from "api/blog";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
@@ -32,7 +32,6 @@ const PageBlogCategory = () => {
       const cats = await blogAPI.getCategories();
       setCategories(cats);
     } catch (err: any) {
-      console.error("Failed to load categories:", err);
       setError(err.response?.data?.message || "Không thể tải danh sách danh mục");
     } finally {
       setLoading(false);
@@ -70,7 +69,6 @@ const PageBlogCategory = () => {
       // Reload categories
       await loadCategories();
     } catch (err: any) {
-      console.error("Failed to save category:", err);
       let errorMessage = "Không thể lưu danh mục";
       
       if (err.response?.data?.message) {
@@ -122,7 +120,6 @@ const PageBlogCategory = () => {
         setError("Không tìm thấy danh mục để xóa.");
       }
     } catch (err: any) {
-      console.error("Failed to delete category:", err);
       setError(err.response?.data?.message || "Không thể xóa danh mục");
     } finally {
       setDeletingCategoryId(null);

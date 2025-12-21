@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { toast } from "react-toastify";
 import payoutAPI, { HostPayoutDTO } from "api/payout";
 import moment from "moment";

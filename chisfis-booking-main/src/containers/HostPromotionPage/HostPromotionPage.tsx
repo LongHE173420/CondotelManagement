@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { Helmet } from "react-helmet";
 import { useAuth } from "contexts/AuthContext";
 import { Navigate } from "react-router-dom";
@@ -42,7 +42,6 @@ const HostPromotionPage: React.FC<HostPromotionPageProps> = ({ className = "" })
       } catch (promoErr: any) {
         // Nếu endpoint getPromotions không có condotelId không work, 
         // thử lấy promotions từ từng condotel
-        console.log("Try loading promotions from individual condotels...");
         for (const condotel of condotelsData) {
           try {
             const allPromotions = await condotelAPI.getPromotions(); // ← Lấy hết luôn
@@ -68,7 +67,6 @@ const HostPromotionPage: React.FC<HostPromotionPageProps> = ({ className = "" })
       setPromotions(promotionsWithNames);
       setCondotels(condotelsData);
     } catch (err: any) {
-      console.error("Failed to load promotions:", err);
       setError(err.response?.data?.message || "Không thể tải danh sách khuyến mãi");
     } finally {
       setLoading(false);
@@ -90,7 +88,6 @@ const HostPromotionPage: React.FC<HostPromotionPageProps> = ({ className = "" })
       await loadData();
       alert("Xóa promotion thành công!");
     } catch (err: any) {
-      console.error("Failed to delete promotion:", err);
       alert(err.response?.data?.message || "Không thể xóa promotion");
     } finally {
       setDeletingId(null);
@@ -385,7 +382,6 @@ const PromotionModal: React.FC<PromotionModalProps> = ({
       }
       onSuccess();
     } catch (err: any) {
-      console.error("Failed to save promotion:", err);
       setError(
         err.response?.data?.message ||
         err.response?.data?.errors ||

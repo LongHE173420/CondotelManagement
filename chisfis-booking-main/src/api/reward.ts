@@ -1,4 +1,4 @@
-import axiosClient from "./axiosClient";
+﻿import axiosClient from "./axiosClient";
 
 // DTOs từ backend Reward
 export interface RewardPointsDTO {
@@ -76,7 +76,6 @@ export const rewardAPI = {
   // GET /api/tenant/rewards/points - Lấy số điểm hiện tại
   getMyPoints: async (): Promise<RewardPointsDTO> => {
     try {
-      console.log("🎁 Calling /tenant/rewards/points");
       const response = await axiosClient.get<{
         success: boolean;
         data: RewardPointsDTO | any;
@@ -86,7 +85,6 @@ export const rewardAPI = {
           currentValue?: string;
         };
       }>("/tenant/rewards/points");
-      console.log("🎁 Points response:", response.data);
       
       const data = response.data.data;
       // Normalize data structure - handle both camelCase and PascalCase
@@ -98,7 +96,6 @@ export const rewardAPI = {
         lastUpdated: data.lastUpdated ?? data.LastUpdated,
       };
     } catch (error: any) {
-      console.error("🎁 Error getting points:", error);
       throw error;
     }
   },
@@ -155,16 +152,13 @@ export const rewardAPI = {
   // GET /api/tenant/rewards/promotions - Xem promotions
   getAvailablePromotions: async (): Promise<PromotionDTO[]> => {
     try {
-      console.log("🎁 Calling /tenant/rewards/promotions");
       const response = await axiosClient.get<{
         success: boolean;
         data: PromotionDTO[];
         count: number;
       }>("/tenant/rewards/promotions");
-      console.log("🎁 Promotions response:", response.data);
       return response.data.data || [];
     } catch (error: any) {
-      console.error("🎁 Error getting promotions:", error);
       // Trả về mảng rỗng thay vì throw error để trang vẫn hiển thị được
       return [];
     }

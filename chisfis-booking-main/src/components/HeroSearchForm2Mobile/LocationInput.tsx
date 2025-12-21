@@ -1,4 +1,4 @@
-import { MapPinIcon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
+﻿import { MapPinIcon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 import React, { useState, useEffect, useRef, FC } from "react";
 import locationAPI from "api/location";
 
@@ -32,7 +32,6 @@ const LocationInput: FC<Props> = ({
         const locationNames = locations.map(loc => loc.name).filter(Boolean) as string[];
         setAllLocations(locationNames);
       } catch (err) {
-        console.error("Error loading locations:", err);
         setAllLocations([]);
       }
     };

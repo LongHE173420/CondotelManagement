@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import axiosClient from "api/axiosClient";
 import { useTranslation } from "i18n/LanguageContext";
 
@@ -24,12 +24,10 @@ const Step1_RequestEmail: React.FC<Props> = ({ onSuccess }) => {
     try {
       // Sử dụng authAPI để gửi OTP
       const res = await axiosClient.post("/Auth/send-otp", { email });
-      console.log("Send OTP response:", res.data);
 
       // luôn trả về 200 → chỉ cần chuyển bước
       onSuccess(email);
     } catch (err) {
-      console.error(err);
       setError("Không thể gửi OTP. Vui lòng thử lại.");
     } finally {
       setLoading(false);

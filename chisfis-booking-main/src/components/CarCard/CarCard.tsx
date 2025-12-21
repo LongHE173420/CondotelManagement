@@ -1,4 +1,4 @@
-import React, { FC } from "react";
+﻿import React, { FC } from "react";
 import { DEMO_CAR_LISTINGS } from "data/listings";
 import { CarDataType } from "data/types";
 import StartRating from "components/StartRating/StartRating";

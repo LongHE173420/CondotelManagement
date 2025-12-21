@@ -1,4 +1,4 @@
-import React, { FC } from "react";
+﻿import React, { FC } from "react";
 import PostCardMeta from "components/PostCardMeta/PostCardMeta";
 import { PostDataType } from "data/types";
 import { Link } from "react-router-dom";

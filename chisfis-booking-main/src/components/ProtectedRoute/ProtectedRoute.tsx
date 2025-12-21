@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "contexts/AuthContext";
 
@@ -37,6 +37,20 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   if (requireHost && user?.roleName !== 'Host') {
     return <Navigate to={fallbackPath || "/"} replace />;
   }
+
+  // Chặn Admin không được truy cập các routes ngoài /admin
+  // Cho phép Admin truy cập: /admin, /login, /logout, /account (profile cá nhân)
+  if (isAdmin && user?.roleName === 'Admin') {
+    const allowedAdminPaths = ['/admin', '/login', '/account', '/account-password'];
+    const isAdminRoute = location.pathname.startsWith('/admin');
+    const isAllowedPath = allowedAdminPaths.some(path => location.pathname.startsWith(path));
+    
+    if (!isAdminRoute && !isAllowedPath && !requireAdmin) {
+      // Redirect admin về trang admin nếu cố truy cập routes khác
+      return <Navigate to="/admin?tab=dashboard" replace />;
+    }
+  }
+
   if (!children) return null;
   return <>{children}</>;
 };

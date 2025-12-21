@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import { FC } from "react";
 import { useEffect } from "react";
 import ClearDataButton from "./ClearDataButton";
@@ -43,7 +43,6 @@ const LocationInput: FC<LocationInputProps> = ({
         const locationNames = locations.map(loc => loc.name).filter(Boolean) as string[];
         setAllLocations(locationNames);
       } catch (err) {
-        console.error("Error loading locations:", err);
         setAllLocations([]);
       }
     };

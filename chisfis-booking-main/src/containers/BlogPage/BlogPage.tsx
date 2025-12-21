@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { Helmet } from "react-helmet";
 import { Link } from "react-router-dom";
 import blogAPI, { BlogPostSummaryDTO } from "api/blog";
@@ -61,7 +61,6 @@ const BlogPage: React.FC = () => {
         const convertedPosts = blogPosts.map(convertToPostDataType);
         setPosts(convertedPosts);
       } catch (err: any) {
-        console.error("Failed to load blog posts:", err);
         setError(err.response?.data?.message || "Không thể tải bài viết");
         setPosts([]);
       } finally {

@@ -1,4 +1,4 @@
-import React, { FC } from "react";
+﻿import React, { FC } from "react";
 import GallerySlider from "components/GallerySlider/GallerySlider";
 import { DEMO_EXPERIENCES_LISTINGS } from "data/listings";
 import { ExperiencesDataType } from "data/types";

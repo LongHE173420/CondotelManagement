@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import bookingAPI, { BookingDTO } from "api/booking";
 
@@ -80,7 +80,6 @@ const PageBookingHistory = () => {
         const data = await bookingAPI.getMyBookings();
         setBookings(data);
       } catch (err: any) {
-        console.error("Failed to load bookings:", err);
         setError(err.response?.data?.message || "Không thể tải danh sách đặt phòng");
       } finally {
         setLoading(false);
@@ -171,7 +170,6 @@ const PageBookingHistory = () => {
                       <img 
                         src={booking.condotelImageUrl || ""}
                         onError={(e) => {
-                          console.error("❌ Image load error");
                           (e.target as HTMLImageElement).style.display = "none";
                         }} 
                         alt={booking.condotelName || "Căn hộ"} 

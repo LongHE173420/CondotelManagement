@@ -1,4 +1,4 @@
-import { Popover, Transition } from "@headlessui/react";
+﻿import { Popover, Transition } from "@headlessui/react";
 import {
   ArrowRightOnRectangleIcon,
   LifebuoyIcon,
@@ -13,7 +13,6 @@ import Avatar from "shared/Avatar/Avatar";
 import { useAuth } from "contexts/AuthContext";
 import { useTranslation } from "i18n/LanguageContext";
 import voucherAPI, { VoucherDTO } from "api/voucher";
-import bookingAPI from "api/booking";
 
 export default function AvatarDropdown() {
   const { user, logout, isAdmin, isAuthenticated, hostPackage } = useAuth(); // ← THÊM hostPackage
@@ -47,53 +46,36 @@ export default function AvatarDropdown() {
     return "/account";
   };
 
-  // Load vouchers của user (từ các condotel đã booking completed)
+  // Load vouchers của user (từ API /api/vouchers/my)
   useEffect(() => {
     const loadVouchers = async () => {
-      if (!isAuthenticated || !user || user.roleName === "Admin" || user.roleName === "Host") {
-        return; // Chỉ load cho Tenant
+      if (!isAuthenticated || !user || user.roleName === "Admin") {
+        return; // Chỉ load cho User (bao gồm cả Host)
       }
 
       setLoadingVouchers(true);
       try {
-        // Lấy danh sách booking đã completed
-        const bookings = await bookingAPI.getMyBookings();
-        const completedBookings = bookings.filter(b => b.status?.toLowerCase() === "completed");
+        // Gọi API getMyVouchers để lấy vouchers của user
+        const vouchersData = await voucherAPI.getMyVouchers();
         
-        // Lấy condotelIds unique
-        const condotelIdSet = new Set(completedBookings.map(b => b.condotelId));
-        const condotelIds = Array.from(condotelIdSet);
+        // Filter: chỉ lấy voucher active và chưa hết hạn
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
         
-        // Lấy vouchers từ tất cả condotel đã booking
-        const allVouchers: VoucherDTO[] = [];
-        const voucherIdSet = new Set<number>(); // Dùng Set để loại bỏ voucher trùng lặp
+        const activeVouchers = vouchersData.filter(v => {
+          // Check isActive (đã được normalize từ status trong API)
+          if (!v.isActive) return false;
+          
+          // So sánh ngày
+          const endDate = new Date(v.endDate);
+          endDate.setHours(0, 0, 0, 0);
+          
+          // Chỉ loại bỏ voucher đã hết hạn
+          return endDate >= now;
+        });
         
-        for (const condotelId of condotelIds) {
-          try {
-            const vouchers = await voucherAPI.getByCondotel(condotelId);
-            // Chỉ lấy voucher còn active và chưa hết hạn
-            const activeVouchers = vouchers.filter(v => {
-              if (!v.isActive) return false;
-              const now = new Date();
-              const endDate = new Date(v.endDate);
-              return endDate >= now;
-            });
-            
-            // Chỉ thêm voucher chưa có trong danh sách (loại bỏ trùng lặp)
-            activeVouchers.forEach(v => {
-              if (!voucherIdSet.has(v.voucherId)) {
-                voucherIdSet.add(v.voucherId);
-                allVouchers.push(v);
-              }
-            });
-          } catch (err) {
-            console.error(`Error loading vouchers for condotel ${condotelId}:`, err);
-          }
-        }
-        
-        setMyVouchers(allVouchers);
+        setMyVouchers(activeVouchers);
       } catch (err) {
-        console.error("Error loading vouchers:", err);
       } finally {
         setLoadingVouchers(false);
       }
@@ -131,7 +113,7 @@ export default function AvatarDropdown() {
       });
     }
 
-    if (user?.roleName !== "Admin" && user?.roleName !== "Host") {
+    if (user?.roleName !== "Admin") {
       items.push({
         name: t.header.myBookings,
         href: "/my-bookings",
@@ -147,8 +129,8 @@ export default function AvatarDropdown() {
       });
     }
 
-    // Tenant: thêm Voucher của tôi
-    if (user?.roleName !== "Admin" && user?.roleName !== "Host") {
+    // User (bao gồm cả Host): thêm Voucher của tôi
+    if (user?.roleName !== "Admin") {
       items.push({
         name: "Voucher của tôi",
         href: "/my-vouchers",
@@ -265,7 +247,7 @@ export default function AvatarDropdown() {
                   </div>
 
                   {/* === VOUCHER SECTION (nếu có voucher) === */}
-                  {!isAdmin && user?.roleName !== "Host" && myVouchers.length > 0 && (
+                  {!isAdmin && myVouchers.length > 0 && (
                     <>
                       <hr className="h-[1px] border-t border-neutral-300 dark:border-neutral-700" />
                       <div className="relative bg-white dark:bg-neutral-800 p-7 max-h-60 overflow-y-auto">

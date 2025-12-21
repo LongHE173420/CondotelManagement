@@ -1,4 +1,4 @@
-import StayCard from "components/StayCard/StayCard";
+﻿import StayCard from "components/StayCard/StayCard";
 import { DEMO_STAY_LISTINGS } from "data/listings";
 import React, { FC } from "react";
 import ButtonPrimary from "shared/Button/ButtonPrimary";
@@ -110,7 +110,6 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
         window.location.href = "/host-dashboard";
       }, 500);
     } catch (err: any) {
-      console.error("❌ Failed to create condotel:", err);
       
       let errorMessage = "Không thể tạo condotel. Vui lòng thử lại!";
       

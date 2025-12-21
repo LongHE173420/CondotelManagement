@@ -1,3 +1,3 @@
-import * as StayCardHModule from "./StayCardH";
+﻿import * as StayCardHModule from "./StayCardH";
 export default StayCardHModule.default;
 export type { StayCardHProps } from "./StayCardH";

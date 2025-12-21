@@ -1,4 +1,4 @@
-import BackgroundSection from "components/BackgroundSection/BackgroundSection";
+﻿import BackgroundSection from "components/BackgroundSection/BackgroundSection";
 import React from "react";
 import appSvg1 from "images/appSvg1.png";
 import appSvg2 from "images/appSvg2.png";

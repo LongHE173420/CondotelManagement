@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import reviewAPI, { ReviewDTO } from "api/review";
 import { toast } from "react-toastify";
@@ -46,7 +46,6 @@ const PageMyReviews: React.FC = () => {
         const response = await reviewAPI.getMyReviews();
         setReviews(response.data || []);
       } catch (err: any) {
-        console.error("Error loading reviews:", err);
         setError(err.response?.data?.message || "Không thể tải danh sách đánh giá");
       } finally {
         setLoading(false);

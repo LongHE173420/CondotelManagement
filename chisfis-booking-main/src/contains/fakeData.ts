@@ -1,4 +1,4 @@
-export const avatarImgs = [
+﻿export const avatarImgs = [
   "https://randomuser.me/api/portraits/men/32.jpg",
   "https://randomuser.me/api/portraits/women/44.jpg",
   "https://randomuser.me/api/portraits/men/46.jpg",

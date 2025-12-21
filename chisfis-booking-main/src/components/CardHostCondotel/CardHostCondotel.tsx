@@ -1,4 +1,4 @@
-import React, { FC } from "react";
+﻿import React, { FC } from "react";
 import { AuthorType } from "data/types";
 import { StarIcon, BuildingOfficeIcon, CheckCircleIcon } from "@heroicons/react/24/solid";
 import { Link } from "react-router-dom";

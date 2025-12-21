@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import blogAPI from "api/blog";
 import { showSuccess, showError } from "utils/modalNotification";
@@ -57,7 +57,6 @@ const PageBlogList = () => {
                 const cats = await blogAPI.getCategories();
                 setCategories(cats.map((cat: any) => ({ id: cat.categoryId, name: cat.name })));
             } catch (err: any) {
-                console.error("Failed to load blog posts:", err);
                 setError(err.response?.data?.message || "Không thể tải danh sách bài viết");
             } finally {
                 setLoading(false);
@@ -84,7 +83,6 @@ const PageBlogList = () => {
                 showError("Không tìm thấy bài viết để xóa.");
             }
         } catch (err: any) {
-            console.error("Failed to delete post:", err);
             showError(err.response?.data?.message || "Không thể xóa bài viết");
         } finally {
             setDeletingPostId(null);

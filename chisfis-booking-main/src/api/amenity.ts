@@ -1,4 +1,4 @@
-import axiosClient from "./axiosClient";
+﻿import axiosClient from "./axiosClient";
 
 export interface AmenityDTO {
   amenityId: number;
@@ -41,7 +41,6 @@ const amenityAPI = {
     }
     
     if (!Array.isArray(amenities)) {
-      console.warn("getAllPublic amenities: response.data is not an array:", data);
       return [];
     }
     
@@ -73,7 +72,6 @@ const amenityAPI = {
     }
     
     if (!Array.isArray(amenities)) {
-      console.warn("getAll amenities: response.data is not an array:", data);
       return [];
     }
     
@@ -103,7 +101,6 @@ const amenityAPI = {
     }
     
     if (!Array.isArray(amenities)) {
-      console.warn("getByCategory amenities: response.data is not an array:", data);
       return [];
     }
     

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+﻿import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "contexts/AuthContext";
 import condotelAPI, { CondotelDetailDTO, PriceDTO, DetailDTO as CondotelDetailDTOType } from "api/condotel";
@@ -183,7 +183,6 @@ const PageEditCondotel: React.FC = () => {
               const currentResort = await resortAPI.getById(currentResortId);
               resortsData.unshift(currentResort); // Thêm vào đầu danh sách
             } catch (err) {
-              console.error("Failed to load current resort:", err);
             }
           }
         }
@@ -219,7 +218,6 @@ const PageEditCondotel: React.FC = () => {
               }
             });
           } catch (err) {
-            console.error("Failed to load resort utilities:", err);
           }
         }
         

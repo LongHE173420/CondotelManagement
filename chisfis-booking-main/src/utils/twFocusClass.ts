@@ -1,4 +1,4 @@
-export default function twFocusClass(hasRing = false) {
+﻿export default function twFocusClass(hasRing = false) {
   if (!hasRing) {
     return "focus:outline-none";
   }

@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+﻿import React, { useEffect } from "react";
 import { FC } from "react";
 import Checkbox from "shared/Checkbox/Checkbox";
 

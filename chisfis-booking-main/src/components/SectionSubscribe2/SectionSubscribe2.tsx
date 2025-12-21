@@ -1,4 +1,4 @@
-import React, { FC } from "react";
+﻿import React, { FC } from "react";
 import ButtonCircle from "shared/Button/ButtonCircle";
 import rightImg from "images/SVG-subcribe2.png";
 import NcImage from "shared/NcImage/NcImage";

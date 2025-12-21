@@ -19,13 +19,12 @@ import "moment/locale/vi";  // <-- THÊM DÒNG NÀY
 moment.locale("vi");       // <-- THÊM DÒNG NÀY
 // --- KẾT THÚC SỬA LỖI DỊCH LỊCH ---
 
-// Suppress React warnings about deprecated lifecycle methods in react-dates
+// Suppress React warnings about deprecated lifecycle methods in third-party libraries
 const originalError = console.error;
 console.error = (...args: any[]) => {
   if (
     typeof args[0] === 'string' &&
-    args[0].includes('componentWillReceiveProps') &&
-    args[0].includes('react-dates')
+    args[0].includes('componentWillReceiveProps')
   ) {
     return;
   }
