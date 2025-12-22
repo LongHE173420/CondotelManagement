@@ -237,13 +237,12 @@ const TabFilters = () => {
                     </ButtonThird>
                     <ButtonPrimary
                       onClick={() => {
-                        // Only close modal, don't trigger search
-                        // User needs to click "Tìm kiếm" button to search
-                        if (close) close();
+                        // Apply filters when closing
+                        applyFilters(beds, bathrooms, rangePrices[0], rangePrices[1], close);
                       }}
                       sizeClass="px-4 py-2 sm:px-5"
                     >
-                      Đóng
+                      Áp dụng
                     </ButtonPrimary>
                   </div>
                 </div>
@@ -313,13 +312,12 @@ const TabFilters = () => {
                     </ButtonThird>
                     <ButtonPrimary
                       onClick={() => {
-                        // Only close modal, don't trigger search
-                        // User needs to click "Tìm kiếm" button to search
-                        if (close) close();
+                        // Apply filters when closing
+                        applyFilters(beds, bathrooms, rangePrices[0], rangePrices[1], close);
                       }}
                       sizeClass="px-4 py-2 sm:px-5"
                     >
-                      Đóng
+                      Áp dụng
                     </ButtonPrimary>
                   </div>
                 </div>
@@ -439,13 +437,12 @@ const TabFilters = () => {
                     </ButtonThird>
                     <ButtonPrimary
                       onClick={() => {
-                        // Only close modal, don't trigger search
-                        // User needs to click "Tìm kiếm" button to search
-                        if (close) close();
+                        // Apply filters when closing
+                        applyFilters(beds, bathrooms, rangePrices[0], rangePrices[1], close);
                       }}
                       sizeClass="px-4 py-2 sm:px-5"
                     >
-                      Đóng
+                      Áp dụng
                     </ButtonPrimary>
                   </div>
                 </div>

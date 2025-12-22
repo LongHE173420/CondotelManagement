@@ -350,13 +350,6 @@ const HostVoucherContent: React.FC = () => {
                 >
                   Sửa
                 </ButtonSecondary>
-                <button
-                  onClick={() => handleDelete(voucher.voucherId, voucher.code)}
-                  disabled={deletingId === voucher.voucherId}
-                  className="px-4 py-2 text-sm font-medium text-red-600 hover:text-red-800 disabled:text-gray-400 disabled:cursor-not-allowed"
-                >
-                  {deletingId === voucher.voucherId ? "Đang xóa..." : "Xóa"}
-                </button>
               </div>
             </div>
           ))}

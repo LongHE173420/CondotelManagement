@@ -27,6 +27,16 @@ export interface BookingDTO {
   customerName?: string;
   customerEmail?: string;
   customerPhone?: string; // Số điện thoại khách hàng (mới thêm cho host bookings)
+  
+  // Guest information (người ở thực tế - nếu đặt hộ)
+  guestFullName?: string;
+  guestPhone?: string;
+  guestIdNumber?: string;
+  
+  // Check-in token information
+  checkInToken?: string;
+  checkInTokenGeneratedAt?: string;
+  checkInTokenUsedAt?: string;
 }
 
 export interface ServicePackageBookingItem {
@@ -44,6 +54,10 @@ export interface CreateBookingDTO {
   isUsingRewardPoints?: boolean;
   status?: string; // "Pending", "Confirmed", "Cancelled", "Completed" - defaults to "Pending"
   condotelName?: string; // Required by backend validation
+  // Guest information (for booking on behalf of someone else)
+  guestFullName?: string;
+  guestPhone?: string;
+  guestIdNumber?: string;
 }
 
 export interface UpdateBookingDTO {
@@ -125,6 +139,18 @@ interface BookingResponseRaw {
   customerEmail?: string;
   CustomerPhone?: string; // Số điện thoại khách hàng (mới thêm cho host bookings)
   customerPhone?: string;
+  GuestFullName?: string;
+  guestFullName?: string;
+  GuestPhone?: string;
+  guestPhone?: string;
+  GuestIdNumber?: string;
+  guestIdNumber?: string;
+  CheckInToken?: string;
+  checkInToken?: string;
+  CheckInTokenGeneratedAt?: string;
+  checkInTokenGeneratedAt?: string;
+  CheckInTokenUsedAt?: string;
+  checkInTokenUsedAt?: string;
 }
 
 // Helper function to normalize booking response
@@ -150,6 +176,12 @@ const normalizeBooking = (item: BookingResponseRaw): BookingDTO => {
     customerName: item.CustomerName ?? item.customerName,
     customerEmail: item.CustomerEmail ?? item.customerEmail,
     customerPhone: item.CustomerPhone ?? item.customerPhone,
+    guestFullName: item.GuestFullName ?? item.guestFullName,
+    guestPhone: item.GuestPhone ?? item.guestPhone,
+    guestIdNumber: item.GuestIdNumber ?? item.guestIdNumber,
+    checkInToken: item.CheckInToken ?? item.checkInToken,
+    checkInTokenGeneratedAt: item.CheckInTokenGeneratedAt ?? item.checkInTokenGeneratedAt,
+    checkInTokenUsedAt: item.CheckInTokenUsedAt ?? item.checkInTokenUsedAt,
   };
 };
 
@@ -214,6 +246,9 @@ export const bookingAPI = {
       VoucherCode?: string;
       ServicePackages?: Array<{ ServiceId: number; Quantity: number }>;
       IsUsingRewardPoints?: boolean;
+      GuestFullName?: string;
+      GuestPhone?: string;
+      GuestIdNumber?: string;
     }
     
     const requestData: BookingRequestData = {
@@ -243,10 +278,27 @@ export const bookingAPI = {
     if (booking.isUsingRewardPoints !== undefined) {
       requestData.IsUsingRewardPoints = booking.isUsingRewardPoints;
     }
+    // Guest information for booking on behalf of someone else
+    if (booking.guestFullName) {
+      requestData.GuestFullName = booking.guestFullName;
+    }
+    if (booking.guestPhone) {
+      requestData.GuestPhone = booking.guestPhone;
+    }
+    if (booking.guestIdNumber) {
+      requestData.GuestIdNumber = booking.guestIdNumber;
+    }
 
+    console.log("=== Sending to Backend ===");
+    console.log("Request Data:", requestData);
     logger.debug("Creating booking with data:", requestData);
     logger.debug("Voucher code being sent:", booking.voucherCode || "None");
     logger.debug("Service packages being sent:", booking.servicePackages?.length || 0);
+    logger.debug("Guest info being sent:", {
+      GuestFullName: requestData.GuestFullName,
+      GuestPhone: requestData.GuestPhone,
+      GuestIdNumber: requestData.GuestIdNumber
+    });
 
     interface BookingCreateResponse {
       success?: boolean;

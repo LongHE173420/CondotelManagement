@@ -248,7 +248,14 @@ const normalizePromotion = (promo: any): PromotionDTO | null => {
 export const condotelAPI = {
   // GET /api/tenant/condotels?name=abc&location=abc&locationId=123&fromDate=...&toDate=...&minPrice=...&maxPrice=...&beds=...&bathrooms=... - Tìm kiếm condotel (public, không cần đăng nhập)
   search: async (query?: CondotelSearchQuery): Promise<CondotelDTO[]> => {
-    const params: any = {};
+    const params: any = {
+      // Backend C# thường dùng PascalCase cho query params
+      PageSize: 100, // Lấy tối đa 100 condotel (đủ cho hầu hết trường hợp)
+      PageNumber: 1
+    };
+    
+    console.log("=== condotelAPI.search Params ===", params);
+    
     if (query?.name) {
       params.name = query.name.trim();
     }
@@ -296,6 +303,16 @@ export const condotelAPI = {
     try {
       const response = await axiosClient.get<any>("/tenant/condotels", { params });
 
+      console.log("=== condotelAPI.search Response ===");
+      console.log("Response structure:", {
+        isArray: Array.isArray(response.data),
+        hasData: 'data' in (response.data || {}),
+        hasPagination: 'pagination' in (response.data || {}),
+        dataLength: Array.isArray(response.data) ? response.data.length : 
+                    (response.data?.data ? response.data.data.length : 'N/A'),
+        totalCount: response.data?.pagination?.totalCount || 'N/A'
+      });
+
       // Normalize response - handle both array, object with data property, and success wrapper
       let data: any[] = [];
       if (Array.isArray(response.data)) {
@@ -310,6 +327,10 @@ export const condotelAPI = {
           }
         }
       }
+
+      console.log("Extracted data length:", data.length);
+      console.log("First item:", data[0]);
+      console.log("Last item:", data[data.length - 1]);
 
       // Map response to CondotelDTO format
       const mapped = data.map((item: any) => {

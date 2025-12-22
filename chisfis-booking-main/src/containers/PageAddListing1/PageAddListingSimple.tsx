@@ -438,6 +438,12 @@ const PageAddListingSimple: FC = () => {
       return;
     }
 
+    // Validate images - require at least 3 images
+    if (images.length < 3) {
+      toastError("⚠️ Vui lòng thêm ít nhất 3 ảnh cho condotel!");
+      return;
+    }
+
     // Validate prices
     if (prices.length > 0 && !validatePrices()) {
       toastError("Vui lòng kiểm tra lại thông tin giá. Ngày bắt đầu phải nhỏ hơn ngày kết thúc.");

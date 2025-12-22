@@ -365,6 +365,12 @@ const PageEditCondotel: React.FC = () => {
     if (pricePerNight <= 0) { setError("Giá mỗi đêm phải > 0"); return; }
     if (beds <= 0 || bathrooms <= 0) { setError("Số giường/phòng tắm phải > 0"); return; }
     
+    // Validate images - require at least 3 images
+    if (images.length < 3) {
+      setError("⚠️ Vui lòng thêm ít nhất 3 ảnh cho condotel");
+      return;
+    }
+    
     // Validate prices
     if (prices.length > 0 && !validatePrices()) {
       return;

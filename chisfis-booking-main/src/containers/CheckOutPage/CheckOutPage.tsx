@@ -62,6 +62,12 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
   const [condotelDetail, setCondotelDetail] = useState<any>(null);
   const [bookingId, setBookingId] = useState<number | null>(null);
 
+  // Booking for someone else
+  const [bookingForOther, setBookingForOther] = useState(false);
+  const [guestFullName, setGuestFullName] = useState("");
+  const [guestPhone, setGuestPhone] = useState("");
+  const [guestIdNumber, setGuestIdNumber] = useState("");
+
   // Initialize dates from state or default
   const [rangeDates, setRangeDates] = useState<DateRage>(() => {
     if (state?.startDate && state?.endDate) {
@@ -621,6 +627,24 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
       return;
     }
 
+    // Validate guest info if booking for someone else
+    if (bookingForOther) {
+      if (!guestFullName || !guestFullName.trim()) {
+        showValidationError("Vui lòng nhập họ tên người ở");
+        return;
+      }
+      if (!guestPhone || !guestPhone.trim()) {
+        showValidationError("Vui lòng nhập số điện thoại người ở");
+        return;
+      }
+      // Validate phone number format (Vietnam)
+      const phoneRegex = /^(0|\+84)[0-9]{9,10}$/;
+      if (!phoneRegex.test(guestPhone.trim())) {
+        showValidationError("Số điện thoại không hợp lệ");
+        return;
+      }
+    }
+
     setLoading(true);
     setError(null);
 
@@ -693,7 +717,20 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
         promotionId: finalPromotionId && finalPromotionId > 0 ? finalPromotionId : undefined,
         voucherCode: selectedVoucherCode || undefined, // Voucher code (backend will validate)
         servicePackages: servicePackagesForBooking.length > 0 ? servicePackagesForBooking : undefined,
+        // Guest information (for booking on behalf of someone else)
+        guestFullName: bookingForOther && guestFullName ? guestFullName.trim() : undefined,
+        guestPhone: bookingForOther && guestPhone ? guestPhone.trim() : undefined,
+        guestIdNumber: bookingForOther && guestIdNumber ? guestIdNumber.trim() : undefined,
       };
+
+      console.log("=== Creating Booking ===");
+      console.log("Booking data:", bookingData);
+      console.log("Booking for other:", bookingForOther);
+      console.log("Guest info:", {
+        guestFullName: bookingData.guestFullName,
+        guestPhone: bookingData.guestPhone,
+        guestIdNumber: bookingData.guestIdNumber
+      });
 
       let booking = await bookingAPI.createBooking(bookingData);
       
@@ -782,34 +819,36 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
           // Check if error is related to promotion or voucher
           const errorMessageLower = errorMessage.toLowerCase();
           if (errorMessageLower.includes("promotion") || errorMessageLower.includes("khuyến mãi")) {
-            // Có thể promotion không hợp lệ, thử lại không có promotion
+            // Promotion error - clear selected promotion and show concise error
             const sentPromotionId = bookingData?.promotionId;
             if (sentPromotionId) {
-              // Có thể hiển thị thông báo và cho user chọn tiếp tục không có promotion
-              errorMessage += "\n\nBạn có thể thử lại không sử dụng khuyến mãi.";
+              setSelectedPromotionId(null); // Clear invalid promotion
             }
+            // Keep error message concise - don't add extra text
           } else if (errorMessageLower.includes("voucher") || errorMessageLower.includes("mã giảm giá")) {
-            // Voucher không hợp lệ, xóa voucher đã chọn
+            // Voucher error - handle separately in voucher section
             setSelectedVoucherCode(null);
             setVoucherError(errorMessage);
+            errorMessage = ""; // Don't show in main error box
           }
         } else if (errorData?.errors) {
           // Check for validation errors
-          errorMessage = "Có lỗi xảy ra khi tạo đặt phòng:\n";
           const validationErrors = Object.entries(errorData.errors)
             .map(([key, value]: [string, any]) => {
               if (Array.isArray(value)) {
-                return `• ${key}: ${value.join(', ')}`;
+                return `${value.join(', ')}`;
               }
-              return `• ${key}: ${value}`;
+              return `${value}`;
             })
-            .join('\n');
-          errorMessage += validationErrors;
+            .join(', ');
+          errorMessage = validationErrors || "Dữ liệu không hợp lệ. Vui lòng kiểm tra lại thông tin.";
         } else {
           errorMessage = "Dữ liệu không hợp lệ. Vui lòng kiểm tra lại thông tin đặt phòng.";
         }
         
-        setError(errorMessage);
+        if (errorMessage) {
+          setError(errorMessage);
+        }
       } else if (err.response?.status === 404) {
         setError("Không tìm thấy căn hộ. Vui lòng thử lại.");
       } else if (err.response?.status === 401) {
@@ -1308,6 +1347,94 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
                 </button>
               )}
             />
+          </div>
+        </div>
+
+        <div>
+          <h3 className="text-2xl font-semibold">Thông tin khách ở</h3>
+          <div className="w-14 border-b border-neutral-200 dark:border-neutral-700 my-5"></div>
+
+          <div className="space-y-4">
+            {/* Checkbox đặt cho người khác */}
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                id="bookingForOther"
+                checked={bookingForOther}
+                onChange={(e) => {
+                  setBookingForOther(e.target.checked);
+                  if (!e.target.checked) {
+                    // Reset guest info when unchecked
+                    setGuestFullName("");
+                    setGuestPhone("");
+                    setGuestIdNumber("");
+                  }
+                }}
+                className="w-5 h-5 text-primary-600 border-neutral-300 rounded focus:ring-primary-500 focus:ring-2 cursor-pointer"
+              />
+              <label htmlFor="bookingForOther" className="text-neutral-900 dark:text-neutral-100 cursor-pointer font-medium">
+                Đặt phòng cho người khác
+              </label>
+            </div>
+
+            {bookingForOther && (
+              <div className="space-y-4 p-4 bg-neutral-50 dark:bg-neutral-900/50 rounded-lg border border-neutral-200 dark:border-neutral-700">
+                <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-3">
+                  Nhập thông tin người sẽ ở thực tế (dùng để check-in tại khách sạn)
+                </p>
+                
+                {/* Họ tên */}
+                <div>
+                  <label className="text-neutral-800 dark:text-neutral-200 font-medium text-sm">
+                    Họ và tên <span className="text-red-500">*</span>
+                  </label>
+                  <Input
+                    type="text"
+                    placeholder="Nguyễn Văn A"
+                    value={guestFullName}
+                    onChange={(e) => setGuestFullName(e.target.value)}
+                    className="mt-1.5"
+                    required
+                  />
+                </div>
+
+                {/* Số điện thoại */}
+                <div>
+                  <label className="text-neutral-800 dark:text-neutral-200 font-medium text-sm">
+                    Số điện thoại <span className="text-red-500">*</span>
+                  </label>
+                  <Input
+                    type="tel"
+                    placeholder="0987654321"
+                    value={guestPhone}
+                    onChange={(e) => setGuestPhone(e.target.value)}
+                    className="mt-1.5"
+                    required
+                  />
+                </div>
+
+                {/* CMND/CCCD */}
+                <div>
+                  <label className="text-neutral-800 dark:text-neutral-200 font-medium text-sm">
+                    CMND/CCCD (không bắt buộc)
+                  </label>
+                  <Input
+                    type="text"
+                    placeholder="123456789"
+                    value={guestIdNumber}
+                    onChange={(e) => setGuestIdNumber(e.target.value)}
+                    className="mt-1.5"
+                  />
+                </div>
+
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 mt-3">
+                  <p className="text-xs text-blue-800 dark:text-blue-200">
+                    💡 <strong>Lưu ý:</strong> Bạn vẫn là người thanh toán và sẽ nhận voucher sau khi hoàn thành booking.
+                    Thông tin này chỉ dùng để check-in tại khách sạn.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

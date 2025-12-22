@@ -88,6 +88,15 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
     );
 };
 
+// --- Badge "Đặt hộ" ---
+const BookingForOthersBadge: React.FC = () => {
+    return (
+        <span className="px-2 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-700 ml-2">
+            Đặt hộ
+        </span>
+    );
+};
+
 // ✅ Kiểm tra xem booking có thể hoàn tiền không - phải trước ít nhất 2 ngày so với ngày check-in
 const canRefund = (booking: BookingDTO): boolean => {
     // Chỉ cho phép yêu cầu hoàn tiền nếu:
@@ -646,7 +655,15 @@ const PageTenantBookings = () => {
                                             )}
                                         </td>
                                         <td className="px-5 py-4 whitespace-nowrap text-sm font-medium text-gray-800 align-middle">
-                                            {booking.condotelName || `Condotel #${booking.condotelId}`}
+                                            <div className="flex items-center">
+                                                {booking.condotelName || `Condotel #${booking.condotelId}`}
+                                                {booking.guestFullName && <BookingForOthersBadge />}
+                                            </div>
+                                            {booking.guestFullName && (
+                                                <div className="mt-1 text-xs text-gray-500">
+                                                    Người lưu trú: {booking.guestFullName}
+                                                </div>
+                                            )}
                                         </td>
                                         <td className="px-5 py-4 whitespace-nowrap text-sm text-gray-600 align-middle">
                                             {formatDate(booking.createdAt)}
@@ -670,7 +687,20 @@ const PageTenantBookings = () => {
                                             </div>
                                         </td>
                                         <td className="px-5 py-4 whitespace-nowrap align-middle">
-                                            <StatusBadge status={booking.status || "Pending"} />
+                                            <div className="flex flex-col gap-1">
+                                                <StatusBadge status={booking.status || "Pending"} />
+                                                {booking.checkInToken && (
+                                                    <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs">
+                                                        <div className="font-semibold text-blue-900">Mã check-in:</div>
+                                                        <div className="font-mono text-blue-700 text-sm font-bold">{booking.checkInToken}</div>
+                                                        {booking.checkInTokenGeneratedAt && (
+                                                            <div className="text-gray-500 mt-1">
+                                                                Tạo lúc: {moment(booking.checkInTokenGeneratedAt).format("DD/MM/YYYY HH:mm")}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
                                         </td>
                                         <td className="px-5 py-4 whitespace-nowrap align-middle">
                                             <ActionButtons 

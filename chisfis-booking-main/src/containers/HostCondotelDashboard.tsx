@@ -58,6 +58,12 @@ const HostCondotelDashboard = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
 
+  // Pagination states for condotels
+  const [condotelCurrentPage, setCondotelCurrentPage] = useState(1);
+  const [condotelPageSize] = useState(6); // 2x3 grid
+  const [condotelTotalPages, setCondotelTotalPages] = useState(1);
+  const [condotelTotalCount, setCondotelTotalCount] = useState(0);
+
   // Ensure only Host can access
   useEffect(() => {
     if (isAuthenticated && user?.roleName !== "Host") {
@@ -98,13 +104,39 @@ const HostCondotelDashboard = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage]);
 
+  // Refetch condotels when page changes
+  useEffect(() => {
+    if (activeTab === "condotels") {
+      fetchCondotels();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [condotelCurrentPage]);
+
+  // Refetch condotels when page changes
+  useEffect(() => {
+    if (activeTab === "condotels") {
+      fetchCondotels();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [condotelCurrentPage]);
+
   const fetchCondotels = async () => {
     try {
       setLoading(true);
       const data = await condotelAPI.getAllForHost();
-      setCondotels(data);
+      
+      // Client-side pagination
+      const startIndex = (condotelCurrentPage - 1) * condotelPageSize;
+      const endIndex = startIndex + condotelPageSize;
+      const paginatedData = data.slice(startIndex, endIndex);
+      
+      setCondotels(paginatedData);
+      setCondotelTotalPages(Math.ceil(data.length / condotelPageSize));
+      setCondotelTotalCount(data.length);
     } catch {
       setCondotels([]);
+      setCondotelTotalPages(1);
+      setCondotelTotalCount(0);
     } finally {
       setLoading(false);
     }
@@ -850,10 +882,22 @@ const HostCondotelDashboard = () => {
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="text-sm text-neutral-900 dark:text-neutral-100">
                               {booking.customerName || `Customer #${booking.customerId}`}
+                              {booking.guestFullName && (
+                                <span className="ml-2 px-2 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
+                                  Đặt hộ
+                                </span>
+                              )}
                             </div>
                             {booking.customerEmail && (
                               <div className="text-xs text-neutral-500 dark:text-neutral-400">
                                 {booking.customerEmail}
+                              </div>
+                            )}
+                            {booking.guestFullName && (
+                              <div className="mt-1 text-xs text-purple-700 dark:text-purple-300">
+                                <div><strong>Người lưu trú:</strong> {booking.guestFullName}</div>
+                                {booking.guestPhone && <div><strong>SĐT:</strong> {booking.guestPhone}</div>}
+                                {booking.guestIdNumber && <div><strong>CCCD:</strong> {booking.guestIdNumber}</div>}
                               </div>
                             )}
                           </td>
@@ -869,15 +913,33 @@ const HostCondotelDashboard = () => {
                             {formatPrice(booking.totalPrice)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <span
-                              className="inline-flex items-center text-xs font-bold px-4 py-2 rounded-xl shadow-md"
-                              style={{
-                                backgroundColor: getStatusColor(normalizeStatus(booking.status)).bg,
-                                color: getStatusColor(normalizeStatus(booking.status)).text,
-                              }}
-                            >
-                              {mapStatusToVN(normalizeStatus(booking.status))}
-                            </span>
+                            <div className="flex flex-col gap-2">
+                              <span
+                                className="inline-flex items-center text-xs font-bold px-4 py-2 rounded-xl shadow-md"
+                                style={{
+                                  backgroundColor: getStatusColor(normalizeStatus(booking.status)).bg,
+                                  color: getStatusColor(normalizeStatus(booking.status)).text,
+                                }}
+                              >
+                                {mapStatusToVN(normalizeStatus(booking.status))}
+                              </span>
+                              {booking.checkInToken && (
+                                <div className="mt-1 p-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                                  <div className="text-xs font-semibold text-blue-900 dark:text-blue-200">Mã check-in:</div>
+                                  <div className="font-mono text-blue-700 dark:text-blue-300 text-sm font-bold">{booking.checkInToken}</div>
+                                  {booking.checkInTokenGeneratedAt && (
+                                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                      {new Date(booking.checkInTokenGeneratedAt).toLocaleString('vi-VN')}
+                                    </div>
+                                  )}
+                                  {booking.checkInTokenUsedAt && (
+                                    <div className="text-xs text-green-600 dark:text-green-400 mt-1">
+                                      ✓ Đã sử dụng: {new Date(booking.checkInTokenUsedAt).toLocaleString('vi-VN')}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500 dark:text-neutral-400">
                             {formatDate(booking.bookingDate || booking.createdAt)}
@@ -1046,6 +1108,55 @@ const HostCondotelDashboard = () => {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+            
+            {/* Pagination for Condotels */}
+            {!loading && condotels.length > 0 && condotelTotalPages > 1 && (
+              <div className="mt-6 flex items-center justify-between bg-white/80 dark:bg-neutral-800/80 backdrop-blur-sm rounded-2xl shadow-xl p-4 border border-white/20 dark:border-neutral-700/50">
+                <div className="text-sm text-neutral-600 dark:text-neutral-400">
+                  Hiển thị {(condotelCurrentPage - 1) * condotelPageSize + 1} - {Math.min(condotelCurrentPage * condotelPageSize, condotelTotalCount)} trong tổng số {condotelTotalCount} căn hộ
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setCondotelCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={condotelCurrentPage === 1}
+                    className="px-4 py-2 rounded-lg bg-neutral-200 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-300 dark:hover:bg-neutral-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Trước
+                  </button>
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: condotelTotalPages }, (_, i) => i + 1)
+                      .filter(page => {
+                        const distance = Math.abs(page - condotelCurrentPage);
+                        return distance === 0 || distance === 1 || page === 1 || page === condotelTotalPages;
+                      })
+                      .map((page, idx, arr) => (
+                        <React.Fragment key={page}>
+                          {idx > 0 && arr[idx - 1] !== page - 1 && (
+                            <span className="px-2 text-neutral-400">...</span>
+                          )}
+                          <button
+                            onClick={() => setCondotelCurrentPage(page)}
+                            className={`px-4 py-2 rounded-lg transition-colors ${
+                              condotelCurrentPage === page
+                                ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg"
+                                : "bg-neutral-200 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-300 dark:hover:bg-neutral-600"
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        </React.Fragment>
+                      ))}
+                  </div>
+                  <button
+                    onClick={() => setCondotelCurrentPage(prev => Math.min(condotelTotalPages, prev + 1))}
+                    disabled={condotelCurrentPage === condotelTotalPages}
+                    className="px-4 py-2 rounded-lg bg-neutral-200 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-300 dark:hover:bg-neutral-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Tiếp
+                  </button>
+                </div>
               </div>
             )}
           </>

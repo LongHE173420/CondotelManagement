@@ -406,6 +406,23 @@ const PromotionModal: React.FC<PromotionModalProps> = ({
       setError("Vui lòng chọn ngày bắt đầu và kết thúc!");
       return;
     }
+    
+    // Validate dates are not in the past
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Reset to start of day for comparison
+    const startDate = new Date(formData.startDate);
+    const endDate = new Date(formData.endDate);
+    
+    if (startDate < today) {
+      setError("⚠️ Ngày bắt đầu không được ở quá khứ!");
+      return;
+    }
+    
+    if (endDate < today) {
+      setError("⚠️ Ngày kết thúc không được ở quá khứ!");
+      return;
+    }
+    
     if (new Date(formData.startDate) >= new Date(formData.endDate)) {
       setError("Ngày kết thúc phải sau ngày bắt đầu!");
       return;

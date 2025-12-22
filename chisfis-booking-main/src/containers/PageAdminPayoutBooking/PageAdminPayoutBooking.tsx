@@ -148,6 +148,15 @@ const PageAdminPayoutBooking: React.FC = () => {
   }, [showQRModal]);
 
   const handleProcessPayout = async (payout: HostPayoutDTO) => {
+    console.log("=== Opening Payment Modal ===");
+    console.log("Payout data:", {
+      bookingId: payout.bookingId,
+      bankName: payout.bankName,
+      accountNumber: payout.accountNumber,
+      accountHolderName: payout.accountHolderName,
+      amount: payout.amount || payout.totalPrice
+    });
+    
     // Kiểm tra thông tin ngân hàng
     if (!payout.bankName || !payout.accountNumber || !payout.accountHolderName) {
       toastWarning("Thông tin ngân hàng của host chưa đầy đủ. Vui lòng yêu cầu host cập nhật thông tin ngân hàng trước khi thanh toán.");
@@ -166,41 +175,124 @@ const PageAdminPayoutBooking: React.FC = () => {
   };
 
   const generateQRCode = async (payout: HostPayoutDTO) => {
+    console.log("=== Generating QR Code ===");
+    setLoadingQR(true);
+    
     if (!payout.bankName || !payout.accountNumber || !payout.accountHolderName) {
+      console.error("Missing bank info:", {
+        bankName: payout.bankName,
+        accountNumber: payout.accountNumber,
+        accountHolderName: payout.accountHolderName
+      });
+      toastError("Thiếu thông tin ngân hàng để tạo QR code");
+      setLoadingQR(false);
       return;
     }
 
-    setLoadingQR(true);
     try {
       // Map bank name to bank code (có thể cần điều chỉnh theo backend)
-      const bankCode = mapBankNameToCode(payout.bankName);
-      const content = `Thanh toan booking #${payout.bookingId}`;
-
-      const qrData = await paymentAPI.generateQR({
-        bankCode: bankCode,
-        accountNumber: payout.accountNumber,
-        amount: payout.amount || payout.totalPrice || 0,
-        accountHolderName: payout.accountHolderName,
-        content: content,
-      });
-
-      setQrUrl(qrData.compactUrl || qrData.printUrl || "");
-    } catch (err: any) {
-      toastError("Không thể tạo QR code");
-      // Fallback: tạo URL trực tiếp nếu API fail
       const bankCode = mapBankNameToCode(payout.bankName);
       const amount = payout.amount || payout.totalPrice || 0;
       const content = `Thanh toan booking #${payout.bookingId}`;
       const accountName = payout.accountHolderName;
 
-      const fallbackUrl = `https://img.vietqr.io/image/${bankCode}-${payout.accountNumber}-compact.jpg?amount=${amount}&addInfo=${encodeURIComponent(content)}&accountName=${encodeURIComponent(accountName)}`;
-      setQrUrl(fallbackUrl);
+      console.log("Calling backend generateQR API with:", {
+        bankCode,
+        accountNumber: payout.accountNumber,
+        amount,
+        accountHolderName: accountName,
+        content
+      });
+
+      // Gọi backend API (đã sửa bin codes)
+      const qrData = await paymentAPI.generateQR({
+        bankCode: bankCode,
+        accountNumber: payout.accountNumber,
+        amount: amount,
+        accountHolderName: accountName,
+        content: content,
+      });
+
+      console.log("QR API Response from backend:", qrData);
+
+      if (qrData.compactUrl || qrData.printUrl) {
+        const url = qrData.compactUrl || qrData.printUrl || "";
+        console.log("Setting QR URL:", url);
+        console.log("Try opening this URL directly in browser:", url);
+        setQrUrl(url);
+        toastSuccess("Tạo QR code thành công");
+      } else {
+        throw new Error("API không trả về URL QR code");
+      }
+      
+    } catch (err: any) {
+      console.error("QR Generation Error:", err);
+      console.error("Error response:", err.response?.data);
+      toastError(err.response?.data?.message || err.message || "Không thể tạo QR code từ API");
+      
+      // Fallback: tạo URL trực tiếp nếu API fail - dùng bin code
+      try {
+        const binCode = mapBankNameToBinCode(payout.bankName);
+        const amount = payout.amount || payout.totalPrice || 0;
+        const content = `Thanh toan booking #${payout.bookingId}`;
+        const accountName = payout.accountHolderName;
+
+        // VietQR.io API v2 format - dùng bin code thay vì bank code
+        const fallbackUrl = `https://img.vietqr.io/image/${binCode}-${payout.accountNumber}-compact2.png?amount=${amount}&addInfo=${encodeURIComponent(content)}&accountName=${encodeURIComponent(accountName)}`;
+        console.log("Using fallback QR URL with bin code:", fallbackUrl);
+        setQrUrl(fallbackUrl);
+        toastSuccess("Sử dụng QR code dự phòng");
+      } catch (fallbackErr) {
+        console.error("Fallback QR Error:", fallbackErr);
+        toastError("Không thể tạo QR code");
+      }
     } finally {
+      console.log("QR generation complete, setting loadingQR = false");
       setLoadingQR(false);
     }
   };
 
-  // Map bank name to bank code (có thể cần điều chỉnh)
+  // Map bank name to bin code (sử dụng bin code chính thức cho VietQR API)
+  const mapBankNameToBinCode = (bankName: string): string => {
+    const bankMap: { [key: string]: string } = {
+      "Vietcombank": "970436",
+      "VCB": "970436",
+      "Vietinbank": "970415",
+      "CTG": "970415",
+      "BIDV": "970418",
+      "BID": "970418",
+      "Agribank": "970405",
+      "VBA": "970405",
+      "Techcombank": "970407",
+      "TCB": "970407",
+      "MBBank": "970422",
+      "MB": "970422",
+      "ACB": "970416",
+      "VPBank": "970432",
+      "VPB": "970432",
+      "TPBank": "970423",
+      "TPB": "970423",
+      "Sacombank": "970403",
+      "STB": "970403",
+      "HDBank": "970437",
+      "HDB": "970437",
+      "SHB": "970443",
+      "VIB": "970441",
+      "MSB": "970426",
+    };
+
+    // Tìm bin code từ tên ngân hàng
+    for (const [name, binCode] of Object.entries(bankMap)) {
+      if (bankName.toLowerCase().includes(name.toLowerCase())) {
+        return binCode;
+      }
+    }
+
+    // Default fallback
+    return "970418"; // BIDV
+  };
+
+  // Map bank name to short code (để gửi cho backend)
   const mapBankNameToCode = (bankName: string): string => {
     const bankMap: { [key: string]: string } = {
       "Vietcombank": "VCB",
@@ -1119,17 +1211,36 @@ const PageAdminPayoutBooking: React.FC = () => {
                   <div className="flex justify-center">
                     {loadingQR ? (
                       <div className="w-64 h-64 flex items-center justify-center bg-neutral-100 dark:bg-neutral-700 rounded-xl">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+                        <div className="flex flex-col items-center gap-3">
+                          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+                          <p className="text-sm text-neutral-600 dark:text-neutral-400">Đang tạo QR code...</p>
+                        </div>
                       </div>
                     ) : qrUrl ? (
                       <div className="bg-white p-4 rounded-xl shadow-lg">
-                        <img src={qrUrl} alt="QR Code" className="w-64 h-64" />
+                        <img 
+                          src={qrUrl} 
+                          alt="QR Code" 
+                          className="w-64 h-64 object-contain" 
+                          onLoad={() => console.log("QR image loaded successfully")}
+                          onError={(e) => {
+                            console.error("QR image load error", e);
+                            console.error("Failed URL:", qrUrl);
+                          }}
+                        />
                       </div>
                     ) : (
                       <div className="w-64 h-64 flex items-center justify-center bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-200 dark:border-red-800">
-                        <p className="text-red-600 dark:text-red-400 text-sm">Không thể tạo QR code</p>
+                        <div className="text-center px-4">
+                          <p className="text-red-600 dark:text-red-400 text-sm font-medium mb-2">Không thể tạo QR code</p>
+                          <p className="text-xs text-neutral-500">Vui lòng kiểm tra console để biết chi tiết lỗi</p>
+                        </div>
                       </div>
                     )}
+                  </div>
+                  {/* Debug info */}
+                  <div className="mt-2 text-xs text-center text-neutral-400">
+                    Loading: {loadingQR ? "Yes" : "No"} | Has URL: {qrUrl ? "Yes" : "No"}
                   </div>
                 </div>
 
@@ -1253,9 +1364,25 @@ const PageAdminPayoutBooking: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* MODAL XÁC NHẬN CHUYỂN KHOẢN */}
+      {selectedPayout && (
+        <ConfirmModal
+          show={showConfirmModal}
+          onClose={() => setShowConfirmModal(false)}
+          onConfirm={confirmTransfer}
+          title="Xác nhận đã chuyển khoản?"
+          message={`Bạn có chắc chắn đã chuyển khoản số tiền ${formatPrice(selectedPayout.amount || selectedPayout.totalPrice)} cho host ${selectedPayout.hostName || `#${selectedPayout.hostId}`} cho booking #${selectedPayout.bookingId}?`}
+          confirmText="Xác nhận"
+          cancelText="Hủy"
+          type="success"
+          loading={processing}
+        />
+      )}
     </div>
   );
 };
+
 
 export default PageAdminPayoutBooking;
 

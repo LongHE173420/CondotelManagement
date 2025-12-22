@@ -21,6 +21,7 @@ const SectionGridFilterCard: FC<SectionGridFilterCardProps> = ({
   const location = useLocation();
   const stateParams = (location.state as any)?.searchParams || {};
   const [condotels, setCondotels] = useState<CondotelDTO[]>([]);
+  const [totalCondotels, setTotalCondotels] = useState(0); // Tổng số condotel
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -55,7 +56,12 @@ const SectionGridFilterCard: FC<SectionGridFilterCardProps> = ({
   const beds = params.get("beds");
   const bathrooms = params.get("bathrooms");
 
-  // Fetch condotels when URL params change
+  // Reset page when search params change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchName, searchLocation, searchLocationId, searchHostId, searchFromDate, searchToDate, minPrice, maxPrice, beds, bathrooms]);
+
+  // Fetch condotels when URL params or page change
   useEffect(() => {
     const fetchCondotels = async () => {
       try {
@@ -147,23 +153,36 @@ const SectionGridFilterCard: FC<SectionGridFilterCardProps> = ({
           results = Array.isArray(searchResult) ? searchResult : [];
         }
         
+        console.log("=== Listing Stay API Response ===");
+        console.log("Total condotels from API:", results.length);
+        console.log("Search query:", searchQuery);
+        
         // Ensure we only set the results from the search, not all condotels
         // Ensure results is always an array
         if (!Array.isArray(results)) {
           results = [];
         }
-        setCondotels(results);
-        setCurrentPage(1); // Reset to page 1 when search results change
+        
+        // Save total count before pagination
+        setTotalCondotels(results.length);
+        
+        // Apply client-side pagination
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        const paginatedResults = results.slice(startIndex, endIndex);
+        
+        setCondotels(paginatedResults);
       } catch (err: any) {
         setError(err.response?.data?.message || "Không thể tải danh sách condotel");
         setCondotels([]);
+        setTotalCondotels(0);
       } finally {
         setLoading(false);
       }
     };
 
     fetchCondotels();
-  }, [location.search, searchName, searchLocation, searchLocationId, searchHostId, searchFromDate, searchToDate, minPrice, maxPrice, beds, bathrooms]);
+  }, [location.search, searchName, searchLocation, searchLocationId, searchHostId, searchFromDate, searchToDate, minPrice, maxPrice, beds, bathrooms, currentPage]);
 
   const heading = searchLocation 
     ? `${t.condotel.staysIn || "Stays in"} ${searchLocation}`
@@ -172,7 +191,7 @@ const SectionGridFilterCard: FC<SectionGridFilterCardProps> = ({
   // Build subheading
   let subHeadingText = "";
   if (searchLocation) {
-    subHeadingText = `${condotels.length} ${t.condotel.list || "condotels"}`;
+    subHeadingText = `${totalCondotels} ${t.condotel.list || "condotels"}`;
     if (searchFromDate && searchToDate) {
       const fromDate = moment(searchFromDate).format("MMM DD");
       const toDate = moment(searchToDate).format("MMM DD");
@@ -182,7 +201,7 @@ const SectionGridFilterCard: FC<SectionGridFilterCardProps> = ({
       subHeadingText += ` · ${searchGuests} ${t.booking.guests || "Guests"}`;
     }
   } else {
-    subHeadingText = `${t.condotel.total || "Tổng cộng"}: ${condotels.length} ${t.condotel.list || "condotel"}`;
+    subHeadingText = `${t.condotel.total || "Tổng cộng"}: ${totalCondotels} ${t.condotel.list || "condotel"}`;
   }
 
   return (
@@ -221,15 +240,32 @@ const SectionGridFilterCard: FC<SectionGridFilterCardProps> = ({
       ) : (
         <>
           <div className="grid grid-cols-1 gap-6 md:gap-8 sm:grid-cols-2 lg:grid-cols-3">
-            {Array.isArray(condotels) && condotels
-              .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
-              .map((condotel) => (
-                <CondotelCard key={condotel.condotelId} data={condotel} />
-              ))}
+            {Array.isArray(condotels) && condotels.map((condotel) => (
+              <CondotelCard key={condotel.condotelId} data={condotel} />
+            ))}
           </div>
-          {condotels.length > itemsPerPage && (
+          {totalCondotels > itemsPerPage && (
             <div className="flex mt-16 justify-center items-center gap-2">
-              {Array.from({ length: Math.ceil(condotels.length / itemsPerPage) }, (_, i) => i + 1).map((page) => (
+              {/* Previous Button */}
+              <button
+                onClick={() => {
+                  if (currentPage > 1) {
+                    setCurrentPage(currentPage - 1);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }
+                }}
+                disabled={currentPage === 1}
+                className={`inline-flex w-11 h-11 items-center justify-center rounded-full transition-colors ${
+                  currentPage === 1
+                    ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed dark:bg-neutral-800 dark:text-neutral-600'
+                    : 'bg-white hover:bg-neutral-100 border border-neutral-200 text-neutral-600 dark:bg-neutral-900 dark:hover:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-400'
+                }`}
+              >
+                ‹
+              </button>
+
+              {/* Page Numbers */}
+              {Array.from({ length: Math.ceil(totalCondotels / itemsPerPage) }, (_, i) => i + 1).map((page) => (
                 <button
                   key={page}
                   onClick={() => {
@@ -245,6 +281,25 @@ const SectionGridFilterCard: FC<SectionGridFilterCardProps> = ({
                   {page}
                 </button>
               ))}
+
+              {/* Next Button */}
+              <button
+                onClick={() => {
+                  const totalPages = Math.ceil(totalCondotels / itemsPerPage);
+                  if (currentPage < totalPages) {
+                    setCurrentPage(currentPage + 1);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }
+                }}
+                disabled={currentPage === Math.ceil(totalCondotels / itemsPerPage)}
+                className={`inline-flex w-11 h-11 items-center justify-center rounded-full transition-colors ${
+                  currentPage === Math.ceil(totalCondotels / itemsPerPage)
+                    ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed dark:bg-neutral-800 dark:text-neutral-600'
+                    : 'bg-white hover:bg-neutral-100 border border-neutral-200 text-neutral-600 dark:bg-neutral-900 dark:hover:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-400'
+                }`}
+              >
+                ›
+              </button>
             </div>
           )}
         </>
