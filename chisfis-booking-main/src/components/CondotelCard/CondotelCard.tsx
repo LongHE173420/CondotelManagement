@@ -73,10 +73,22 @@ const CondotelCard: FC<CondotelCardProps> = ({
   };
 
   // Kiểm tra promotion có đang active tại thời điểm hiện tại không
-  // Logic đơn giản: Nếu backend đã trả về activePromotion và có discount, thì hiển thị
-  // Chỉ kiểm tra dates nếu có, nhưng không bắt buộc
   const isPromotionCurrentlyActive = (): boolean => {
     if (!activePromotion) {
+      return false;
+    }
+
+    // CHỈ kiểm tra status field - bỏ hoàn toàn isActive
+    const hasActiveStatus = activePromotion.status === "Active" || activePromotion.status === "active";
+    const hasInactiveStatus = activePromotion.status === "Inactive" || activePromotion.status === "inactive";
+    
+    // Nếu có status Inactive, bỏ qua
+    if (hasInactiveStatus) {
+      return false;
+    }
+    
+    // Nếu không có status field (null/undefined), coi như không valid
+    if (!hasActiveStatus && !hasInactiveStatus) {
       return false;
     }
 
@@ -92,24 +104,25 @@ const CondotelCard: FC<CondotelCardProps> = ({
       return false;
     }
 
-    // Nếu có startDate và endDate, kiểm tra thời gian
-    if (activePromotion.startDate && activePromotion.endDate) {
-      const promoStart = moment(activePromotion.startDate);
-      const promoEnd = moment(activePromotion.endDate);
-      const now = moment();
-      
-      // Kiểm tra xem thời điểm hiện tại có nằm trong khoảng thời gian của promotion không
-      const isWithinDateRange = now.isSameOrAfter(promoStart, 'day') && now.isSameOrBefore(promoEnd, 'day');
-      
-      // Nếu có dates nhưng không nằm trong khoảng thời gian, không active
-      if (!isWithinDateRange) {
-        // Vẫn cho phép sử dụng nếu backend đã trả về (có thể dates chưa được cập nhật)
-        // return false;
-      }
+    // Nếu không có startDate và endDate, nhưng có discount và status Active, cho phép
+    if (!activePromotion.startDate || !activePromotion.endDate) {
+      return hasActiveStatus;
     }
 
-    // Nếu có discount và (không có dates hoặc dates hợp lệ), thì hiển thị
-    return true;
+    // Kiểm tra thời gian
+    const promoStart = moment(activePromotion.startDate);
+    const promoEnd = moment(activePromotion.endDate);
+    const now = moment();
+    
+    // Kiểm tra thời gian hợp lệ
+    const isWithinDateRange = now.isSameOrAfter(promoStart, 'day') && now.isSameOrBefore(promoEnd, 'day');
+    
+    // Status Active VÀ trong thời gian hợp lệ
+    if (hasActiveStatus && isWithinDateRange) {
+      return true;
+    }
+    
+    return false;
   };
 
   // Tính giá cuối cùng: basePrice (từ activePrice hoặc pricePerNight) + promotion

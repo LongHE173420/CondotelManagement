@@ -35,6 +35,11 @@ const PriceModal: FC<PriceModalProps> = ({ show, onClose, prices, onSave }) => {
         alert("Ngày bắt đầu phải nhỏ hơn ngày kết thúc!");
         return;
       }
+      // Validate description not empty
+      if (!price.description || price.description.trim() === "") {
+        alert("Mô tả giá không được để trống!");
+        return;
+      }
     }
     onSave(localPrices);
     onClose();
@@ -197,7 +202,7 @@ const PriceModal: FC<PriceModalProps> = ({ show, onClose, prices, onSave }) => {
                           </div>
                           <div>
                             <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-                              Mô tả
+                              Mô tả *
                             </label>
                             <textarea
                               value={price.description || ""}
@@ -207,9 +212,19 @@ const PriceModal: FC<PriceModalProps> = ({ show, onClose, prices, onSave }) => {
                                 setLocalPrices(newPrices);
                               }}
                               rows={2}
-                              className="w-full px-4 py-3 border border-neutral-300 dark:border-neutral-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-neutral-700 dark:text-neutral-100 resize-none"
-                              placeholder="Mô tả chi tiết về giá này..."
+                              className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-neutral-700 dark:text-neutral-100 resize-none ${
+                                !price.description || price.description.trim() === ""
+                                  ? "border-red-500 dark:border-red-600"
+                                  : "border-neutral-300 dark:border-neutral-600"
+                              }`}
+                              placeholder="Mô tả chi tiết về giá này (bắt buộc)..."
+                              required
                             />
+                            {(!price.description || price.description.trim() === "") && (
+                              <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                                ⚠️ Mô tả giá không được để trống
+                              </p>
+                            )}
                           </div>
                           <div className="flex justify-end gap-2 pt-2 border-t border-neutral-200 dark:border-neutral-700">
                             <button

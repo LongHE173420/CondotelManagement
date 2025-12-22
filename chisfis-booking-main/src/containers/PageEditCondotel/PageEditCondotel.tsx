@@ -70,6 +70,7 @@ const PageEditCondotel: React.FC = () => {
   const [bathrooms, setBathrooms] = useState<number>(1);
   const [pricePerNight, setPricePerNight] = useState<number>(0);
   const [resortId, setResortId] = useState<number | undefined>(undefined);
+  const [originalResortId, setOriginalResortId] = useState<number | undefined>(undefined); // Lưu resortId ban đầu
   const [images, setImages] = useState<ImageDTO[]>([]);
   const [prices, setPrices] = useState<PriceDTO[]>([]);
   const [details, setDetails] = useState<CondotelDetailDTOType[]>([]);
@@ -114,14 +115,26 @@ const PageEditCondotel: React.FC = () => {
         setBeds(data.beds || 1);
         setBathrooms(data.bathrooms || 1);
         setPricePerNight(data.pricePerNight || 0);
-        // Set resortId ngay lập tức để dropdown hiển thị đúng
+        
+        // IMPORTANT: resortId is already extracted from resort object in API layer
+        // So we can use data.resortId directly (it's already been normalized)
         const initialResortId = data.resortId;
-        if (initialResortId) {
+        
+        // Chỉ check null/undefined, KHÔNG check falsy (vì resortId có thể là 0)
+        if (initialResortId !== null && initialResortId !== undefined) {
           setResortId(initialResortId);
+          setOriginalResortId(initialResortId);
+        } else {
+          // Nếu không có resortId (null/undefined), để undefined
+          setResortId(undefined);
+          setOriginalResortId(undefined);
         }
         
         setImages((data.images || []).map((it: any) => ({ imageUrl: it.imageUrl, caption: it.caption })));
-        setPrices((data.prices || []).map((p: any) => {
+        // Get activePrice to merge description
+        const activePrice = data.activePrice || {};
+        
+        const mappedPrices = (data.prices || []).map((p: any) => {
           // Normalize priceType: map từ tiếng Anh sang tiếng Việt hoặc giữ nguyên nếu đã là tiếng Việt
           const incomingPriceType = p.priceType || p.PriceType || "";
           
@@ -141,15 +154,23 @@ const PageEditCondotel: React.FC = () => {
           
           const normalizedPriceType = priceTypeMap[incomingPriceType] || "Thường";
           
+          // IMPORTANT: Nếu price này là activePrice, lấy description từ activePrice
+          let description = p.description || p.Description || "";
+          if (activePrice && p.priceId === activePrice.priceId) {
+            description = activePrice.description || activePrice.Description || description;
+          }
+          
           return {
             priceId: p.priceId || 0,
             startDate: p.startDate || "",
             endDate: p.endDate || "",
             basePrice: p.basePrice || 0,
             priceType: normalizedPriceType,
-            description: undefined,
+            description: description,
           };
-        }));
+        });
+        
+        setPrices(mappedPrices);
         setDetails((data.details || []).map((d: any) => ({
           buildingName: d.buildingName,
           roomNumber: d.roomNumber,
@@ -352,10 +373,10 @@ const PageEditCondotel: React.FC = () => {
     setSaving(true);
     setError("");
     try {
-      const payload: CondotelDetailDTO = {
+      // Tạo payload cơ bản KHÔNG có resortId
+      const payload: any = {
         condotelId: Number(id),
         hostId: user?.userId || 0,
-        resortId: resortId,
         name: name.trim(),
         description: description.trim() || undefined,
         pricePerNight,
@@ -365,12 +386,15 @@ const PageEditCondotel: React.FC = () => {
         images: images.length ? images.map((i, idx) => ({ imageId: idx, imageUrl: i.imageUrl, caption: i.caption })) : undefined,
         prices: prices.length > 0 ? prices : undefined,
         details: details.length > 0 ? details : undefined,
-        // Note: Backend expects amenityIds and utilityIds, but CondotelDetailDTO has amenities/utilities arrays
-        // We'll need to check the update API to see if it accepts IDs or objects
-      } as CondotelDetailDTO;
+      };
+      
+      // CHỈ THÊM resortId nếu nó có giá trị hợp lệ
+      // Nếu không có giá trị, KHÔNG thêm field này để backend không update/ghi đè
+      if (resortId !== undefined && resortId !== null) {
+        payload.resortId = resortId;
+      }
 
       // For update, we need to send amenityIds and utilityIds
-      // But CondotelDetailDTO doesn't have these fields, so we'll add them to the payload
       const updatePayload: any = {
         ...payload,
         amenityIds: amenityIds.length > 0 ? amenityIds : undefined,
@@ -475,6 +499,7 @@ const PageEditCondotel: React.FC = () => {
                 disabled
                 className="w-full px-4 py-3.5 border-2 border-neutral-300 dark:border-neutral-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:bg-neutral-700 dark:text-neutral-100 transition-all duration-200 bg-neutral-100 dark:bg-neutral-700 shadow-sm cursor-not-allowed opacity-75"
               >
+                {!resortId && <option value="">-- Chưa có Resort --</option>}
                 {resorts.map((resort) => (
                   <option key={resort.resortId} value={String(resort.resortId)}>
                     {resort.name}
@@ -483,13 +508,28 @@ const PageEditCondotel: React.FC = () => {
                   </option>
                 ))}
               </select>
-              {resortId !== undefined && resortId !== null && (
+              {resortId !== undefined && resortId !== null ? (
                 <div className="mt-3 p-3 bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
                   <p className="text-sm text-neutral-700 dark:text-neutral-300 flex items-center gap-2">
                     <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                     </svg>
                     Resort hiện tại: <span className="font-bold text-blue-600 dark:text-blue-400">{resorts.find(r => r.resortId === resortId)?.name || `Resort #${resortId}`}</span>
+                  </p>
+                  <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-1 ml-6">
+                    Không thể thay đổi Resort sau khi đã tạo Condotel
+                  </p>
+                </div>
+              ) : (
+                <div className="mt-3 p-3 bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 rounded-lg border border-red-200 dark:border-red-800">
+                  <p className="text-sm text-red-800 dark:text-red-300 flex items-center gap-2">
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                    </svg>
+                    <span className="font-medium">⚠️ Condotel này chưa được gắn với Resort</span>
+                  </p>
+                  <p className="text-xs text-red-700 dark:text-red-400 mt-1 ml-6">
+                    Vui lòng liên hệ Admin để hiển thị Resort
                   </p>
                 </div>
               )}
@@ -605,16 +645,23 @@ const PageEditCondotel: React.FC = () => {
               <div className="mt-4 p-4 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-xl border border-amber-200 dark:border-amber-800">
                 <div className="space-y-2">
                   {prices.slice(0, 3).map((price, index) => (
-                    <div key={index} className="text-sm text-neutral-700 dark:text-neutral-300 flex items-center justify-between">
-                      <span className="flex items-center gap-2">
-                        <svg className="w-4 h-4 text-amber-500" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                        </svg>
-                        {price.priceType}: {price.basePrice?.toLocaleString('vi-VN')} VNĐ
-                      </span>
-                      <span className="text-xs text-neutral-500">
-                        {price.startDate} → {price.endDate}
-                      </span>
+                    <div key={index} className="text-sm text-neutral-700 dark:text-neutral-300">
+                      <div className="flex items-center justify-between">
+                        <span className="flex items-center gap-2">
+                          <svg className="w-4 h-4 text-amber-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                          </svg>
+                          {price.priceType}: {price.basePrice?.toLocaleString('vi-VN')} VNĐ
+                        </span>
+                        <span className="text-xs text-neutral-500">
+                          {price.startDate} → {price.endDate}
+                        </span>
+                      </div>
+                      {price.description && (
+                        <div className="ml-6 mt-1 text-xs text-neutral-600 dark:text-neutral-400 italic">
+                          {price.description}
+                        </div>
+                      )}
                     </div>
                   ))}
                   {prices.length > 3 && (

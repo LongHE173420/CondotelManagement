@@ -25,11 +25,11 @@ const isPriceActive = (
 
 /**
  * Tính giá cơ bản dựa trên activePrice và pricePerNight
- * Logic đơn giản: Nếu có activePrice (không null) thì dùng activePrice.basePrice, không thì dùng pricePerNight
+ * Logic: Kiểm tra activePrice có trong thời gian hợp lệ không, nếu có thì dùng activePrice.basePrice, không thì dùng pricePerNight
  * @param pricePerNight - Giá mặc định
  * @param activePrice - Giá đang active (nếu có)
- * @param checkInDate - Ngày check-in (optional, không sử dụng trong logic hiện tại)
- * @param checkOutDate - Ngày check-out (optional, không sử dụng trong logic hiện tại)
+ * @param checkInDate - Ngày check-in (optional, nếu không có thì dùng thời điểm hiện tại)
+ * @param checkOutDate - Ngày check-out (optional)
  * @returns Giá cơ bản để tính toán
  */
 export const calculateBasePrice = (
@@ -38,13 +38,16 @@ export const calculateBasePrice = (
   checkInDate?: string | moment.Moment,
   checkOutDate?: string | moment.Moment
 ): number => {
-  // Logic đơn giản: Nếu có activePrice (không null) thì dùng activePrice.basePrice
-  // Không cần kiểm tra thời gian vì backend đã xử lý logic activePrice
+  // Kiểm tra activePrice có hợp lệ và trong thời gian chỉ định không
   if (activePrice && activePrice.basePrice !== undefined && activePrice.basePrice !== null) {
-    return activePrice.basePrice;
+    // Kiểm tra xem activePrice có đang trong thời gian hợp lệ không
+    const checkDate = checkInDate || moment();
+    if (isPriceActive(activePrice, checkDate)) {
+      return activePrice.basePrice;
+    }
   }
 
-  // Nếu không có activePrice hoặc activePrice.basePrice không hợp lệ, dùng pricePerNight
+  // Nếu không có activePrice, activePrice không hợp lệ, hoặc ngoài thời gian -> dùng pricePerNight
   return pricePerNight;
 };
 
@@ -74,7 +77,7 @@ const isPromotionActive = (
     return false;
   }
 
-  // Nếu không có startDate và endDate, nhưng có discount, vẫn cho phép (backend đã xác nhận)
+  // Nếu không có startDate và endDate, nhưng có discount, vẫn cho phép
   if (!promotion.startDate || !promotion.endDate) {
     return true;
   }
@@ -87,18 +90,8 @@ const isPromotionActive = (
   // Kiểm tra xem checkDate có nằm trong khoảng thời gian của promotion không
   const isWithinDateRange = check.isSameOrAfter(promoStart, 'day') && check.isSameOrBefore(promoEnd, 'day');
 
-  // Nếu có discount và dates hợp lệ, cho phép (bỏ qua status/isActive)
-  // Nếu dates không hợp lệ nhưng có discount, vẫn cho phép (backend đã xác nhận)
-  if (hasDiscount) {
-    if (isWithinDateRange) {
-      return true;
-    } else {
-      // Vẫn cho phép nếu có discount (backend đã xác nhận promotion active)
-      return true;
-    }
-  }
-
-  return false;
+  // Chỉ trả về true nếu đang trong thời gian hợp lệ
+  return isWithinDateRange;
 };
 
 /**

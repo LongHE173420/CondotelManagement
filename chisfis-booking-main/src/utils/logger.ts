@@ -29,7 +29,7 @@ class Logger {
     const debugMode = process.env.REACT_APP_DEBUG_MODE === 'true';
     
     this.config = {
-      enabled: isDevelopment || debugMode,
+      enabled: false, // Disable all logging
       level: debugMode ? 'debug' : (isDevelopment ? 'info' : 'error'),
       showTimestamp: true,
       showLevel: true,
@@ -37,15 +37,8 @@ class Logger {
   }
 
   private shouldLog(level: LogLevel): boolean {
-    if (!this.config.enabled) {
-      return level === 'error'; // Always log errors
-    }
-
-    const levels: LogLevel[] = ['debug', 'info', 'warn', 'error'];
-    const currentLevelIndex = levels.indexOf(this.config.level);
-    const messageLevelIndex = levels.indexOf(level);
-    
-    return messageLevelIndex >= currentLevelIndex;
+    // Disable all logging including errors
+    return false;
   }
 
   private formatMessage(level: LogLevel, message: string, ...args: any[]): void {

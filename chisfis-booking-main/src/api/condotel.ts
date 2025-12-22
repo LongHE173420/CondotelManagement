@@ -622,6 +622,22 @@ export const condotelAPI = {
     // Handle response wrapper: { success: true, data: {...} }
     const actualData = data.success && data.data ? data.data : data;
 
+    // Handle nested Resort object - IMPORTANT: resort object takes priority over null root resortId
+    const resort = actualData.Resort || actualData.resort;
+    
+    // Priority: resort.resortId > actualData.ResortId > actualData.resortId
+    // This handles case where resortId at root is null but resort object has resortId
+    const extractedResortId = (resort?.ResortId !== undefined && resort?.ResortId !== null) 
+      ? resort.ResortId 
+      : (resort?.resortId !== undefined && resort?.resortId !== null)
+        ? resort.resortId
+        : (actualData.ResortId !== undefined && actualData.ResortId !== null)
+          ? actualData.ResortId
+          : actualData.resortId;
+    
+    const extractedResortName = actualData.ResortName || actualData.resortName || resort?.Name || resort?.name;
+    const extractedResortAddress = actualData.ResortAddress || actualData.resortAddress || resort?.Address || resort?.address;
+
     const rawAmenities = actualData.Amenities || actualData.amenities || [];
     const rawUtilities = actualData.Utilities || actualData.utilities || [];
     const rawPromotions = actualData.Promotions || actualData.promotions || [];
@@ -641,7 +657,7 @@ export const condotelAPI = {
     const result = {
       condotelId: actualData.CondotelId || actualData.condotelId,
       hostId: actualData.HostId || actualData.hostId,
-      resortId: actualData.ResortId !== undefined ? actualData.ResortId : (actualData.resortId !== undefined ? actualData.resortId : undefined),
+      resortId: extractedResortId,
       name: actualData.Name || actualData.name || "",
       description: actualData.Description || actualData.description || "",
       pricePerNight: actualData.PricePerNight !== undefined ? actualData.PricePerNight : (actualData.pricePerNight !== undefined ? actualData.pricePerNight : 0),
@@ -650,6 +666,8 @@ export const condotelAPI = {
       status: actualData.Status || actualData.status || "Inactive",
       hostName: actualData.HostName || actualData.hostName,
       hostImageUrl: actualData.HostImageUrl || actualData.hostImageUrl,
+      resortName: extractedResortName,
+      resortAddress: extractedResortAddress,
       reviewCount: actualData.ReviewCount !== undefined ? actualData.ReviewCount : actualData.reviewCount,
       reviewRate: actualData.ReviewRate !== undefined ? actualData.ReviewRate : actualData.reviewRate,
       images: actualData.Images || actualData.images || [],
