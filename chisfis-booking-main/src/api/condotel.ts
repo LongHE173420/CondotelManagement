@@ -254,8 +254,6 @@ export const condotelAPI = {
       PageNumber: 1
     };
     
-    console.log("=== condotelAPI.search Params ===", params);
-    
     if (query?.name) {
       params.name = query.name.trim();
     }
@@ -303,16 +301,6 @@ export const condotelAPI = {
     try {
       const response = await axiosClient.get<any>("/tenant/condotels", { params });
 
-      console.log("=== condotelAPI.search Response ===");
-      console.log("Response structure:", {
-        isArray: Array.isArray(response.data),
-        hasData: 'data' in (response.data || {}),
-        hasPagination: 'pagination' in (response.data || {}),
-        dataLength: Array.isArray(response.data) ? response.data.length : 
-                    (response.data?.data ? response.data.data.length : 'N/A'),
-        totalCount: response.data?.pagination?.totalCount || 'N/A'
-      });
-
       // Normalize response - handle both array, object with data property, and success wrapper
       let data: any[] = [];
       if (Array.isArray(response.data)) {
@@ -327,10 +315,6 @@ export const condotelAPI = {
           }
         }
       }
-
-      console.log("Extracted data length:", data.length);
-      console.log("First item:", data[0]);
-      console.log("Last item:", data[data.length - 1]);
 
       // Map response to CondotelDTO format
       const mapped = data.map((item: any) => {

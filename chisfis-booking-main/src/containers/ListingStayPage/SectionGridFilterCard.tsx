@@ -153,10 +153,6 @@ const SectionGridFilterCard: FC<SectionGridFilterCardProps> = ({
           results = Array.isArray(searchResult) ? searchResult : [];
         }
         
-        console.log("=== Listing Stay API Response ===");
-        console.log("Total condotels from API:", results.length);
-        console.log("Search query:", searchQuery);
-        
         // Ensure we only set the results from the search, not all condotels
         // Ensure results is always an array
         if (!Array.isArray(results)) {

@@ -723,15 +723,6 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
         guestIdNumber: bookingForOther && guestIdNumber ? guestIdNumber.trim() : undefined,
       };
 
-      console.log("=== Creating Booking ===");
-      console.log("Booking data:", bookingData);
-      console.log("Booking for other:", bookingForOther);
-      console.log("Guest info:", {
-        guestFullName: bookingData.guestFullName,
-        guestPhone: bookingData.guestPhone,
-        guestIdNumber: bookingData.guestIdNumber
-      });
-
       let booking = await bookingAPI.createBooking(bookingData);
       
       // Validate bookingId exists
@@ -766,8 +757,10 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
       setBookingId(booking.bookingId);
 
       // Step 2: Tạo payment link
-      const returnUrl = `${window.location.origin}/pay-done?bookingId=${booking.bookingId}&status=success`;
-      const cancelUrl = `${window.location.origin}/payment/cancel?bookingId=${booking.bookingId}&status=cancelled`;
+      // Use environment variable for base URL, fallback to window.location.origin
+      const baseUrl = process.env.REACT_APP_BASE_URL || window.location.origin;
+      const returnUrl = `${baseUrl}/pay-done?bookingId=${booking.bookingId}&status=success`;
+      const cancelUrl = `${baseUrl}/payment/cancel?bookingId=${booking.bookingId}&status=cancelled`;
 
       // PayOS requires description to be max 25 characters
       // Create a short description that fits within 25 characters
@@ -819,12 +812,10 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
           // Check if error is related to promotion or voucher
           const errorMessageLower = errorMessage.toLowerCase();
           if (errorMessageLower.includes("promotion") || errorMessageLower.includes("khuyến mãi")) {
-            // Promotion error - clear selected promotion and show concise error
-            const sentPromotionId = bookingData?.promotionId;
-            if (sentPromotionId) {
-              setSelectedPromotionId(null); // Clear invalid promotion
-            }
-            // Keep error message concise - don't add extra text
+            // Promotion error - clear selected promotion
+            setSelectedPromotionId(null);
+            // Show simplified error message
+            errorMessage = "Khuyến mãi đã chọn không còn khả dụng. Vui lòng chọn khuyến mãi khác hoặc tiếp tục không có khuyến mãi.";
           } else if (errorMessageLower.includes("voucher") || errorMessageLower.includes("mã giảm giá")) {
             // Voucher error - handle separately in voucher section
             setSelectedVoucherCode(null);
@@ -1452,8 +1443,17 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
             </div>
 
             {error && (
-              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6">
-                <p className="text-sm text-red-800 dark:text-red-200 whitespace-pre-line">{error}</p>
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6 relative">
+                <button
+                  onClick={() => setError("")}
+                  className="absolute top-2 right-2 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200"
+                  aria-label="Đóng thông báo lỗi"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+                <p className="text-sm text-red-800 dark:text-red-200 pr-8">{error}</p>
               </div>
             )}
 

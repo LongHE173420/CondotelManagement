@@ -148,15 +148,6 @@ const PageAdminPayoutBooking: React.FC = () => {
   }, [showQRModal]);
 
   const handleProcessPayout = async (payout: HostPayoutDTO) => {
-    console.log("=== Opening Payment Modal ===");
-    console.log("Payout data:", {
-      bookingId: payout.bookingId,
-      bankName: payout.bankName,
-      accountNumber: payout.accountNumber,
-      accountHolderName: payout.accountHolderName,
-      amount: payout.amount || payout.totalPrice
-    });
-    
     // Kiểm tra thông tin ngân hàng
     if (!payout.bankName || !payout.accountNumber || !payout.accountHolderName) {
       toastWarning("Thông tin ngân hàng của host chưa đầy đủ. Vui lòng yêu cầu host cập nhật thông tin ngân hàng trước khi thanh toán.");
@@ -196,14 +187,6 @@ const PageAdminPayoutBooking: React.FC = () => {
       const content = `Thanh toan booking #${payout.bookingId}`;
       const accountName = payout.accountHolderName;
 
-      console.log("Calling backend generateQR API with:", {
-        bankCode,
-        accountNumber: payout.accountNumber,
-        amount,
-        accountHolderName: accountName,
-        content
-      });
-
       // Gọi backend API (đã sửa bin codes)
       const qrData = await paymentAPI.generateQR({
         bankCode: bankCode,
@@ -213,12 +196,8 @@ const PageAdminPayoutBooking: React.FC = () => {
         content: content,
       });
 
-      console.log("QR API Response from backend:", qrData);
-
       if (qrData.compactUrl || qrData.printUrl) {
         const url = qrData.compactUrl || qrData.printUrl || "";
-        console.log("Setting QR URL:", url);
-        console.log("Try opening this URL directly in browser:", url);
         setQrUrl(url);
         toastSuccess("Tạo QR code thành công");
       } else {
@@ -226,8 +205,6 @@ const PageAdminPayoutBooking: React.FC = () => {
       }
       
     } catch (err: any) {
-      console.error("QR Generation Error:", err);
-      console.error("Error response:", err.response?.data);
       toastError(err.response?.data?.message || err.message || "Không thể tạo QR code từ API");
       
       // Fallback: tạo URL trực tiếp nếu API fail - dùng bin code
@@ -239,15 +216,12 @@ const PageAdminPayoutBooking: React.FC = () => {
 
         // VietQR.io API v2 format - dùng bin code thay vì bank code
         const fallbackUrl = `https://img.vietqr.io/image/${binCode}-${payout.accountNumber}-compact2.png?amount=${amount}&addInfo=${encodeURIComponent(content)}&accountName=${encodeURIComponent(accountName)}`;
-        console.log("Using fallback QR URL with bin code:", fallbackUrl);
         setQrUrl(fallbackUrl);
         toastSuccess("Sử dụng QR code dự phòng");
       } catch (fallbackErr) {
-        console.error("Fallback QR Error:", fallbackErr);
         toastError("Không thể tạo QR code");
       }
     } finally {
-      console.log("QR generation complete, setting loadingQR = false");
       setLoadingQR(false);
     }
   };
@@ -1222,10 +1196,8 @@ const PageAdminPayoutBooking: React.FC = () => {
                           src={qrUrl} 
                           alt="QR Code" 
                           className="w-64 h-64 object-contain" 
-                          onLoad={() => console.log("QR image loaded successfully")}
                           onError={(e) => {
-                            console.error("QR image load error", e);
-                            console.error("Failed URL:", qrUrl);
+                            toastError("Không thể tải QR code");
                           }}
                         />
                       </div>
@@ -1233,7 +1205,6 @@ const PageAdminPayoutBooking: React.FC = () => {
                       <div className="w-64 h-64 flex items-center justify-center bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-200 dark:border-red-800">
                         <div className="text-center px-4">
                           <p className="text-red-600 dark:text-red-400 text-sm font-medium mb-2">Không thể tạo QR code</p>
-                          <p className="text-xs text-neutral-500">Vui lòng kiểm tra console để biết chi tiết lỗi</p>
                         </div>
                       </div>
                     )}

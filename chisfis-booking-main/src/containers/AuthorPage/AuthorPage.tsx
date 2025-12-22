@@ -10,7 +10,7 @@ import { Helmet } from "react-helmet";
 import condotelAPI, { CondotelDTO } from "api/condotel";
 import { useAuth } from "contexts/AuthContext";
 import { useTranslation } from "i18n/LanguageContext";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { authAPI, HostPublicProfile } from "api/auth";
 import { hostAPI, TopHostDTO } from "api/host";
 
@@ -21,6 +21,7 @@ export interface AuthorPageProps {
 const AuthorPage: FC<AuthorPageProps> = ({ className = "" }) => {
   const { t } = useTranslation();
   const { hostId } = useParams<{ hostId?: string }>();
+  const navigate = useNavigate();
   let [categories] = useState(["Condotels"]);
   const [condotels, setCondotels] = useState<CondotelDTO[]>([]);
   const [isLoadingCondotels, setIsLoadingCondotels] = useState(false);
@@ -29,6 +30,14 @@ const AuthorPage: FC<AuthorPageProps> = ({ className = "" }) => {
   const [hostInfo, setHostInfo] = useState<HostPublicProfile | null>(null);
   const [topHostInfo, setTopHostInfo] = useState<TopHostDTO | null>(null);
   const [loadingHost, setLoadingHost] = useState(true);
+
+  // Check if accessing own profile without hostId parameter
+  useEffect(() => {
+    // If accessing /author without hostId, only allow Host role
+    if (!hostId && user?.roleName !== "Host") {
+      navigate("/");
+    }
+  }, [hostId, user, navigate]);
 
   // Derived review stats from condotel list (fallback when backend doesn't supply totals)
   const derivedReviewStats = useMemo(() => {
