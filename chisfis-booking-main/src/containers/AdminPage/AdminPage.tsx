@@ -530,20 +530,7 @@ const AdminPage: FC<AdminPageProps> = ({ className = "" }) => {
                     Quản lý bài viết và danh mục blog
                   </p>
                 </div>
-                <div className="flex gap-3">
-                  <Link
-                    to="/manage-blog/categories"
-                    className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
-                  >
-                    Quản lý Danh mục
-                  </Link>
-                  <Link
-                    to="/manage-blog/add"
-                    className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors"
-                  >
-                    + Thêm bài viết
-                  </Link>
-                </div>
+
               </div>
               <PageBlogList />
             </div>

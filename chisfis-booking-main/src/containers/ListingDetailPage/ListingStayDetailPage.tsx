@@ -18,7 +18,6 @@ import Avatar from "shared/Avatar/Avatar";
 import MobileFooterSticky from "./MobileFooterSticky";
 import moment from "moment";
 import ModalSelectDate from "components/ModalSelectDate";
-import ModalSelectGuests from "components/ModalSelectGuests";
 import { DateRage } from "components/HeroSearchForm/StaySearchForm";
 import { GuestsObject } from "components/HeroSearchForm2Mobile/GuestsInput";
 import converSelectedDateToString from "utils/converSelectedDateToString";
@@ -295,6 +294,12 @@ const ListingStayDetailPage: FC = () => {
         </div>
         <h2 className="text-2xl sm:text-3xl lg:text-4xl font-semibold">{data.name}</h2>
         <div className="text-neutral-6000 dark:text-neutral-300">{data.description || "Mô tả đang cập nhật."}</div>
+        {(data.resortAddress || (data as any).address || (data as any).Address) && (
+          <div className="flex items-center space-x-2 text-neutral-6000 dark:text-neutral-300">
+            <i className="las la-map-marker text-xl"></i>
+            <span>{data.resortAddress || (data as any).address || (data as any).Address}</span>
+          </div>
+        )}
         <div className="w-full border-b border-neutral-100 dark:border-neutral-700" />
         <div className="flex items-center justify-between xl:justify-start space-x-8 xl:space-x-12 text-sm text-neutral-700 dark:text-neutral-300">
           {data.resortName && (
@@ -952,33 +957,6 @@ const ListingStayDetailPage: FC = () => {
               )}
             />
           </div>
-
-          {/* Chọn số khách */}
-          <div className="border border-neutral-200 dark:border-neutral-700 rounded-2xl overflow-hidden">
-            <ModalSelectGuests
-              defaultValue={guests}
-              onChangeGuests={setGuests}
-              renderChildren={({ openModal }) => (
-                <button
-                  onClick={openModal}
-                  className="text-left w-full p-4 flex justify-between items-center hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
-                  type="button"
-                >
-                  <div className="flex flex-col">
-                    <span className="text-sm text-neutral-400">Khách</span>
-                    <span className="mt-1.5 text-base font-semibold">
-                      {(guests.guestAdults || 0) + (guests.guestChildren || 0) + (guests.guestInfants || 0)} khách
-                      {(guests.guestAdults || 0) > 0 && ` (${guests.guestAdults} người lớn`}
-                      {(guests.guestChildren || 0) > 0 && `, ${guests.guestChildren} trẻ em`}
-                      {(guests.guestInfants || 0) > 0 && `, ${guests.guestInfants} em bé`}
-                      {(guests.guestAdults || 0) > 0 && ")"}
-                    </span>
-                  </div>
-                  <PencilSquareIcon className="w-5 h-5 text-neutral-6000 dark:text-neutral-400" />
-                </button>
-              )}
-            />
-          </div>
         </div>
 
         {/* Chi tiết giá */}
@@ -991,6 +969,18 @@ const ListingStayDetailPage: FC = () => {
             <span>Phòng tắm</span>
             <span>{data.bathrooms}</span>
           </div>
+          {rangeDates.startDate && (
+            <div className="flex justify-between text-neutral-6000 dark:text-neutral-300">
+              <span>Nhận Phòng</span>
+              <span>{rangeDates.startDate.format("DD-MM-YYYY")}(14:00)</span>
+            </div>
+          )}
+          {rangeDates.endDate && (
+            <div className="flex justify-between text-neutral-6000 dark:text-neutral-300">
+              <span>Trả Phòng</span>
+              <span>{rangeDates.endDate.format("DD-MM-YYYY")}(12:00)</span>
+            </div>
+          )}
           {nights > 0 && (
             <>
               <div className="border-b border-neutral-200 dark:border-neutral-700"></div>
@@ -1048,7 +1038,6 @@ const ListingStayDetailPage: FC = () => {
                 {data.details?.map((d: any, i: number) => (
                   <div key={i} className="border rounded p-3">
                     <div><b>Tòa nhà:</b> {d.buildingName || "—"} · <b>Phòng:</b> {d.roomNumber || "—"}</div>
-                    <div><b>Giường:</b> {d.beds} · <b>Phòng tắm:</b> {d.bathrooms}</div>
                     {d.safetyFeatures && <div><b>An toàn:</b> {d.safetyFeatures}</div>}
                     {d.hygieneStandards && <div><b>Vệ sinh:</b> {d.hygieneStandards}</div>}
                   </div>

@@ -579,6 +579,47 @@ const PageBookingHistoryDetail = () => {
                   <dt className="text-sm font-medium text-gray-500">Trả phòng</dt>
                   <dd className="text-sm text-gray-700">{formatDate(booking.endDate)}</dd>
                 </div>
+                
+                {/* Địa chỉ cụ thể */}
+                {condotel && (
+                  <div className="pt-4 border-t border-gray-200">
+                    <div className="flex flex-col">
+                      <dt className="text-sm font-medium text-gray-500 mb-2">Địa chỉ</dt>
+                      <dd className="text-sm text-gray-700">
+                        <div className="space-y-1">
+                          {/* Resort Name */}
+                          {condotel.resortName && (
+                            <p>
+                              <strong>Resort:</strong> {condotel.resortName}
+                            </p>
+                          )}
+                          {/* Resort Address */}
+                          {condotel.resortAddress && (
+                            <p>{condotel.resortAddress}</p>
+                          )}
+                          {/* Building và Room */}
+                          {condotel.details && condotel.details.length > 0 && (
+                            <div className="mt-1">
+                              {condotel.details.map((detail: any, index: number) => (
+                                <p key={index} className="text-sm text-gray-700">
+                                  {detail.buildingName && detail.roomNumber && (
+                                    <span>
+                                      <strong>Tòa nhà:</strong> {detail.buildingName} · <strong>Phòng:</strong> {detail.roomNumber}
+                                    </span>
+                                  )}
+                                </p>
+                              ))}
+                            </div>
+                          )}
+                          {/* Nếu không có thông tin nào */}
+                          {!condotel.resortName && !condotel.resortAddress && (!condotel.details || condotel.details.length === 0) && (
+                            <p className="text-gray-400 italic">Chưa có thông tin địa chỉ</p>
+                          )}
+                        </div>
+                      </dd>
+                    </div>
+                  </div>
+                )}
               </dl>
 
               {/* Chi tiết thanh toán */}

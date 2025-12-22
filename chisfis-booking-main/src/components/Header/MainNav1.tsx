@@ -1,7 +1,6 @@
 ﻿import React, { FC } from "react";
 import Logo from "shared/Logo/Logo";
 import Navigation from "shared/Navigation/Navigation";
-import SearchDropdown from "./SearchDropdown";
 import MenuBar from "shared/MenuBar/MenuBar";
 import SwitchDarkMode from "shared/SwitchDarkMode/SwitchDarkMode";
 import HeroSearchForm2MobileFactory from "components/HeroSearchForm2Mobile/HeroSearchForm2MobileFactory";
@@ -29,8 +28,7 @@ const MainNav1: FC<MainNav1Props> = ({ className = "" }) => {
           <div className="hidden xl:flex items-center space-x-0.5">
             <SwitchDarkMode />
             <LangDropdown />
-            <SearchDropdown />
-            <div className="px-1" />
+
             <AvatarDropdown />
           </div>
           <div className="flex xl:hidden items-center space-x-2">

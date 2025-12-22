@@ -44,12 +44,12 @@ export interface HostPublicProfile {
 
 // Dành riêng cho Host đăng ký
 export interface HostRegisterRequest {
-   PhoneContact: string;
-    Address?: string; 
-    CompanyName?: string; 
-    BankName: string;
-    AccountNumber: string;
-    AccountHolderName: string;
+  PhoneContact: string;
+  Address?: string;
+  CompanyName?: string;
+  BankName: string;
+  AccountNumber: string;
+  AccountHolderName: string;
 }
 
 // =====================
@@ -226,9 +226,10 @@ export const authAPI = {
   changePassword: async (data: {
     currentPassword: string;
     newPassword: string;
+    confirmNewPassword: string;
   }): Promise<{ message: string }> => {
     const response = await axiosClient.post<{ message: string }>(
-      "/Auth/change-password",
+      "/auth/change-password",
       data
     );
     return response.data;
@@ -263,9 +264,9 @@ export const authAPI = {
     } catch (error: any) {
       // Check if error is related to missing database columns
       const errorMessage = error.response?.data?.message || error.message || "";
-      if (errorMessage.includes("Invalid column name") || 
-          errorMessage.includes("PriorityLevel") || 
-          errorMessage.includes("DisplayColorTheme")) {
+      if (errorMessage.includes("Invalid column name") ||
+        errorMessage.includes("PriorityLevel") ||
+        errorMessage.includes("DisplayColorTheme")) {
       }
       // Return default profile on error
       return {
