@@ -1,19 +1,17 @@
 ﻿import React, { useEffect, useState } from "react";
 import LocationInput from "./LocationInput";
-import GuestsInput, { GuestsInputProps } from "./GuestsInput";
 import { FocusedInputShape } from "react-dates";
 import StayDatesRangeInput from "./StayDatesRangeInput";
 import moment from "moment";
 import { FC } from "react";
 import { useNavigate } from "react-router-dom";
-import { GuestsObject } from "components/HeroSearchForm2Mobile/GuestsInput";
 
 export interface DateRage {
   startDate: moment.Moment | null;
   endDate: moment.Moment | null;
 }
 
-export type StaySearchFormFields = "location" | "guests" | "dates";
+export type StaySearchFormFields = "location" | "dates";
 
 export interface StaySearchFormProps {
   haveDefaultValue?: boolean;
@@ -27,11 +25,6 @@ const defaultDateRange = {
   endDate: moment().add(4, "days"),
 };
 
-const defaultGuestValue: GuestsInputProps["defaultValue"] = {
-  guestAdults: 2,
-  guestChildren: 2,
-  guestInfants: 1,
-};
 
 const StaySearchForm: FC<StaySearchFormProps> = ({
   haveDefaultValue = false,
@@ -44,7 +37,6 @@ const StaySearchForm: FC<StaySearchFormProps> = ({
     endDate: null,
   });
   const [locationInputValue, setLocationInputValue] = useState("");
-  const [guestValue, setGuestValue] = useState<GuestsObject>({});
 
   const [dateFocused, setDateFocused] = useState<FocusedInputShape | null>(
     null
@@ -64,7 +56,6 @@ const StaySearchForm: FC<StaySearchFormProps> = ({
     if (haveDefaultValue) {
       setDateRangeValue(defaultDateRange);
       setLocationInputValue(defaultLocationValue);
-      setGuestValue(defaultGuestValue);
     }
   }, []);
 
@@ -91,15 +82,6 @@ const StaySearchForm: FC<StaySearchFormProps> = ({
       params.set("endDate", dateRangeValue.endDate.format("YYYY-MM-DD"));
     }
     
-    // Set guests
-    const totalGuests = 
-      (guestValue?.guestAdults || 0) + 
-      (guestValue?.guestChildren || 0) + 
-      (guestValue?.guestInfants || 0);
-    
-    if (totalGuests > 0) {
-      params.set("guests", totalGuests.toString());
-    }
     
     const queryString = params.toString();
     const url = `/listing-stay${queryString ? `?${queryString}` : ""}`;
@@ -129,15 +111,6 @@ const StaySearchForm: FC<StaySearchFormProps> = ({
             setDateRangeValue(data);
           }}
           className="flex-[2]"
-        />
-
-        <GuestsInput
-          defaultValue={guestValue}
-          onChange={(data) => setGuestValue(data)}
-          className="flex-[1.2]"
-          autoFocus={defaultFieldFocus === "guests"}
-          submitLink="/listing-stay"
-          onSubmit={handleSubmit}
         />
       </form>
     );
