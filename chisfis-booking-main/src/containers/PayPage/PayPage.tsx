@@ -16,7 +16,7 @@ export interface PayPageProps {
 const PayPage: FC<PayPageProps> = ({ className = "" }) => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
   const [booking, setBooking] = useState<BookingDTO | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +37,7 @@ const PayPage: FC<PayPageProps> = ({ className = "" }) => {
       }
 
       // Wait for auth to finish loading
-      if (authLoading) {
+      if (isLoading) {
         return; // Don't proceed until auth is initialized
       }
 
@@ -81,7 +81,7 @@ const PayPage: FC<PayPageProps> = ({ className = "" }) => {
     };
 
     fetchBooking();
-  }, [bookingId, status, user, isAuthenticated, authLoading, navigate]);
+  }, [bookingId, status, user, isAuthenticated, isLoading, navigate]);
 
   // Tự động refresh booking status nếu booking vẫn ở "Pending" (đang chờ xác nhận thanh toán)
   useEffect(() => {
@@ -139,12 +139,12 @@ const PayPage: FC<PayPageProps> = ({ className = "" }) => {
 
   const renderContent = () => {
     // Show loading if auth is still initializing or booking is loading
-    if (authLoading || loading) {
+    if (isLoading || loading) {
       return (
         <div className="w-full flex flex-col items-center justify-center py-12">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-6000 mb-4"></div>
           <p className="text-neutral-600 dark:text-neutral-400">
-            {authLoading ? "Đang kiểm tra đăng nhập..." : "Đang tải thông tin..."}
+            {isLoading ? "Đang kiểm tra đăng nhập..." : "Đang tải thông tin..."}
           </p>
         </div>
       );

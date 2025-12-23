@@ -16,7 +16,7 @@ const PaymentCancelPage: FC<PaymentCancelPageProps> = ({ className = "" }) => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
   const [booking, setBooking] = useState<BookingDTO | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -34,16 +34,15 @@ const PaymentCancelPage: FC<PaymentCancelPageProps> = ({ className = "" }) => {
         return;
       }
 
-      // Wait for auth to finish loading
-      if (authLoading) {
-        return; // Don't proceed until auth is initialized
+      // Wait for auth to finish loading with timeout
+      if (isLoading) {
+        return;
       }
 
-      // Check authentication first
+      // If not authenticated after auth loading finished, still show the page
       if (!isAuthenticated || !user) {
-        setError("Vui lòng đăng nhập để xem thông tin booking");
         setLoading(false);
-        setUnauthorized(true);
+        // Don't block the page - just show without booking details
         return;
       }
 
@@ -59,11 +58,6 @@ const PaymentCancelPage: FC<PaymentCancelPageProps> = ({ className = "" }) => {
           setError(securityError.message || "Bạn không có quyền truy cập booking này");
           setUnauthorized(true);
           setBooking(null);
-          // Redirect to home after 3 seconds
-          setTimeout(() => {
-            navigate("/");
-          }, 3000);
-          return;
         }
       } catch (err: any) {
         if (err.response?.status === 403 || err.response?.status === 401) {
@@ -80,7 +74,7 @@ const PaymentCancelPage: FC<PaymentCancelPageProps> = ({ className = "" }) => {
     };
 
     fetchBooking();
-  }, [bookingId, user, isAuthenticated, authLoading, navigate]);
+  }, [bookingId, user, isAuthenticated, isLoading, navigate]);
 
   const handleRetryPayment = () => {
     if (bookingId) {
@@ -92,12 +86,12 @@ const PaymentCancelPage: FC<PaymentCancelPageProps> = ({ className = "" }) => {
 
   const renderContent = () => {
     // Show loading if auth is still initializing or booking is loading
-    if (authLoading || loading) {
+    if (isLoading || loading) {
       return (
         <div className="w-full flex flex-col items-center justify-center py-12">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-6000 mb-4"></div>
           <p className="text-neutral-600 dark:text-neutral-400">
-            {authLoading ? "Đang kiểm tra đăng nhập..." : "Đang tải thông tin..."}
+            {isLoading ? "Đang kiểm tra đăng nhập..." : "Đang tải thông tin..."}
           </p>
         </div>
       );

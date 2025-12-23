@@ -116,9 +116,10 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
           throw new Error("Booking không có tổng tiền hợp lệ để thanh toán");
         }
 
-        // Create payment link
-        const returnUrl = `${window.location.origin}/pay-done?bookingId=${booking.bookingId}&status=success`;
-        const cancelUrl = `${window.location.origin}/payment/cancel?bookingId=${booking.bookingId}&status=cancelled`;
+        // Create payment link - use consistent base URL
+        const baseUrl = process.env.REACT_APP_BASE_URL || window.location.origin;
+        const returnUrl = `${baseUrl}/pay-done?bookingId=${booking.bookingId}&status=success`;
+        const cancelUrl = `${baseUrl}/payment/cancel?bookingId=${booking.bookingId}&status=cancelled`;
 
         const bookingIdStr = String(booking.bookingId);
         let description: string;
@@ -982,10 +983,6 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
                   <span>+{servicePackagesTotal.toLocaleString()} đ</span>
                 </div>
               )}
-              <div className="flex justify-between text-neutral-6000 dark:text-neutral-300">
-                <span>Phí dịch vụ</span>
-                <span>0 đ</span>
-              </div>
 
               <div className="border-b border-neutral-200 dark:border-neutral-700"></div>
               <div className="flex justify-between font-semibold">
