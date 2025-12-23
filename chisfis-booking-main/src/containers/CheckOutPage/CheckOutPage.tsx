@@ -982,10 +982,6 @@ const CheckOutPage: FC<CheckOutPageProps> = ({ className = "" }) => {
                   <span>+{servicePackagesTotal.toLocaleString()} đ</span>
                 </div>
               )}
-              <div className="flex justify-between text-neutral-6000 dark:text-neutral-300">
-                <span>Phí dịch vụ</span>
-                <span>0 đ</span>
-              </div>
 
               <div className="border-b border-neutral-200 dark:border-neutral-700"></div>
               <div className="flex justify-between font-semibold">

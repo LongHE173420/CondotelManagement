@@ -847,12 +847,8 @@ const TabFilters = () => {
   return (
     <div className="flex lg:space-x-4 items-center">
       <div className="hidden lg:flex space-x-4 flex-1">
-        {renderTabsTypeOfPlace()}
         {renderTabsPriceRage()}
-        {renderTabsRoomAndBeds()}
-        {renderTabMoreFilter()}
       </div>
-      {renderTabMoreFilterMobile()}
     </div>
   );
 };

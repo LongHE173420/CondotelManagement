@@ -1,6 +1,5 @@
 ﻿import React, { useEffect, useState } from "react";
 import LocationInput from "./LocationInput";
-import GuestsInput, { GuestsInputProps } from "./GuestsInput";
 import { FocusedInputShape } from "react-dates";
 import StayDatesRangeInput from "./StayDatesRangeInput";
 import moment from "moment";
@@ -22,11 +21,6 @@ const defaultDateRange = {
   startDate: moment(),
   endDate: moment().add(4, "days"),
 };
-const defaultGuestValue: GuestsInputProps["defaultValue"] = {
-  guestAdults: 2,
-  guestChildren: 2,
-  guestInfants: 1,
-};
 
 const StaySearchForm: FC<StaySearchFormProps> = ({
   haveDefaultValue = false,
@@ -45,7 +39,6 @@ const StaySearchForm: FC<StaySearchFormProps> = ({
     endDate: null,
   });
   const [locationInputValue, setLocationInputValue] = useState(initialLocation);
-  const [guestValue, setGuestValue] = useState<GuestsInputProps["defaultValue"]>({});
 
   const [dateFocused, setDateFocused] = useState<FocusedInputShape | null>(
     null
@@ -58,18 +51,15 @@ const StaySearchForm: FC<StaySearchFormProps> = ({
     const locationFromUrl = searchParams.get("location");
     const startDateFromUrl = searchParams.get("startDate");
     const endDateFromUrl = searchParams.get("endDate");
-    const guestsFromUrl = searchParams.get("guests");
-    
     if (locationFromUrl) {
       // Always use location from URL if available
       setLocationInputValue(locationFromUrl);
     } else {
       // Clear location if no URL location (never use default "Tokyo")
       setLocationInputValue("");
-      // Only set default dates and guests if haveDefaultValue is true
+      // Only set default dates if haveDefaultValue is true
       if (haveDefaultValue) {
         setDateRangeValue(defaultDateRange);
-        setGuestValue(defaultGuestValue);
       }
     }
     
@@ -78,16 +68,6 @@ const StaySearchForm: FC<StaySearchFormProps> = ({
       setDateRangeValue({
         startDate: moment(startDateFromUrl),
         endDate: moment(endDateFromUrl),
-      });
-    }
-    
-    // Update guests from URL if available
-    if (guestsFromUrl) {
-      const totalGuests = parseInt(guestsFromUrl, 10);
-      setGuestValue({
-        guestAdults: totalGuests,
-        guestChildren: 0,
-        guestInfants: 0,
       });
     }
   }, [location.search, haveDefaultValue]);
@@ -129,17 +109,6 @@ const StaySearchForm: FC<StaySearchFormProps> = ({
         params.delete("endDate");
       }
       
-      // Calculate total guests
-      const totalGuests = 
-        (guestValue.guestAdults || 0) + 
-        (guestValue.guestChildren || 0) + 
-        (guestValue.guestInfants || 0);
-      
-      if (totalGuests > 0) {
-        params.set("guests", totalGuests.toString());
-      } else {
-        params.delete("guests");
-      }
 
       // Navigate to listing-stay page with search params
       const finalQueryString = params.toString();
@@ -205,11 +174,6 @@ const StaySearchForm: FC<StaySearchFormProps> = ({
           defaultFocus={dateFocused}
           onChange={(data) => setDateRangeValue(data)}
           className="flex-[2]"
-        />
-        <GuestsInput
-          defaultValue={guestValue}
-          onChange={(data) => setGuestValue(data)}
-          className="flex-[1.2]"
         />
         <button
           type="submit"
